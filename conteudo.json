@@ -1,0 +1,90 @@
+{
+  "CONFIG": {
+    "site_title": "Fernando Amorim - Cantor e Sanfoneiroo",
+    "site_description": "Forró premium para casamentos e eventos sociais.",
+    "primary_color": "#f5c451",
+    "logo": "/Users/fernandoamorim/Library/Mobile Documents/com~apple~CloudDocs/site_sterile_final/assets/img/1398BF33-41A4-4262-BA09-8CB9A02CF133.jpeg",
+    "phone": "(85) 9XXXX-XXXX",
+    "email": "contato@fernandoamorim.com",
+    "enable_link_tracking": true,
+    "tracking_query": {
+      "utm_source": "site",
+      "utm_medium": "web",
+      "utm_campaign": "fernando_site"
+    }
+  },
+  "HERO": {
+    "hero_type": "photo",
+    "image": "/Users/fernandoamorim/Library/Mobile Documents/com~apple~CloudDocs/site_sterile_final/assets/img/1398BF33-41A4-4262-BA09-8CB9A02CF133.jpeg",
+    "video_id": "VIDEO_ID_1",
+    "kicker_text": "Cantor & sanfoneiro de forró",
+    "title_line_1": "Forró elegante",
+    "title_line_2": "para transformar o seu evento em show.",
+    "subtitle": "Experiência premium em eventos sociais.",
+    "pills": [
+      "Casamentos",
+      "15 anos",
+      "Formaturas"
+    ],
+    "cta_primary_text": "Quero contratar",
+    "cta_primary_link": "mailto:contato@fernandoamorim.com?subject=Orçamento",
+    "cta_secondary_text": "Assistir ao show",
+    "cta_secondary_link": "#midia"
+  },
+  "SOBRE": {
+    "title": "Sobre",
+    "text": "Texto institucional sobre o artista. Edite no conteudo.json."
+  },
+  "SHOW": {
+    "packs": [
+      {
+        "title": "Show Premium",
+        "desc": "Banda completa e produção."
+      }
+    ]
+  },
+  "AGENDA": [
+    {
+      "date": "2025-06-28",
+      "label": "Show - Coco Bambu",
+      "city": "Fortaleza",
+      "type": "Fechado",
+      "description": "Apresentação com repertório regional."
+    }
+  ],
+  "GALERIA": [
+    "/mnt/data/site_sterile_final/assets/img/1398BF33-41A4-4262-BA09-8CB9A02CF133.jpeg",
+    "/mnt/data/site_sterile_final/assets/img/1A8AD484-6346-4DAD-A6E8-9808FC4CFA21.jpeg",
+    "/mnt/data/site_sterile_final/assets/img/2825EDF3-6D01-48F7-9934-680E867D50B4.jpeg",
+    "/mnt/data/site_sterile_final/assets/img/3BDC6AD5-99E7-43F4-B896-5C1A56E3254F.jpeg",
+    "/mnt/data/site_sterile_final/assets/img/70C2C865-E124-41D6-B572-835D2C637C29.jpeg",
+    "/mnt/data/site_sterile_final/assets/img/895A34EE-AA6B-4B74-9A7E-C5164D305722.jpeg",
+    "/mnt/data/site_sterile_final/assets/img/933AB776-1397-4935-9848-B13163861133.jpeg",
+    "/mnt/data/site_sterile_final/assets/img/A25FAD86-4B83-41AD-B5E5-FDE6F1CD26BA.jpeg",
+    "/mnt/data/site_sterile_final/assets/img/E302516C-9AC5-41FB-A707-9A38C4846C32.jpeg",
+    "/mnt/data/site_sterile_final/assets/img/event-01.jpg",
+    "/mnt/data/site_sterile_final/assets/img/event-02.jpg",
+    "/mnt/data/site_sterile_final/assets/img/fernando-profile.jpg",
+    "/mnt/data/site_sterile_final/assets/img/show-01.jpg",
+    "/mnt/data/site_sterile_final/assets/img/show-02.jpg",
+    "/mnt/data/site_sterile_final/assets/img/show-03.jpg",
+    "/mnt/data/site_sterile_final/assets/img/show-04.jpg",
+    "/mnt/data/site_sterile_final/assets/img/show-05.jpg",
+    "/mnt/data/site_sterile_final/assets/img/show-06.jpg"
+  ],
+  "MIDIA": [
+    {
+      "youtube_id": "VIDEO_ID_1",
+      "title": "Show Ao Vivo",
+      "description": "Trecho do show."
+    }
+  ],
+  "DEPOIMENTOS": [
+    {
+      "name": "Casal Silva",
+      "role": "Noivos",
+      "quote": "Fernandoaaa fez nossa festa inesquecível."
+    }
+  ],
+  "PDF_PROPOSTA": ""
+}
