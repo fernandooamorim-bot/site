@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta charset="UTF-8">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      padding: 20px;
+    }
+    
+    .container {
+      max-width: 600px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+      overflow: hidden;
+    }
+    
+    .header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 30px;
+      text-align: center;
+    }
+    
+    .header h1 {
+      font-size: 24px;
+      margin-bottom: 8px;
+    }
+    
+    .header p {
+      opacity: 0.9;
+      font-size: 14px;
+    }
+    
+    .form-container {
+      padding: 30px;
+    }
+    
+    .form-group {
+      margin-bottom: 20px;
+    }
+    
+    label {
+      display: block;
+      margin-bottom: 8px;
+      color: #333;
+      font-weight: 600;
+      font-size: 14px;
+    }
+    
+    input, select, textarea {
+      width: 100%;
+      padding: 12px;
+      border: 2px solid #e0e0e0;
+      border-radius: 8px;
+      font-size: 14px;
+      transition: all 0.3s;
+    }
+    
+    input:focus, select:focus, textarea:focus {
+      outline: none;
+      border-color: #667eea;
+      box-shadow: 0 0 0 3px rgba(102,126,234,0.1);
+    }
+    
+    textarea {
+      resize: vertical;
+      min-height: 80px;
+    }
+    
+    .tipo-selector {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 15px;
+      margin-bottom: 30px;
+    }
+    
+    .tipo-btn {
+      padding: 20px;
+      border: 2px solid #e0e0e0;
+      border-radius: 12px;
+      background: white;
+      cursor: pointer;
+      transition: all 0.3s;
+      text-align: center;
+    }
+    
+    .tipo-btn:hover {
+      border-color: #667eea;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    
+    .tipo-btn.active {
+      border-color: #667eea;
+      background: linear-gradient(135deg, #f8f9ff 0%, #ffffff 100%);
+      box-shadow: 0 4px 12px rgba(102,126,234,0.2);
+    }
+    
+    .tipo-icon {
+      font-size: 32px;
+      margin-bottom: 8px;
+    }
+    
+    .tipo-label {
+      font-weight: 600;
+      color: #333;
+      font-size: 14px;
+    }
+    
+    .campo-condicional {
+      display: none;
+    }
+    
+    .campo-condicional.ativo {
+      display: block;
+    }
+    
+    .info-box {
+      background: #e3f2fd;
+      padding: 15px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      border-left: 4px solid #2196f3;
+      font-size: 13px;
+      color: #0d47a1;
+    }
+    
+    .info-valor {
+      background: #fff3cd;
+      padding: 12px;
+      border-radius: 8px;
+      margin-top: 10px;
+      border-left: 4px solid #ffc107;
+    }
+    
+    .info-valor-label {
+      font-size: 12px;
+      color: #856404;
+      margin-bottom: 4px;
+    }
+    
+    .info-valor-numero {
+      font-size: 20px;
+      font-weight: bold;
+      color: #856404;
+    }
+    
+    .actions {
+      display: flex;
+      gap: 15px;
+      margin-top: 30px;
+      padding-top: 20px;
+      border-top: 2px solid #f0f0f0;
+    }
+    
+    .btn {
+      flex: 1;
+      padding: 14px;
+      border: none;
+      border-radius: 8px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+    
+    .btn-primary {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+    }
+    
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(102,126,234,0.4);
+    }
+    
+    .btn-secondary {
+      background: #f0f0f0;
+      color: #666;
+    }
+    
+    .btn-secondary:hover {
+      background: #e0e0e0;
+    }
+    
+    #loading {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.7);
+      z-index: 9999;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    #loading.show {
+      display: flex;
+    }
+    
+    .spinner {
+      width: 50px;
+      height: 50px;
+      border: 4px solid rgba(255,255,255,0.3);
+      border-top-color: white;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+  
+  <div class="container">
+    <div class="header">
+      <h1>💰 Registrar Pagamento</h1>
+      <p>BV ou Folha de Custo</p>
+    </div>
+    
+    <div class="form-container">
+      
+      <div class="tipo-selector">
+        <div class="tipo-btn active" onclick="selecionarTipo('BV')">
+          <div class="tipo-icon">🤝</div>
+          <div class="tipo-label">BV</div>
+        </div>
+        <div class="tipo-btn" onclick="selecionarTipo('FOLHA')">
+          <div class="tipo-icon">💵</div>
+          <div class="tipo-label">Folha de Custo</div>
+        </div>
+      </div>
+      
+      <div id="alertContainer"></div>
+      
+      <form id="formPagamento">
+        <input type="hidden" id="tipoPagamento" value="BV">
+        
+        <div class="form-group">
+          <label>Evento <span style="color: red;">*</span></label>
+          <select id="idEvento" required onchange="carregarInfoEvento()">
+            <option value="">Carregando eventos...</option>
+          </select>
+        </div>
+        
+        <!-- Info do BV (condicional) -->
+        <div id="infoBV" class="campo-condicional ativo">
+          <div class="info-box">
+            ℹ️ Selecione o evento para ver informações do BV
+          </div>
+          <div id="detalheBV" style="display:none;">
+            <div class="info-valor">
+              <div class="info-valor-label">Parceiro BV:</div>
+              <div id="nomeBV" style="font-weight: 600; color: #333;"></div>
+            </div>
+            <div class="info-valor" style="margin-top: 10px;">
+              <div class="info-valor-label">Valor a Pagar:</div>
+              <div class="info-valor-numero" id="valorBV"></div>
+            </div>
+          </div>
+        </div>
+        
+        <div class="form-group">
+          <label>Data do Pagamento <span style="color: red;">*</span></label>
+          <input type="date" id="dataPagamento" required>
+        </div>
+        
+        <div class="form-group campo-condicional" id="campoValor">
+          <label>Valor <span style="color: red;">*</span></label>
+          <input type="number" id="valor" step="0.01" min="0" placeholder="0,00" required>
+        </div>
+        
+        <div class="form-group">
+          <label>Forma de Pagamento <span style="color: red;">*</span></label>
+          <select id="formaPagamento" required>
+            <option value="">Selecione...</option>
+            <option value="PIX">PIX</option>
+            <option value="Transferência">Transferência Bancária</option>
+            <option value="Dinheiro">Dinheiro</option>
+            <option value="Cartão">Cartão</option>
+            <option value="Cheque">Cheque</option>
+          </select>
+        </div>
+        
+        <div class="form-group">
+          <label>Descrição / Observações</label>
+          <textarea id="descricao" placeholder="Ex: Pagamento músicos, DJ, etc"></textarea>
+        </div>
+        
+        <div class="form-group">
+          <label>Link do Comprovante (opcional)</label>
+          <input type="url" id="linkComprovante" placeholder="https://...">
+        </div>
+        
+        <div class="actions">
+          <button type="button" class="btn btn-secondary" onclick="google.script.host.close()">
+            Cancelar
+          </button>
+          <button type="submit" class="btn btn-primary">
+            💾 Registrar Pagamento
+          </button>
+        </div>
+        
+      </form>
+      
+    </div>
+  </div>
+  
+  <div id="loading">
+    <div class="spinner"></div>
+  </div>
+  
+  <script>
+    let tipoPagamentoAtual = 'BV';
+    let eventosDisponiveis = [];
+    
+    // Carrega eventos ao iniciar
+    window.addEventListener('load', () => {
+      carregarEventos();
+      
+      // Define data atual
+      const hoje = new Date().toISOString().split('T')[0];
+      document.getElementById('dataPagamento').value = hoje;
+    });
+    
+    function selecionarTipo(tipo) {
+      tipoPagamentoAtual = tipo;
+      document.getElementById('tipoPagamento').value = tipo;
+      
+      // Atualiza visual dos botões
+      document.querySelectorAll('.tipo-btn').forEach(btn => {
+        btn.classList.remove('active');
+      });
+      event.target.closest('.tipo-btn').classList.add('active');
+      
+      // Mostra/esconde campos
+      if (tipo === 'BV') {
+        document.getElementById('infoBV').classList.add('ativo');
+        document.getElementById('campoValor').classList.remove('ativo');
+        document.getElementById('valor').required = false;
+        carregarEventosBVPendente();
+      } else {
+        document.getElementById('infoBV').classList.remove('ativo');
+        document.getElementById('campoValor').classList.add('ativo');
+        document.getElementById('valor').required = true;
+        carregarEventos();
+      }
+    }
+    
+    function carregarEventos() {
+      document.getElementById('loading').classList.add('show');
+      google.script.run
+        .withSuccessHandler(exibirEventos)
+        .withFailureHandler(erro => {
+          document.getElementById('loading').classList.remove('show');
+          alerta('Erro ao carregar eventos: ' + erro);
+        })
+        .listarEventosAtivos();
+    }
+    
+    function carregarEventosBVPendente() {
+      document.getElementById('loading').classList.add('show');
+      google.script.run
+        .withSuccessHandler(exibirEventos)
+        .withFailureHandler(erro => {
+          document.getElementById('loading').classList.remove('show');
+          alerta('Erro ao carregar eventos: ' + erro);
+        })
+        .listarEventosBVPendente();
+    }
+    
+    function exibirEventos(eventos) {
+      document.getElementById('loading').classList.remove('show');
+      eventosDisponiveis = eventos;
+      
+      const select = document.getElementById('idEvento');
+      select.innerHTML = '<option value="">Selecione um evento...</option>';
+      
+      eventos.forEach(e => {
+        const option = document.createElement('option');
+        option.value = e.idEvento;
+        const data = new Date(e.dataEvento).toLocaleDateString('pt-BR');
+        option.textContent = `${data} - ${e.nomeEvento}`;
+        select.appendChild(option);
+      });
+    }
+    
+    function carregarInfoEvento() {
+      const idEvento = document.getElementById('idEvento').value;
+      if (!idEvento) return;
+      
+      const evento = eventosDisponiveis.find(e => e.idEvento === idEvento);
+      if (!evento) return;
+      
+      if (tipoPagamentoAtual === 'BV') {
+        document.getElementById('nomeBV').textContent = evento.nomeBV || 'N/A';
+        document.getElementById('valorBV').textContent = formatarMoeda(evento.valorBV || 0);
+        document.getElementById('detalheBV').style.display = 'block';
+      }
+    }
+    
+    document.getElementById('formPagamento').addEventListener('submit', function(e) {
+      e.preventDefault();
+      
+      const dados = {
+        idEvento: document.getElementById('idEvento').value,
+        dataPagamento: document.getElementById('dataPagamento').value,
+        valor: parseFloat(document.getElementById('valor').value) || 0,
+        formaPagamento: document.getElementById('formaPagamento').value,
+        descricao: document.getElementById('descricao').value,
+        linkComprovante: document.getElementById('linkComprovante').value
+      };
+      
+      if (!dados.idEvento) {
+        alerta('Selecione um evento!');
+        return;
+      }
+      
+      document.getElementById('loading').classList.add('show');
+      
+      if (tipoPagamentoAtual === 'BV') {
+        google.script.run
+          .withSuccessHandler(resultado => {
+            document.getElementById('loading').classList.remove('show');
+            if (resultado.sucesso) {
+              sucesso(resultado.mensagem);
+              setTimeout(() => google.script.host.close(), 1500);
+            } else {
+              alerta(resultado.mensagem);
+            }
+          })
+          .withFailureHandler(erro => {
+            document.getElementById('loading').classList.remove('show');
+            alerta('Erro: ' + erro);
+          })
+          .registrarPagamentoBV(dados);
+      } else {
+        google.script.run
+          .withSuccessHandler(resultado => {
+            document.getElementById('loading').classList.remove('show');
+            if (resultado.sucesso) {
+              sucesso(resultado.mensagem);
+              setTimeout(() => google.script.host.close(), 1500);
+            } else {
+              alerta(resultado.mensagem);
+            }
+          })
+          .withFailureHandler(erro => {
+            document.getElementById('loading').classList.remove('show');
+            alerta('Erro: ' + erro);
+          })
+          .registrarFolhaCusto(dados);
+      }
+    });
+    
+    function alerta(msg) {
+      const div = document.getElementById('alertContainer');
+      div.innerHTML = `<div style="background:#fee;border:2px solid #f44;border-radius:8px;padding:15px;margin-bottom:20px;color:#c33;">${msg}</div>`;
+      setTimeout(() => div.innerHTML = '', 5000);
+    }
+    
+    function sucesso(msg) {
+      const div = document.getElementById('alertContainer');
+      div.innerHTML = `<div style="background:#e8f5e9;border:2px solid#4caf50;border-radius:8px;padding:15px;margin-bottom:20px;color:#2e7d32;">${msg}</div>`;
+    }
+    
+    function formatarMoeda(valor) {
+      return 'R$ ' + Number(valor).toLocaleString('pt-BR', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      });
+    }
+  </script>
+  
+</body>
+</html>

@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FA Produções – Gestão & Shows</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 10px;
+    }
+    .app { max-width: 1000px; margin: 0 auto; }
+    /* .screen { display: none; }
+    .screen.active { display: block; } */
+    
+    .header {
+      background: white;
+      border-radius: 15px;
+      padding: 15px;
+      margin-bottom: 15px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+      text-align: center;
+    }
+    .header-logo { width: 60px; height: 60px; margin: 0 auto 12px; }
+    .header h1 { font-size: 20px; color: #333; margin-bottom: 5px; }
+    .header .sub { color: #666; font-size: 13px; }
+    .user-info {
+      background: #f8f9fa;
+      padding: 8px 12px;
+      border-radius: 8px;
+      margin-top: 12px;
+      font-size: 12px;
+      color: #555;
+    }
+    .user-info.dev { background: #fff3cd; border: 1px solid #ffc107; }
+    
+    .screen-header {
+      background: white;
+      border-radius: 15px;
+      padding: 15px;
+      margin-bottom: 15px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    }
+    .screen-header h2 { color: #333; margin-bottom: 5px; font-size: 20px; }
+    .screen-header .sub { color: #666; font-size: 13px; }
+    .btn-back {
+      background: #667eea;
+      color: white;
+      padding: 8px 15px;
+      border-radius: 8px;
+      border: none;
+      cursor: pointer;
+      font-weight: 600;
+      margin-bottom: 12px;
+      font-size: 14px;
+    }
+    
+    .menu-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 12px;
+    }
+    .menu-item {
+      background: white;
+      border-radius: 15px;
+      padding: 20px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+      cursor: pointer;
+      transition: all 0.3s;
+      border: 2px solid transparent;
+    }
+    .menu-item:active { transform: scale(0.98); }
+    .menu-item-icon { font-size: 28px; margin-bottom: 8px; }
+    .menu-item-title { font-size: 16px; font-weight: 600; color: #333; margin-bottom: 4px; }
+    .menu-item-desc { font-size: 12px; color: #666; }
+    .menu-item.primary { border-color: #667eea; background: linear-gradient(135deg, #f8f9ff 0%, #ffffff 100%); }
+    .menu-item.success { border-color: #4caf50; background: linear-gradient(135deg, #f1f8f4 0%, #ffffff 100%); }
+    .menu-item.warning { border-color: #ff9800; background: linear-gradient(135deg, #fff8f0 0%, #ffffff 100%); }
+    .menu-item.info { border-color: #2196f3; background: linear-gradient(135deg, #f0f7ff 0%, #ffffff 100%); }
+    
+    .box {
+      background: white;
+      border-radius: 15px;
+      padding: 20px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    }
+    
+    .section {
+      margin-bottom: 20px;
+      padding-bottom: 15px;
+      border-bottom: 1px solid #eee;
+    }
+    .section:last-of-type { border-bottom: none; }
+    .section h3 { 
+      color: #667eea; 
+      font-size: 15px; 
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .group { margin-bottom: 15px; }
+    label {
+      display: block;
+      margin-bottom: 6px;
+      color: #333;
+      font-weight: 500;
+      font-size: 13px;
+    }
+    input, select, textarea {
+      width: 100%;
+      padding: 12px;
+      border: 2px solid #e0e0e0;
+      border-radius: 8px;
+      font-size: 14px;
+      font-family: inherit;
+      transition: all 0.3s;
+    }
+    input:focus, select:focus, textarea:focus {
+      outline: none;
+      border-color: #667eea;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+    textarea { resize: vertical; min-height: 80px; }
+    small {
+      display: block;
+      color: #666;
+      font-size: 11px;
+      margin-top: 4px;
+    }
+    
+    .hybrid-field { position: relative; }
+    .hybrid-field input, .hybrid-field select { padding-right: 90px; }
+    .add-new-btn {
+      position: absolute;
+      right: 4px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: #667eea;
+      color: white;
+      border: none;
+      padding: 8px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 11px;
+      font-weight: 600;
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+    .add-new-btn:active {
+      background: #5568d3;
+      transform: translateY(-50%) scale(0.95);
+    }
+    
+    .autocomplete-items {
+      position: absolute;
+      border: 1px solid #d4d4d4;
+      border-top: none;
+      z-index: 99;
+      top: 100%;
+      left: 0;
+      right: 0;
+      max-height: 200px;
+      overflow-y: auto;
+      background: white;
+      border-radius: 0 0 8px 8px;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+    .autocomplete-items div {
+      padding: 12px 15px;
+      cursor: pointer;
+      border-bottom: 1px solid #e0e0e0;
+      font-size: 14px;
+    }
+    .autocomplete-items div:hover { background-color: #f0f0f0; }
+    
+    .row {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 12px;
+    }
+    
+    .check {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 12px;
+      padding: 12px;
+      background: #f8f9fa;
+      border-radius: 8px;
+    }
+    .check input[type="checkbox"] { width: auto; }
+    .check label { margin: 0 !important; font-size: 13px; }
+    
+    .required { color: #d32f2f; }
+    .hidden { display: none !important; }
+    
+    .btn {
+      padding: 14px 20px;
+      border: none;
+      border-radius: 8px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      width: 100%;
+    }
+    .btn-primary { background: #667eea; color: white; }
+    .btn-primary:active { background: #5568d3; transform: scale(0.98); }
+    .btn-primary:disabled { background: #ccc; cursor: not-allowed; }
+    .btn-secondary { background: #999; color: white; margin-top: 10px; }
+    .btn-secondary:active { background: #777; }
+    .actions {
+      margin-top: 20px;
+      padding-top: 15px;
+      border-top: 2px solid #eee;
+    }
+    
+    .alert {
+      padding: 12px;
+      border-radius: 8px;
+      margin-bottom: 15px;
+      font-size: 13px;
+    }
+    .alert-success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+    .alert-error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+    .alert-info { background: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+    
+    .card {
+      background: #f8f9fa;
+      padding: 15px;
+      border-radius: 8px;
+      margin-bottom: 12px;
+      border-left: 4px solid #667eea;
+      font-size: 14px;
+    }
+    .card.old { opacity: 0.6; border-left-color: #999; }
+    .card.reuniao { border-left-color: #2196f3; background: #e3f2fd; }
+    .card.bloqueio { border-left-color: #f44336; background: #ffebee; }
+    
+    .badge {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 12px;
+      font-size: 10px;
+      font-weight: 600;
+      margin-left: 6px;
+    }
+    .badge-evento { background: #d4edda; color: #155724; }
+    .badge-reuniao { background: #d1ecf1; color: #0c5460; }
+    .badge-bloqueio { background: #f8d7da; color: #721c24; }
+    
+    .info {
+      background: #e3f2fd;
+      border-left: 4px solid #2196f3;
+      padding: 12px;
+      margin-bottom: 15px;
+      font-size: 12px;
+      border-radius: 6px;
+    }
+    .info.warning {
+      background: #fff3cd;
+      border-left-color: #ff9800;
+      color: #856404;
+    }
+    .info-badge {
+      display: block;
+      background: #fff3cd;
+      color: #856404;
+      padding: 10px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      margin-top: 10px;
+      border: 1px solid #ffeeba;
+    }
+    .tipo-indicator {
+      display: inline-block;
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 600;
+      margin-left: 8px;
+    }
+    .tipo-evento { background: #d4edda; color: #155724; }
+    .tipo-reuniao { background: #d1ecf1; color: #0c5460; }
+    .tipo-bloqueio { background: #f8d7da; color: #721c24; }
+    
+    .loading { text-align: center; padding: 40px; color: white; }
+    
+    .overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.7);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+    }
+    .overlay.active { display: flex; }
+    .overlay-box {
+      background: white;
+      padding: 30px;
+      border-radius: 15px;
+      text-align: center;
+      max-width: 90%;
+      width: 350px;
+    }
+    .spinner {
+      width: 50px;
+      height: 50px;
+      border: 4px solid #f3f3f3;
+      border-top: 4px solid #667eea;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 15px;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    .overlay-text { font-size: 16px; color: #333; font-weight: 600; }
+    
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.6);
+      z-index: 10000;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .modal.active { display: flex; }
+    .modal-content {
+      background: white;
+      border-radius: 12px;
+      padding: 20px;
+      max-width: 500px;
+      width: 100%;
+      max-height: 85vh;
+      overflow-y: auto;
+    }
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 15px;
+      padding-bottom: 12px;
+      border-bottom: 2px solid #f0f0f0;
+    }
+    .modal-header h3 { color: #667eea; font-size: 18px; }
+    .close-modal {
+      background: none;
+      border: none;
+      font-size: 28px;
+      cursor: pointer;
+      color: #999;
+      padding: 0;
+      width: 30px;
+      height: 30px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      line-height: 1;
+    }
+    .close-modal:active { color: #333; }
+    
+    .output {
+      width: 100%;
+      min-height: 250px;
+      font-family: monospace;
+      font-size: 12px;
+      padding: 12px;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      background: #f8f9fa;
+    }
+    .btn-copy {
+      background: #4caf50;
+      color: white;
+      padding: 10px 20px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 600;
+      margin-top: 10px;
+      width: 100%;
+    }
+    
+    @media (min-width: 600px) {
+      body { padding: 20px; }
+      .header h1 { font-size: 24px; }
+      .screen-header h2 { font-size: 22px; }
+      .menu-grid { grid-template-columns: 1fr 1fr; }
+      .row { grid-template-columns: 1fr 1fr; }
+      .box { padding: 30px; }
+      .btn { width: auto; display: inline-block; }
+      .btn-secondary { margin-top: 0; margin-left: 10px; }
+      .actions { text-align: right; }
+    }
+    
+    @media (min-width: 900px) {
+      .menu-item-icon { font-size: 32px; }
+      .menu-item-title { font-size: 18px; }
+    }
+  </style>
+</head>
+<body>
+  <div id="overlay" class="overlay">
+    <div class="overlay-box">
+      <div id="spinner" class="spinner"></div>
+      <div id="overlayText" class="overlay-text">Processando...</div>
+    </div>
+  </div>
+
+  <div class="app">
+    <div class="header">
+      <img class="header-logo" src="data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiIHN0YW5kYWxvbmU9Im5vIj8+PHN2ZyB2aWV3Qm94PSIwIDAgODUuMzMgODUuMzMiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHBhdGggZmlsbD0iIzIzMWYyMCIgZD0ibTMyLDBjLTQuNzEsMC05LjI2LDEuMjMtMTMuMTUsMy41N0w0LjEyLDE4Ljg1Yy0yLjM0LDMuODktMy41Nyw4LjQ0LTMuNTcsMTMuMTV2MTMuMTVjMCw0LjcxLDEuMjMsOS4yNiwzLjU3LDEzLjE1TDE4Ljg1LDY0LjY1YzMuODksMi4zNCw4LjQ0LDMuNTcsMTMuMTUsMy41NywxNy42NywwLDMyLTE0LjMzLDMyLTMyUzM5LjY3LDAsMzIsMHoiLz48cGF0aCBmaWxsPSIjZDM5ZTAwIiBkPSJtMzIsNS45NWMzLjgzLDAsNy41NSwxLjAxLDEwLjcyLDIuOTFsMTUuMzIsMTEuNDNjMS45LDMuMTcsMi45MSw2Ljg5LDIuOTEsMTAuNzJzMS4wMSw3LjU1LDIuOTEsMTAuNzJsLTE1LjMyLDE1LjMyYy0zLjE3LDEuOS02Ljg5LDIuOTEtMTAuNzIsMi45MXMtNy41NS0xLjAxLTEwLjcyLTIuOTFMNS45NSw0NS45MmMtMS45LTMuMTctMi45MS02Ljg5LTIuOTEtMTAuNzJzMS4wMS03LjU1LDIuOTEtMTAuNzJsMTEuNDMtMTUuMzJDMjAuNTUsNi45NiwyNC4yNyw1Ljk1LDMyLDUuOTV6Ii8+PC9zdmc+" alt="Logo">
+      <h1>FA Produções – Gestão & Shows</h1>
+      <p class="sub">Sistema Musical</p>
+      <div class="user-info" id="userInfo">Carregando...</div>
+    </div>
+
+    <div id="screenMenu">
+      <div id="alertMenu"></div>
+      <div id="menu" class="loading">Carregando...</div>
+    </div>
+
+    <div id="appContent"></div>
+
+  </div>
+
+
+  <script>
+    let user = null;
+    window.onload = () => {
+      console.log('🚀 Iniciando FA Produções');
+      carregarUsuario();
+    };
+
+
+    function loading(texto) {
+      document.getElementById('overlayText').textContent = texto || 'Processando...';
+      document.getElementById('spinner').style.display = 'block';
+      document.getElementById('overlay').classList.add('active');
+    }
+
+
+    function fecharLoading() {
+      document.getElementById('overlay').classList.remove('active');
+    }
+
+    function alerta(containerId, msg, tipo) {
+      const classes = {
+        'success': 'alert-success',
+        'error': 'alert-error',
+        'info': 'alert-info'
+      };
+      document.getElementById(containerId).innerHTML = `<div class="alert ${classes[tipo]}">${msg}</div>`;
+      if (tipo !== 'error') {
+        setTimeout(() => { document.getElementById(containerId).innerHTML = ''; }, 5000);
+      }
+    }
+
+    function carregarUsuario() {
+      google.script.run
+        .withSuccessHandler(u => {
+          if (u.valido) {
+            user = u;
+            let html = `<strong>${u.nome}</strong> | ${u.perfil}`;
+            if (u.modoDev) {
+              html = `⚠️ <strong>MODO DEV</strong><br>${u.email}`;
+              document.getElementById('userInfo').classList.add('dev');
+            }
+            document.getElementById('userInfo').innerHTML = html;
+            montarMenu(u);
+          } else {
+            document.getElementById('menu').innerHTML = `
+              <div class="alert alert-error">
+                <h3>🔒 Acesso Negado</h3>
+                <p>${u.mensagem}</p>
+                ${u.emailDetectado ? `<p style="margin-top:10px;"><strong>Email:</strong> ${u.emailDetectado}</p>` : ''}
+              </div>
+            `;
+            document.getElementById('userInfo').innerHTML = '❌ Acesso negado';
+          }
+        })
+        .withFailureHandler(e => {
+          document.getElementById('menu').innerHTML = `<div class="alert alert-error">Erro: ${e.message}</div>`;
+        })
+        .obterUsuarioAtual();
+    }
+
+
+    function montarMenu(u) {
+      const itens = [];
+      itens.push({ icon: '📅', title: 'Agenda', desc: 'Visualização geral', color: 'info', fn: "abrirPagina('AgendaVisual')" });
+      itens.push({ icon: '📊', title: 'Painel Financeiro', desc: 'Saúde financeira dos eventos', color: 'success', fn: "abrirPagina('PainelFinanceiro')" });
+
+      if (u.perfil === 'Proprietário' || u.perfil === 'Sócio') {
+        itens.push({ icon: '➕', title: 'Novo Evento', desc: 'Cadastrar evento, reunião ou bloqueio', color: 'primary', fn: "abrirPagina('NovoEvento')" });
+        itens.push({ icon: '✏️', title: 'Editar Evento', desc: 'Alterar dados de eventos existentes', color: 'warning', fn: "abrirPagina('EditarEvento-V2')" });
+      }
+
+      if (u.perfil === 'Proprietário') {
+        itens.push({ icon: '💰', title: 'Central Financeira', desc: 'Recebimentos, BV e custos', color: 'warning', fn: "abrirPagina('CentralFinanceira')" });
+      }
+
+      let html = '<div class="menu-grid">';
+      itens.forEach(i => {
+        html += `<div class="menu-item ${i.color}" onclick="${i.fn}">
+          <div class="menu-item-icon">${i.icon}</div>
+          <div class="menu-item-title">${i.title}</div>
+          <div class="menu-item-desc">${i.desc}</div>
+        </div>`;
+      });
+      html += '</div>';
+      document.getElementById('menu').innerHTML = html;
+    }
+
+    // Padrão HUB SPA:
+    // Cada página carregada dinamicamente DEVE expor uma função global initPagina()
+    // O index é responsável apenas por carregar e inicializar
+    function abrirPagina(nome) {
+      loading('Carregando...');
+      google.script.run
+        .withSuccessHandler(html => {
+          const container = document.getElementById('appContent');
+          container.innerHTML = html;
+
+          // Aguarda o DOM atualizar antes de tentar inicializar a página
+          setTimeout(() => {
+            if (typeof window.initPagina === 'function') {
+              try {
+                window.initPagina();
+                console.log('✅ initPagina executado:', nome);
+              } catch (e) {
+                console.error('Erro ao executar initPagina:', e);
+              }
+            } else {
+              console.warn('⚠️ Página carregada sem initPagina:', nome);
+            }
+          }, 0);
+
+          fecharLoading();
+        })
+        .withFailureHandler(e => {
+          document.getElementById('appContent').innerHTML =
+            '<div class="alert alert-error">Erro ao carregar página</div>';
+          fecharLoading();
+        })
+        .carregarPagina(nome);
+    }
+  </script>
+</body>
+</html>

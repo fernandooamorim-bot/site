@@ -1,0 +1,1188 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    .container{
+      max-width:1200px;
+      margin:0 auto;
+    }
+    .loading-overlay{
+      position:fixed;
+      top:0;left:0;right:0;bottom:0;
+      background:rgba(2,6,23,.85);
+      display:none;
+      align-items:center;
+      justify-content:center;
+      z-index:9999;
+      flex-direction:column;
+    }
+    .loading-overlay.active{display:flex;}
+    .loading-spinner{
+      width:48px;height:48px;
+      border:4px solid #1e293b;
+      border-top:4px solid #38bdf8;
+      border-radius:50%;
+      animation:spin 1s linear infinite;
+    }
+    @keyframes spin{to{transform:rotate(360deg)}}
+    body {
+      font-family: Inter, Arial, sans-serif;
+      background:#0f172a;
+      color:#e5e7eb;
+      margin:0;
+      padding:20px;
+    }
+    h1 { margin:0 0 16px 0; }
+
+    .intent {
+      display:flex;
+      gap:12px;
+      margin-bottom:16px;
+      flex-wrap:wrap;
+    }
+    .intent button {
+      flex:1;
+      padding:14px;
+      border-radius:12px;
+      border:none;
+      background:#1e293b;
+      color:#e5e7eb;
+      cursor:pointer;
+      font-size:15px;
+    }
+    .intent button.active {
+      outline:2px solid #38bdf8;
+      background:#020617;
+    }
+
+    .main {
+      display:flex;
+      gap:20px;
+      flex-wrap:wrap;
+    }
+
+    .box {
+      background:#020617;
+      border-radius:16px;
+      padding:16px;
+      flex:1;
+      min-width:280px;
+    }
+
+    .side {
+      width:340px;
+      max-width:100%;
+    }
+
+    label {
+      display:block;
+      margin-top:12px;
+      font-size:13px;
+      opacity:.9;
+    }
+
+    input, select, textarea {
+      width:100%;
+      padding:10px;
+      margin-top:6px;
+      border-radius:10px;
+      border:none;
+      background:#0f172a;
+      color:#e5e7eb;
+      font-size:14px;
+    }
+
+    textarea { resize:vertical; }
+
+    .btn {
+      margin-top:16px;
+      padding:12px;
+      border-radius:12px;
+      border:none;
+      cursor:pointer;
+      font-size:15px;
+    }
+
+    .primary { background:#22c55e; color:#022c22; }
+    .secondary { background:#38bdf8; color:#020617; }
+    .danger { background:#ef4444; color:#020617; }
+
+    .autocomplete {
+      background:#020617;
+      border:1px solid #1e293b;
+      border-radius:10px;
+      margin-top:4px;
+      overflow:hidden;
+    }
+
+    .autocomplete div {
+      padding:10px;
+      cursor:pointer;
+      font-size:14px;
+    }
+    .autocomplete div:hover {
+      background:#1e293b;
+    }
+
+    .divider {
+      margin:18px 0;
+      border-top:1px solid #1e293b;
+    }
+
+    .muted { opacity:.7; font-size:13px; }
+  </style>
+</head>
+<body>
+<div class="container">
+
+<h1>💰 Central Financeira</h1>
+
+<div class="intent">
+  <button data-mode="recebimento">🟢 Recebimento</button>
+  <button data-mode="estorno">🔴 Estorno</button>
+  <button data-mode="comissao">🔵 Comissão</button>
+  <button data-mode="obrigacao">🟠 Saídas</button>
+</div>
+
+<div class="main">
+  <div id="form" class="box"></div>
+
+  <div id="side" class="box side">
+    <h3>📊 Resumo</h3>
+    <div id="resumo" class="muted">Selecione uma operação</div>
+  </div>
+</div>
+
+<script>
+function showLoading(txt){
+  document.getElementById('loadingText').innerText = txt || 'Processando...';
+  document.getElementById('loading').classList.add('active');
+}
+function hideLoading(){
+  document.getElementById('loading').classList.remove('active');
+}
+
+let mode = null;
+let eventoSelecionado = null;
+let vendedorSelecionado = null;
+let vendedoresCache = [];
+let comissoesPendentes = [];
+
+let ultimoPreview = null;
+let ultimoResumoFinanceiro = null;
+
+const buttons = document.querySelectorAll('.intent button');
+const form = document.getElementById('form');
+const resumo = document.getElementById('resumo');
+
+/* ================= INIT ================= */
+
+google.script.run.withSuccessHandler(list=>{
+  vendedoresCache = list || [];
+}).listarVendedores();
+
+/* ================= MODE ================= */
+
+buttons.forEach(b=>{
+  b.onclick = ()=>{
+    if(mode && mode !== b.dataset.mode &&
+       !confirm('Trocar operação limpa os dados atuais. Continuar?')) return;
+
+    mode = b.dataset.mode;
+    buttons.forEach(x=>x.classList.remove('active'));
+    b.classList.add('active');
+
+    eventoSelecionado = null;
+    vendedorSelecionado = null;
+    comissoesPendentes = [];
+
+    render();
+  };
+});
+
+/* ================= RENDER ================= */
+
+function render(){
+  if(mode === 'recebimento') renderRecebimento();
+  if(mode === 'estorno') renderEstorno();
+  if(mode === 'comissao') renderComissao();
+  if(mode === 'obrigacao') renderObrigacao();
+}
+function renderEstorno(){
+  resumo.innerHTML = '<span class="muted">Selecione um evento para estornar um recebimento</span>';
+
+  form.innerHTML = `
+    <h3>🔴 Estorno de Recebimento</h3>
+
+    <label>Evento (Contratante)</label>
+    <input id="inputEvento" onkeyup="buscarEvento(this.value)">
+    <div id="evSug" class="autocomplete"></div>
+
+    <div class="divider"></div>
+
+    <div id="listaRecebimentos" class="muted">
+      Selecione um evento para listar os recebimentos
+    </div>
+
+    <div class="divider"></div>
+
+    <div id="formEstorno" style="display:none">
+      <label>ID do Recebimento</label>
+      <input id="idRecebimento" readonly>
+
+      <label>Valor original recebido</label>
+      <input id="valorOriginal" readonly>
+
+      <label>Valor do estorno</label>
+      <input type="number" id="valorEstorno">
+
+      <label>Motivo do estorno</label>
+      <select id="motivoEstorno">
+        <option value="">Selecione o motivo</option>
+        <option value="CANCELAMENTO_EVENTO">Cancelamento do evento</option>
+        <option value="ERRO_LANCAMENTO">Erro de lançamento</option>
+        <option value="DEVOLUCAO_VALOR">Devolução de valor</option>
+        <option value="OUTROS">Outros</option>
+      </select>
+
+      <button class="btn danger" onclick="submitEstorno()">🔴 Confirmar Estorno</button>
+    </div>
+  `;
+}
+function submitEstorno(){
+  const btn = event?.target;
+  if (lockSubmit) return;
+
+  const idRecebimento = document.getElementById('idRecebimento').value.trim();
+  const valor = parseValorSeguro(document.getElementById('valorEstorno').value);
+  const motivo = document.getElementById('motivoEstorno').value;
+
+  if (!idRecebimento) return alert('Informe o ID do recebimento');
+  if (!valor) return alert('Informe um valor de estorno válido');
+
+  if (!confirm('Deseja realmente estornar este recebimento?')) return;
+
+  lockSubmit = true;
+  bloquearBotao(btn);
+  showLoading('Registrando estorno...');
+
+  const payload = {
+    idRecebimento: idRecebimento,
+    valor: valor,
+    motivo: motivo
+  };
+
+  google.script.run
+    .withSuccessHandler(resp=>{
+      hideLoading();
+      lockSubmit = false;
+      liberarBotao(btn);
+
+      if (!resp || resp.sucesso !== true) {
+        alert(resp?.mensagem || 'Erro ao registrar estorno');
+        return;
+      }
+
+      resumo.innerHTML = '<span class="muted">Estorno registrado com sucesso</span>';
+      alert('Estorno realizado com sucesso');
+    })
+    .withFailureHandler(e=>{
+      hideLoading();
+      lockSubmit = false;
+      liberarBotao(btn);
+      alert(e.message);
+    })
+    .apiEstornarRecebimento(payload);
+}
+
+/* ================= RECEBIMENTO ================= */
+
+function renderRecebimento(){
+  resumo.innerHTML = '<span class="muted">Selecione um evento</span>';
+
+  form.innerHTML = `
+    <h3>Recebimento</h3>
+
+    <label>Evento (Contratante)</label>
+    <input id="inputEvento" onkeyup="buscarEvento(this.value)">
+    <div id="evSug" class="autocomplete"></div>
+
+    <label>Valor</label>
+    <input type="number" id="valor" oninput="avaliarValorRecebimento(this.value)">
+
+    <label>Data do Registro</label>
+    <input type="date" id="data" readonly value="${new Date().toISOString().slice(0,10)}">
+
+    <label>Forma de Pagamento</label>
+    <select id="forma">
+      <option>PIX</option>
+      <option>TED</option>
+      <option>Dinheiro</option>
+    </select>
+
+    <label>Link do Comprovante</label>
+    <input id="comprovante">
+
+    <label>Observações</label>
+    <textarea id="obs"></textarea>
+
+    <button class="btn primary" onclick="submitRecebimento()">Registrar Recebimento</button>
+  `;
+}
+
+/* ================= COMISSAO ================= */
+
+function garantirVendedoresCarregados(callback){
+  if (Array.isArray(vendedoresCache) && vendedoresCache.length > 0) {
+    callback();
+    return;
+  }
+  google.script.run.withSuccessHandler(list=>{
+    vendedoresCache = list || [];
+    callback();
+  }).listarVendedores();
+}
+
+function renderComissao(){
+  resumo.innerHTML = '<span class="muted">Selecione um vendedor</span>';
+
+  form.innerHTML = `
+    <h3>Comissão</h3>
+
+    <label>Vendedor</label>
+    <select id="selectVendedor"></select>
+
+    <div class="divider"></div>
+
+    <h4>Fechamento de Comissão (V2)</h4>
+    <p class="muted">
+      Este processo paga <strong>100% das comissões pendentes</strong> do vendedor selecionado,
+      independentemente de data ou período.
+    </p>
+
+    <div class="divider"></div>
+    <p class="muted">
+      ⚠️ Atenção: esta ação é irreversível. Todas as comissões pendentes serão marcadas como pagas
+      e o valor será acumulado em <strong>VALOR_COMISSAO_PAGO</strong> nos eventos.
+    </p>
+
+    <label>Ajuste Crédito</label>
+    <input type="number" id="ajCredito" value="0">
+
+    <label>Ajuste Débito</label>
+    <input type="number" id="ajDebito" value="0">
+
+    <label>Link Comprovante Pagamento</label>
+    <input id="linkPagamento">
+
+    <label style="margin-top:16px">
+      <input type="checkbox" id="confirmarFechamento">
+      Confirmo que revisei os valores e desejo gerar o fechamento.
+    </label>
+
+    <button class="btn secondary" onclick="executarFechamentoV2()">
+      🔒 Executar Fechamento
+    </button>
+  `;
+
+  garantirVendedoresCarregados(()=>{
+    const sel = document.getElementById('selectVendedor');
+    if (!sel) return;
+    sel.innerHTML = '<option value="">Selecione...</option>';
+    vendedoresCache.forEach(v=>{
+      const o = document.createElement('option');
+      o.value = v.id;
+      o.textContent = v.id + ' — ' + v.nome;
+      sel.appendChild(o);
+    });
+    sel.onchange = ()=>{
+      vendedorSelecionado = vendedoresCache.find(v=>v.id==sel.value);
+      if (vendedorSelecionado) carregarResumoVendedor();
+    };
+  });
+}
+
+/* ================= OBRIGACAO ================= */
+
+function renderObrigacao(){
+  resumo.innerHTML = '<span class="muted">Selecione um evento</span>';
+
+  form.innerHTML = `
+<h3>🟠 Saídas do Evento</h3>
+
+<label>Evento (Contratante)</label>
+<input id="inputEvento" onkeyup="buscarEvento(this.value)">
+<div id="evSug" class="autocomplete"></div>
+
+<div class="divider"></div>
+
+<label>Tipo de saída</label>
+<select id="tipoSaida" onchange="renderCamposSaida()">
+  <option value="">Selecione...</option>
+  <option value="BV_EVENTO">Bônus de Venda (BV)</option>
+  <option value="FOLHA_EVENTO">Folha / Custos do Evento</option>
+</select>
+<div class="muted" style="margin-top:12px">
+  📄 <strong>Nota Fiscal (NF)</strong><br>
+  Quando configurada no cadastro do evento, a NF é considerada
+  <strong>processada automaticamente</strong> e não requer ação manual nesta tela.
+</div>
+
+<div id="camposSaida"></div>
+`;
+}
+
+function renderCamposSaida() {
+  const box = document.getElementById('camposSaida');
+  const tipo = document.getElementById('tipoSaida').value;
+  if (!box) return;
+
+  if (!tipo) {
+    box.innerHTML = '';
+    return;
+  }
+
+  if (tipo === 'BV_EVENTO') {
+    box.innerHTML = `
+      <label>Valor</label>
+      <input type="number" id="valorSaida" readonly>
+
+      <label>Data</label>
+      <input type="date" id="dataSaida" value="${new Date().toISOString().slice(0,10)}">
+
+      <label>Link do Comprovante</label>
+      <input id="comprovanteSaida">
+
+      <label>Observações</label>
+      <textarea id="obsSaida"></textarea>
+
+      <button class="btn primary" onclick="submitSaidaEvento()">Registrar Saída</button>
+
+      <div class="muted" style="margin-top:8px">
+        ℹ️ O valor desta saída é definido automaticamente pelo cadastro do evento.
+      </div>
+    `;
+  }
+
+  if (tipo === 'FOLHA_EVENTO') {
+    box.innerHTML = `
+      <label>Valor da folha</label>
+      <input type="number" id="valorSaida">
+
+      <label>Descrição detalhada</label>
+      <textarea id="obsSaida" placeholder="Ex: Banda, som, transporte, alimentação..."></textarea>
+
+      <button class="btn primary" onclick="submitSaidaEvento()">Registrar Folha</button>
+
+      <div class="muted" style="margin-top:8px">
+        ℹ️ Este valor será somado aos custos totais do evento.
+      </div>
+    `;
+  }
+}
+
+function submitSaidaEvento() {
+  const btn = event?.target;
+  if (lockSubmit) return;
+  if (!eventoSelecionado) return alert('Selecione um evento');
+
+  const tipo = document.getElementById('tipoSaida').value;
+  if (!tipo) return alert('Selecione o tipo de saída');
+
+  let valor = 0;
+  let observacoes = '';
+  let comprovante = '';
+
+  if (tipo === 'NF_EVENTO' || tipo === 'BV_EVENTO') {
+    valor = parseValorSeguro(document.getElementById('valorSaida').value);
+    comprovante = document.getElementById('comprovanteSaida')?.value || '';
+    observacoes = document.getElementById('obsSaida')?.value || '';
+    if (!valor) return alert('Valor inválido');
+  }
+
+  if (tipo === 'FOLHA_EVENTO') {
+    valor = parseValorSeguro(document.getElementById('valorSaida').value);
+    observacoes = document.getElementById('obsSaida')?.value || '';
+    if (!valor) return alert('Informe o valor da folha');
+    if (!observacoes) return alert('Descreva os custos da folha');
+  }
+
+  if (!confirm('Confirmar registro desta saída?')) return;
+
+  lockSubmit = true;
+  bloquearBotao(btn);
+  showLoading('Registrando saída...');
+
+  const payload = {
+    tipoOperacao: 'SAIDA_EVENTO',
+    tipoSaida: tipo,
+    idEvento: eventoSelecionado,
+    valor: valor,
+    observacoes: observacoes,
+    linkComprovante: comprovante
+  };
+
+  google.script.run
+    .withSuccessHandler(resp => {
+      hideLoading();
+      lockSubmit = false;
+      liberarBotao(btn);
+
+      if (!resp || resp.sucesso !== true) {
+        alert(resp?.mensagem || 'Erro ao registrar saída');
+        return;
+      }
+
+      alert('Saída registrada com sucesso');
+      resetObrigacaoForm();
+    })
+    .withFailureHandler(e => {
+      hideLoading();
+      lockSubmit = false;
+      liberarBotao(btn);
+      alert(e.message);
+    })
+    .apiRegistrarSaidaEvento(payload);
+}
+
+/* ================= AUTOCOMPLETE EVENTO ================= */
+
+function buscarEvento(q){
+  if(q.length < 2) return;
+  google.script.run.withSuccessHandler(list=>{
+    const box = document.getElementById('evSug');
+    box.innerHTML = '';
+    (list || []).forEach(ev=>{
+      const d = document.createElement('div');
+      d.textContent = ev.id + ' — ' + ev.contratante;
+      d.onclick = ()=>selectEvento(ev);
+      box.appendChild(d);
+    });
+  }).buscarEventoPorContratante(q);
+}
+
+function selectEvento(ev){
+  const inp = document.getElementById('inputEvento');
+  if (inp) inp.value = ev.id + ' — ' + ev.contratante;
+  const idEventoReal = ev.id || ev.ID_EVENTO;
+  eventoSelecionado = idEventoReal;
+  document.getElementById('evSug').innerHTML = '';
+
+  resumo.innerHTML = '<span class="muted">Carregando resumo financeiro...</span>';
+
+  google.script.run.withSuccessHandler(fin => {
+    ultimoResumoFinanceiro = fin;
+    if (!fin) {
+      resumo.innerHTML = '<span class="muted">Resumo financeiro indisponível</span>';
+      return;
+    }
+
+    // NOVA LÓGICA PARA vr e vp
+    const vt = Number(fin.valorTotal) || 0;
+    let vr = Number(fin.valorRecebido);
+    let vp = Number(fin.valorPendente);
+
+    if (isNaN(vr)) {
+      // Se valorRecebido não existe, calcula pelo total - pendente
+      vr = vt - (isNaN(vp) ? 0 : vp);
+    }
+
+    if (isNaN(vp)) {
+      // Se valorPendente não existe, calcula pelo total - recebido
+      vp = vt - (isNaN(vr) ? 0 : vr);
+    }
+
+    let extraHtml = '';
+    let statusFinal = fin.statusRecebimento || '—';
+
+    if (vp < 0) {
+      const excedente = Math.abs(vp);
+      extraHtml = `
+        <div style="margin-top:6px;color:#facc15">
+          ⚠️ Valor pago a mais: R$ ${excedente.toFixed(2)}
+        </div>
+      `;
+      statusFinal = 'QUITADO (com excedente)';
+    }
+
+    resumo.innerHTML = `
+      <div><strong>Evento:</strong> ${ev.tipoEvento}</div>
+      <div><strong>Contratante:</strong> ${ev.contratante}</div>
+      <div class="divider"></div>
+      <div><strong>Valor total do evento:</strong> R$ ${vt.toFixed(2)}</div>
+      <div><strong>Valor recebido até agora:</strong> R$ ${vr.toFixed(2)}</div>
+      <div><strong>Valor pendente atual:</strong> R$ ${vp.toFixed(2)}</div>
+      ${extraHtml}
+      <div><strong>Status:</strong> ${statusFinal}</div>
+    `;
+    if (mode === 'estorno') {
+      listarRecebimentosEvento(idEventoReal);
+    }
+  }).buscarResumoFinanceiroEvento(idEventoReal);
+}
+
+function listarRecebimentosEvento(idEvento){
+  const box = document.getElementById('listaRecebimentos');
+  box.innerHTML = '<span class="muted">Carregando recebimentos...</span>';
+
+  google.script.run.withSuccessHandler(list=>{
+    if (!Array.isArray(list) || list.length === 0) {
+      box.innerHTML = '<span class="muted">ℹ️ Este evento ainda não possui recebimentos registrados. Caso tenha sido pago fora do sistema, registre primeiro o recebimento.</span>';
+      return;
+    }
+
+    box.innerHTML = '<strong>Recebimentos do evento:</strong>';
+
+    list.forEach(r=>{
+      const div = document.createElement('div');
+      div.style.marginTop = '8px';
+      div.style.padding = '8px';
+      div.style.borderRadius = '8px';
+      div.style.background = '#0f172a';
+      div.style.cursor = 'pointer';
+
+      div.innerHTML = `
+        <div>${r.dataFormatada} • ${r.formaPagamento || '—'} • <strong>R$ ${Number(r.valor).toFixed(2)}</strong></div>
+        <div class="muted">ID: ${r.id}</div>
+      `;
+
+      div.onclick = () => selecionarRecebimentoParaEstorno(r);
+
+      box.appendChild(div);
+    });
+  }).listarRecebimentosPorEvento(idEvento);
+}
+
+function selecionarRecebimentoParaEstorno(r){
+  const receb = typeof r === 'string' ? JSON.parse(decodeURIComponent(r)) : r;
+
+  document.getElementById('formEstorno').style.display = 'block';
+  const formEl = document.getElementById('formEstorno');
+  if (formEl && typeof formEl.scrollIntoView === 'function') {
+    formEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+  document.getElementById('idRecebimento').value = receb.id;
+  document.getElementById('valorOriginal').value = Number(receb.valor).toFixed(2);
+  document.getElementById('valorEstorno').value = Number(receb.valor).toFixed(2);
+
+  resumo.innerHTML = `
+    <div><strong>Evento:</strong> ${receb.nomeEvento}</div>
+    <div><strong>Recebimento selecionado:</strong> ${receb.id}</div>
+    <div><strong>Valor original:</strong> R$ ${Number(receb.valor).toFixed(2)}</div>
+    <div><strong>Data:</strong> ${receb.dataFormatada}</div>
+  `;
+}
+
+/* ================= AUTOCOMPLETE VENDEDOR ================= */
+
+function buscarVendedor(q){
+  if(q.length < 2) return;
+  const box = document.getElementById('venSug');
+  box.innerHTML = '';
+  vendedoresCache
+    .filter(v=>v.nome.toLowerCase().includes(q.toLowerCase()))
+    .slice(0,10)
+    .forEach(v=>{
+      const d = document.createElement('div');
+      d.textContent = v.id + ' — ' + v.nome;
+      d.onclick = ()=>{
+        vendedorSelecionado = v;
+        box.innerHTML = '';
+        carregarResumoVendedor();
+      };
+      box.appendChild(d);
+    });
+}
+
+function carregarResumoVendedor(){
+  resumo.innerHTML = '<span class="muted">Carregando resumo do fechamento...</span>';
+
+  google.script.run.withSuccessHandler(preview => {
+    ultimoPreview = preview;
+
+    // ================= NOVA REGRA DE FILTRO DO PREVIEW DE FECHAMENTO =================
+    // Exibe:
+    // 1) Comissões com STATUS === 'PENDENTE'
+    // 2) Comissões já incluídas em fechamento do tipo COMISSAO_GERADA que tenham estorno de recebimento posterior sem ajuste de comissão resolvido
+    //    (marcando ajusteNecessario: true, ajusteComissao: valorNegativoCalculado)
+    // 3) NÃO exibe comissões já ajustadas (ou seja, se já existe movimentação AJUSTE_COMISSAO_ESTORNO PROCESSADA para aquela comissão)
+    if (Array.isArray(preview.eventos)) {
+      // Para facilitar, indexa movimentações por tipo e referência
+      const movsPorTipo = {};
+      if (Array.isArray(preview.movimentacoes)) {
+        preview.movimentacoes.forEach(mov => {
+          if (!movsPorTipo[mov.tipo]) movsPorTipo[mov.tipo] = [];
+          movsPorTipo[mov.tipo].push(mov);
+        });
+      }
+      // Helper para encontrar estorno de recebimento relacionado a uma comissão
+      function encontrarEstornosParaComissao(ev) {
+        // Suporta Ref: MOV-XXXX em ev.referenciaMovimentacao ou campo similar
+        const ref = (ev.referenciaMovimentacao || ev.referencia || ev.refMovimentacao || ev.idMovimentacao || ev.idMovRecebimento || '').toString();
+        if (!ref) return [];
+        // Procurar estornos de recebimento relacionados ao mesmo MOV-XXXX
+        const estornos = (movsPorTipo['ESTORNO_RECEBIMENTO'] || []).filter(mov => {
+          // Checa se referenciaMovimentacao ou descricao contém o id da movimentação original
+          // O padrão é "Ref: MOV-XXXX"
+          if (mov.referenciaMovimentacao && mov.referenciaMovimentacao === ref) return true;
+          if (mov.descricao && ref && mov.descricao.includes(ref)) return true;
+          if (ref && mov.referencia && mov.referencia === ref) return true;
+          // Também aceita se o número do MOV-XXXX está no campo descrição
+          if (ref && mov.descricao && ref.replace('MOV-', '') && mov.descricao.includes(ref.replace('MOV-', ''))) return true;
+          return false;
+        });
+        return estornos;
+      }
+      // Helper para saber se já existe ajuste de comissão estorno processado para essa comissão
+      function existeAjusteComissaoEstorno(ev) {
+        // Procura movimentação do tipo AJUSTE_COMISSAO_ESTORNO ligada a este ev (pelo id da comissão ou referencia)
+        const ref = (ev.referenciaMovimentacao || ev.referencia || ev.refMovimentacao || ev.idMovimentacao || ev.idMovRecebimento || '').toString();
+        return (movsPorTipo['AJUSTE_COMISSAO_ESTORNO'] || []).some(mov => {
+          // Considera resolvido se estiver processado e ligado à mesma referência
+          const statusOk = (mov.status === 'PROCESSADO' || mov.status === 'FINALIZADO' || !mov.status); // fallback: sem status = processado
+          if (!statusOk) return false;
+          if (mov.referenciaMovimentacao && mov.referenciaMovimentacao === ref) return true;
+          if (mov.descricao && ref && mov.descricao.includes(ref)) return true;
+          if (ref && mov.referencia && mov.referencia === ref) return true;
+          if (ref && mov.descricao && ref.replace('MOV-', '') && mov.descricao.includes(ref.replace('MOV-', ''))) return true;
+          return false;
+        });
+      }
+      // Helper para calcular ajuste de comissão proporcional ao estorno
+      function calcularAjusteComissao(ev, estornoMov) {
+        // Proporção: valor do estorno / valor do recebimento original * valor da comissão original
+        const valorRecebido = Number(ev.valorRecebido || 0);
+        const valorComissao = Number(ev.valorComissao || 0);
+        const valorEstornado = Number(estornoMov.valor || 0);
+        if (!valorRecebido || !valorComissao || !valorEstornado) return 0;
+        // Calcula proporcional negativo
+        const prop = valorEstornado / valorRecebido;
+        const ajuste = -1 * Math.abs(Number((valorComissao * prop).toFixed(2)));
+        return ajuste;
+      }
+      // Aplica o filtro final
+      preview.eventos = preview.eventos
+        .map(ev => {
+          // 1. STATUS PENDENTE: sempre inclui
+          if (ev.statusComissao === 'PENDENTE') return ev;
+          // 2. Comissões já fechadas do tipo COMISSAO_GERADA:
+          if (
+            ev.tipoComissao === 'COMISSAO_GERADA' &&
+            ev.statusComissao !== 'PENDENTE' &&
+            (ev.incluidoEmFechamento || ev.incluido_em_fechamento || ev.INCLUIDO_EM_FECHAMENTO)
+          ) {
+            // Só inclui se houver estorno posterior relacionado e NÃO houver ajuste já processado
+            if (existeAjusteComissaoEstorno(ev)) return null; // já ajustada, não exibe
+            const estornos = encontrarEstornosParaComissao(ev);
+            if (estornos.length > 0) {
+              // Soma todos os ajustes necessários (caso haja múltiplos estornos)
+              const ajusteTotal = estornos.reduce((soma, est) => soma + calcularAjusteComissao(ev, est), 0);
+              if (ajusteTotal !== 0) {
+                // Retorna um novo objeto com ajusteNecessario, ajusteComissao
+                return {
+                  ...ev,
+                  ajusteNecessario: true,
+                  ajusteComissao: ajusteTotal
+                };
+              }
+            }
+            // Se não há estorno não ajustado, não exibe
+            return null;
+          }
+          // 3. Para outros casos, descarta (ex: já incluída em fechamento e sem ajuste pendente)
+          return null;
+        })
+        .filter(ev => !!ev);
+
+      // Recalcula totais após filtro
+      preview.totalEventos = preview.eventos.length;
+      preview.totalComissao = preview.eventos.reduce(
+        (s, e) => s + (Number(e.valorComissao || 0) + Number(e.ajusteComissao || 0)),
+        0
+      );
+    }
+
+    // 1️⃣ Preview não retornou nada (erro silencioso no backend)
+    if (!preview) {
+      resumo.innerHTML = `
+        <div><strong>Vendedor:</strong> ${vendedorSelecionado.nome}</div>
+        <div class="muted">Erro ao gerar resumo (resposta vazia)</div>
+      `;
+      return;
+    }
+
+    // 2️⃣ Backend retornou erro explícito
+    if (preview.sucesso === false) {
+      resumo.innerHTML = `
+        <div><strong>Vendedor:</strong> ${vendedorSelecionado.nome}</div>
+        <div class="muted">Erro ao gerar resumo: ${preview.mensagem}</div>
+      `;
+      return;
+    }
+
+    // 3️⃣ Nenhuma comissão pendente (mas pode haver ajuste por estorno)
+    if (!Array.isArray(preview.eventos) || preview.eventos.length === 0) {
+      const existeAjuste =
+        preview.existeAjustePendentes === true ||
+        (Array.isArray(preview.ajustesPendentes) && preview.ajustesPendentes.length > 0) ||
+        (typeof preview.totalAjuste === 'number' && preview.totalAjuste !== 0);
+
+      let alertaAjusteHtml = '';
+      if (existeAjuste) {
+        alertaAjusteHtml = `
+  <div style="
+    margin-top:12px;
+    padding:12px;
+    border-radius:10px;
+    background:#7c2d12;
+    color:#fed7aa;
+    font-size:13px;
+  ">
+    ⚠️ <strong>Ajuste de comissão por estorno</strong><br><br>
+
+    Estorno realizado ao cliente: 
+    <strong>R$ ${Number(preview.totalEstornoCliente || 0).toFixed(2)}</strong><br>
+
+    Impacto na comissão: 
+    <strong>-R$ ${Math.abs(Number(preview.totalAjuste || 0)).toFixed(2)}</strong><br><br>
+
+    Este valor será descontado <strong>neste fechamento</strong> para compensar
+    uma comissão que já havia sido paga integralmente.
+  </div>
+`;
+      }
+
+      resumo.innerHTML = `
+        <div><strong>Vendedor:</strong> ${vendedorSelecionado.nome}</div>
+        ${alertaAjusteHtml}
+        <div class="muted">
+          Nenhuma comissão nova pendente, porém o fechamento possui ajustes a serem aplicados.
+        </div>
+      `;
+      return;
+    }
+
+    // 🔔 ALERTA VISUAL — AJUSTE DE COMISSÃO PENDENTE
+    const existeAjuste =
+      preview.existeAjustePendentes === true ||
+      (Array.isArray(preview.ajustesPendentes) && preview.ajustesPendentes.length > 0) ||
+      (typeof preview.totalAjuste === 'number' && preview.totalAjuste !== 0);
+
+    let alertaAjusteHtml = '';
+    if (existeAjuste) {
+      alertaAjusteHtml = `
+  <div style="
+    margin-top:12px;
+    padding:12px;
+    border-radius:10px;
+    background:#7c2d12;
+    color:#fed7aa;
+    font-size:13px;
+  ">
+    ⚠️ <strong>Ajuste de comissão por estorno</strong><br><br>
+
+    Estorno realizado ao cliente: 
+    <strong>R$ ${Number(preview.totalEstornoCliente || 0).toFixed(2)}</strong><br>
+
+    Débito de comissão correspondente: 
+    <strong>-R$ ${Math.abs(Number(preview.totalAjuste || 0)).toFixed(2)}</strong><br><br>
+
+    Este valor será descontado <strong>neste fechamento</strong> para compensar
+    uma comissão que já havia sido paga integralmente.
+  </div>
+`;
+    }
+
+    // 4️⃣ Render normal
+    const totalFinal = Number(preview.totalComissao || 0) + Number(preview.totalAjuste || 0);
+    let html = `
+      <div><strong>Vendedor:</strong> ${vendedorSelecionado.nome}</div>
+      ${alertaAjusteHtml}
+      <div><strong>Eventos no fechamento:</strong> ${preview.totalEventos}</div>
+      <div><strong>Total de comissão a pagar:</strong> R$ ${totalFinal.toFixed(2)}</div>
+      <div class="divider"></div>
+      <div><strong>Detalhamento das Comissões (origem):</strong></div>
+    `;
+    if (preview.existeExcecao) {
+      html += `
+        <div style="margin-top:12px;padding:10px;border-radius:8px;
+                    background:#7c2d12;color:#fed7aa;font-size:13px">
+          ⚠️ Atenção: uma ou mais comissões não puderam ter a origem do
+          recebimento validada automaticamente.<br>
+          Revise antes de confirmar o fechamento.
+        </div>
+      `;
+    }
+
+    preview.eventos.forEach(ev => {
+      const ajuste = Number(ev.ajusteComissao || 0);
+      const temAjuste = ajuste !== 0;
+
+      html += `
+        <div style="margin-top:10px;padding-top:10px;border-top:1px solid #1e293b">
+          <div><strong>${ev.nomeEvento}</strong></div>
+          <div class="muted">
+            • Recebimento registrado em: ${ev.dataRecebimento || '—'}
+          </div>
+          <div class="muted">
+            • Valor recebido: R$ ${Number(ev.valorRecebido || 0).toFixed(2)}
+          </div>
+          <div>
+            Comissão pendente: <strong>R$ ${Number(ev.valorComissao || 0).toFixed(2)}</strong>
+          </div>
+          ${Number(ev.ajusteComissao || 0) !== 0 ? `
+            <div style="margin-top:6px;color:#facc15;font-size:13px">
+              ⚠️ Ajuste por estorno aplicado nesta comissão (-R$ ${Math.abs(ev.ajusteComissao).toFixed(2)})
+            </div>
+          ` : ``}
+        </div>
+      `;
+    });
+
+    html += `
+      <div class="divider"></div>
+      <div class="muted">
+        ⚠️ Confirme os valores acima. Após o fechamento, as comissões serão marcadas como PAGAS e não poderão ser revertidas.
+      </div>
+    `;
+
+    resumo.innerHTML = html;
+
+  }).visualizarPreviewFechamento(vendedorSelecionado.id);
+}
+
+/* ================= VALIDACOES & UTIL ================= */
+
+let lockSubmit = false;
+
+function parseValorSeguro(raw) {
+  if (raw === null || raw === undefined) return null;
+
+  // If already a number, validate directly
+  if (typeof raw === 'number') {
+    return raw > 0 ? raw : null;
+  }
+
+  if (typeof raw !== 'string') return null;
+
+  let v = raw.trim();
+
+  if (!v) return null;
+
+  // Remove spaces
+  v = v.replace(/\s/g, '');
+
+  // If format contains both "." and ","
+  // Assume "." is thousand separator and "," is decimal
+  if (v.includes('.') && v.includes(',')) {
+    v = v.replace(/\./g, '').replace(',', '.');
+  }
+  // If only comma, treat as decimal separator
+  else if (v.includes(',')) {
+    v = v.replace(',', '.');
+  }
+  // If only dot, keep as decimal separator (do nothing)
+
+  const n = Number(v);
+
+  if (isNaN(n) || n <= 0) return null;
+
+  // Force two decimal precision (currency safety)
+  return Number(n.toFixed(2));
+}
+
+function avaliarValorRecebimento(valorDigitado){
+  const v = Number(valorDigitado);
+  if (isNaN(v) || !ultimoResumoFinanceiro) return;
+
+  let aviso = '';
+
+  if (v > ultimoResumoFinanceiro.valorTotal) {
+    aviso = '⚠️ O valor informado ultrapassa o valor TOTAL do evento.';
+  } else if (v > ultimoResumoFinanceiro.valorPendente) {
+    aviso = '⚠️ O valor informado ultrapassa o valor PENDENTE atual do evento.';
+  }
+
+  const avisoId = 'avisoValorRecebimento';
+  let box = document.getElementById(avisoId);
+
+  if (aviso) {
+    if (!box) {
+      box = document.createElement('div');
+      box.id = avisoId;
+      box.style.marginTop = '8px';
+      box.style.fontSize = '13px';
+      box.style.color = '#facc15';
+      document.getElementById('valor').after(box);
+    }
+    box.innerText = aviso;
+  } else if (box) {
+    box.remove();
+  }
+}
+
+function bloquearBotao(btn) {
+  if (!btn) return;
+  btn.disabled = true;
+  btn.style.opacity = '0.6';
+  btn.style.cursor = 'not-allowed';
+}
+
+function liberarBotao(btn) {
+  if (!btn) return;
+  btn.disabled = false;
+  btn.style.opacity = '1';
+  btn.style.cursor = 'pointer';
+}
+
+function resetRecebimentoForm() {
+  eventoSelecionado = null;
+  document.getElementById('valor').value = '';
+  document.getElementById('obs').value = '';
+  document.getElementById('comprovante').value = '';
+  document.getElementById('evSug').innerHTML = '';
+  resumo.innerHTML = '<span class="muted">Selecione um evento</span>';
+}
+
+function resetObrigacaoForm() {
+  eventoSelecionado = null;
+
+  const inp = document.getElementById('inputEvento');
+  if (inp) inp.value = '';
+
+  const tipo = document.getElementById('tipoSaida');
+  if (tipo) tipo.value = '';
+
+  const campos = document.getElementById('camposSaida');
+  if (campos) campos.innerHTML = '';
+
+  const sug = document.getElementById('evSug');
+  if (sug) sug.innerHTML = '';
+
+  resumo.innerHTML = '<span class="muted">Selecione um evento</span>';
+}
+
+function resetFechamentoForm() {
+  document.getElementById('ajCredito').value = '0';
+  document.getElementById('ajDebito').value = '0';
+  document.getElementById('linkPagamento').value = '';
+  document.getElementById('confirmarFechamento').checked = false;
+  resumo.innerHTML = '<span class="muted">Selecione um vendedor</span>';
+}
+
+/* ================= SUBMITS ================= */
+
+function submitRecebimento(){
+  const btn = event?.target;
+  if (lockSubmit) return;
+  if(!eventoSelecionado) return alert('Selecione um evento');
+
+  const valorRaw = document.getElementById('valor').value;
+  const valor = parseValorSeguro(valorRaw);
+  if (!valor) return alert('Informe um valor válido maior que zero.');
+
+  lockSubmit = true;
+  bloquearBotao(btn);
+  showLoading('Registrando recebimento...');
+
+  const payload = {
+    tipoOperacao:'RECEBIMENTO',
+    idEvento:eventoSelecionado,
+    valor: valor,
+    dataRecebimento:document.getElementById('data').value,
+    formaPagamento:document.getElementById('forma').value,
+    linkComprovante:document.getElementById('comprovante').value,
+    observacoes:document.getElementById('obs').value
+  };
+
+  google.script.run
+    .withSuccessHandler(()=>{
+      hideLoading();
+      lockSubmit = false;
+      liberarBotao(btn);
+      resetRecebimentoForm();
+      alert('Recebimento registrado');
+    })
+    .withFailureHandler(e=>{
+      hideLoading();
+      lockSubmit = false;
+      liberarBotao(btn);
+      alert(e.message);
+    })
+    .apiRegistrarRecebimento(payload);
+}
+
+
+/* ================= FECHAMENTO V2 ================= */
+
+function executarFechamentoV2(){
+  const btn = event?.target;
+  if (lockSubmit) return;
+  if(!vendedorSelecionado) return alert('Selecione um vendedor');
+
+  if (!document.getElementById('confirmarFechamento')?.checked) {
+    return alert('Você deve confirmar que revisou os valores antes de fechar.');
+  }
+
+  lockSubmit = true;
+  bloquearBotao(btn);
+
+  const payload = {
+    idVendedor: vendedorSelecionado.id,
+    ajusteCredito: parseValorSeguro(document.getElementById('ajCredito').value) || 0,
+    ajusteDebito: parseValorSeguro(document.getElementById('ajDebito').value) || 0,
+    linkComprovante: document.getElementById('linkPagamento').value
+  };
+
+  if(!confirm(
+    'Você está prestes a PAGAR TODAS as comissões pendentes deste vendedor.\\n' +
+    'Esta ação não pode ser desfeita.'
+  )) {
+    lockSubmit = false;
+    liberarBotao(btn);
+    return;
+  }
+
+  showLoading('Gerando fechamento e PDF...');
+
+  google.script.run
+    .withSuccessHandler(resp => {
+      hideLoading();
+      lockSubmit = false;
+      liberarBotao(btn);
+
+      if (!resp || resp.sucesso !== true) {
+        alert(resp?.mensagem || 'Erro ao fechar comissão');
+        return;
+      }
+
+      resetFechamentoForm();
+      alert(resp.mensagem || 'Fechamento realizado com sucesso');
+      if (resp.linkPdf) window.open(resp.linkPdf, '_blank');
+    })
+    .withFailureHandler(e=>{
+      hideLoading();
+      lockSubmit = false;
+      liberarBotao(btn);
+      alert(e.message);
+    })
+    .fecharComissaoVendedor(
+      payload.idVendedor,
+      null,
+      null,
+      payload.ajusteCredito,
+      payload.ajusteDebito,
+      ''
+    );
+}
+</script>
+
+</div>
+<div id="loading" class="loading-overlay">
+  <div class="loading-spinner"></div>
+  <div style="margin-top:12px" id="loadingText">Processando...</div>
+</div>
+</body>
+</html>
