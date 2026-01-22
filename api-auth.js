@@ -1,27 +1,23 @@
 /**
- * =========================================================
- * API AUTH — Autenticação e Autorização do Sistema
- * =========================================================
- *
+ * ======================================================
+ * API AUTH — BACKEND (Apps Script)
+ * ======================================================
  * Responsável por:
- * - Identificar o usuário logado via Google
- * - Validar acesso com base na planilha (USUARIOS)
- * - Retornar dados padronizados para frontend externo
+ * - Autenticação via sessão Google
+ * - Validação de acesso por e-mail
+ * - Controle de perfil (Proprietário, Sócio, Músico)
  *
- * NÃO usa OAuth manual
- * NÃO usa token
- * NÃO usa CORS
- *
- * Funciona via Web App (doGet)
- * =========================================================
+ * IMPORTANTE:
+ * - ESTE ARQUIVO NÃO RETORNA HTML
+ * - APENAS JSON
+ * - USADO POR SITE EXTERNO (Web App)
+ * ======================================================
  */
 
 
 /**
- * =========================================================
- * ENTRYPOINT DO WEB APP
- * =========================================================
- * Todas as chamadas externas passam por aqui
+ * Endpoint principal do Web App
+ * Todas as chamadas externas entram por aqui
  */
 function doGet(e) {
   try {
@@ -29,125 +25,125 @@ function doGet(e) {
 
     if (!action) {
       return jsonResponse({
-        error: true,
-        message: 'Ação não informada'
-      }, 400);
+        ok: false,
+        error: 'NO_ACTION',
+        message: 'Parâmetro action não informado'
+      });
     }
 
     switch (action) {
 
+      /**
+       * =========================
+       * AUTH
+       * =========================
+       */
       case 'auth.me':
         return authMe();
 
+      /**
+       * =========================
+       * DEFAULT
+       * =========================
+       */
       default:
         return jsonResponse({
-          error: true,
-          message: 'Ação inválida'
-        }, 404);
+          ok: false,
+          error: 'UNKNOWN_ACTION',
+          action
+        });
     }
 
   } catch (err) {
     return jsonResponse({
-      error: true,
+      ok: false,
+      error: 'SERVER_ERROR',
       message: err.message
-    }, 500);
+    });
   }
 }
 
 
 /**
- * =========================================================
+ * ======================================================
  * AUTH.ME
- * =========================================================
- * Retorna informações do usuário logado
- * Baseado em sessão Google + planilha
+ * Retorna dados do usuário autenticado
+ * ======================================================
  */
 function authMe() {
   const email = Session.getActiveUser().getEmail();
 
-  // Sessão não identificada (caso raro)
+  // NÃO autenticado no Google
   if (!email) {
     return jsonResponse({
-      logado: false,
-      autorizado: false,
-      motivo: 'Sessão Google não identificada'
-    }, 401);
+      ok: false,
+      error: 'NOT_AUTHENTICATED',
+      message: 'Usuário não autenticado no Google'
+    });
   }
 
   const usuario = buscarUsuarioPorEmail(email);
 
-  // Usuário não encontrado
+  // Email não autorizado no sistema
   if (!usuario) {
     return jsonResponse({
-      logado: true,
-      autorizado: false,
-      email,
-      motivo: 'Usuário não cadastrado'
-    }, 403);
+      ok: false,
+      error: 'ACCESS_DENIED',
+      message: 'Usuário não autorizado',
+      email
+    });
   }
 
   // Usuário inativo
-  if (usuario.STATUS !== 'Ativo') {
+  if (String(usuario.STATUS).toLowerCase() !== 'ativo') {
     return jsonResponse({
-      logado: true,
-      autorizado: false,
-      email,
-      motivo: 'Usuário inativo'
-    }, 403);
+      ok: false,
+      error: 'USER_INACTIVE',
+      message: 'Usuário inativo no sistema'
+    });
   }
 
-  // Usuário válido
+  // OK
   return jsonResponse({
-    logado: true,
-    autorizado: true,
-    email: usuario.EMAIL,
-    nome: usuario.NOME,
-    perfil: usuario.PERFIL,
-    status: usuario.STATUS
+    ok: true,
+    user: {
+      id: usuario.ID_USUARIO,
+      email: usuario.EMAIL,
+      nome: usuario.NOME,
+      perfil: usuario.PERFIL
+    }
   });
 }
 
 
 /**
- * =========================================================
+ * ======================================================
  * BUSCA USUÁRIO NA PLANILHA
- * =========================================================
- * Aba esperada: USUARIOS
- *
- * Colunas obrigatórias:
- * - EMAIL
- * - NOME
- * - PERFIL
- * - STATUS
+ * ======================================================
  */
 function buscarUsuarioPorEmail(email) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheet = ss.getSheetByName('USUARIOS');
+  const sheet = ss.getSheetByName('USUARIOS'); // ajuste se necessário
 
-  if (!sheet) {
-    throw new Error('Aba USUARIOS não encontrada');
-  }
+  if (!sheet) return null;
 
   const data = sheet.getDataRange().getValues();
-  const headers = data[0];
+  const headers = data[0].map(h => String(h).toUpperCase().trim());
 
   const idxEmail  = headers.indexOf('EMAIL');
-  const idxNome   = headers.indexOf('NOME');
-  const idxPerfil = headers.indexOf('PERFIL');
   const idxStatus = headers.indexOf('STATUS');
 
-  if (idxEmail < 0 || idxNome < 0 || idxPerfil < 0 || idxStatus < 0) {
-    throw new Error('Estrutura da aba USUARIOS inválida');
-  }
+  if (idxEmail < 0) return null;
 
   for (let i = 1; i < data.length; i++) {
-    const emailPlanilha = String(data[i][idxEmail] || '').toLowerCase().trim();
+    const rowEmail = String(data[i][idxEmail]).toLowerCase().trim();
 
-    if (emailPlanilha === email.toLowerCase()) {
+    if (rowEmail === email.toLowerCase().trim()) {
       return {
-        EMAIL:  data[i][idxEmail],
-        NOME:   data[i][idxNome],
-        PERFIL: data[i][idxPerfil],
+        ID_USUARIO: data[i][headers.indexOf('ID_USUARIO')],
+        EMAIL: data[i][idxEmail],
+        NOME: data[i][headers.indexOf('NOME')],
+        PERFIL: data[i][headers.indexOf('PERFIL')],
         STATUS: data[i][idxStatus]
       };
     }
@@ -158,13 +154,12 @@ function buscarUsuarioPorEmail(email) {
 
 
 /**
- * =========================================================
- * HELPER — RESPOSTA JSON
- * =========================================================
- * Padroniza respostas para o frontend
+ * ======================================================
+ * RESPONSE JSON PADRÃO
+ * ======================================================
  */
-function jsonResponse(obj, statusCode = 200) {
+function jsonResponse(payload) {
   return ContentService
-    .createTextOutput(JSON.stringify(obj))
+    .createTextOutput(JSON.stringify(payload))
     .setMimeType(ContentService.MimeType.JSON);
 }

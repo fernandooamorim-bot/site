@@ -5,11 +5,7 @@
  * =====================================================
  */
 
-function doGet(e) {
-  return HtmlService.createHtmlOutputFromFile('index')
-    .setTitle('FA Produções – Gestão & Shows')
-    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
-}
+
 
 function carregarPagina(nomePagina) {
   try {
