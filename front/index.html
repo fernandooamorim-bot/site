@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <script src="auth.js"></script>
+  <script src="auth.js" defer></script>
   <title>FA Produções • Sistema</title>
 
   <style>
@@ -188,6 +188,12 @@
 let CURRENT_USER = null;
 
 async function boot() {
+  if (!window.Auth || typeof Auth.me !== 'function') {
+    console.error('Auth.me não disponível');
+    renderErro();
+    return;
+  }
+
   try {
     const result = await Auth.me();
 
@@ -197,7 +203,6 @@ async function boot() {
     }
 
     CURRENT_USER = result.user;
-
     renderUsuario(CURRENT_USER);
     aplicarPermissoes(CURRENT_USER);
 

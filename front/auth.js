@@ -21,6 +21,46 @@
  * URL BASE DO BACKEND (Web App publicado)
  * ⚠️ Trocar apenas aqui se mudar versão
  */
+
+// auth.js — PRODUÇÃO
+(() => {
+  if (window.Auth) return;
+
+  const API_URL = 'https://script.google.com/macros/s/AKfycbx-hCrZUTiTcRMffvq9mPCXsGkSCOhKyUODe16s5PoVaujTgAp2RzYf15q7VKKvV6jYLw/exec';
+
+  const Auth = {};
+
+  Auth.me = async function () {
+    try {
+      const res = await fetch(`${API_URL}?action=auth.me`, {
+        method: 'GET',
+        credentials: 'omit', // ⚠️ ESSENCIAL
+        headers: {
+          'Accept': 'application/json'
+        }
+      });
+
+      if (!res.ok) {
+        return { ok: false };
+      }
+
+      const text = await res.text();
+
+      // Blindagem total contra HTML
+      if (text.trim().startsWith('<')) {
+        return { ok: false };
+      }
+
+      return JSON.parse(text);
+    } catch (err) {
+      console.error('Erro Auth.me:', err);
+      return { ok: false };
+    }
+  };
+
+  window.Auth = Auth;
+})();
+
 const BACKEND_URL = 'https://script.google.com/macros/s/AKfycbx-hCrZUTiTcRMffvq9mPCXsGkSCOhKyUODe16s5PoVaujTgAp2RzYf15q7VKKvV6jYLw/exec';
 
 /**
