@@ -5,22 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   
 
-  <!-- Seu auth.js -->
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
   <script src="auth.js" defer></script>
-  <script>
-  document.addEventListener('DOMContentLoaded', async () => {
-    const email = 'fernando.c.amorim@gmail.com';
-
-    const auth = await Auth.me(email);
-    console.log('Resultado auth:', auth);
-
-    if (auth.ok) {
-      console.log('Usuário autorizado');
-    } else {
-      console.log('Usuário NÃO autorizado');
-    }
-  });
-</script>
   <title>FA Produções • Sistema</title>
 
   <style>
@@ -144,13 +130,25 @@
 </head>
 <body>
 
+<!-- TELA DE LOGIN -->
+<div id="auth-screen" style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:#f6f7fb">
+  <div style="background:#fff;padding:40px;border-radius:16px;max-width:420px;text-align:center;box-shadow:0 20px 40px rgba(0,0,0,.12)">
+    <h2>🔐 Acesso ao Sistema</h2>
+    <p style="margin:12px 0 24px;color:#555">
+      Entre com sua conta Google autorizada
+    </p>
+
+    <div id="google-btn"></div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app" class="hidden">
+
 <header>
   <div class="title">🎵 FA Produções</div>
   <div class="subtitle">Sistema de gestão de agenda, eventos e financeiro</div>
-
-  <div class="user-box" id="userBox">
-    Carregando usuário...
-  </div>
+  <div class="user-box" id="userBox">Carregando usuário...</div>
 </header>
 
 <main>
@@ -162,25 +160,13 @@
       <span class="badge public">Acesso geral</span>
     </div>
 
-    <div class="card" onclick="abrir('painel-financeiro')">
-      <div class="icon">📊</div>
-      <div class="card-title">Painel Financeiro</div>
-      <span class="badge restricted">Restrito</span>
-    </div>
-
-    <div class="card" id="cardNovoEvento" onclick="abrir('novo-evento')">
+    <div class="card" id="cardNovoEvento">
       <div class="icon">➕</div>
       <div class="card-title">Novo Evento</div>
       <span class="badge restricted">Restrito</span>
     </div>
 
-    <div class="card" id="cardEditarEvento" onclick="abrir('editar-evento')">
-      <div class="icon">✏️</div>
-      <div class="card-title">Editar Evento</div>
-      <span class="badge restricted">Restrito</span>
-    </div>
-
-    <div class="card" id="cardCentralFinanceira" onclick="abrir('central-financeira')">
+    <div class="card" id="cardCentralFinanceira">
       <div class="icon">💰</div>
       <div class="card-title">Central Financeira</div>
       <span class="badge restricted">Proprietário</span>
@@ -193,57 +179,33 @@
   FA Produções • Sistema Interno • v1.0
 </footer>
 
+</div>
+
 <script>
-/**
- * GUARD DE ACESSO – INDEX (HUB)
- * Responsável por:
- * - Validar sessão via Auth.me(email)
- * - Bloquear UI até autenticação
- * - Aplicar controle visual por perfil
- */
-
-let CURRENT_USER = null;
-
 async function boot() {
-  if (!window.Auth || typeof Auth.me !== 'function') {
-    console.error('Auth.me não disponível');
-    renderErro();
+  const email = localStorage.getItem('auth_email');
+  const perfil = localStorage.getItem('auth_perfil');
+
+  if (email && perfil) {
+    onLoginSuccess({ email, perfil });
+    aplicarPermissoes({ email, perfil });
     return;
   }
 
-  try {
-    const email = prompt('Digite seu e-mail para autenticação:');
-    if (!email) {
-      renderNaoAutenticado();
-      return;
-    }
-
-    const result = await Auth.me(email);
-
-    if (!result || !result.ok) {
-      renderNaoAutenticado();
-      return;
-    }
-
-    CURRENT_USER = result.user;
-    renderUsuario(CURRENT_USER);
-    aplicarPermissoes(CURRENT_USER);
-
-  } catch (err) {
-    console.error('Erro no boot:', err);
-    renderErro();
-  }
+  Auth.initGoogle();
 }
 
-function renderUsuario(user) {
-  const box = document.getElementById('userBox');
-  box.innerHTML = `👤 ${user.nome} • <strong>${user.perfil}</strong>`;
+function onLoginSuccess(user) {
+  document.getElementById('auth-screen').classList.add('hidden');
+  document.getElementById('app').classList.remove('hidden');
+
+  document.getElementById('userBox').innerHTML =
+    `👤 ${user.email}`;
 }
 
 function aplicarPermissoes(user) {
   if (user.perfil === 'Músico') {
     ocultar('cardNovoEvento');
-    ocultar('cardEditarEvento');
     ocultar('cardCentralFinanceira');
   }
 
@@ -255,37 +217,6 @@ function aplicarPermissoes(user) {
 function ocultar(id) {
   const el = document.getElementById(id);
   if (el) el.classList.add('hidden');
-}
-
-function abrir(destino) {
-  console.log('Abrir:', destino);
-  // futura navegação
-}
-
-function renderNaoAutenticado() {
-  document.body.innerHTML = `
-    <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:#f6f7fb">
-      <div style="background:#fff;padding:40px;border-radius:16px;max-width:420px;text-align:center;box-shadow:0 20px 40px rgba(0,0,0,.12)">
-        <h2>🔐 Acesso restrito</h2>
-        <p style="margin-top:10px;color:#555">
-          Você precisa estar logado com um e-mail autorizado para acessar o sistema.
-        </p>
-      </div>
-    </div>
-  `;
-}
-
-function renderErro() {
-  document.body.innerHTML = `
-    <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:#f6f7fb">
-      <div style="background:#fff;padding:40px;border-radius:16px;max-width:420px;text-align:center;box-shadow:0 20px 40px rgba(0,0,0,.12)">
-        <h2>⚠️ Erro ao carregar</h2>
-        <p style="margin-top:10px;color:#555">
-          Não foi possível validar seu acesso neste momento.
-        </p>
-      </div>
-    </div>
-  `;
 }
 
 window.addEventListener('load', boot);

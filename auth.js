@@ -1,95 +1,108 @@
 (() => {
-  // Evita sobrescrever se já existir
   if (window.Auth) return;
 
-  /**
-   * ======================================================
-   * CONFIGURAÇÃO
-   * ======================================================
-   */
-  const API_URL =
-    'https://script.google.com/macros/s/AKfycbx-hCrZUTiTcRMffvq9mPCXsGkSCOhKyUODe16s5PoVaujTgAp2RzYf15q7VKKvV6jYLw/exec';
+  // ======================================================
+  // CONFIGURAÇÕES
+  // ======================================================
+
+  const API_URL = 'https://script.google.com/macros/s/AKfycbx-hCrZUTiTcRMffvq9mPCXsGkSCOhKyUODe16s5PoVaujTgAp2RzYf15q7VKKvV6jYLw/exec';
+  const CLIENT_ID = '179346910046-ph0lma4i52sc9prtlkfdd63d82m350qj.apps.googleusercontent.com';
 
   const Auth = {};
 
-  /**
-   * ======================================================
-   * AUTENTICAÇÃO SIMPLES (PADRÃO FUNCIONAL APPS SCRIPT)
-   * ======================================================
-   * ✔ POST
-   * ✔ Sem Authorization
-   * ✔ Sem application/json
-   * ✔ Evita preflight (CORS)
-   * ✔ Email como identificador
-   */
-  Auth.me = async function (email) {
+  // ======================================================
+  // INICIALIZA GOOGLE OAUTH
+  // ======================================================
+
+  Auth.initGoogle = function () {
+    if (typeof google === 'undefined' || !google.accounts || !google.accounts.id) {
+      console.error('Google Identity Services não carregado');
+      return;
+    }
+
+    google.accounts.id.initialize({
+      client_id: CLIENT_ID,
+      callback: Auth.handleCredential
+    });
+
+    google.accounts.id.renderButton(
+      document.getElementById('google-btn'),
+      {
+        theme: 'outline',
+        size: 'large',
+        text: 'continue_with',
+        shape: 'pill'
+      }
+    );
+  };
+
+  // ======================================================
+  // CALLBACK DO GOOGLE
+  // ======================================================
+
+  Auth.handleCredential = async function (response) {
     try {
-      if (!email) {
-        throw new Error('Email não informado');
+      if (!response || !response.credential) {
+        throw new Error('Credencial inválida do Google');
       }
 
-      const response = await fetch(API_URL, {
+      const payload = JSON.parse(atob(response.credential.split('.')[1]));
+      const email = payload.email;
+
+      if (!email) {
+        throw new Error('E-mail não encontrado no token');
+      }
+
+      const res = await fetch(API_URL, {
         method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
         body: JSON.stringify({
           action: 'verificarUsuario',
           email: email
         })
       });
 
-      if (!response.ok) {
-        return { ok: false };
+      const data = await res.json();
+
+      if (!data.ok || !data.user) {
+        alert('Acesso não autorizado');
+        return;
       }
 
-      const data = await response.json();
-
-      if (!data || data.authorized !== true) {
-        return { ok: false };
-      }
-
-      // Persistência simples de sessão
-      localStorage.setItem('auth_email', email);
-      localStorage.setItem('auth_ok', '1');
-
-      return {
-        ok: true,
-        email: email
+      const user = {
+        email: data.user.email,
+        nome: data.user.nome,
+        perfil: data.user.perfil
       };
 
+      localStorage.setItem('auth_email', user.email);
+      localStorage.setItem('auth_nome', user.nome);
+      localStorage.setItem('auth_perfil', user.perfil);
+
+      if (typeof onLoginSuccess === 'function') {
+        onLoginSuccess(user);
+      }
+
+      if (typeof aplicarPermissoes === 'function') {
+        aplicarPermissoes(user);
+      }
+
     } catch (err) {
-      console.error('Auth.me erro:', err);
-      return { ok: false };
+      console.error('Erro de autenticação:', err);
+      alert('Erro ao autenticar. Verifique o console.');
     }
   };
 
-  /**
-   * ======================================================
-   * VERIFICA SE JÁ EXISTE SESSÃO LOCAL
-   * ======================================================
-   */
-  Auth.isLogged = function () {
-    return localStorage.getItem('auth_ok') === '1';
-  };
+  // ======================================================
+  // LOGOUT
+  // ======================================================
 
-  /**
-   * ======================================================
-   * OBTÉM EMAIL DA SESSÃO
-   * ======================================================
-   */
-  Auth.getEmail = function () {
-    return localStorage.getItem('auth_email');
-  };
-
-  /**
-   * ======================================================
-   * LOGOUT
-   * ======================================================
-   */
   Auth.logout = function () {
-    localStorage.removeItem('auth_ok');
-    localStorage.removeItem('auth_email');
+    localStorage.clear();
     location.reload();
   };
 
-  // Expor globalmente
   window.Auth = Auth;
 })();
