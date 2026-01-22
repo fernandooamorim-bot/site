@@ -64,30 +64,35 @@
    * Chamada auth.me protegida
    */
   Auth.me = async function () {
-    try {
-      const token = await Auth.getToken();
+  try {
+    const token = await Auth.getToken();
 
-      const res = await fetch(`${API_URL}?action=auth.me`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Accept': 'application/json'
-        }
-      });
-
-      const text = await res.text();
-
-      if (!res.ok || text.trim().startsWith('<')) {
-        return { ok: false };
-      }
-
-      return JSON.parse(text);
-
-    } catch (err) {
-      console.error('Auth.me erro:', err);
+    if (!token) {
       return { ok: false };
     }
-  };
+
+    const url = `${API_URL}?action=auth.me&token=${encodeURIComponent(token)}`;
+
+    const res = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json'
+      }
+    });
+
+    const text = await res.text();
+
+    if (!res.ok || text.trim().startsWith('<')) {
+      return { ok: false };
+    }
+
+    return JSON.parse(text);
+
+  } catch (err) {
+    console.error('Auth.me erro:', err);
+    return { ok: false };
+  }
+};
 
   Auth.renderButton = function (elementId) {
     if (!window.google || !google.accounts || !google.accounts.id) return;
