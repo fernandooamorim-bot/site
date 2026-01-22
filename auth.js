@@ -1,30 +1,33 @@
-/**
- * =====================================================
- * auth.js — FRONTEND (Email-based Auth)
- * =====================================================
- * - Envia email para o Apps Script
- * - Verifica usuário via backend
- */
 
 (() => {
   if (window.Auth) return;
 
-  const API_URL = 'https://script.google.com/macros/s/AKfycbx-hCrZUTiTcRMffvq9mPCXsGkSCOhKyUODe16s5PoVaujTgAp2RzYf15q7VKKvV6jYLw/exec';
+  const API_URL =
+    'https://script.google.com/macros/s/AKfycbx-hCrZUTiTcRMffvq9mPCXsGkSCOhKyUODe16s5PoVaujTgAp2RzYf15q7VKKvV6jYLw/exec';
 
-  const Auth = {
-  };
+  const Auth = {};
 
   /**
-   * Chamada auth.me via POST com email
+   * Autenticação simples (PADRÃO LEGADO FUNCIONAL COM APPS SCRIPT)
+   * - POST
+   * - Content-Type text/plain (evita preflight / CORS)
+   * - Email como identificador
    */
   Auth.me = async function (email) {
     try {
+      if (!email) {
+        throw new Error('Email não informado');
+      }
+
       const res = await fetch(API_URL, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'text/plain;charset=utf-8'
         },
-        body: JSON.stringify({ action: 'auth.me', email })
+        body: JSON.stringify({
+          action: 'verificarUsuario',
+          email: email
+        })
       });
 
       if (!res.ok) {
@@ -32,7 +35,15 @@
       }
 
       const data = await res.json();
-      return data;
+
+      if (!data || data.authorized !== true) {
+        return { ok: false };
+      }
+
+      return {
+        ok: true,
+        authorized: true
+      };
 
     } catch (err) {
       console.error('Auth.me erro:', err);
@@ -41,9 +52,11 @@
   };
 
   /**
-   * Logout (simples reload)
+   * Logout simples
    */
   Auth.logout = function () {
+    localStorage.clear();
+    sessionStorage.clear();
     location.reload();
   };
 

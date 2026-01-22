@@ -7,6 +7,20 @@
 
   <!-- Seu auth.js -->
   <script src="auth.js" defer></script>
+  <script>
+  document.addEventListener('DOMContentLoaded', async () => {
+    const email = 'fernando.c.amorim@gmail.com';
+
+    const auth = await Auth.me(email);
+    console.log('Resultado auth:', auth);
+
+    if (auth.ok) {
+      console.log('Usuário autorizado');
+    } else {
+      console.log('Usuário NÃO autorizado');
+    }
+  });
+</script>
   <title>FA Produções • Sistema</title>
 
   <style>
