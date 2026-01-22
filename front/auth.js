@@ -49,6 +49,11 @@ async function autenticarUsuario() {
       throw new Error('Falha na comunicação com o servidor');
     }
 
+    const contentType = response.headers.get('content-type') || '';
+    if (!contentType.includes('application/json')) {
+      throw new Error('Resposta inválida do servidor (esperado JSON)');
+    }
+
     const data = await response.json();
 
     // Usuário não logado no Google

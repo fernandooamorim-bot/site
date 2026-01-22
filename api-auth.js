@@ -21,6 +21,10 @@
  */
 function doGet(e) {
   try {
+    // Forçar resposta JSON e impedir redirecionamentos automáticos
+    // Não usar HtmlService em nenhum ponto
+    // Garantir que qualquer erro seja tratado e retorne JSON
+
     const action = e?.parameter?.action;
 
     if (!action) {
@@ -71,9 +75,15 @@ function doGet(e) {
  * ======================================================
  */
 function authMe() {
-  const email = Session.getActiveUser().getEmail();
+  let email = '';
+  
+  try {
+    email = Session.getActiveUser().getEmail();
+  } catch (e) {
+    email = '';
+  }
 
-  // NÃO autenticado no Google
+  // Usuário não autenticado no Google
   if (!email) {
     return jsonResponse({
       ok: false,
@@ -84,7 +94,6 @@ function authMe() {
 
   const usuario = buscarUsuarioPorEmail(email);
 
-  // Email não autorizado no sistema
   if (!usuario) {
     return jsonResponse({
       ok: false,
@@ -94,7 +103,6 @@ function authMe() {
     });
   }
 
-  // Usuário inativo
   if (String(usuario.STATUS).toLowerCase() !== 'ativo') {
     return jsonResponse({
       ok: false,
@@ -103,7 +111,6 @@ function authMe() {
     });
   }
 
-  // OK
   return jsonResponse({
     ok: true,
     user: {
