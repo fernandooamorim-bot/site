@@ -1,17 +1,26 @@
-
 (() => {
+  // Evita sobrescrever se já existir
   if (window.Auth) return;
 
+  /**
+   * ======================================================
+   * CONFIGURAÇÃO
+   * ======================================================
+   */
   const API_URL =
     'https://script.google.com/macros/s/AKfycbx-hCrZUTiTcRMffvq9mPCXsGkSCOhKyUODe16s5PoVaujTgAp2RzYf15q7VKKvV6jYLw/exec';
 
   const Auth = {};
 
   /**
-   * Autenticação simples (PADRÃO LEGADO FUNCIONAL COM APPS SCRIPT)
-   * - POST
-   * - Content-Type text/plain (evita preflight / CORS)
-   * - Email como identificador
+   * ======================================================
+   * AUTENTICAÇÃO SIMPLES (PADRÃO FUNCIONAL APPS SCRIPT)
+   * ======================================================
+   * ✔ POST
+   * ✔ Sem Authorization
+   * ✔ Sem application/json
+   * ✔ Evita preflight (CORS)
+   * ✔ Email como identificador
    */
   Auth.me = async function (email) {
     try {
@@ -19,30 +28,31 @@
         throw new Error('Email não informado');
       }
 
-      const res = await fetch(API_URL, {
+      const response = await fetch(API_URL, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'text/plain;charset=utf-8'
-        },
         body: JSON.stringify({
           action: 'verificarUsuario',
           email: email
         })
       });
 
-      if (!res.ok) {
+      if (!response.ok) {
         return { ok: false };
       }
 
-      const data = await res.json();
+      const data = await response.json();
 
       if (!data || data.authorized !== true) {
         return { ok: false };
       }
 
+      // Persistência simples de sessão
+      localStorage.setItem('auth_email', email);
+      localStorage.setItem('auth_ok', '1');
+
       return {
         ok: true,
-        authorized: true
+        email: email
       };
 
     } catch (err) {
@@ -52,13 +62,34 @@
   };
 
   /**
-   * Logout simples
+   * ======================================================
+   * VERIFICA SE JÁ EXISTE SESSÃO LOCAL
+   * ======================================================
+   */
+  Auth.isLogged = function () {
+    return localStorage.getItem('auth_ok') === '1';
+  };
+
+  /**
+   * ======================================================
+   * OBTÉM EMAIL DA SESSÃO
+   * ======================================================
+   */
+  Auth.getEmail = function () {
+    return localStorage.getItem('auth_email');
+  };
+
+  /**
+   * ======================================================
+   * LOGOUT
+   * ======================================================
    */
   Auth.logout = function () {
-    localStorage.clear();
-    sessionStorage.clear();
+    localStorage.removeItem('auth_ok');
+    localStorage.removeItem('auth_email');
     location.reload();
   };
 
+  // Expor globalmente
   window.Auth = Auth;
 })();
