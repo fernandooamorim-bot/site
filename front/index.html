@@ -177,43 +177,93 @@
 </footer>
 
 <script>
-  /**
-   * SIMULAÇÃO DE USUÁRIO
-   * Depois será substituído por chamada ao Apps Script
-   */
-  const usuario = {
-    nome: 'Fernando Amorim',
-    email: 'fernando.c.amorim@gmail.com',
-    perfil: 'Proprietário' // Proprietário | Sócio | Músico
-  };
+/**
+ * GUARD DE ACESSO – INDEX (HUB)
+ * Responsável por:
+ * - Validar sessão Google via auth.me
+ * - Bloquear UI até autenticação
+ * - Aplicar controle visual por perfil
+ */
 
-  function initUsuario() {
-    document.getElementById('userBox').innerHTML =
-      `👤 ${usuario.nome} • <strong>${usuario.perfil}</strong>`;
+let CURRENT_USER = null;
 
-    // Controle de acesso visual
-    if (usuario.perfil === 'Músico') {
-      ocultar('cardNovoEvento');
-      ocultar('cardEditarEvento');
-      ocultar('cardCentralFinanceira');
+async function boot() {
+  try {
+    const result = await Auth.me();
+
+    if (!result || !result.ok) {
+      renderNaoAutenticado();
+      return;
     }
 
-    if (usuario.perfil === 'Sócio') {
-      ocultar('cardCentralFinanceira');
-    }
+    CURRENT_USER = result.user;
+
+    renderUsuario(CURRENT_USER);
+    aplicarPermissoes(CURRENT_USER);
+
+  } catch (err) {
+    console.error('Erro no boot:', err);
+    renderErro();
+  }
+}
+
+function renderUsuario(user) {
+  const box = document.getElementById('userBox');
+  box.innerHTML = `👤 ${user.nome} • <strong>${user.perfil}</strong>`;
+}
+
+function aplicarPermissoes(user) {
+  if (user.perfil === 'Músico') {
+    ocultar('cardNovoEvento');
+    ocultar('cardEditarEvento');
+    ocultar('cardCentralFinanceira');
   }
 
-  function ocultar(id) {
-    const el = document.getElementById(id);
-    if (el) el.classList.add('hidden');
+  if (user.perfil === 'Sócio') {
+    ocultar('cardCentralFinanceira');
   }
+}
 
-  function abrir(destino) {
-    console.log('Abrir:', destino);
-    alert(`Navegar para: ${destino}\n\n(rota será conectada depois)`);
-  }
+function ocultar(id) {
+  const el = document.getElementById(id);
+  if (el) el.classList.add('hidden');
+}
 
-  window.onload = initUsuario;
+function abrir(destino) {
+  console.log('Abrir:', destino);
+  // futura navegação
+}
+
+function renderNaoAutenticado() {
+  document.body.innerHTML = `
+    <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:#f6f7fb">
+      <div style="background:#fff;padding:40px;border-radius:16px;max-width:420px;text-align:center;box-shadow:0 20px 40px rgba(0,0,0,.12)">
+        <h2>🔐 Acesso restrito</h2>
+        <p style="margin-top:10px;color:#555">
+          Você precisa estar logado em uma conta Google autorizada para acessar o sistema.
+        </p>
+        <p style="margin-top:16px;font-size:13px;color:#777">
+          Faça login no Google e atualize esta página.
+        </p>
+      </div>
+    </div>
+  `;
+}
+
+function renderErro() {
+  document.body.innerHTML = `
+    <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:#f6f7fb">
+      <div style="background:#fff;padding:40px;border-radius:16px;max-width:420px;text-align:center;box-shadow:0 20px 40px rgba(0,0,0,.12)">
+        <h2>⚠️ Erro ao carregar</h2>
+        <p style="margin-top:10px;color:#555">
+          Não foi possível validar seu acesso neste momento.
+        </p>
+      </div>
+    </div>
+  `;
+}
+
+window.addEventListener('load', boot);
 </script>
 
 </body>
