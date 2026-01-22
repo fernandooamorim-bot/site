@@ -3,8 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-   <!-- Google Identity Services -->
-  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  
 
   <!-- Seu auth.js -->
   <script src="auth.js" defer></script>
@@ -184,7 +183,7 @@
 /**
  * GUARD DE ACESSO – INDEX (HUB)
  * Responsável por:
- * - Validar sessão Google via auth.me
+ * - Validar sessão via Auth.me(email)
  * - Bloquear UI até autenticação
  * - Aplicar controle visual por perfil
  */
@@ -199,7 +198,13 @@ async function boot() {
   }
 
   try {
-    const result = await Auth.me();
+    const email = prompt('Digite seu e-mail para autenticação:');
+    if (!email) {
+      renderNaoAutenticado();
+      return;
+    }
+
+    const result = await Auth.me(email);
 
     if (!result || !result.ok) {
       renderNaoAutenticado();
@@ -249,20 +254,11 @@ function renderNaoAutenticado() {
       <div style="background:#fff;padding:40px;border-radius:16px;max-width:420px;text-align:center;box-shadow:0 20px 40px rgba(0,0,0,.12)">
         <h2>🔐 Acesso restrito</h2>
         <p style="margin-top:10px;color:#555">
-          Você precisa estar logado em uma conta Google autorizada para acessar o sistema.
-        </p>
-        <div id="googleLogin"></div>
-        <p style="margin-top:16px;font-size:13px;color:#777">
-          Faça login no Google e atualize esta página.
+          Você precisa estar logado com um e-mail autorizado para acessar o sistema.
         </p>
       </div>
     </div>
   `;
-  setTimeout(() => {
-    if (window.Auth && Auth.renderButton) {
-      Auth.renderButton('googleLogin');
-    }
-  }, 0);
 }
 
 function renderErro() {
