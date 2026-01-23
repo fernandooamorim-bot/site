@@ -1089,11 +1089,7 @@ if (!AUTH.email) {
   window.location.href = 'index.html';
 }
 
-// 🔐 Proteção de Auth.js carregado
-if (!window.Auth || typeof Auth.apiCall !== 'function') {
-  alert('Erro ao carregar autenticação. Volte ao menu.');
-  window.location.href = 'index.html';
-}
+
   
     // ========================================
     // CONFIGURAÇÕES E CONSTANTES
