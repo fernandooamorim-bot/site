@@ -94,6 +94,47 @@
   };
 
   // ======================================================
+// API CALL PADRÃO (FRONTEND → APPS SCRIPT)
+// ======================================================
+
+Auth.apiCall = async function (action, payload = {}) {
+  try {
+    const email = localStorage.getItem('auth_email');
+
+    if (!email) {
+      throw new Error('Usuário não autenticado');
+    }
+
+    const res = await fetch(API_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        action,
+        email,
+        ...payload
+      })
+    });
+
+    if (!res.ok) {
+      throw new Error('Erro de rede ao acessar API');
+    }
+
+    const data = await res.json();
+
+    if (data.error) {
+      throw new Error(data.error);
+    }
+
+    return data;
+
+  } catch (err) {
+    console.error('[Auth.apiCall]', err);
+    throw err;
+  }
+};
+  // ======================================================
   // LOGOUT
   // ======================================================
 
