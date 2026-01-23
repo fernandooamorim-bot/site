@@ -53,13 +53,13 @@
         throw new Error('E-mail não encontrado no token');
       }
 
+      const params = new URLSearchParams();
+      params.append('action', 'verificarUsuario');
+      params.append('email', email);
+
       const res = await fetch(API_URL, {
         method: 'POST',
-        
-        body: JSON.stringify({
-          action: 'verificarUsuario',
-          email: email
-        })
+        body: params
       });
 
       const data = await res.json();
