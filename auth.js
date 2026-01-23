@@ -94,46 +94,50 @@
   };
 
   // ======================================================
-// API CALL PADRÃO (FRONTEND → APPS SCRIPT)
-// ======================================================
+  // API CALL PADRÃO (FRONTEND → APPS SCRIPT)
+  // ======================================================
 
-Auth.apiCall = async function (action, payload = {}) {
-  try {
-    const email = localStorage.getItem('auth_email');
+  Auth.apiCall = async function (action, payload = {}) {
+    try {
+      const email = localStorage.getItem('auth_email');
 
-    if (!email) {
-      throw new Error('Usuário não autenticado');
+      if (!email) {
+        throw new Error('Usuário não autenticado');
+      }
+
+      // Monta parâmetros como FORM (evita preflight CORS)
+      const params = new URLSearchParams();
+      params.append('action', action);
+      params.append('email', email);
+
+      Object.keys(payload).forEach(key => {
+        if (payload[key] !== undefined && payload[key] !== null) {
+          params.append(key, payload[key]);
+        }
+      });
+
+      const res = await fetch(API_URL, {
+        method: 'POST',
+        body: params
+      });
+
+      if (!res.ok) {
+        throw new Error('Erro de rede ao acessar API');
+      }
+
+      const data = await res.json();
+
+      if (data.error) {
+        throw new Error(data.error);
+      }
+
+      return data;
+
+    } catch (err) {
+      console.error('[Auth.apiCall]', err);
+      throw err;
     }
-
-    const res = await fetch(API_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        action,
-        email,
-        ...payload
-      })
-    });
-
-    if (!res.ok) {
-      throw new Error('Erro de rede ao acessar API');
-    }
-
-    const data = await res.json();
-
-    if (data.error) {
-      throw new Error(data.error);
-    }
-
-    return data;
-
-  } catch (err) {
-    console.error('[Auth.apiCall]', err);
-    throw err;
-  }
-};
+  };
   // ======================================================
   // LOGOUT
   // ======================================================
