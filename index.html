@@ -221,15 +221,16 @@ function ocultar(id) {
 
 function abrir(pagina) {
   const rotas = {
-    agenda: 'agenda.html'
+    agenda: './agenda.html'
   };
 
-  if (!rotas[pagina]) {
+  const destino = rotas[pagina];
+  if (!destino) {
     alert('Página não encontrada');
     return;
   }
 
-  window.location.href = rotas[pagina];
+  window.location.assign(destino);
 }
 
 window.addEventListener('load', boot);
