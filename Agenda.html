@@ -1065,19 +1065,39 @@
     </button>
   </div>
 
+  <!-- Inclui auth.js para integração com Auth.apiCall -->
+  <script src="auth.js"></script>
   <!-- JavaScript -->
   <script>
     // ========================================
     // DEBUG ATIVO
     // ========================================
     console.log('🚀 AgendaVisual.html iniciando...');
-    
-    // Testa se google.script.run está disponível
-    if (typeof google !== 'undefined' && google.script && google.script.run) {
-      console.log('✅ google.script.run está disponível');
-    } else {
-      console.error('❌ google.script.run NÃO está disponível - verifique se está rodando no Google Apps Script');
+
+    // ========================================
+    // SESSÃO FRONTEND (VINDO DO INDEX)
+    // ========================================
+    const AUTH = {
+      email: localStorage.getItem('auth_email'),
+      nome: localStorage.getItem('auth_nome'),
+      perfil: localStorage.getItem('auth_perfil')
+    };
+
+    if (!AUTH.email) {
+      window.location.href = 'index.html';
     }
+
+    // ========================================
+    // API BACKEND (Apps Script)
+    // ========================================
+    const API = {
+      async call(action, payload = {}) {
+        if (!window.Auth || typeof Auth.apiCall !== 'function') {
+          throw new Error('Auth.apiCall não disponível. Verifique se auth.js foi carregado.');
+        }
+        return Auth.apiCall(action, payload);
+      }
+    };
     
     // ========================================
     // CONFIGURAÇÕES E CONSTANTES
@@ -2315,94 +2335,47 @@ mostrarConflitos(eventoId) {
         }
       },
       async carregarUsuario() {
-        Utils.log('Carregando usuário...');
-        
-        return new Promise((resolve, reject) => {
-          // Verifica se google.script.run está disponível
-          if (typeof google === 'undefined' || !google.script || !google.script.run) {
-            Utils.error('google.script.run não está disponível');
-            AppState.usuario = { perfil: 'Músico' };
-            resolve(AppState.usuario);
-            return;
-          }
-          
-          google.script.run
-            .withSuccessHandler(usuario => {
-              Utils.log('✅ Usuário carregado:', usuario);
-              if (usuario) {
-                AppState.usuario = usuario;
-              } else {
-                Utils.log('⚠️ Usuário não encontrado, usando perfil padrão');
-                AppState.usuario = { perfil: 'Músico' };
-              }
-              resolve(AppState.usuario);
-            })
-            .withFailureHandler(error => {
-              Utils.error('❌ Erro ao carregar usuário:', error);
-              AppState.usuario = { perfil: 'Músico' };
-              resolve(AppState.usuario);
-            })
-            .obterUsuarioLogado();
-        });
+        Utils.log('Carregando usuário (frontend)...');
+
+        AppState.usuario = {
+          email: AUTH.email,
+          nome: AUTH.nome,
+          perfil: AUTH.perfil || 'Músico'
+        };
+
+        return AppState.usuario;
       },
       
       async carregarEventos() {
-  Utils.log('Carregando eventos...');
-  
-  return new Promise((resolve, reject) => {
-    if (typeof google === 'undefined' || !google.script || !google.script.run) {
-      Utils.error('google.script.run não está disponível');
-      reject(new Error('google.script.run não disponível'));
-      return;
-    }
-    
-    google.script.run
-      .withSuccessHandler(eventos => {
-        Utils.log('✅ Eventos carregados (bruto):', eventos ? eventos.length : 0);
-        
-        // NOVA LÓGICA: Filtrar por perfil ANTES de armazenar
-        const eventosFiltrados = FiltroManager.filtrarPorPerfil(eventos || []);
-        
+        Utils.log('Carregando eventos via API...');
+
+        const res = await API.call('listarEventos');
+
+        if (!res || res.ok === false) {
+          throw new Error(res?.mensagem || 'Erro ao carregar eventos');
+        }
+
+        const eventos = res.eventos || res || [];
+
+        const eventosFiltrados = FiltroManager.filtrarPorPerfil(eventos);
+
         AppState.eventos = eventosFiltrados;
         AppState.ultimaAtualizacao = Date.now();
-        
-        Utils.log('✅ Eventos após filtro de perfil:', eventosFiltrados.length);
-        resolve(eventosFiltrados);
-      })
-      .withFailureHandler(error => {
-        Utils.error('❌ Erro ao carregar eventos:', error);
-        reject(error);
-      })
-      .listarEventos();
-  });
-      },
-      // ========================================
-// ADICIONE NO OBJETO DataManager
-// ========================================
-// Procure por: const DataManager = {
-// Adicione estas funções:
 
-  /**
-   * Carrega configurações do backend
-   */
-  async carregarConfiguracoes() {
-    Utils.log('Carregando configurações...');
-    
-    return new Promise((resolve, reject) => {
-      google.script.run
-        .withSuccessHandler(config => {
-          AppState.config = config;
-          Utils.log('✅ Configurações carregadas:', config);
-          resolve(config);
-        })
-        .withFailureHandler(error => {
-          Utils.error('❌ Erro ao carregar configurações:', error);
-          // Usa padrões
-          resolve(AppState.config);
-        })
-        .carregarConfiguracoes();
-    });
-  },
+        return eventosFiltrados;
+      },
+      async carregarConfiguracoes() {
+        Utils.log('Carregando configurações via API...');
+
+        try {
+          const res = await API.call('carregarConfiguracoes');
+          AppState.config = res || AppState.config;
+          return AppState.config;
+        } catch (e) {
+          Utils.error('Falha ao carregar configurações, usando padrão');
+          return AppState.config;
+        }
+      },
   
   /**
    * Verifica se cache é válido
@@ -2411,36 +2384,36 @@ mostrarConflitos(eventoId) {
     const timeout = AppState.config.AGENDA_CACHE_TIMEOUT || 300000;
     const agora = Date.now();
     const idade = agora - AppState.cache.timestamp;
-    
+
     const valido = AppState.cache.dados && idade < timeout;
-    
+
     Utils.log(`Cache: ${valido ? '✅ VÁLIDO' : '❌ EXPIRADO'} (${Math.round(idade/1000)}s)`);
-    
+
     return valido;
   },
-  
+
   /**
    * Carrega eventos com cache
    */
   async carregarEventosComCache() {
     Utils.log('Carregando eventos (com cache)...');
-    
+
     // Verifica cache
     if (this.cacheValido()) {
       Utils.log('📦 Usando cache');
       return AppState.cache.dados;
     }
-    
+
     // Carrega do backend
     Utils.log('🌐 Carregando do backend');
     const eventos = await this.carregarEventos();
-    
+
     // Atualiza cache
     AppState.cache = {
       timestamp: Date.now(),
       dados: eventos
     };
-    
+
     return eventos;
   },
   aplicarConfigVirtualizacao() {
