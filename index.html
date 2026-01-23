@@ -219,6 +219,19 @@ function ocultar(id) {
   if (el) el.classList.add('hidden');
 }
 
+function abrir(pagina) {
+  const rotas = {
+    agenda: 'agenda.html'
+  };
+
+  if (!rotas[pagina]) {
+    alert('Página não encontrada');
+    return;
+  }
+
+  window.location.href = rotas[pagina];
+}
+
 window.addEventListener('load', boot);
 </script>
 
