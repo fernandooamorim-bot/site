@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta charset="UTF-8">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    
+    .container {
+      max-width: 660px;
+      margin: 0 auto;
+      background: white;
+      padding: 30px;
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    
+    h2 {
+      color: #1a1a1a;
+      margin-bottom: 10px;
+      font-size: 24px;
+    }
+    
+    .subtitle {
+      color: #666;
+      margin-bottom: 30px;
+      font-size: 14px;
+    }
+    
+    .form-group {
+      margin-bottom: 20px;
+    }
+    
+    label {
+      display: block;
+      margin-bottom: 5px;
+      color: #333;
+      font-weight: 500;
+      font-size: 14px;
+    }
+    
+    input, select {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 14px;
+      font-family: inherit;
+    }
+    
+    input:focus, select:focus {
+      outline: none;
+      border-color: #0d47a1;
+      box-shadow: 0 0 0 3px rgba(13, 71, 161, 0.1);
+    }
+    
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 15px;
+    }
+    
+    .btn {
+      padding: 12px 24px;
+      border: none;
+      border-radius: 4px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    .btn-primary {
+      background: #0d47a1;
+      color: white;
+    }
+    
+    .btn-primary:hover {
+      background: #0a3275;
+    }
+    
+    .btn-success {
+      background: #1b5e20;
+      color: white;
+    }
+    
+    .btn-success:hover {
+      background: #145018;
+    }
+    
+    .btn-secondary {
+      background: #666;
+      color: white;
+      margin-left: 10px;
+    }
+    
+    .btn-secondary:hover {
+      background: #444;
+    }
+    
+    .actions {
+      margin-top: 30px;
+      text-align: center;
+    }
+    
+    .alert {
+      padding: 12px 15px;
+      border-radius: 4px;
+      margin-bottom: 20px;
+      font-size: 14px;
+    }
+    
+    .alert-success {
+      background: #d4edda;
+      color: #155724;
+      border: 1px solid #c3e6cb;
+    }
+    
+    .alert-error {
+      background: #f8d7da;
+      color: #721c24;
+      border: 1px solid #f5c6cb;
+    }
+    
+    .alert-info {
+      background: #d1ecf1;
+      color: #0c5460;
+      border: 1px solid #bee5eb;
+    }
+    
+    .agenda-preview {
+      background: #f8f9fa;
+      border: 1px solid #dee2e6;
+      border-radius: 4px;
+      padding: 20px;
+      margin: 20px 0;
+      font-family: 'Courier New', monospace;
+      font-size: 12px;
+      white-space: pre-wrap;
+      max-height: 400px;
+      overflow-y: auto;
+      line-height: 1.6;
+    }
+    
+    .hidden {
+      display: none;
+    }
+    
+    .info-box {
+      background: #e3f2fd;
+      border-left: 4px solid #0d47a1;
+      padding: 12px 15px;
+      margin-bottom: 20px;
+      font-size: 13px;
+      color: #1565c0;
+    }
+    
+    .quick-actions {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 30px;
+    }
+    
+    .quick-actions button {
+      flex: 1;
+    }
+  </style>
+</head>
+<body>
+  <script>if(window.location.href.includes('script.google.com/macros')){const h=document.createElement('div');h.style.cssText='position:sticky;top:0;background:linear-gradient(135deg,#667eea,#764ba2);color:white;padding:15px 20px;margin:-20px;margin-bottom:20px;box-shadow:0 2px 10px rgba(0,0,0,0.1);z-index:1000;display:flex;align-items:center;gap:15px';h.innerHTML='<a href="?page=home" style="background:rgba(255,255,255,0.2);border:1px solid rgba(255,255,255,0.3);color:white;padding:8px 15px;border-radius:8px;font-size:14px;text-decoration:none">← Voltar</a>';document.body.insertBefore(h,document.body.firstChild);}</script>
+
+  <!-- Resto do HTML continua aqui... -->
+  <div class="container">
+    <h2>📝 Gerar Agenda Semanal</h2>
+    <p class="subtitle">Crie a agenda formatada para enviar no WhatsApp da banda</p>
+    
+    <div id="alertContainer"></div>
+    
+    <div class="info-box">
+      ℹ️ A agenda será gerada no formato padrão. Você pode editar manualmente antes de copiar.
+    </div>
+    
+    <!-- AÇÕES RÁPIDAS -->
+    <div class="quick-actions">
+      <button class="btn btn-primary" onclick="gerarAgendaSemanaAtual()">
+        📅 Semana Atual
+      </button>
+      <button class="btn btn-primary" onclick="gerarAgendaProximaSemana()">
+        ⏭️ Próxima Semana
+      </button>
+    </div>
+    
+    <!-- PERÍODO PERSONALIZADO -->
+    <div class="form-row">
+      <div class="form-group">
+        <label>Data Início</label>
+        <input type="date" id="dataInicio">
+      </div>
+      <div class="form-group">
+        <label>Data Fim</label>
+        <input type="date" id="dataFim">
+      </div>
+    </div>
+    
+    <div style="text-align: center; margin: 20px 0;">
+      <button class="btn btn-primary" onclick="gerarAgendaPersonalizada()">
+        🔍 Gerar Período Personalizado
+      </button>
+    </div>
+    
+    <!-- PRÉVIA DA AGENDA -->
+    <div id="sectionAgenda" class="hidden">
+      <h3 style="color: #0d47a1; margin-bottom: 15px;">📄 Agenda Gerada</h3>
+      <textarea id="agendaTexto" class="agenda-preview" style="width: 100%; min-height: 300px; font-family: 'Courier New', monospace; font-size: 12px; padding: 15px;"></textarea>
+      
+      <div class="actions">
+        <button class="btn btn-success" onclick="copiarAgenda()">
+          📋 Copiar para Área de Transferência
+        </button>
+        <button class="btn btn-secondary" onclick="google.script.host.close()">
+          ❌ Fechar
+        </button>
+      </div>
+    </div>
+  </div>
+  
+  <script>
+    // Gera agenda da semana atual
+    function gerarAgendaSemanaAtual() {
+      mostrarAlerta('Gerando agenda da semana atual...', 'info');
+      
+      google.script.run
+        .withSuccessHandler(exibirAgenda)
+        .withFailureHandler(function(erro) {
+          mostrarAlerta('❌ Erro: ' + erro.message, 'error');
+        })
+        .gerarAgendaSemanaAtual();
+    }
+    
+    // Gera agenda da próxima semana
+    function gerarAgendaProximaSemana() {
+      mostrarAlerta('Gerando agenda da próxima semana...', 'info');
+      
+      google.script.run
+        .withSuccessHandler(exibirAgenda)
+        .withFailureHandler(function(erro) {
+          mostrarAlerta('❌ Erro: ' + erro.message, 'error');
+        })
+        .gerarAgendaProximaSemana();
+    }
+    
+    // Gera agenda de período personalizado
+    function gerarAgendaPersonalizada() {
+      const dataInicio = document.getElementById('dataInicio').value;
+      const dataFim = document.getElementById('dataFim').value;
+      
+      if (!dataInicio || !dataFim) {
+        mostrarAlerta('❌ Preencha as datas de início e fim', 'error');
+        return;
+      }
+      
+      const inicio = new Date(dataInicio);
+      const fim = new Date(dataFim);
+      
+      if (inicio > fim) {
+        mostrarAlerta('❌ Data de início deve ser anterior à data de fim', 'error');
+        return;
+      }
+      
+      mostrarAlerta('Gerando agenda personalizada...', 'info');
+      
+      google.script.run
+        .withSuccessHandler(exibirAgenda)
+        .withFailureHandler(function(erro) {
+          mostrarAlerta('❌ Erro: ' + erro.message, 'error');
+        })
+        .gerarAgendaSemanal(inicio, fim);
+    }
+    
+    // Exibe agenda gerada
+    function exibirAgenda(resultado) {
+      if (resultado.sucesso) {
+        document.getElementById('agendaTexto').value = resultado.texto;
+        document.getElementById('sectionAgenda').classList.remove('hidden');
+        
+        if (resultado.quantidadeEventos === 0) {
+          mostrarAlerta('⚠️ Nenhum evento encontrado no período', 'info');
+        } else {
+          mostrarAlerta(`✅ Agenda gerada com ${resultado.quantidadeEventos} evento(s)`, 'success');
+        }
+      } else {
+        mostrarAlerta('❌ ' + resultado.mensagem, 'error');
+      }
+    }
+    
+    // Copia agenda para área de transferência
+    function copiarAgenda() {
+      const texto = document.getElementById('agendaTexto');
+      texto.select();
+      texto.setSelectionRange(0, 99999); // Para mobile
+      
+      try {
+        document.execCommand('copy');
+        mostrarAlerta('✅ Agenda copiada! Cole no WhatsApp da banda.', 'success');
+      } catch (erro) {
+        mostrarAlerta('❌ Erro ao copiar. Selecione o texto e copie manualmente (Ctrl+C).', 'error');
+      }
+    }
+    
+    function mostrarAlerta(mensagem, tipo) {
+      const container = document.getElementById('alertContainer');
+      const classe = tipo === 'success' ? 'alert-success' : tipo === 'error' ? 'alert-error' : 'alert-info';
+      container.innerHTML = `<div class="alert ${classe}">${mensagem}</div>`;
+    }
+  </script>
+</body>
+</html>

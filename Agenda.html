@@ -1,0 +1,2757 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Agenda de Eventos</title>
+  
+  <style>
+    /* ========================================
+       RESET E CONFIGURAÇÕES GLOBAIS
+       ======================================== */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    :root {
+      --primary-color: #667eea;
+      --primary-dark: #5568d3;
+      --secondary-color: #764ba2;
+      --success-color: #48bb78;
+      --warning-color: #f6ad55;
+      --danger-color: #f56565;
+      --gray-50: #f9fafb;
+      --gray-100: #f3f4f6;
+      --gray-200: #e5e7eb;
+      --gray-300: #d1d5db;
+      --gray-400: #9ca3af;
+      --gray-500: #6b7280;
+      --gray-600: #4b5563;
+      --gray-700: #374151;
+      --gray-800: #1f2937;
+      --gray-900: #111827;
+      --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+      --shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.15);
+      --shadow-lg: 0 10px 25px rgba(0, 0, 0, 0.2);
+      --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background: var(--gray-50);
+      color: var(--gray-900);
+      line-height: 1.5;
+      padding-bottom: 80px;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+    
+    /* ========================================
+       CABEÇALHO
+       ======================================== */
+    .header {
+      background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+      color: white;
+      padding: 20px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: var(--shadow-md);
+    }
+    
+    .header-content {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+    
+    .header h1 {
+      font-size: 22px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .header-stats {
+      font-size: 13px;
+      opacity: 0.95;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 2px;
+    }
+    
+    .header-info {
+      font-size: 13px;
+      opacity: 0.9;
+      margin-top: 8px;
+      display: flex;
+      align-items: center;
+      gap: 15px;
+      flex-wrap: wrap;
+    }
+    
+    .user-badge {
+      background: rgba(255, 255, 255, 0.2);
+      padding: 4px 12px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 600;
+      border: 1px solid rgba(255, 255, 255, 0.3);
+    }
+    
+    /* ========================================
+       BARRA DE FILTROS
+       ======================================== */
+    .filters-container {
+      background: white;
+      border-bottom: 1px solid var(--gray-200);
+      position: sticky;
+      top: 78px;
+      z-index: 90;
+      box-shadow: var(--shadow-sm);
+    }
+    
+    .filters-quick {
+      display: flex;
+      gap: 8px;
+      padding: 12px 15px;
+      overflow-x: auto;
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+    }
+    
+    .filters-quick::-webkit-scrollbar {
+      display: none;
+    }
+    
+    .filter-btn {
+      padding: 8px 16px;
+      border: 2px solid var(--primary-color);
+      background: white;
+      color: var(--primary-color);
+      border-radius: 20px;
+      font-size: 13px;
+      font-weight: 600;
+      white-space: nowrap;
+      cursor: pointer;
+      transition: var(--transition);
+      flex-shrink: 0;
+    }
+    
+    .filter-btn:hover {
+      background: var(--gray-50);
+      transform: translateY(-1px);
+    }
+    
+    .filter-btn.active {
+      background: var(--primary-color);
+      color: white;
+      box-shadow: var(--shadow);
+    }
+    
+    .filter-btn:active {
+      transform: translateY(0);
+    }
+    
+    .filters-advanced {
+      padding: 15px;
+      border-top: 1px solid var(--gray-200);
+      display: none;
+    }
+    
+    .filters-advanced.show {
+      display: block;
+    }
+    
+    .filters-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 12px;
+    }
+    
+    .filter-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    
+    .filter-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--gray-700);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    
+    .filter-input,
+    .filter-select {
+      padding: 8px 12px;
+      border: 1px solid var(--gray-300);
+      border-radius: 8px;
+      font-size: 14px;
+      transition: var(--transition);
+      width: 100%;
+    }
+    
+    .filter-input:focus,
+    .filter-select:focus {
+      outline: none;
+      border-color: var(--primary-color);
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+    
+    .filter-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 12px;
+    }
+    
+    .btn-filter {
+      flex: 1;
+      padding: 10px;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: var(--transition);
+    }
+    
+    .btn-primary {
+      background: var(--primary-color);
+      color: white;
+    }
+    
+    .btn-primary:hover {
+      background: var(--primary-dark);
+      transform: translateY(-1px);
+      box-shadow: var(--shadow);
+    }
+    
+    .btn-secondary {
+      background: white;
+      color: var(--gray-700);
+      border: 1px solid var(--gray-300);
+    }
+    
+    .btn-secondary:hover {
+      background: var(--gray-50);
+    }
+    
+    .toggle-filters {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 10px 15px;
+      background: var(--gray-50);
+      border: none;
+      border-top: 1px solid var(--gray-200);
+      width: 100%;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--primary-color);
+      cursor: pointer;
+      transition: var(--transition);
+    }
+    
+    .toggle-filters:hover {
+      background: var(--gray-100);
+    }
+    
+    /* ========================================
+       CONTAINER DE EVENTOS
+       ======================================== */
+    .eventos-container {
+      padding: 15px;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    
+    .eventos-list {
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+    }
+    
+    /* ========================================
+       CARDS DE EVENTOS
+       ======================================== */
+    .evento-card {
+      background: white;
+      border-radius: 12px;
+      padding: 16px;
+      box-shadow: var(--shadow);
+      border-left: 4px solid var(--primary-color);
+      transition: var(--transition);
+      cursor: pointer;
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .evento-card:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-md);
+    }
+    
+    .evento-card:active {
+      transform: translateY(0);
+    }
+
+    /* ========================================
+       ESTILOS PARA BLOQUEIOS E REUNIÕES
+       ======================================== */
+    
+    /* Cards por tipo de registro */
+    .evento-card.bloqueio {
+      border-left-color: var(--danger-color);
+      background: linear-gradient(to right, rgba(245, 101, 101, 0.05), white);
+    }
+    
+    .evento-card.reuniao {
+      border-left-color: #4299e1;
+      background: linear-gradient(to right, rgba(66, 153, 225, 0.05), white);
+    }
+    
+    /* Badge por tipo */
+    .evento-tipo-badge.bloqueio {
+      background: var(--danger-color);
+    }
+    
+    .evento-tipo-badge.reuniao {
+      background: #4299e1;
+    }
+    
+    /* Eventos com intervalo */
+    .evento-intervalo {
+      background: linear-gradient(to right, rgba(102, 126, 234, 0.08), white);
+    }
+    
+    .evento-periodo {
+      font-size: 13px;
+      color: var(--gray-600);
+      margin-top: 4px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    
+    /* Eventos dentro de intervalo (indentados) */
+    .evento-dentro {
+      margin-left: 20px;
+      margin-top: 8px;
+      padding: 10px;
+      background: rgba(255, 255, 255, 0.8);
+      border-left: 2px solid var(--gray-300);
+      border-radius: 8px;
+    }
+    
+    .evento-dentro-header {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--gray-700);
+      margin-bottom: 6px;
+    }
+    
+    .evento-dentro-item {
+      padding: 8px;
+      margin-bottom: 6px;
+      background: white;
+      border-radius: 6px;
+      font-size: 12px;
+      border: 1px solid var(--gray-200);
+    }
+    
+    .evento-dentro-item:last-child {
+      margin-bottom: 0;
+    }
+    
+    /* Status visual por tipo */
+    .evento-card.passado {
+      opacity: 0.7;
+      border-left-color: var(--gray-400);
+    }
+    
+    .evento-card.hoje {
+      border-left-color: var(--success-color);
+      background: linear-gradient(to right, rgba(72, 187, 120, 0.05), white);
+    }
+    
+    .evento-card.proximo {
+      border-left-color: var(--warning-color);
+    }
+    
+    .evento-card.bloqueio {
+      border-left-color: var(--danger-color);
+      background: linear-gradient(to right, rgba(245, 101, 101, 0.05), white);
+    }
+    
+    /* Status badge */
+    .status-badge {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      padding: 4px 10px;
+      border-radius: 12px;
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+   .conflict-badge {
+  margin-top: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(246, 173, 85, 0.15);
+  color: #c05621;
+  border: 1px solid rgba(246, 173, 85, 0.6);
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.conflict-badge:hover {
+  background: rgba(246, 173, 85, 0.25);
+}
+    
+    .status-pendente {
+      background: rgba(246, 173, 85, 0.2);
+      color: #c05621;
+    }
+    
+    .status-pago {
+      background: rgba(72, 187, 120, 0.2);
+      color: #22543d;
+    }
+    
+    .status-parcial {
+      background: rgba(66, 153, 225, 0.2);
+      color: #2c5282;
+    }
+    
+    /* Cabeçalho do card */
+    .evento-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 12px;
+      padding-right: 80px;
+    }
+    
+    .evento-data-info {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    
+    .evento-data {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--primary-color);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    
+    .evento-hora {
+      font-size: 13px;
+      color: var(--gray-600);
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    
+    .evento-tipo-badge {
+      background: var(--primary-color);
+      color: white;
+      padding: 5px 12px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    
+    /* Conteúdo do card */
+    .evento-titulo {
+      font-size: 17px;
+      font-weight: 700;
+      color: var(--gray-900);
+      margin-bottom: 10px;
+      line-height: 1.3;
+    }
+    
+    .evento-info {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      font-size: 13px;
+      color: var(--gray-700);
+    }
+    
+    .evento-info-line {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+    }
+    
+    .evento-info-icon {
+      color: var(--gray-500);
+      font-size: 14px;
+      margin-top: 2px;
+      flex-shrink: 0;
+    }
+    
+    .evento-info-label {
+      font-weight: 600;
+      color: var(--gray-700);
+      min-width: 80px;
+      flex-shrink: 0;
+    }
+    
+    .evento-info-value {
+      color: var(--gray-900);
+    }
+    
+    /* Área de ações */
+    .evento-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid var(--gray-200);
+    }
+    
+    .btn-action {
+      flex: 1;
+      padding: 8px 12px;
+      border: 1px solid var(--gray-300);
+      background: white;
+      color: var(--gray-700);
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: var(--transition);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+    
+    .btn-action:hover {
+      background: var(--gray-50);
+      border-color: var(--gray-400);
+      transform: translateY(-1px);
+    }
+    
+    .btn-action.primary {
+      background: var(--primary-color);
+      color: white;
+      border-color: var(--primary-color);
+    }
+    
+    .btn-action.primary:hover {
+      background: var(--primary-dark);
+    }
+    
+    /* ========================================
+       MODAL DE DETALHES
+       ======================================== */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(4px);
+      display: none;
+      justify-content: center;
+      align-items: flex-start;
+      z-index: 1000;
+      padding: 20px;
+      overflow-y: auto;
+      animation: fadeIn 0.2s ease-out;
+    }
+    
+    .modal-overlay.show {
+      display: flex;
+    }
+    
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+      }
+      to {
+        opacity: 1;
+      }
+    }
+    
+    .modal-content {
+      background: white;
+      border-radius: 16px;
+      max-width: 600px;
+      width: 100%;
+      margin-top: 40px;
+      box-shadow: var(--shadow-lg);
+      animation: slideUp 0.3s ease-out;
+    }
+    
+    @keyframes slideUp {
+      from {
+        transform: translateY(20px);
+        opacity: 0;
+      }
+      to {
+        transform: translateY(0);
+        opacity: 1;
+      }
+    }
+    
+    .modal-header {
+      background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+      color: white;
+      padding: 20px;
+      border-radius: 16px 16px 0 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .modal-title {
+      font-size: 20px;
+      font-weight: 700;
+    }
+    
+    .modal-close {
+      background: rgba(255, 255, 255, 0.2);
+      border: none;
+      color: white;
+      font-size: 24px;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      cursor: pointer;
+      transition: var(--transition);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .modal-close:hover {
+      background: rgba(255, 255, 255, 0.3);
+      transform: rotate(90deg);
+    }
+    
+    .modal-body {
+      padding: 24px;
+      max-height: 70vh;
+      overflow-y: auto;
+    }
+    
+    .detail-section {
+      margin-bottom: 24px;
+    }
+    
+    .detail-section:last-child {
+      margin-bottom: 0;
+    }
+    
+    .detail-section-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--gray-700);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 12px;
+      padding-bottom: 8px;
+      border-bottom: 2px solid var(--gray-200);
+    }
+    
+    .detail-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 12px;
+    }
+    
+    .detail-item {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    
+    .detail-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--gray-600);
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+    
+    .detail-value {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--gray-900);
+    }
+    
+    .detail-value.money {
+      color: var(--success-color);
+      font-size: 16px;
+    }
+    
+    .modal-actions {
+      padding: 16px 24px;
+      background: var(--gray-50);
+      border-radius: 0 0 16px 16px;
+      display: flex;
+      gap: 12px;
+    }
+    
+    .btn-modal {
+      flex: 1;
+      padding: 12px;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: var(--transition);
+    }
+    
+    .btn-modal.primary {
+      background: var(--primary-color);
+      color: white;
+    }
+    
+    .btn-modal.primary:hover {
+      background: var(--primary-dark);
+      transform: translateY(-2px);
+      box-shadow: var(--shadow);
+    }
+    
+    .btn-modal.secondary {
+      background: white;
+      color: var(--gray-700);
+      border: 1px solid var(--gray-300);
+    }
+    
+    .btn-modal.secondary:hover {
+      background: var(--gray-50);
+    }
+    
+    /* ========================================
+       ESTADOS ESPECIAIS
+       ======================================== */
+    .loading-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 60px 20px;
+      gap: 16px;
+    }
+    
+    .loading-spinner {
+      width: 48px;
+      height: 48px;
+      border: 4px solid var(--gray-200);
+      border-top-color: var(--primary-color);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+    
+    .loading-text {
+      font-size: 14px;
+      color: var(--gray-600);
+      font-weight: 600;
+    }
+    
+    .empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 60px 20px;
+      text-align: center;
+      gap: 16px;
+    }
+    
+    .empty-icon {
+      font-size: 64px;
+      opacity: 0.3;
+    }
+    
+    .empty-title {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--gray-700);
+    }
+    
+    .empty-text {
+      font-size: 14px;
+      color: var(--gray-600);
+      max-width: 400px;
+    }
+    
+    .error-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 60px 20px;
+      text-align: center;
+      gap: 16px;
+    }
+    
+    .error-icon {
+      font-size: 64px;
+      color: var(--danger-color);
+    }
+    
+    .error-title {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--danger-color);
+    }
+    
+    .error-text {
+      font-size: 14px;
+      color: var(--gray-600);
+      max-width: 400px;
+    }
+    
+    /* ========================================
+       NAVEGAÇÃO INFERIOR
+       ======================================== */
+    .footer-nav {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: white;
+      border-top: 1px solid var(--gray-200);
+      padding: 12px;
+      display: flex;
+      justify-content: space-around;
+      box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+      z-index: 50;
+    }
+    
+    .footer-btn {
+      background: none;
+      border: none;
+      color: var(--primary-color);
+      font-size: 24px;
+      padding: 8px 20px;
+      cursor: pointer;
+      transition: var(--transition);
+      border-radius: 12px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+    }
+    
+    .footer-btn:hover {
+      background: var(--gray-50);
+    }
+    
+    .footer-btn:active {
+      transform: scale(0.95);
+    }
+    
+    .footer-btn-label {
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    
+    /* ========================================
+       RESPONSIVIDADE
+       ======================================== */
+    @media (max-width: 640px) {
+      .header h1 {
+        font-size: 18px;
+      }
+      
+      .header-stats {
+        font-size: 11px;
+      }
+      
+      .filters-grid {
+        grid-template-columns: 1fr;
+      }
+      
+      .evento-header {
+        flex-direction: column;
+        gap: 8px;
+      }
+      
+      .modal-content {
+        margin-top: 20px;
+      }
+      
+      .detail-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+    
+    /* ========================================
+       UTILITÁRIOS
+       ======================================== */
+    .hidden {
+      display: none !important;
+    }
+    
+    .text-center {
+      text-align: center;
+    }
+    
+    .mt-2 {
+      margin-top: 8px;
+    }
+    
+    .mb-2 {
+      margin-bottom: 8px;
+    }
+  </style>
+</head>
+
+<body>
+  <!-- Cabeçalho -->
+  <div class="header">
+    <div class="header-content">
+      <h1>
+        <span>📅</span>
+        <span>Agenda de Eventos</span>
+      </h1>
+      <div class="header-stats">
+        <div id="eventoCount">-</div>
+        <div id="userProfile" class="user-badge">Carregando...</div>
+      </div>
+    </div>
+    <div class="header-info" id="headerInfo"></div>
+  </div>
+
+  <!-- Filtros -->
+  <div class="filters-container">
+    <!-- Filtros rápidos -->
+    <div class="filters-quick" id="filtersQuick">
+      <button class="filter-btn" data-filter="proximos">Próximos</button>
+      <button class="filter-btn" data-filter="hoje">Hoje</button>
+      <button class="filter-btn" data-filter="proximos7">Próximos 7 dias</button>
+      <button class="filter-btn" data-filter="mesAtual">Mês Atual</button>
+      <button class="filter-btn" data-filter="todos">Todos</button>
+    </div>
+
+    <!-- Botão toggle filtros avançados -->
+    <button class="toggle-filters" id="toggleAdvanced">
+      <span id="toggleIcon">▼</span>
+      <span id="toggleText">Filtros Avançados</span>
+    </button>
+
+    <!-- Filtros avançados -->
+    <div class="filters-advanced" id="filtersAdvanced">
+      <div class="filters-grid">
+        <div class="filter-group">
+          <label class="filter-label">Data Início</label>
+          <input type="date" class="filter-input" id="filterDataInicio">
+        </div>
+        <div class="filter-group">
+          <label class="filter-label">Data Fim</label>
+          <input type="date" class="filter-input" id="filterDataFim">
+        </div>
+        <div class="filter-group">
+          <label class="filter-label">Tipo de Evento</label>
+          <select class="filter-select" id="filterTipoEvento">
+            <option value="">Todos os tipos</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <label class="filter-label">Status</label>
+          <select class="filter-select" id="filterStatus">
+            <option value="">Todos os status</option>
+            <option value="Pendente">Pendente</option>
+            <option value="Pago">Pago</option>
+            <option value="Parcial">Parcialmente Pago</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <label class="filter-label">Local</label>
+          <select class="filter-select" id="filterLocal">
+            <option value="">Todos os locais</option>
+          </select>
+        </div>
+        <div class="filter-group" id="filterTipoRegistroGroup" style="display: none;">
+          <label class="filter-label">Tipo de Registro</label>
+          <select class="filter-select" id="filterTipoRegistro">
+            <option value="">Todos os tipos</option>
+            <option value="Evento">Eventos</option>
+            <option value="Bloqueio">Bloqueios</option>
+            <option value="Reunião">Reuniões</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <label class="filter-label">Buscar</label>
+          <input type="text" class="filter-input" id="filterBusca" placeholder="Nome, contratante...">
+        </div>
+      </div>
+      <div class="filter-actions">
+        <button class="btn-filter btn-primary" id="btnAplicarFiltros">
+          🔍 Aplicar Filtros
+        </button>
+        <button class="btn-filter btn-secondary" id="btnLimparFiltros">
+          ✕ Limpar
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Container de eventos -->
+  <div class="eventos-container" id="eventosContainer">
+    <div class="loading-container">
+      <div class="loading-spinner"></div>
+      <div class="loading-text">Carregando eventos...</div>
+    </div>
+  </div>
+
+  <!-- Modal de detalhes -->
+  <div class="modal-overlay" id="modalDetalhes">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 class="modal-title">Detalhes do Evento</h2>
+        <button class="modal-close" id="btnFecharModal">×</button>
+      </div>
+      <div class="modal-body" id="modalBody">
+        <!-- Conteúdo dinâmico -->
+      </div>
+      <div class="modal-actions" id="modalActions">
+        <!-- Ações dinâmicas baseadas no perfil -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Navegação inferior -->
+  <div class="footer-nav">
+    <button class="footer-btn" onclick="irParaHome()">
+      <span>🏠</span>
+      <span class="footer-btn-label">Home</span>
+    </button>
+    <button class="footer-btn" id="btnRecarregar">
+      <span>🔄</span>
+      <span class="footer-btn-label">Atualizar</span>
+    </button>
+    <button class="footer-btn" id="btnToggleFilters">
+      <span>🔍</span>
+      <span class="footer-btn-label">Filtros</span>
+    </button>
+  </div>
+
+  <!-- JavaScript -->
+  <script>
+    // ========================================
+    // DEBUG ATIVO
+    // ========================================
+    console.log('🚀 AgendaVisual.html iniciando...');
+    
+    // Testa se google.script.run está disponível
+    if (typeof google !== 'undefined' && google.script && google.script.run) {
+      console.log('✅ google.script.run está disponível');
+    } else {
+      console.error('❌ google.script.run NÃO está disponível - verifique se está rodando no Google Apps Script');
+    }
+    
+    // ========================================
+    // CONFIGURAÇÕES E CONSTANTES
+    // ========================================
+    const APP_CONFIG = {
+      debug: true, // DEBUG ATIVO
+      cacheTimeout: 300000, // 5 minutos
+      maxEventosExibidos: 500
+    };
+
+    // Estado da aplicação
+    const AppState = {
+
+      // Sistema de virtualização
+  virtualizacao: {
+  enabled: true,
+  threshold: 100,     // ← ADICIONAR
+  itemHeight: 200,
+  buffer: 50,         // ← MUDAR de 30 para 50
+  debug: false,       // ← ADICIONAR
+  viewport: { start: 0, end: 0 }
+},
+  
+  // Configurações globais
+  config: {
+    AGENDA_FILTRO_PADRAO: 'proximos',
+    AGENDA_CACHE_TIMEOUT: 300000,
+    AGENDA_CORES_PERSONALIZADAS: true
+  },
+  
+  // Cache de eventos
+  cache: {
+    timestamp: 0,
+    dados: null
+  },
+      eventos: [],
+      eventosFiltrados: [],
+      usuario: null,
+      filtroAtivo: 'todos',
+      ultimaAtualizacao: null,
+      loading: false
+      
+    };
+
+    // ========================================
+    // UTILITÁRIOS
+    // ========================================
+    const Utils = {
+      log(...args) {
+        console.log('[AgendaVisual]', ...args);
+      },
+      
+      error(...args) {
+        console.error('[AgendaVisual]', ...args);
+      },
+      
+      formatarData(data) {
+        if (!data) return '';
+        
+        try {
+          let dataObj;
+          if (data instanceof Date) {
+            dataObj = data;
+          } else if (typeof data === 'string') {
+            // Tenta DD/MM/YYYY
+            if (data.includes('/')) {
+              const [dia, mes, ano] = data.split('/');
+              dataObj = new Date(ano, mes - 1, dia, 12, 0, 0);
+            } 
+            // Tenta YYYY-MM-DD
+            else if (data.includes('-')) {
+              dataObj = new Date(data + 'T12:00:00');
+            } else {
+              dataObj = new Date(data);
+            }
+          } else {
+            dataObj = new Date(data);
+          }
+          
+          if (isNaN(dataObj.getTime())) return '';
+          
+          return dataObj.toLocaleDateString('pt-BR', {
+            weekday: 'short',
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric'
+          });
+        } catch (e) {
+          Utils.error('Erro ao formatar data:', e);
+          return '';
+        }
+      },
+      
+      formatarHora(hora) {
+        if (!hora) return '';
+        
+        try {
+          if (hora instanceof Date) {
+            return hora.toLocaleTimeString('pt-BR', {
+              hour: '2-digit',
+              minute: '2-digit'
+            });
+          }
+          
+          return hora.toString();
+        } catch (e) {
+          Utils.error('Erro ao formatar hora:', e);
+          return '';
+        }
+      },
+      
+      formatarMoeda(valor) {
+        if (!valor && valor !== 0) return 'R$ 0,00';
+        
+        try {
+          return new Intl.NumberFormat('pt-BR', {
+            style: 'currency',
+            currency: 'BRL'
+          }).format(valor);
+        } catch (e) {
+          Utils.error('Erro ao formatar moeda:', e);
+          return 'R$ 0,00';
+        }
+      },
+      
+     /**
+       * Parse robusto de data DD/MM/YYYY
+       * Valida formato, componentes e data real
+       */
+      parseData(dataStr) {
+        if (!dataStr) {
+          Utils.log('⚠️ parseData: data vazia');
+          return null;
+        }
+        
+        try {
+          let dataObj;
+          
+          // Se já é Date, valida e retorna
+          if (dataStr instanceof Date) {
+            if (isNaN(dataStr.getTime())) {
+              Utils.error('Data inválida (Date object):', dataStr);
+              return null;
+            }
+            return dataStr;
+          }
+          
+          // Converte para string
+          const str = String(dataStr).trim();
+          
+          // Formato DD/MM/YYYY
+          if (str.includes('/')) {
+            const regex = /^(\d{2})\/(\d{2})\/(\d{4})$/;
+            const match = str.match(regex);
+            
+            if (!match) {
+              Utils.error('Formato inválido (esperado DD/MM/YYYY):', str);
+              return null;
+            }
+            
+            const dia = parseInt(match[1], 10);
+            const mes = parseInt(match[2], 10) - 1; // 0-based
+            const ano = parseInt(match[3], 10);
+            
+            // Validações básicas
+            if (ano < 1900 || ano > 2100) {
+              Utils.error('Ano inválido:', ano);
+              return null;
+            }
+            
+            if (mes < 0 || mes > 11) {
+              Utils.error('Mês inválido:', mes + 1);
+              return null;
+            }
+            
+            if (dia < 1 || dia > 31) {
+              Utils.error('Dia inválido:', dia);
+              return null;
+            }
+            
+            // Cria data (meio-dia para evitar problemas de fuso)
+            dataObj = new Date(ano, mes, dia, 12, 0, 0, 0);
+            
+            // Valida se data é válida (31/02 vira 03/03)
+            if (isNaN(dataObj.getTime())) {
+              Utils.error('Data inválida:', str);
+              return null;
+            }
+            
+            // Valida se componentes batem
+            if (dataObj.getDate() !== dia || 
+                dataObj.getMonth() !== mes || 
+                dataObj.getFullYear() !== ano) {
+              Utils.error('Data inexistente (ex: 31/02):', str);
+              return null;
+            }
+            
+            return dataObj;
+          }
+          
+          // Formato ISO (YYYY-MM-DD)
+          if (str.includes('-')) {
+            dataObj = new Date(str + 'T12:00:00');
+            
+            if (isNaN(dataObj.getTime())) {
+              Utils.error('Data inválida (ISO):', str);
+              return null;
+            }
+            
+            return dataObj;
+          }
+          
+          // Formato desconhecido
+          Utils.error('Formato desconhecido:', str);
+          return null;
+          
+        } catch (e) {
+          Utils.error('Erro ao fazer parse de data:', e.message, dataStr);
+          return null;
+        }
+      },
+      
+      classificarEvento(dataEvento) {
+        try {
+          const hoje = new Date();
+          hoje.setHours(0, 0, 0, 0);
+          
+          const data = Utils.parseData(dataEvento);
+          if (!data) return 'futuro';
+          
+          data.setHours(0, 0, 0, 0);
+          
+          if (data < hoje) return 'passado';
+          if (data.getTime() === hoje.getTime()) return 'hoje';
+          
+          const proximos7 = new Date(hoje);
+          proximos7.setDate(hoje.getDate() + 7);
+          
+          if (data <= proximos7) return 'proximo';
+          
+          return 'futuro';
+        } catch (e) {
+          Utils.error('Erro ao classificar evento:', e);
+          return 'futuro';
+        }
+      },
+      
+      getStatusBadge(status) {
+        const badges = {
+          'Pendente': 'status-pendente',
+          'Pago': 'status-pago',
+          'Parcial': 'status-parcial',
+          'Parcialmente Pago': 'status-parcial'
+        };
+        
+        return badges[status] || 'status-pendente';
+      },
+      
+      getStatusLabel(status) {
+        const labels = {
+          'Pendente': 'Pendente',
+          'Pago': 'Pago',
+          'Parcial': 'Parcial',
+          'Parcialmente Pago': 'Parcial'
+        };
+        
+        return labels[status] || status;
+      },
+calcularDiasIntervalo(dataInicio, dataFim) {
+    try {
+      const inicio = Utils.parseData(dataInicio);
+      const fim = Utils.parseData(dataFim);
+      
+      if (!inicio || !fim) return 0;
+      
+      const diff = fim - inicio;
+      const dias = Math.ceil(diff / (1000 * 60 * 60 * 24)) + 1;
+      
+      return dias;
+    } catch (e) {
+      return 0;
+    }
+  },
+  
+  formatarDataCurta(data) {
+    if (!data) return '';
+    
+    try {
+      let dataObj;
+      if (data instanceof Date) {
+        dataObj = data;
+      } else if (typeof data === 'string') {
+        if (data.includes('/')) {
+          const [dia, mes, ano] = data.split('/');
+          dataObj = new Date(ano, mes - 1, dia, 12, 0, 0);
+        } else if (data.includes('-')) {
+          dataObj = new Date(data + 'T12:00:00');
+        } else {
+          dataObj = new Date(data);
+        }
+      } else {
+        dataObj = new Date(data);
+      }
+      
+      if (isNaN(dataObj.getTime())) return '';
+      
+      return dataObj.toLocaleDateString('pt-BR', {
+        day: '2-digit',
+        month: '2-digit'
+      });
+    } catch (e) {
+      return '';
+    }
+  }
+      
+    };
+
+    // ========================================
+    // GERENCIADOR DE INTERFACE
+    // ========================================
+    const UI = {
+      showLoading() {
+        Utils.log('Mostrando loading...');
+        const container = document.getElementById('eventosContainer');
+        if (container) {
+          container.innerHTML = `
+            <div class="loading-container">
+              <div class="loading-spinner"></div>
+              <div class="loading-text">Carregando eventos...</div>
+            </div>
+          `;
+        }
+      },
+      
+      showEmpty(mensagem = 'Nenhum evento encontrado', icone = '📅') {
+        Utils.log('Mostrando empty state...');
+        const container = document.getElementById('eventosContainer');
+        if (container) {
+          container.innerHTML = `
+            <div class="empty-state">
+              <div class="empty-icon">${icone}</div>
+              <div class="empty-title">${mensagem}</div>
+              <div class="empty-text">
+                ${AppState.filtroAtivo !== 'todos' 
+                  ? 'Tente ajustar os filtros ou criar um novo evento.' 
+                  : 'Cadastre novos eventos para visualizá-los aqui.'}
+              </div>
+            </div>
+          `;
+        }
+      },
+      
+      showError(mensagem = 'Erro ao carregar eventos') {
+        Utils.error('Mostrando erro:', mensagem);
+        const container = document.getElementById('eventosContainer');
+        if (container) {
+          container.innerHTML = `
+            <div class="error-state">
+              <div class="error-icon">⚠️</div>
+              <div class="error-title">Ops! Algo deu errado</div>
+              <div class="error-text">${mensagem}</div>
+              <button class="btn-filter btn-primary" onclick="AgendaController.init()">
+                Tentar Novamente
+              </button>
+            </div>
+          `;
+        }
+      },
+      
+      atualizarHeader() {
+        const count = AppState.eventosFiltrados.length;
+        const countEl = document.getElementById('eventoCount');
+        if (countEl) {
+          countEl.textContent = `${count} evento${count !== 1 ? 's' : ''}`;
+        }
+        
+        if (AppState.usuario) {
+          const profileEl = document.getElementById('userProfile');
+          if (profileEl) {
+            profileEl.textContent = AppState.usuario.perfil || 'Usuário';
+          }
+        }
+        
+        // Informações adicionais
+        const info = [];
+        
+        if (AppState.ultimaAtualizacao) {
+          const tempo = new Date(AppState.ultimaAtualizacao).toLocaleTimeString('pt-BR', {
+            hour: '2-digit',
+            minute: '2-digit'
+          });
+          info.push(`Atualizado às ${tempo}`);
+        }
+        
+        if (AppState.filtroAtivo !== 'todos') {
+          info.push(`Filtro: ${AppState.filtroAtivo}`);
+        }
+        
+        const infoEl = document.getElementById('headerInfo');
+        if (infoEl) {
+          infoEl.innerHTML = info.join(' • ');
+        }
+      },
+      
+       renderizarEventos(eventos) {
+    Utils.log('📋 Renderizando eventos:', eventos.length);
+    
+    const container = document.getElementById('eventosContainer');
+    
+    if (!eventos || eventos.length === 0) {
+      container.innerHTML = `
+        <div class="empty-state">
+          <div class="empty-icon">📭</div>
+          <div class="empty-title">Nenhum evento encontrado</div>
+          <div class="empty-text">Tente ajustar os filtros ou adicionar novos eventos.</div>
+        </div>
+      `;
+      return;
+    }
+    
+    // NOVA LÓGICA: Usa virtualização ou renderização normal
+    if (AppState.virtualizacao.enabled && eventos.length >= AppState.virtualizacao.threshold) {
+      this.renderizarEventosVirtualizados(eventos);
+    } else {
+      this.renderizarEventosNormal(eventos);
+    }
+    
+    // Atualiza contador
+    document.getElementById('eventoCount').textContent = `${eventos.length} eventos`;
+  },
+      
+      /**
+ * ========================================
+ * MODIFICAÇÃO 5: FUNÇÃO criarCardEvento()
+ * ========================================
+ * 
+ * LOCALIZAÇÃO: Busque por "criarCardEvento(evento) {" no arquivo
+ * AÇÃO: SUBSTITUIR toda a função antiga por esta
+ * 
+ * Esta é a função mais longa - ~150 linhas
+ * Suporta: Eventos, Bloqueios, Reuniões e Intervalos
+ */
+
+criarCardEvento(evento) {
+  const classificacao = Utils.classificarEvento(evento.data);
+  const dataFormatada = Utils.formatarData(evento.data);
+  
+  // Verifica permissões
+  const podeVerValor = AppState.usuario && 
+    (AppState.usuario.perfil === 'Proprietário' || AppState.usuario.perfil === 'Sócio');
+  
+  const podeEditar = AppState.usuario && 
+    (AppState.usuario.perfil === 'Proprietário' || AppState.usuario.perfil === 'Sócio');
+  
+  // Define classe e ícone por tipo
+  let classeExtra = '';
+  let icone = '🎵';
+  let badgeLabel = evento.projeto || evento.tipoEvento;
+  
+  if (evento.tipo === 'Bloqueio') {
+    classeExtra = 'bloqueio';
+    icone = '🚫';
+    badgeLabel = 'BLOQUEIO';
+  } else if (evento.tipo === 'Reunião') {
+    classeExtra = 'reuniao';
+    icone = '📅';
+    badgeLabel = 'REUNIÃO';
+  }
+  
+  // Badge de status (só para Eventos com valor financeiro)
+  let statusBadge = '';
+  if (evento.tipo === 'Evento' && podeVerValor && evento.status) {
+    const statusClass = Utils.getStatusBadge(evento.status);
+    const statusLabel = Utils.getStatusLabel(evento.status);
+    statusBadge = `<span class="status-badge ${statusClass}">${statusLabel}</span>`;
+  }
+
+  // Badge de conflito
+  let conflictBadge = '';
+if (evento.eventosDentro && evento.eventosDentro.length > 0) {
+  conflictBadge = `
+    <div class="conflict-badge" onclick="UI.mostrarConflitos('${evento.id}'); event.stopPropagation();">
+      ⚠️ ${evento.eventosDentro.length} conflito${evento.eventosDentro.length > 1 ? 's' : ''}
+    </div>
+  `;
+}
+  
+  // Monta HTML baseado no tipo
+  let cardHTML = '';
+  
+  // ========================================
+  // EVENTO COM INTERVALO (tem dataFim)
+  // ========================================
+  if (evento.dataFim) {
+    const dataFimFormatada = Utils.formatarData(evento.dataFim);
+    const diasIntervalo = Utils.calcularDiasIntervalo(evento.data, evento.dataFim);
+    
+    cardHTML = `
+      <div class="evento-card ${classificacao} ${classeExtra} evento-intervalo" data-evento-id="${evento.id}">
+        ${statusBadge}
+        <div class="evento-header">
+          <div class="evento-data-info">
+            <div class="evento-data">
+              ${icone} ${Utils.formatarData(evento.data)} → ${Utils.formatarData(evento.dataFim)}
+            </div>
+            <div class="evento-periodo">
+  ${evento.inicioIntervalo ? `🕐 A partir de ${evento.inicioIntervalo} • ` : ''}
+  ${diasIntervalo} ${diasIntervalo === 1 ? 'dia' : 'dias'}
+</div>
+          </div>
+          <div class="evento-tipo-badge ${classeExtra}">
+            ${badgeLabel}
+          </div>
+        </div>
+        
+        <div class="evento-titulo">
+          
+          ${evento.tipoEvento}${evento.contratante ? ' ' + evento.contratante : ''}
+          
+        </div>
+        ${conflictBadge}
+        <div class="evento-info">
+          ${evento.observacoes ? `
+            <div class="evento-info-line">
+              <span class="evento-info-icon">📝</span>
+              <span class="evento-info-value">${evento.observacoes}</span>
+            </div>
+          ` : ''}
+        </div>
+        
+        ${UI.renderizarEventosDentro(evento)}
+        
+        ${podeEditar ? `
+          <div class="evento-actions">
+            <button class="btn-action" onclick="verDetalhesEvento('${evento.id}'); event.stopPropagation();">
+              👁️ Ver Detalhes
+            </button>
+            <button class="btn-action primary" onclick="editarEvento('${evento.id}'); event.stopPropagation();">
+              ✏️ Editar
+            </button>
+          </div>
+        ` : ''}
+      </div>
+    `;
+    
+  } 
+  // ========================================
+  // EVENTO PONTUAL (sem dataFim)
+  // ========================================
+  else {
+    let horaInfo = '';
+    if (evento.hora) {
+      if (evento.horaFim && evento.duracao) {
+        horaInfo = `
+          <div class="evento-hora">
+            🕐 ${evento.hora} → ${evento.horaFim} (${evento.duracao})
+          </div>
+        `;
+      } else {
+        horaInfo = `
+          <div class="evento-hora">
+            🕐 ${evento.hora}
+          </div>
+        `;
+      }
+    }
+    
+    cardHTML = `
+      <div class="evento-card ${classificacao} ${classeExtra}" data-evento-id="${evento.id}">
+        ${statusBadge}
+        ${conflictBadge}
+        <div class="evento-header">
+          <div class="evento-data-info">
+            <div class="evento-data">
+              ${icone} ${dataFormatada}
+            </div>
+            ${horaInfo}
+          </div>
+          <div class="evento-tipo-badge ${classeExtra}">
+            ${badgeLabel}
+          </div>
+        </div>
+        
+        <div class="evento-titulo">
+          ${evento.tipoEvento}${evento.contratante ? ' ' + evento.contratante : ''}
+        </div>
+        
+        <div class="evento-info">
+          ${evento.local ? `
+            <div class="evento-info-line">
+              <span class="evento-info-icon">📍</span>
+              <span class="evento-info-value">${evento.local}</span>
+            </div>
+          ` : ''}
+          
+          ${podeVerValor && evento.valor && evento.tipo === 'Evento' ? `
+            <div class="evento-info-line">
+              <span class="evento-info-icon">💰</span>
+              <span class="evento-info-value">${Utils.formatarMoeda(evento.valor)}</span>
+            </div>
+          ` : ''}
+        </div>
+        
+        ${podeEditar ? `
+          <div class="evento-actions">
+            <button class="btn-action" onclick="verDetalhesEvento('${evento.id}'); event.stopPropagation();">
+              👁️ Ver Detalhes
+            </button>
+            <button class="btn-action primary" onclick="editarEvento('${evento.id}'); event.stopPropagation();">
+              ✏️ Editar
+            </button>
+          </div>
+        ` : ''}
+      </div>
+    `;
+  }
+  
+  return cardHTML;
+},
+  /**
+   * Renderiza eventos com virtualização
+   */
+  renderizarEventosVirtualizados(eventos) {
+    Utils.log('Renderizando com virtualização:', eventos.length);
+    
+    if (!AppState.virtualizacao.enabled || eventos.length < AppState.virtualizacao.threshold) {
+      
+      return this.renderizarEventosNormal(eventos);
+    }
+    
+    // Calcula viewport
+    const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+    const viewportHeight = window.innerHeight;
+    
+    const itemHeight = AppState.virtualizacao.itemHeight;
+    const buffer = AppState.virtualizacao.buffer;
+    
+    // Índices visíveis
+    const startIndex = Math.max(0, Math.floor(scrollTop / itemHeight) - buffer);
+    const endIndex = Math.min(
+      eventos.length,
+      Math.ceil((scrollTop + viewportHeight) / itemHeight) + buffer
+    );
+    
+    AppState.virtualizacao.viewport = { start: startIndex, end: endIndex };
+    
+    Utils.log(`Viewport: ${startIndex} → ${endIndex} de ${eventos.length}`);
+    
+    // Container
+    const container = document.getElementById('eventosContainer');
+    
+    // Altura total (para manter scroll)
+    const totalHeight = eventos.length * itemHeight;
+    
+    // Offset do primeiro item
+    const offsetY = startIndex * itemHeight;
+    
+    let html = `
+      <div style="height: ${totalHeight}px; position: relative;">
+        <div class="eventos-list" style="position: absolute; top: ${offsetY}px; left: 0; right: 0;">
+    `;
+    
+    // Renderiza apenas eventos visíveis
+    for (let i = startIndex; i < endIndex; i++) {
+      html += this.criarCardEvento(eventos[i]);
+    }
+    
+    html += `
+        </div>
+      </div>
+    `;
+    
+    container.innerHTML = html;
+    
+    // Debug info
+    const info = document.createElement('div');
+    info.style.cssText = 'position: fixed; bottom: 80px; right: 20px; background: rgba(0,0,0,0.8); color: white; padding: 8px 12px; border-radius: 8px; font-size: 11px; z-index: 999;';
+    info.innerHTML = `📊 ${startIndex}-${endIndex}/${eventos.length}`;
+    document.body.appendChild(info);
+    
+    setTimeout(() => info.remove(), 2000);
+   
+// Debug info (se ativado na CONFIG)
+if (AppState.virtualizacao.debug) {  // ✅ CORRETO
+  this.mostrarDebugVirtualizacao(startIndex, endIndex, eventos.length);
+}
+  },
+  
+  /**
+   * Renderiza eventos normalmente (sem virtualização)
+   */
+  renderizarEventosNormal(eventos) {
+    Utils.log('Renderizando normalmente:', eventos.length);
+    
+    const container = document.getElementById('eventosContainer');
+    
+    let html = '<div class="eventos-list">';
+    
+    eventos.forEach(evento => {
+      html += this.criarCardEvento(evento);
+    });
+    
+    html += '</div>';
+    
+    container.innerHTML = html;
+  },
+  mostrarDebugVirtualizacao(start, end, total) {
+  // Remove info anterior
+  const oldInfo = document.getElementById('virtualizacao-debug');
+  if (oldInfo) oldInfo.remove();
+  
+  // Cria container principal
+  const info = document.createElement('div');
+  info.id = 'virtualizacao-debug';
+  info.style.cssText = `
+    position: fixed;
+    bottom: 100px;
+    right: 20px;
+    background: rgba(0,0,0,0.85);
+    color: white;
+    padding: 12px 16px;
+    border-radius: 8px;
+    font-size: 11px;
+    font-family: monospace;
+    z-index: 9999;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    min-width: 200px;
+  `;
+  
+  // Calcula valores
+  const renderizados = end - start;
+  const percentual = ((renderizados / total) * 100).toFixed(1);
+  
+  // Título
+  const titulo = document.createElement('div');
+  titulo.style.cssText = 'margin-bottom: 8px; font-weight: bold; color: #4ade80;';
+  titulo.textContent = '⚡ VIRTUALIZAÇÃO';
+  info.appendChild(titulo);
+  
+  // Total
+  const totalDiv = document.createElement('div');
+  totalDiv.textContent = `📊 Total: ${total} eventos`;
+  info.appendChild(totalDiv);
+  
+  // Visíveis
+  const visiveisDiv = document.createElement('div');
+  visiveisDiv.textContent = `👁️ Visíveis: ${start}→${end}`;
+  info.appendChild(visiveisDiv);
+  
+  // Renderizados
+  const renderizadosDiv = document.createElement('div');
+  renderizadosDiv.textContent = `🎨 Renderizados: ${renderizados} (${percentual}%)`;
+  info.appendChild(renderizadosDiv);
+  
+  // Separador
+  const separador = document.createElement('div');
+  separador.style.cssText = 'margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.2);';
+  
+  // Config
+  const configDiv = document.createElement('div');
+  configDiv.style.cssText = 'font-size: 10px; color: #fbbf24;';
+  configDiv.textContent = `⚙️ Config: threshold=${AppState.virtualizacao.threshold}, buffer=${AppState.virtualizacao.buffer}`;
+  separador.appendChild(configDiv);
+  
+  info.appendChild(separador);
+  
+  // Texto scroll
+  const scrollDiv = document.createElement('div');
+  scrollDiv.style.cssText = 'margin-top: 4px; font-size: 10px; color: #aaa;';
+  scrollDiv.textContent = 'Scroll para atualizar';
+  info.appendChild(scrollDiv);
+  
+  // Adiciona ao body
+  document.body.appendChild(info);
+},
+renderizarEventosDentro(evento) {
+  return '';
+},
+mostrarConflitos(eventoId) {
+  const evento = AppState.eventos.find(e => e.id === eventoId);
+  if (!evento || !evento.eventosDentro) return;
+
+  const modal = document.getElementById('modalDetalhes');
+  const modalBody = document.getElementById('modalBody');
+  const modalActions = document.getElementById('modalActions');
+
+  let html = `
+    <div class="detail-section">
+      <div class="detail-section-title">⚠️ Eventos em Conflito</div>
+      ${evento.eventosDentro.map(e => `
+        <div class="evento-dentro-item">
+          📅 ${Utils.formatarData(e.data)} ${e.hora || ''} — ${e.tipoEvento}${e.contratante ? ' ' + e.contratante : ''}
+        </div>
+      `).join('')}
+    </div>
+  `;
+
+  modalBody.innerHTML = html;
+  modalActions.innerHTML = `
+    <button class="btn-modal secondary" onclick="fecharModal()">Fechar</button>
+  `;
+  modal.classList.add('show');
+},
+  
+      mostrarDetalhes(evento) {
+        Utils.log('Mostrando detalhes do evento:', evento.id);
+        
+        const modal = document.getElementById('modalDetalhes');
+        const modalBody = document.getElementById('modalBody');
+        const modalActions = document.getElementById('modalActions');
+        
+        if (!modal || !modalBody || !modalActions) {
+          Utils.error('Elementos do modal não encontrados!');
+          return;
+        }
+        
+        // Verifica permissões
+        const podeVerValor = AppState.usuario && 
+          (AppState.usuario.perfil === 'Proprietário' || AppState.usuario.perfil === 'Sócio');
+        
+        const podeEditar = AppState.usuario && 
+          (AppState.usuario.perfil === 'Proprietário' || AppState.usuario.perfil === 'Sócio');
+        
+        // Monta o HTML dos detalhes
+        let html = `
+          <div class="detail-section">
+            <div class="detail-section-title">📋 Informações Básicas</div>
+            <div class="detail-grid">
+              <div class="detail-item">
+                <div class="detail-label">Tipo de Evento</div>
+                <div class="detail-value">${evento.tipoEvento || '-'}</div>
+              </div>
+              <div class="detail-item">
+                <div class="detail-label">Projeto</div>
+                <div class="detail-value">${evento.projeto || '-'}</div>
+              </div>
+              <div class="detail-item">
+                <div class="detail-label">Data</div>
+                <div class="detail-value">${Utils.formatarData(evento.data)}</div>
+              </div>
+              <div class="detail-item">
+                <div class="detail-label">Horário</div>
+                <div class="detail-value">${Utils.formatarHora(evento.hora) || '-'}</div>
+              </div>
+            </div>
+          </div>
+          
+          <div class="detail-section">
+            <div class="detail-section-title">👥 Contratante e Local</div>
+            <div class="detail-grid">
+              <div class="detail-item">
+                <div class="detail-label">Contratante</div>
+                <div class="detail-value">${evento.contratante || '-'}</div>
+              </div>
+              <div class="detail-item">
+                <div class="detail-label">Local</div>
+                <div class="detail-value">${evento.local || '-'}</div>
+              </div>
+            </div>
+          </div>
+        `;
+        
+        // Seção financeira (apenas para Proprietário e Sócio)
+        if (podeVerValor) {
+          html += `
+            <div class="detail-section">
+              <div class="detail-section-title">💰 Informações Financeiras</div>
+              <div class="detail-grid">
+                <div class="detail-item">
+                  <div class="detail-label">Valor Total</div>
+                  <div class="detail-value money">${Utils.formatarMoeda(evento.valor)}</div>
+                </div>
+                <div class="detail-item">
+                  <div class="detail-label">Status</div>
+                  <div class="detail-value">${evento.status || '-'}</div>
+                </div>
+              </div>
+            </div>
+          `;
+        }
+        
+        modalBody.innerHTML = html;
+        
+        // Botões de ação
+        let actionsHtml = `
+          <button class="btn-modal secondary" onclick="fecharModal()">
+            Fechar
+          </button>
+        `;
+        
+        if (podeEditar) {
+          actionsHtml = `
+            <button class="btn-modal secondary" onclick="fecharModal()">
+              Fechar
+            </button>
+            <button class="btn-modal primary" onclick="editarEvento('${evento.id}')">
+              ✏️ Editar Evento
+            </button>
+          `;
+        }
+        
+        modalActions.innerHTML = actionsHtml;
+        
+        // Mostra o modal
+        modal.classList.add('show');
+      },
+      
+      popularFiltrosAvancados() {
+        Utils.log('Populando filtros avançados...');
+        
+        try {
+          // Tipos de evento únicos
+          const tipos = [...new Set(AppState.eventos.map(e => e.tipoEvento))].filter(Boolean).sort();
+          const selectTipo = document.getElementById('filterTipoEvento');
+          if (selectTipo) {
+            // Limpa opções existentes (exceto a primeira)
+            while (selectTipo.options.length > 1) {
+              selectTipo.remove(1);
+            }
+            // Adiciona novas opções
+            tipos.forEach(tipo => {
+              const option = document.createElement('option');
+              option.value = tipo;
+              option.textContent = tipo;
+              selectTipo.appendChild(option);
+            });
+          }
+          
+          // Locais únicos
+          const locais = [...new Set(AppState.eventos.map(e => e.local))].filter(Boolean).sort();
+          const selectLocal = document.getElementById('filterLocal');
+          if (selectLocal) {
+            // Limpa opções existentes (exceto a primeira)
+            while (selectLocal.options.length > 1) {
+              selectLocal.remove(1);
+            }
+            // Adiciona novas opções
+            locais.forEach(local => {
+              const option = document.createElement('option');
+              option.value = local;
+              option.textContent = local;
+              selectLocal.appendChild(option);
+            });
+          }
+        } catch (e) {
+          Utils.error('Erro ao popular filtros avançados:', e);
+        }
+      }
+    };
+
+    // ========================================
+    // GERENCIADOR DE FILTROS
+    // ========================================
+    const FiltroManager = {
+      filtrarPorPerfil(eventos) {
+    Utils.log('Filtrando eventos por perfil...');
+    
+    if (!AppState.usuario) {
+      Utils.log('Sem usuário, retornando array vazio');
+      return [];
+    }
+    
+    const perfil = AppState.usuario.perfil;
+    Utils.log('Perfil do usuário:', perfil);
+    
+    // Proprietário e Sócio veem TUDO
+    if (perfil === 'Proprietário' || perfil === 'Sócio') {
+      Utils.log('Proprietário/Sócio: mostrando todos os eventos');
+      
+      // Mostra filtro de tipo de registro
+      const filterGroup = document.getElementById('filterTipoRegistroGroup');
+      if (filterGroup) {
+        filterGroup.style.display = 'flex';
+      }
+      
+      return eventos;
+    }
+    
+    // Músicos veem APENAS Eventos
+    Utils.log('Músico: filtrando apenas tipo Evento');
+    return eventos.filter(e => e.tipo === 'Evento');
+  },
+      aplicarFiltroRapido(tipo) {
+        Utils.log('Aplicando filtro rápido:', tipo);
+        
+        AppState.filtroAtivo = tipo;
+        
+        const hoje = new Date();
+        hoje.setHours(0, 0, 0, 0);
+        
+        let eventosFiltrados = [...AppState.eventos];
+        
+        switch (tipo) {
+          case 'todos':
+            // LIMITE PARA FILTRO "TODOS"
+            const LIMITE_TODOS = 200;
+            
+            if (eventosFiltrados.length > LIMITE_TODOS) {
+              Utils.log(`⚠️ Muitos eventos (${eventosFiltrados.length}), limitando a ${LIMITE_TODOS}`);
+              
+              // Mostra alerta
+              const alertDiv = document.createElement('div');
+              alertDiv.style.cssText = `
+                position: fixed;
+                top: 80px;
+                left: 50%;
+                transform: translateX(-50%);
+                background: #f6ad55;
+                color: #744210;
+                padding: 12px 24px;
+                border-radius: 8px;
+                font-size: 14px;
+                font-weight: 600;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+                z-index: 999;
+                max-width: 90%;
+                text-align: center;
+              `;
+              alertDiv.innerHTML = `
+                ⚠️ Muitos eventos! Mostrando os ${LIMITE_TODOS} mais recentes.
+                <br>
+                💡 Use filtros para uma experiência melhor.
+              `;
+              
+              document.body.appendChild(alertDiv);
+              
+              setTimeout(() => {
+                alertDiv.style.transition = 'opacity 0.3s ease-out';
+                alertDiv.style.opacity = '0';
+                setTimeout(() => alertDiv.remove(), 300);
+              }, 5000);
+              
+              // Limita eventos
+              eventosFiltrados = eventosFiltrados.slice(0, LIMITE_TODOS);
+            }
+            // Não filtra nada
+            break;
+            
+          case 'hoje':
+            eventosFiltrados = eventosFiltrados.filter(e => {
+              const data = Utils.parseData(e.data);
+              if (!data) return false;
+              data.setHours(0, 0, 0, 0);
+              return data.getTime() === hoje.getTime();
+            });
+            break;
+            
+          case 'proximos7':
+            const proximos7 = new Date(hoje);
+            proximos7.setDate(hoje.getDate() + 7);
+            eventosFiltrados = eventosFiltrados.filter(e => {
+              const data = Utils.parseData(e.data);
+              if (!data) return false;
+              data.setHours(0, 0, 0, 0);
+              return data >= hoje && data <= proximos7;
+            });
+            break;
+            
+          case 'mesAtual':
+            const mesAtual = hoje.getMonth();
+            const anoAtual = hoje.getFullYear();
+            eventosFiltrados = eventosFiltrados.filter(e => {
+              const data = Utils.parseData(e.data);
+              if (!data) return false;
+              return data.getMonth() === mesAtual && data.getFullYear() === anoAtual;
+            });
+            break;
+            
+          case 'proximos':
+            eventosFiltrados = eventosFiltrados.filter(e => {
+              const data = Utils.parseData(e.data);
+              if (!data) return false;
+              data.setHours(0, 0, 0, 0);
+              return data >= hoje;
+            });
+            break;
+        }
+        
+        Utils.log('Eventos filtrados:', eventosFiltrados.length);
+        
+        AppState.eventosFiltrados = eventosFiltrados;
+        UI.renderizarEventos(eventosFiltrados);
+        UI.atualizarHeader();
+      },
+      
+      aplicarFiltrosAvancados() {
+        Utils.log('Aplicando filtros avançados...');
+        
+        try {
+          const dataInicio = document.getElementById('filterDataInicio')?.value || '';
+          const dataFim = document.getElementById('filterDataFim')?.value || '';
+          const tipoEvento = document.getElementById('filterTipoEvento')?.value || '';
+          const status = document.getElementById('filterStatus')?.value || '';
+          const local = document.getElementById('filterLocal')?.value || '';
+          const busca = (document.getElementById('filterBusca')?.value || '').toLowerCase();
+          
+          let eventosFiltrados = [...AppState.eventos];
+          
+          // Filtro de data início
+          if (dataInicio) {
+            const dataInicioObj = new Date(dataInicio + 'T00:00:00');
+            eventosFiltrados = eventosFiltrados.filter(e => {
+              const data = Utils.parseData(e.data);
+              return data >= dataInicioObj;
+            });
+          }
+          
+          // Filtro de data fim
+          if (dataFim) {
+            const dataFimObj = new Date(dataFim + 'T23:59:59');
+            eventosFiltrados = eventosFiltrados.filter(e => {
+              const data = Utils.parseData(e.data);
+              return data <= dataFimObj;
+            });
+          }
+          
+          // Filtro de tipo
+          if (tipoEvento) {
+            eventosFiltrados = eventosFiltrados.filter(e => e.tipoEvento === tipoEvento);
+          }
+          
+          // Filtro de status
+          if (status) {
+            eventosFiltrados = eventosFiltrados.filter(e => e.status === status);
+          }
+          
+          // Filtro de local
+          if (local) {
+            eventosFiltrados = eventosFiltrados.filter(e => e.local === local);
+          }
+          
+          // Busca textual
+          if (busca) {
+            eventosFiltrados = eventosFiltrados.filter(e => {
+              const texto = `${e.tipoEvento} ${e.contratante} ${e.local} ${e.projeto}`.toLowerCase();
+              return texto.includes(busca);
+            });
+          }
+          
+          Utils.log('Eventos filtrados (avançado):', eventosFiltrados.length);
+          
+          AppState.filtroAtivo = 'personalizado';
+          AppState.eventosFiltrados = eventosFiltrados;
+          UI.renderizarEventos(eventosFiltrados);
+          UI.atualizarHeader();
+          
+          // Fecha filtros avançados
+          const filtersAdvanced = document.getElementById('filtersAdvanced');
+          if (filtersAdvanced) {
+            filtersAdvanced.classList.remove('show');
+          }
+          const toggleIcon = document.getElementById('toggleIcon');
+          if (toggleIcon) {
+            toggleIcon.textContent = '▼';
+          }
+          const toggleText = document.getElementById('toggleText');
+          if (toggleText) {
+            toggleText.textContent = 'Filtros Avançados';
+          }
+        } catch (e) {
+          Utils.error('Erro ao aplicar filtros avançados:', e);
+        }
+      },
+      
+      limparFiltros() {
+        Utils.log('Limpando filtros...');
+        
+        const campos = [
+          'filterDataInicio',
+          'filterDataFim',
+          'filterTipoEvento',
+          'filterStatus',
+          'filterLocal',
+          'filterBusca'
+        ];
+        
+        campos.forEach(id => {
+          const el = document.getElementById(id);
+          if (el) {
+            el.value = '';
+          }
+        });
+        
+        FiltroManager.aplicarFiltroRapido('todos');
+      }
+    };
+
+    // ========================================
+    // CONTROLADOR PRINCIPAL
+    // ========================================
+    const AgendaController = {
+      async init() {
+        Utils.log('🚀 Inicializando Agenda Visual...');
+        
+        try {
+          // Mostra loading
+          UI.showLoading();
+          
+          // 1. Carrega configurações globais
+          await AgendaController.carregarConfiguracoes();
+          
+          // 2. Aplica configurações de virtualização
+          AgendaController.aplicarConfigVirtualizacao();
+          
+          // 3. Aplica cores personalizadas
+          if (AppState.config.AGENDA_CORES_PERSONALIZADAS) {
+            AgendaController.aplicarCoresPersonalizadas();
+          }
+          
+          // 4. Carrega usuário
+          await AgendaController.carregarUsuario();
+          
+          // 5. Carrega eventos (com cache)
+          await AgendaController.carregarEventosComCache();
+          
+          // 6. Configura event listeners
+          AgendaController.setupEventListeners();
+          
+          // 7. Aplica filtro padrão da CONFIG
+          const filtroPadrao = AppState.config.AGENDA_FILTRO_PADRAO || 'todos';
+          Utils.log('Aplicando filtro padrão:', filtroPadrao);
+          FiltroManager.aplicarFiltroRapido(filtroPadrao);
+          
+          // 8. Popula filtros avançados
+          UI.popularFiltrosAvancados();
+          
+          // 9. Ativa botão do filtro padrão
+          AgendaController.ativarBotaoFiltro(filtroPadrao);
+          
+          Utils.log('✅ Agenda Visual inicializada com sucesso!');
+          
+        } catch (error) {
+          Utils.error('❌ Erro ao inicializar:', error);
+          UI.showError('Erro ao carregar a agenda: ' + error.message);
+        }
+      },
+      async carregarUsuario() {
+        Utils.log('Carregando usuário...');
+        
+        return new Promise((resolve, reject) => {
+          // Verifica se google.script.run está disponível
+          if (typeof google === 'undefined' || !google.script || !google.script.run) {
+            Utils.error('google.script.run não está disponível');
+            AppState.usuario = { perfil: 'Músico' };
+            resolve(AppState.usuario);
+            return;
+          }
+          
+          google.script.run
+            .withSuccessHandler(usuario => {
+              Utils.log('✅ Usuário carregado:', usuario);
+              if (usuario) {
+                AppState.usuario = usuario;
+              } else {
+                Utils.log('⚠️ Usuário não encontrado, usando perfil padrão');
+                AppState.usuario = { perfil: 'Músico' };
+              }
+              resolve(AppState.usuario);
+            })
+            .withFailureHandler(error => {
+              Utils.error('❌ Erro ao carregar usuário:', error);
+              AppState.usuario = { perfil: 'Músico' };
+              resolve(AppState.usuario);
+            })
+            .obterUsuarioLogado();
+        });
+      },
+      
+      async carregarEventos() {
+  Utils.log('Carregando eventos...');
+  
+  return new Promise((resolve, reject) => {
+    if (typeof google === 'undefined' || !google.script || !google.script.run) {
+      Utils.error('google.script.run não está disponível');
+      reject(new Error('google.script.run não disponível'));
+      return;
+    }
+    
+    google.script.run
+      .withSuccessHandler(eventos => {
+        Utils.log('✅ Eventos carregados (bruto):', eventos ? eventos.length : 0);
+        
+        // NOVA LÓGICA: Filtrar por perfil ANTES de armazenar
+        const eventosFiltrados = FiltroManager.filtrarPorPerfil(eventos || []);
+        
+        AppState.eventos = eventosFiltrados;
+        AppState.ultimaAtualizacao = Date.now();
+        
+        Utils.log('✅ Eventos após filtro de perfil:', eventosFiltrados.length);
+        resolve(eventosFiltrados);
+      })
+      .withFailureHandler(error => {
+        Utils.error('❌ Erro ao carregar eventos:', error);
+        reject(error);
+      })
+      .listarEventos();
+  });
+      },
+      // ========================================
+// ADICIONE NO OBJETO DataManager
+// ========================================
+// Procure por: const DataManager = {
+// Adicione estas funções:
+
+  /**
+   * Carrega configurações do backend
+   */
+  async carregarConfiguracoes() {
+    Utils.log('Carregando configurações...');
+    
+    return new Promise((resolve, reject) => {
+      google.script.run
+        .withSuccessHandler(config => {
+          AppState.config = config;
+          Utils.log('✅ Configurações carregadas:', config);
+          resolve(config);
+        })
+        .withFailureHandler(error => {
+          Utils.error('❌ Erro ao carregar configurações:', error);
+          // Usa padrões
+          resolve(AppState.config);
+        })
+        .carregarConfiguracoes();
+    });
+  },
+  
+  /**
+   * Verifica se cache é válido
+   */
+  cacheValido() {
+    const timeout = AppState.config.AGENDA_CACHE_TIMEOUT || 300000;
+    const agora = Date.now();
+    const idade = agora - AppState.cache.timestamp;
+    
+    const valido = AppState.cache.dados && idade < timeout;
+    
+    Utils.log(`Cache: ${valido ? '✅ VÁLIDO' : '❌ EXPIRADO'} (${Math.round(idade/1000)}s)`);
+    
+    return valido;
+  },
+  
+  /**
+   * Carrega eventos com cache
+   */
+  async carregarEventosComCache() {
+    Utils.log('Carregando eventos (com cache)...');
+    
+    // Verifica cache
+    if (this.cacheValido()) {
+      Utils.log('📦 Usando cache');
+      return AppState.cache.dados;
+    }
+    
+    // Carrega do backend
+    Utils.log('🌐 Carregando do backend');
+    const eventos = await this.carregarEventos();
+    
+    // Atualiza cache
+    AppState.cache = {
+      timestamp: Date.now(),
+      dados: eventos
+    };
+    
+    return eventos;
+  },
+  aplicarConfigVirtualizacao() {
+        const config = AppState.config;
+        
+        // Valores padrão
+        const defaults = {
+          enabled: true,
+          threshold: 100,
+          buffer: 50,
+          debug: false
+        };
+        
+        // Aplica configs da planilha (ou usa padrão)
+        AppState.virtualizacao.enabled = config.AGENDA_VIRTUALIZACAO_ENABLED !== undefined 
+          ? config.AGENDA_VIRTUALIZACAO_ENABLED 
+          : defaults.enabled;
+        
+        AppState.virtualizacao.threshold = config.AGENDA_VIRTUALIZACAO_THRESHOLD || defaults.threshold;
+        AppState.virtualizacao.buffer = config.AGENDA_VIRTUALIZACAO_BUFFER || defaults.buffer;
+        AppState.virtualizacao.debug = config.AGENDA_VIRTUALIZACAO_DEBUG || defaults.debug;
+        
+        Utils.log('🎨 Configurações de virtualização aplicadas:', {
+          enabled: AppState.virtualizacao.enabled,
+          threshold: AppState.virtualizacao.threshold,
+          buffer: AppState.virtualizacao.buffer,
+          debug: AppState.virtualizacao.debug
+        });
+        
+        if (AppState.virtualizacao.debug) {
+          Utils.log('🐛 DEBUG MODE ativado - Você verá contador de virtualização na tela');
+        }
+      },
+      
+      aplicarCoresPersonalizadas() {
+        Utils.log('🎨 Aplicando cores personalizadas');
+        
+        // Por enquanto só loga
+        // No futuro você pode:
+        // - Ler cores da CONFIG
+        // - Aplicar no :root CSS
+        // - Customizar tema
+        
+        // Exemplo:
+        // document.documentElement.style.setProperty('--primary-color', '#custom-color');
+      },
+      
+      ativarBotaoFiltro(filtro) {
+  Utils.log('Ativando botão do filtro:', filtro);
+  
+  // Remove classe active de todos os botões de filtro
+  const botoes = document.querySelectorAll('[data-filter], .filter-btn, button[onclick*="aplicarFiltroRapido"]');
+  
+  botoes.forEach(btn => {
+    btn.classList.remove('active');
+  });
+  
+  // Tenta diferentes seletores para encontrar o botão correto
+  let btnFiltro = null;
+  
+  // Tentativa 1: Atributo data-filter (MAIS COMUM)
+  btnFiltro = document.querySelector(`[data-filter="${filtro}"]`);
+  
+  // Tentativa 2: Atributo onclick
+  if (!btnFiltro) {
+    btnFiltro = document.querySelector(`[onclick*="'${filtro}'"]`);
+  }
+  
+  // Tentativa 3: Qualquer botão com o texto do filtro
+  if (!btnFiltro) {
+    const mapeamento = {
+      'proximos': 'Próximos',
+      'hoje': 'Hoje',
+      'proximos7': 'Próximos 7',
+      'mesAtual': 'Mês Atual',
+      'todos': 'Todos'
+    };
+    
+    const textoEsperado = mapeamento[filtro];
+    if (textoEsperado) {
+      botoes.forEach(btn => {
+        if (btn.textContent.trim().includes(textoEsperado)) {
+          btnFiltro = btn;
+        }
+      });
+    }
+  }
+  
+  // Ativa o botão se encontrou
+  if (btnFiltro) {
+    btnFiltro.classList.add('active');
+    Utils.log('✅ Botão ativado:', filtro);
+  } else {
+    Utils.log('⚠️ Botão não encontrado para filtro:', filtro);
+    Utils.log('Tentativas: data-filter, onclick, texto');
+  }
+},
+
+      async recarregar() {
+        Utils.log('🔄 Recarregando agenda...');
+        await AgendaController.init();
+      },
+      
+      setupEventListeners() {
+        Utils.log('Configurando event listeners...');
+        
+        try {
+          // Filtros rápidos
+          document.querySelectorAll('.filter-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+              Utils.log('Click em filtro rápido:', e.target.dataset.filter);
+              // Remove active de todos
+              document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+              // Adiciona active no clicado
+              e.target.classList.add('active');
+              // Aplica filtro
+              const filtro = e.target.dataset.filter;
+              FiltroManager.aplicarFiltroRapido(filtro);
+            });
+          });
+          
+          // Toggle filtros avançados
+          const toggleBtn = document.getElementById('toggleAdvanced');
+          if (toggleBtn) {
+            toggleBtn.addEventListener('click', () => {
+              Utils.log('Toggle filtros avançados');
+              const advanced = document.getElementById('filtersAdvanced');
+              const icon = document.getElementById('toggleIcon');
+              const text = document.getElementById('toggleText');
+              
+              if (advanced && icon && text) {
+                if (advanced.classList.contains('show')) {
+                  advanced.classList.remove('show');
+                  icon.textContent = '▼';
+                  text.textContent = 'Filtros Avançados';
+                } else {
+                  advanced.classList.add('show');
+                  icon.textContent = '▲';
+                  text.textContent = 'Ocultar Filtros';
+                }
+              }
+            });
+            // Scroll listener para virtualização
+          let scrollTimeout;
+          let ultimoScroll = 0;
+          
+          window.addEventListener('scroll', () => {
+            clearTimeout(scrollTimeout);
+            
+            const agora = Date.now();
+            
+            // Throttle: só atualiza a cada 100ms
+            if (agora - ultimoScroll < 100) return;
+            
+            scrollTimeout = setTimeout(() => {
+              const threshold = AppState.virtualizacao.threshold || 50;
+              
+              if (AppState.virtualizacao.enabled && 
+                  AppState.eventosFiltrados && 
+                  AppState.eventosFiltrados.length >= threshold) {
+                
+                UI.renderizarEventosVirtualizados(AppState.eventosFiltrados);
+                ultimoScroll = Date.now();
+              }
+            }, 50);
+          });
+          }
+          
+          // Botão aplicar filtros
+          const btnAplicar = document.getElementById('btnAplicarFiltros');
+          if (btnAplicar) {
+            btnAplicar.addEventListener('click', () => {
+              Utils.log('Aplicar filtros avançados');
+              FiltroManager.aplicarFiltrosAvancados();
+            });
+          }
+          
+          // Botão limpar filtros
+          const btnLimpar = document.getElementById('btnLimparFiltros');
+          if (btnLimpar) {
+            btnLimpar.addEventListener('click', () => {
+              Utils.log('Limpar filtros');
+              FiltroManager.limparFiltros();
+            });
+          }
+          
+          // Botão recarregar
+          const btnRecarregar = document.getElementById('btnRecarregar');
+          if (btnRecarregar) {
+            btnRecarregar.addEventListener('click', async () => {
+              Utils.log('🔄 Recarregando (limpando cache)...');
+              
+              // Limpa cache
+              AppState.cache = {
+                timestamp: 0,
+                dados: null
+              };
+              
+              // Mostra loading
+              document.getElementById('eventosContainer').innerHTML = `
+                <div class="loading-container">
+                  <div class="loading-spinner"></div>
+                  <div class="loading-text">Atualizando eventos...</div>
+                </div>
+              `;
+              
+              // Recarrega
+              await AgendaController.carregarEventosComCache();
+              const filtroPadrao = AppState.config.AGENDA_FILTRO_PADRAO || 'todos';
+              FiltroManager.aplicarFiltroRapido(filtroPadrao);
+              
+              Utils.log('✅ Atualização concluída');
+            });
+          }
+          
+          // Botão toggle filtros no footer
+          const btnToggleFilters = document.getElementById('btnToggleFilters');
+          if (btnToggleFilters) {
+            btnToggleFilters.addEventListener('click', () => {
+              const toggleBtn = document.getElementById('toggleAdvanced');
+              if (toggleBtn) {
+                toggleBtn.click();
+              }
+            });
+          }
+          
+          // Fechar modal
+          const btnFecharModal = document.getElementById('btnFecharModal');
+          if (btnFecharModal) {
+            btnFecharModal.addEventListener('click', () => {
+              Utils.log('Fechar modal');
+              const modal = document.getElementById('modalDetalhes');
+              if (modal) {
+                modal.classList.remove('show');
+              }
+            });
+          }
+          
+          // Fechar modal clicando fora
+          const modal = document.getElementById('modalDetalhes');
+          if (modal) {
+            modal.addEventListener('click', (e) => {
+              if (e.target.id === 'modalDetalhes') {
+                Utils.log('Fechar modal (click fora)');
+                e.target.classList.remove('show');
+              }
+            });
+          }
+          
+          // Busca em tempo real
+          const inputBusca = document.getElementById('filterBusca');
+          if (inputBusca) {
+            inputBusca.addEventListener('input', (e) => {
+              // Debounce
+              clearTimeout(AgendaController.searchTimeout);
+              AgendaController.searchTimeout = setTimeout(() => {
+                if (e.target.value.length >= 3 || e.target.value.length === 0) {
+                  Utils.log('Busca:', e.target.value);
+                  FiltroManager.aplicarFiltrosAvancados();
+                }
+              }, 500);
+            });
+          }
+          
+          Utils.log('✅ Event listeners configurados');
+        } catch (e) {
+          Utils.error('Erro ao configurar event listeners:', e);
+        }
+      }
+    };
+
+    // ========================================
+    // FUNÇÕES GLOBAIS (chamadas do HTML)
+    // ========================================
+    function verDetalhesEvento(eventoId) {
+      Utils.log('Ver detalhes:', eventoId);
+      const evento = AppState.eventos.find(e => e.id === eventoId);
+      if (evento) {
+        UI.mostrarDetalhes(evento);
+      }
+    }
+    
+    function editarEvento(eventoId) {
+      Utils.log('Editar evento:', eventoId);
+      const url = `?page=editarEvento&id=${eventoId}`;
+      window.location.href = url;
+    }
+    
+    function fecharModal() {
+      Utils.log('Fechar modal');
+      const modal = document.getElementById('modalDetalhes');
+      if (modal) {
+        modal.classList.remove('show');
+      }
+    }
+    
+    function irParaHome() {
+      Utils.log('Ir para home');
+      window.location.href = '?page=home';
+    }
+
+    // ========================================
+    // INICIALIZAÇÃO
+    // ========================================
+    window.addEventListener('load', () => {
+      Utils.log('🎬 Window load - iniciando agenda...');
+      AgendaController.init();
+    });
+    
+    // Log quando o script termina de carregar
+    Utils.log('📝 Script carregado completamente');
+  </script>
+</body>
+</html>

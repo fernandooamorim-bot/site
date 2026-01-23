@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Painel Financeiro</title>
+
+  <style>
+    /* ===== Espelho Financeiro - Visualização com Scroll Horizontal ===== */
+    body {
+      /* Para iframe compat: previne scroll horizontal fora do espelho */
+      overflow-x: hidden;
+    }
+
+    .espelho-container {
+      overflow-x: auto;
+      width: 100%;
+      max-width: 100vw;
+      padding-bottom: 8px;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .espelho-table {
+      min-width: 1100px;
+      border-collapse: collapse;
+    }
+
+    /* Fallback elegante: impede quebra de linha nas células do espelho */
+    .espelho-table th,
+    .espelho-table td {
+      white-space: nowrap;
+    }
+    .comissao-box {
+      margin-top: 12px;
+      padding: 10px;
+      border-radius: 10px;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      font-size: 13px;
+    }
+
+    .comissao-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 6px;
+      margin-top: 6px;
+    }
+
+    .comissao-item {
+      text-align: center;
+    }
+
+    .comissao-item span {
+      display: block;
+      font-size: 11px;
+      color: #718096;
+    }
+
+    .comissao-status {
+      margin-top: 6px;
+      font-weight: 700;
+    }
+
+    .comissao-status.OK { color: var(--success); }
+    .comissao-status.PARCIAL,
+    .comissao-status.PENDENTE,
+    .comissao-status.AGUARDANDO { color: var(--warning); }
+    .comissao-status.ERRO { color: var(--danger); }
+    :root {
+      --primary: #667eea;
+      --secondary: #764ba2;
+      --success: #38a169;
+      --warning: #d69e2e;
+      --danger: #e53e3e;
+      --gray: #edf2f7;
+      --dark: #2d3748;
+    }
+
+    * {
+      box-sizing: border-box;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+
+    body {
+      background: #f7fafc;
+      padding: 20px;
+      margin: 0;
+      /* overflow-x: hidden já incluso acima */
+    }
+
+    header {
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      color: white;
+      padding: 20px;
+      border-radius: 14px;
+      margin-bottom: 20px;
+    }
+
+    header h1 {
+      font-size: 22px;
+    }
+
+    header p {
+      opacity: 0.9;
+      font-size: 14px;
+      margin-top: 6px;
+    }
+
+    .lista {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .card {
+      background: white;
+      border-radius: 14px;
+      padding: 16px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.08);
+      border-left: 6px solid var(--gray);
+    }
+
+    .card.ok { border-left-color: var(--success); }
+    .card.alerta { border-left-color: var(--warning); }
+    .card.erro { border-left-color: var(--danger); }
+
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      align-items: flex-start;
+    }
+
+    .titulo {
+      font-weight: 700;
+      color: var(--dark);
+    }
+
+    .data {
+      font-size: 13px;
+      color: #718096;
+      margin-top: 4px;
+    }
+
+    .valor {
+      font-weight: 700;
+      font-size: 15px;
+      color: var(--dark);
+      white-space: nowrap;
+    }
+
+    .linha {
+      margin-top: 8px;
+      font-size: 14px;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .status {
+      margin-top: 10px;
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .status.ok { color: var(--success); }
+    .status.alerta { color: var(--warning); }
+    .status.erro { color: var(--danger); }
+
+    .alertas {
+      margin-top: 8px;
+      font-size: 13px;
+      color: #b45309;
+    }
+
+    .acoes {
+      margin-top: 12px;
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      border: none;
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: 0.2s;
+    }
+
+    .btn.primary { background: var(--primary); color: white; }
+    .btn.warning { background: var(--warning); color: white; }
+    .btn.success { background: var(--success); color: white; }
+    .btn.secondary { background: #e2e8f0; color: #2d3748; }
+
+    .btn:hover {
+      opacity: 0.9;
+      transform: translateY(-1px);
+    }
+
+    .loading {
+      text-align: center;
+      padding: 40px;
+      color: #718096;
+      font-weight: 600;
+    }
+    .filtros {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+    }
+    .modo-visual {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+    }
+
+    .espelho-table { width: 100%; border-collapse: collapse; background: white; border-radius: 12px; overflow: hidden; }
+    .espelho-header, .espelho-row { display: grid; grid-template-columns: 100px 1.5fr 1.2fr 120px 120px 120px 140px 100px; padding: 10px; }
+    .espelho-header { background: #edf2f7; font-weight: 700; font-size: 12px; }
+    .espelho-row { border-top: 1px solid #e2e8f0; font-size: 13px; }
+    .espelho-row.ok { background: #f0fff4; }
+    .espelho-row.alerta { background: #fffaf0; }
+    .espelho-row.erro { background: #fff5f5; }
+  </style>
+</head>
+
+<body>
+
+<header>
+  <h1>📊 Painel Financeiro</h1>
+  <p>Visão consolidada • Pendências • Alertas automáticos</p>
+</header>
+
+<div class="filtros">
+  <button class="btn secondary" onclick="aplicarFiltro('TODOS')">Todos</button>
+  <button class="btn warning" onclick="aplicarFiltro('COMISSAO_PENDENTE')">💼 Comissão pendente</button>
+  <button class="btn warning" onclick="aplicarFiltro('COMISSAO_PROBLEMA')">🚨 Problema de comissão</button>
+  <button class="btn success" onclick="aplicarFiltro('OK')">✅ Sem pendências</button>
+</div>
+<div class="modo-visual">
+  <button class="btn secondary" onclick="MODO_VISUAL='ESPELHO'; renderAtual();">🔳 Espelho Financeiro</button>
+  <button class="btn secondary" onclick="MODO_VISUAL='CARDS'; renderAtual();">🧾 Detalhado</button>
+</div>
+
+<div id="lista" class="lista">
+  <div class="loading">Carregando saúde financeira dos eventos...</div>
+</div>
+
+<script>
+  let EVENTOS_CACHE = [];
+  let FILTRO_ATUAL = 'TODOS';
+  let MODO_VISUAL = 'ESPELHO';
+  let listaFiltradaAtual = null;
+
+  const ALERTAS_LABEL = {
+    EVENTO_OCORREU_SEM_RECEBIMENTO: 'Evento já ocorreu e não teve recebimento',
+    EVENTO_OCORREU_RECEBIMENTO_PARCIAL: 'Evento ocorreu com recebimento parcial',
+    INCONSISTENCIA_RECEBIDO_MAIOR_QUE_CONTRATO: 'Recebido maior que o valor do contrato',
+    BV_PENDENTE: 'BV ainda não foi pago',
+    FOLHA_NAO_REGISTRADA: 'Folha de custos não registrada',
+    EVENTO_CANCELADO_COM_RECEBIMENTO: 'Evento cancelado com recebimento',
+    COMISSAO_PENDENTE: 'Comissão do vendedor pendente ou parcial',
+    COMISSAO_INCONSISTENTE: 'Inconsistência grave na comissão do vendedor',
+    COMISSAO_NAO_PAGA_APOS_QUITACAO: 'Evento quitado, mas comissão ainda não foi paga',
+    COMISSAO_PAGA_MAIOR_QUE_ESPERADO: 'Comissão paga maior que o valor esperado',
+    COMISSAO_GERADA_MAIOR_QUE_ESPERADO: 'Comissão gerada maior que o valor esperado'
+  };
+
+  function carregarPainel() {
+    google.script.run
+      .withSuccessHandler(renderizarEventos)
+      .listarEventosFinanceiros();
+  }
+
+  function renderizarEventos(eventos) {
+    EVENTOS_CACHE = eventos;
+    aplicarFiltro(FILTRO_ATUAL, false);
+    return;
+  }
+
+  function aplicarFiltro(tipo, recarregar = true) {
+    FILTRO_ATUAL = tipo;
+
+    let lista = EVENTOS_CACHE;
+
+    if (tipo === 'COMISSAO_PENDENTE') {
+      lista = lista.filter(e =>
+        e.comissao &&
+        e.comissao.existe === true &&
+        e.comissao.status === 'PENDENTE'
+      );
+    }
+
+    if (tipo === 'COMISSAO_PROBLEMA') {
+      lista = lista.filter(e =>
+        e.comissao &&
+        e.comissao.existe === true &&
+        e.comissao.status === 'ERRO'
+      );
+    }
+
+    if (tipo === 'OK') {
+      lista = lista.filter(e =>
+        e.status === 'ok' &&
+        (!e.comissao || e.comissao.status === 'OK' || e.comissao.status === 'NA')
+      );
+    }
+
+    if (tipo === 'TODOS') {
+      lista = EVENTOS_CACHE;
+    }
+
+    listaFiltradaAtual = lista;
+
+    renderAtual();
+  }
+
+  function renderAtual(listaOverride) {
+    const lista = listaOverride || listaFiltradaAtual || EVENTOS_CACHE;
+    if (MODO_VISUAL === 'ESPELHO') {
+      renderEspelho(lista);
+    } else {
+      renderCards(lista);
+    }
+  }
+
+  function renderEspelho(lista) {
+    const container = document.getElementById('lista');
+    container.innerHTML = '';
+
+    if (!lista.length) {
+      container.innerHTML = '<div class="loading">Nenhum evento para este filtro.</div>';
+      return;
+    }
+
+    const table = document.createElement('div');
+    table.className = 'espelho-table';
+
+    // Header
+    const header = document.createElement('div');
+    header.className = 'espelho-header';
+    header.innerHTML = `
+      <div>Data</div>
+      <div>Evento</div>
+      <div>Contratante</div>
+      <div>Valor</div>
+      <div>Recebido</div>
+      <div>Pendente</div>
+      <div>Comissão</div>
+      <div>Status</div>
+    `;
+    table.appendChild(header);
+
+    lista.forEach(evento => {
+      let statusSeguro = evento.status;
+
+      if (evento.comissao?.status === 'ERRO') {
+        statusSeguro = 'erro';
+      } else if (
+        evento.comissao?.status === 'PENDENTE' &&
+        statusSeguro !== 'erro'
+      ) {
+        statusSeguro = 'alerta';
+      }
+
+      if (!['ok', 'alerta', 'erro'].includes(statusSeguro)) {
+        statusSeguro = 'ok';
+      }
+
+      const row = document.createElement('div');
+      row.className = `espelho-row ${statusSeguro}`;
+
+      let comissaoText = 'N/A';
+      if (evento.comissao && evento.comissao.existe) {
+        switch (evento.comissao.status) {
+          case 'AGUARDANDO':
+            comissaoText = 'Aguardando';
+            break;
+          case 'PARCIAL':
+          case 'PENDENTE':
+            comissaoText = '⚠️ Pendente';
+            break;
+          case 'OK':
+            comissaoText = 'Quitada';
+            break;
+          case 'ERRO':
+            comissaoText = 'Erro';
+            break;
+          default:
+            comissaoText = 'N/A';
+        }
+      }
+
+      row.innerHTML = `
+        <div>${formatarData(evento.dataEvento)}</div>
+        <div>${evento.nomeEvento}</div>
+        <div>${evento.contratante || ''}</div>
+        <div>R$ ${formatarValor(evento.valorContrato)}</div>
+        <div>R$ ${formatarValor(evento.totalRecebido)}</div>
+        <div>R$ ${formatarValor(evento.valorPendente)}</div>
+        <div>${comissaoText}</div>
+        <div>${statusSeguro.toUpperCase()}</div>
+      `;
+
+      table.appendChild(row);
+    });
+
+    container.appendChild(table);
+  }
+
+  function renderCards(lista) {
+    const container = document.getElementById('lista');
+    container.innerHTML = '';
+
+    if (!lista.length) {
+      container.innerHTML = '<div class="loading">Nenhum evento para este filtro.</div>';
+      return;
+    }
+
+    lista.forEach(ev => container.appendChild(criarCard(ev)));
+  }
+
+  function criarCard(evento) {
+    let statusSeguro = evento.status;
+
+    if (evento.comissao?.status === 'ERRO') {
+      statusSeguro = 'erro';
+    } else if (
+      evento.comissao?.status === 'PENDENTE' &&
+      statusSeguro !== 'erro'
+    ) {
+      statusSeguro = 'alerta';
+    }
+
+    if (!['ok', 'alerta', 'erro'].includes(statusSeguro)) {
+      statusSeguro = 'ok';
+    }
+
+    const card = document.createElement('div');
+    card.className = `card ${statusSeguro}`;
+
+    // Criar arrays separados para alertas por categoria
+    const alertasFinanceiros = [];
+    const alertasComissao = [];
+    const alertasCustos = [];
+
+    (evento.alertas || []).forEach(a => {
+      const texto = ALERTAS_LABEL[a] || a;
+      if ([
+        'EVENTO_OCORREU_SEM_RECEBIMENTO',
+        'EVENTO_OCORREU_RECEBIMENTO_PARCIAL',
+        'INCONSISTENCIA_RECEBIDO_MAIOR_QUE_CONTRATO',
+        'EVENTO_CANCELADO_COM_RECEBIMENTO'
+      ].includes(a)) {
+        alertasFinanceiros.push(texto);
+      } else if ([
+        'COMISSAO_PENDENTE',
+        'COMISSAO_INCONSISTENTE',
+        'COMISSAO_NAO_PAGA_APOS_QUITACAO',
+        'COMISSAO_PAGA_MAIOR_QUE_ESPERADO',
+        'COMISSAO_GERADA_MAIOR_QUE_ESPERADO'
+      ].includes(a)) {
+        // Exibir alertas de comissão apenas se status não for AGUARDANDO ou PARCIAL
+        if (evento.comissao?.status !== 'AGUARDANDO' && evento.comissao?.status !== 'PARCIAL') {
+          alertasComissao.push(texto);
+        }
+      } else if ([
+        'BV_PENDENTE',
+        'FOLHA_NAO_REGISTRADA'
+      ].includes(a)) {
+        alertasCustos.push(texto);
+      }
+    });
+
+    card.innerHTML = `
+      <div class="card-header">
+        <div>
+          <div class="titulo">${evento.nomeEvento}</div>
+          <div class="data">${formatarData(evento.dataEvento)}</div>
+        </div>
+        <div class="valor">R$ ${formatarValor(evento.valorContrato)}</div>
+      </div>
+
+      <div class="linha">
+        <span>Recebido</span>
+        <strong>R$ ${formatarValor(evento.totalRecebido)}</strong>
+      </div>
+
+      <div class="linha">
+        <span>Saldo a Receber</span>
+        <strong>R$ ${formatarValor(evento.valorPendente)}</strong>
+      </div>
+
+      ${evento.comissao && evento.comissao.existe ? `
+        <div class="comissao-box">
+          <strong>💼 Comissão do Vendedor</strong>
+
+          <div class="comissao-grid">
+            <div class="comissao-item">
+              <span>Esperado</span>
+              <strong>R$ ${formatarValor(evento.comissao.valores.esperado)}</strong>
+            </div>
+            <div class="comissao-item">
+              <span>Gerado</span>
+              <strong>R$ ${formatarValor(evento.comissao.valores.gerado)}</strong>
+            </div>
+            <div class="comissao-item">
+              <span>Pago</span>
+              <strong>R$ ${formatarValor(evento.comissao.valores.pago)}</strong>
+            </div>
+            <div class="comissao-item">
+              <span>Pendente</span>
+              <strong>R$ ${formatarValor(evento.comissao.valores.pendente)}</strong>
+            </div>
+          </div>
+
+          <div class="comissao-status ${evento.comissao.status}">
+            ${(() => {
+              switch (evento.comissao.status) {
+                case 'NA': return 'Comissão: Não aplicável';
+                case 'AGUARDANDO': return 'ℹ️ Comissão será gerada conforme os recebimentos';
+                case 'PARCIAL': return 'ℹ️ Comissão parcialmente gerada';
+                case 'PENDENTE': return '⚠️ Comissão pendente de pagamento';
+                case 'OK': return '✅ Comissão quitada';
+                case 'ERRO': return '🚨 Problema grave na comissão';
+                default: return 'Status de comissão desconhecido';
+              }
+            })()}
+          </div>
+        </div>
+      ` : ''}
+
+      <div class="linha">
+        <span>BV</span>
+        <strong>${evento.bv?.status || 'N/A'}</strong>
+      </div>
+
+      <div class="linha">
+        <span>Nota Fiscal</span>
+        <strong>${evento.nf?.status || 'PROCESSADO'}</strong>
+      </div>
+
+      <div class="status ${statusSeguro}">
+        Status: ${statusSeguro.toUpperCase()}
+      </div>
+
+      ${alertasFinanceiros.length ? `<div class="alertas"><strong>💰 Financeiro:</strong> ${alertasFinanceiros.join(' • ')}</div>` : ''}
+      ${alertasComissao.length ? `<div class="alertas"><strong>💼 Comissão:</strong> ${alertasComissao.join(' • ')}</div>` : ''}
+      ${alertasCustos.length ? `<div class="alertas"><strong>🧾 Custos:</strong> ${alertasCustos.join(' • ')}</div>` : ''}
+
+      <div class="acoes">
+        ${evento.acoes?.podeReceber ? `<button class="btn success" onclick="irReceber('${evento.idEvento}')">Receber</button>` : ''}
+        ${evento.acoes?.podePagarBV ? `<button class="btn warning" onclick="irPagarBV('${evento.idEvento}')">Pagar BV</button>` : ''}
+        ${evento.acoes?.podeRegistrarFolha ? `<button class="btn secondary" onclick="irCustos('${evento.idEvento}')">Registrar Custos</button>` : ''}
+      </div>
+    `;
+
+    return card;
+  }
+
+  function formatarValor(v) {
+    return Number(v || 0).toFixed(2).replace('.', ',');
+  }
+
+  function formatarData(d) {
+    if (!d) return '';
+
+    // Caso já seja Date
+    if (d instanceof Date && !isNaN(d.getTime())) {
+      return d.toLocaleDateString('pt-BR');
+    }
+
+    // Caso venha como string DD/MM/YYYY
+    if (typeof d === 'string' && d.includes('/')) {
+      const partes = d.split('/');
+      if (partes.length === 3) {
+        const dia = Number(partes[0]);
+        const mes = Number(partes[1]) - 1;
+        const ano = Number(partes[2]);
+        const data = new Date(ano, mes, dia);
+        if (!isNaN(data.getTime())) {
+          return data.toLocaleDateString('pt-BR');
+        }
+      }
+      return d; // fallback seguro
+    }
+
+    // Caso ISO ou timestamp
+    const data = new Date(d);
+    if (isNaN(data.getTime())) return '';
+
+    return data.toLocaleDateString('pt-BR');
+  }
+
+  function irReceber(id) {
+    window.location.href = `?page=centralFinanceira&evento=${id}`;
+  }
+
+  function irPagarBV(id) {
+    window.location.href = `?page=centralFinanceira&evento=${id}&acao=bv`;
+  }
+
+  function irCustos(id) {
+    window.location.href = `?page=centralFinanceira&evento=${id}&acao=custos`;
+  }
+
+  window.onload = carregarPainel;
+</script>
+
+</body>
+</html>
