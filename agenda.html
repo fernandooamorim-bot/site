@@ -4,7 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Agenda de Eventos</title>
-  
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+<script src="auth.js" defer></script>
   <style>
     /* ========================================
        RESET E CONFIGURAÇÕES GLOBAIS
@@ -1082,23 +1083,19 @@
       nome: localStorage.getItem('auth_nome'),
       perfil: localStorage.getItem('auth_perfil')
     };
-
-    if (!AUTH.email) {
-      window.location.href = 'index.html';
-    }
-
-    // ========================================
-    // API BACKEND (Apps Script)
-    // ========================================
-    const API = {
-      async call(action, payload = {}) {
-        if (!window.Auth || typeof Auth.apiCall !== 'function') {
-          throw new Error('Auth.apiCall não disponível. Verifique se auth.js foi carregado.');
-        }
-        return Auth.apiCall(action, payload);
-      }
-    };
     
+
+   // 🔐 Proteção de sessão
+if (!AUTH.email) {
+  window.location.href = 'index.html';
+}
+
+// 🔐 Proteção de Auth.js carregado
+if (!window.Auth || typeof Auth.apiCall !== 'function') {
+  alert('Erro ao carregar autenticação. Volte ao menu.');
+  window.location.href = 'index.html';
+}
+  
     // ========================================
     // CONFIGURAÇÕES E CONSTANTES
     // ========================================
@@ -2349,7 +2346,7 @@ mostrarConflitos(eventoId) {
       async carregarEventos() {
         Utils.log('Carregando eventos via API...');
 
-        const res = await API.call('listarEventos');
+        const res = await Auth.apiCall('listarEventos');
 
         if (!res || res.ok === false) {
           throw new Error(res?.mensagem || 'Erro ao carregar eventos');
@@ -2368,7 +2365,7 @@ mostrarConflitos(eventoId) {
         Utils.log('Carregando configurações via API...');
 
         try {
-          const res = await API.call('carregarConfiguracoes');
+          const res = await Auth.apiCall('carregarConfiguracoes');
           AppState.config = res || AppState.config;
           return AppState.config;
         } catch (e) {
@@ -2712,7 +2709,7 @@ mostrarConflitos(eventoId) {
     
     function irParaHome() {
       Utils.log('Ir para home');
-      window.location.href = '?page=home';
+      window.location.href = 'index.html';
     }
 
     // ========================================
