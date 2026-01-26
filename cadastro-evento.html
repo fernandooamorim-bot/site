@@ -913,24 +913,28 @@
     let parceirosBV = [];
     
     // Inicialização
-    window.onload = function() {
-      carregarDados();
-      alterarTipoRegistro();
-      alterarTipoComissao();
+ window.onload = function () {
+  carregarDados();
+  alterarTipoRegistro();
+  alterarTipoComissao();
 
-      // Buscar usuário logado via Auth (frontend externo)
-      try {
-        const email = Auth.getEmail();
-        const perfil = Auth.getPerfil && Auth.getPerfil();
+  try {
+    const email  = localStorage.getItem('auth_email');
+    const perfil = localStorage.getItem('auth_perfil');
 
-        if (perfil) {
-          perfilUsuario = perfil;
-          aplicarPermissoesComissao(perfilUsuario);
-        }
-      } catch (e) {
-        console.error('Erro ao obter perfil do usuário:', e);
-      }
-    };
+    if (!email || !perfil) {
+      alert('Sessão inválida. Faça login novamente.');
+      window.location.href = 'index.html';
+      return;
+    }
+
+    perfilUsuario = perfil;
+    aplicarPermissoesComissao(perfilUsuario);
+
+  } catch (e) {
+    console.error('Erro ao obter usuário logado:', e);
+  }
+};
     
     // Alternar tipo de registro
     function alterarTipoRegistro() {
