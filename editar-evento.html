@@ -983,7 +983,6 @@
   <script>
 console.log('🚀 editar-evento.html iniciado (frontend externo)');
 
-
 // ============================
 // CONTEXTO GLOBAL
 // ============================
@@ -1109,7 +1108,8 @@ function verificarConflitosEdicao() {
   datasParaVerificar.forEach(data => {
     Auth.apiCall({
       action: 'buscarEventosPorData',
-      data: data
+      data: data,
+      email: Auth.email
     })
     .then(eventos => {
       if (execucaoAtual !== verificadorExecucaoId) return;
@@ -1189,15 +1189,13 @@ function setValueSafe(id, valor, tentativas = 0) {
     
     window.onload = async function () {
       try {
-        // 🔐 GARANTE LOGIN (PADRÃO IGUAL AO cadastro-evento.html)
+        // 🔐 autenticação padrão (igual cadastro-evento)
         const auth = await Auth.verificarUsuario();
-        if (!auth || !auth.ok) {
-          throw new Error('Sessão inválida');
-        }
+        if (!auth || !auth.ok) throw new Error('NOT_AUTH');
 
         fecharModal();
 
-        // carregar dados SOMENTE após auth
+        // carregar dados base após auth OK
         await carregarDropdowns();
         await carregarContratantesParaAutocomplete();
 
@@ -1205,6 +1203,7 @@ function setValueSafe(id, valor, tentativas = 0) {
 
         if (EVENTO_ID_URL) {
           mostrarAlerta('Carregando evento...', 'info');
+
           const evento = await carregarEventoPorId(EVENTO_ID_URL);
 
           eventoAtual = evento;
@@ -1218,6 +1217,7 @@ function setValueSafe(id, valor, tentativas = 0) {
         }
 
       } catch (err) {
+        console.error('AUTH ERROR:', err);
         alert('Sessão expirada. Volte ao menu.');
         window.location.href = 'index.html';
       }
@@ -1270,10 +1270,11 @@ function setValueSafe(id, valor, tentativas = 0) {
       mostrarLoading();
 
       try {
-        const resultado = await Auth.apiCall({
-          action: 'buscarEventoPorID',
-          idEvento: id
-        });
+      const resultado = await Auth.apiCall({
+        action: 'buscarEventoPorID',
+        idEvento: id,
+        email: Auth.email
+      });
 
         mostrarResultados(resultado);
       } catch (erro) {
@@ -1286,7 +1287,8 @@ function setValueSafe(id, valor, tentativas = 0) {
     async function carregarEventoPorId(idEvento) {
       const response = await Auth.apiCall({
         action: 'buscarEventoPorID',
-        idEvento: idEvento
+        idEvento: idEvento,
+        email: Auth.email
       });
 
       if (!response || !response.id) {
@@ -1308,7 +1310,8 @@ function setValueSafe(id, valor, tentativas = 0) {
       try {
         const response = await Auth.apiCall({
           action: 'buscarEventoPorContratante',
-          nome: nome
+          nome: nome,
+          email: Auth.email
         });
         if (response && response.error) {
           throw new Error(response.error);
@@ -1332,7 +1335,8 @@ function setValueSafe(id, valor, tentativas = 0) {
       try {
         const response = await Auth.apiCall({
           action: 'buscarEventoPorData',
-          data: data
+          data: data,
+          email: Auth.email
         });
         if (response && response.error) {
           throw new Error(response.error);
@@ -1356,7 +1360,8 @@ function setValueSafe(id, valor, tentativas = 0) {
       try {
         const response = await Auth.apiCall({
           action: 'buscarEventoPorPeriodo',
-          periodo: periodo
+          periodo: periodo,
+          email: Auth.email
         });
         if (response && response.error) {
           throw new Error(response.error);
@@ -1371,7 +1376,7 @@ function setValueSafe(id, valor, tentativas = 0) {
     // AUTOCOMPLETE
     async function carregarContratantesParaAutocomplete() {
       try {
-        const lista = await Auth.apiCall({ action: 'listarContratantes' });
+        const lista = await Auth.apiCall({ action: 'listarContratantes', email: Auth.email });
         if (lista && lista.error) throw new Error(lista.error);
         contratantesCache = lista;
       } catch (erro) {
@@ -1492,7 +1497,8 @@ function setValueSafe(id, valor, tentativas = 0) {
     try {
       const resultado = await Auth.apiCall({
         action: 'buscarEventoParaEdicao',
-        idEvento: idEvento
+        idEvento: idEvento,
+        email: Auth.email
       });
       console.log('2️⃣ retorno backend', resultado);
       if (!resultado || !resultado.sucesso) {
@@ -1513,7 +1519,8 @@ function setValueSafe(id, valor, tentativas = 0) {
         try {
           const permissao = await Auth.apiCall({
             action: 'verificarPermissaoEdicaoFinanceira',
-            idEvento: eventoAtual.id
+            idEvento: eventoAtual.id,
+            email: Auth.email
           });
           permissaoFinanceira = permissao;
           if (permissao && !permissao.permitido) {
@@ -1555,7 +1562,8 @@ async function validarImpactoFinanceiroAntesSalvar(callback) {
     const resultado = await Auth.apiCall({
       action: 'validarAlteracoesEvento',
       idEvento: eventoOriginal.id,
-      dados: coletarDadosFormulario()
+      dados: coletarDadosFormulario(),
+      email: Auth.email
     });
     if (resultado && resultado.risco === 'EXCESSO_GERADO') {
       mostrarAlerta(
@@ -1574,33 +1582,33 @@ async function validarImpactoFinanceiroAntesSalvar(callback) {
     async function carregarDropdowns() {
       try {
         let lista;
-        lista = await Auth.apiCall({ action: 'listarContratantes' });
+        lista = await Auth.apiCall({ action: 'listarContratantes', email: Auth.email });
         if (lista && lista.error) throw new Error(lista.error);
         popularDropdown('idContratante', lista);
       } catch (e) {}
       try {
-        let lista = await Auth.apiCall({ action: 'listarCerimonialistas' });
+        let lista = await Auth.apiCall({ action: 'listarCerimonialistas', email: Auth.email });
         if (lista && lista.error) throw new Error(lista.error);
         popularDropdown('idCerimonialista', lista, true);
       } catch (e) {}
       try {
-        let lista = await Auth.apiCall({ action: 'listarEnderecos' });
+        let lista = await Auth.apiCall({ action: 'listarEnderecos', email: Auth.email });
         if (lista && lista.error) throw new Error(lista.error);
         popularDropdown('idEndereco', lista);
       } catch (e) {}
       try {
-        let lista = await Auth.apiCall({ action: 'listarVendedores' });
+        let lista = await Auth.apiCall({ action: 'listarVendedores', email: Auth.email });
         if (lista && lista.error) throw new Error(lista.error);
         popularDropdown('idVendedor', lista);
       } catch (e) {}
       try {
-        let lista = await Auth.apiCall({ action: 'listarParceirosBV' });
+        let lista = await Auth.apiCall({ action: 'listarParceirosBV', email: Auth.email });
         if (lista && lista.error) throw new Error(lista.error);
         popularDropdown('idBV', lista, true);
       } catch (e) {}
       // CONFIG - Tipo de Evento
       try {
-        let tipos = await Auth.apiCall({ action: 'listarTiposEvento' });
+        let tipos = await Auth.apiCall({ action: 'listarTiposEvento', email: Auth.email });
         if (tipos && tipos.error) throw new Error(tipos.error);
         const sel = document.getElementById('tipoEvento');
         if (sel) {
@@ -1617,7 +1625,7 @@ async function validarImpactoFinanceiroAntesSalvar(callback) {
       } catch (e) {}
       // CONFIG - Durações
       try {
-        let duracoes = await Auth.apiCall({ action: 'listarDuracoesPadrao' });
+        let duracoes = await Auth.apiCall({ action: 'listarDuracoesPadrao', email: Auth.email });
         if (duracoes && duracoes.error) throw new Error(duracoes.error);
         const sel = document.getElementById('duracao');
         if (sel) {
@@ -1634,7 +1642,7 @@ async function validarImpactoFinanceiroAntesSalvar(callback) {
       } catch (e) {}
       // CONFIG - Projetos
       try {
-        let projetos = await Auth.apiCall({ action: 'listarProjetosSugeridos' });
+        let projetos = await Auth.apiCall({ action: 'listarProjetosSugeridos', email: Auth.email });
         if (projetos && projetos.error) throw new Error(projetos.error);
         const sel = document.getElementById('projeto');
         if (sel) {
@@ -1758,7 +1766,8 @@ async function validarImpactoFinanceiroAntesSalvar(callback) {
         const resultado = await Auth.apiCall({
           action: 'validarAlteracoesEvento',
           idEvento: eventoOriginal.id,
-          dados: coletarDadosFormulario()
+          dados: coletarDadosFormulario(),
+          email: Auth.email
         });
         mostrarResumoValidacoes(resultado);
         abrirModal();
@@ -1848,7 +1857,8 @@ async function validarImpactoFinanceiroAntesSalvar(callback) {
           const resultado = await Auth.apiCall({
             action: 'salvarEdicaoEvento',
             idEvento: eventoOriginal.id,
-            dados: coletarDadosFormulario()
+            dados: coletarDadosFormulario(),
+            email: Auth.email
           });
           if (resultado && resultado.sucesso) {
             mostrarAlerta('✅ ' + resultado.mensagem, 'success');
