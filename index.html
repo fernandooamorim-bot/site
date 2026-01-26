@@ -160,11 +160,11 @@
       <span class="badge public">Acesso geral</span>
     </div>
 
-    <div class="card" id="cardNovoEvento">
-      <div class="icon">➕</div>
-      <div class="card-title">Novo Evento</div>
-      <span class="badge restricted">Restrito</span>
-    </div>
+    <div class="card" id="cardNovoEvento" onclick="abrir('novoEvento')">
+  <div class="icon">➕</div>
+  <div class="card-title">Novo Evento</div>
+  <span class="badge restricted">Restrito</span>
+</div>
 
     <div class="card" id="cardCentralFinanceira">
       <div class="icon">💰</div>
@@ -221,7 +221,8 @@ function ocultar(id) {
 
 function abrir(pagina) {
   const rotas = {
-    agenda: './agenda.html'
+    agenda: './agenda.html',
+    novoEvento: './cadastro-evento.html'
   };
 
   const destino = rotas[pagina];

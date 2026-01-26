@@ -1,0 +1,1986 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Novo Registro - Agenda</title>
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <script src="auth.js" defer></script>
+  <style>
+    .overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.7);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+    }
+    .overlay.active { display: flex; }
+    .overlay-box {
+      background: white;
+      padding: 30px;
+      border-radius: 15px;
+      text-align: center;
+      max-width: 90%;
+      width: 350px;
+    }
+    .overlay-text {
+      font-size: 16px;
+      color: #333;
+      font-weight: 600;
+    }
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      padding: 20px;
+    }
+    
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+      overflow: hidden;
+    }
+    
+    .header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 30px;
+      text-align: center;
+    }
+    
+    .header h1 {
+      font-size: 28px;
+      margin-bottom: 8px;
+    }
+    
+    .header p {
+      opacity: 0.9;
+      font-size: 14px;
+    }
+    
+    .form-container {
+      padding: 30px;
+    }
+    
+    .form-section {
+      margin-bottom: 30px;
+      border-bottom: 2px solid #f0f0f0;
+      padding-bottom: 25px;
+    }
+    
+    .form-section:last-child {
+      border-bottom: none;
+    }
+    
+    .form-section.hidden {
+      display: none;
+    }
+    
+    .section-title {
+      font-size: 18px;
+      font-weight: 600;
+      color: #667eea;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    
+    .form-group {
+      margin-bottom: 20px;
+    }
+    
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+    
+    .form-row-3 {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 15px;
+    }
+    
+    label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: 500;
+      color: #333;
+      font-size: 14px;
+    }
+    
+    .required::after {
+      content: " *";
+      color: #e74c3c;
+    }
+    
+    input, select, textarea {
+      width: 100%;
+      padding: 12px 15px;
+      border: 2px solid #e0e0e0;
+      border-radius: 8px;
+      font-size: 14px;
+      transition: all 0.3s;
+      font-family: inherit;
+    }
+    
+    input:focus, select:focus, textarea:focus {
+      outline: none;
+      border-color: #667eea;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+    
+    textarea {
+      resize: vertical;
+      min-height: 80px;
+    }
+    
+    .hybrid-field {
+      position: relative;
+    }
+    
+    .hybrid-field input, .hybrid-field select {
+      padding-right: 120px;
+    }
+    
+    .add-new-btn {
+      position: absolute;
+      right: 5px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: #667eea;
+      color: white;
+      border: none;
+      padding: 8px 15px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 600;
+      transition: all 0.2s;
+    }
+    
+    .add-new-btn:hover {
+      background: #5568d3;
+      transform: translateY(-50%) scale(1.05);
+    }
+    
+    .checkbox-group {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 15px;
+      background: #f8f9fa;
+      border-radius: 8px;
+    }
+    
+    .checkbox-group input[type="checkbox"] {
+      width: auto;
+      margin: 0;
+    }
+    
+    .actions {
+      display: flex;
+      gap: 15px;
+      margin-top: 30px;
+      padding-top: 20px;
+      border-top: 2px solid #f0f0f0;
+    }
+    
+    .btn {
+      flex: 1;
+      padding: 15px;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+    
+    .btn-primary {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+    }
+    
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 25px rgba(102, 126, 234, 0.3);
+    }
+    
+    .btn-secondary {
+      background: #6c757d;
+      color: white;
+    }
+    
+    .btn-secondary:hover {
+      background: #5a6268;
+    }
+    
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.6);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .modal.active {
+      display: flex;
+    }
+    
+    .modal-content {
+      background: white;
+      border-radius: 12px;
+      padding: 30px;
+      max-width: 500px;
+      width: 90%;
+      max-height: 80vh;
+      overflow-y: auto;
+    }
+    
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      padding-bottom: 15px;
+      border-bottom: 2px solid #f0f0f0;
+    }
+    
+    .modal-header h3 {
+      color: #667eea;
+      font-size: 20px;
+    }
+    
+    .close-modal {
+      background: none;
+      border: none;
+      font-size: 24px;
+      cursor: pointer;
+      color: #999;
+      padding: 0;
+      width: 30px;
+      height: 30px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .close-modal:hover {
+      color: #333;
+    }
+    
+    .alert {
+      padding: 15px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      font-size: 14px;
+    }
+    
+    .alert-success {
+      background: #d4edda;
+      color: #155724;
+      border: 1px solid #c3e6cb;
+    }
+    
+    .alert-error {
+      background: #f8d7da;
+      color: #721c24;
+      border: 1px solid #f5c6cb;
+    }
+    
+    .alert-info {
+      background: #d1ecf1;
+      color: #0c5460;
+      border: 1px solid #bee5eb;
+    }
+    
+    .loading {
+      display: none;
+      text-align: center;
+      padding: 20px;
+    }
+    
+    .loading.active {
+      display: block;
+    }
+    
+    .spinner {
+      border: 3px solid #f3f3f3;
+      border-top: 3px solid #667eea;
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 15px;
+    }
+    
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    
+    .autocomplete-items {
+      position: absolute;
+      border: 1px solid #d4d4d4;
+      border-top: none;
+      z-index: 99;
+      top: 100%;
+      left: 0;
+      right: 0;
+      max-height: 200px;
+      overflow-y: auto;
+      background: white;
+      border-radius: 0 0 8px 8px;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+    
+    .autocomplete-items div {
+      padding: 10px 15px;
+      cursor: pointer;
+      border-bottom: 1px solid #e0e0e0;
+    }
+    
+    .autocomplete-items div:hover {
+      background-color: #f0f0f0;
+    }
+    
+    .info-badge {
+      display: inline-block;
+      background: #fff3cd;
+      color: #856404;
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 13px;
+      margin-top: 10px;
+      border: 1px solid #ffeeba;
+    }
+    
+    .tipo-indicator {
+      display: inline-block;
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      margin-left: 10px;
+    }
+    
+    .tipo-evento {
+      background: #d4edda;
+      color: #155724;
+    }
+    
+    .tipo-reuniao {
+      background: #d1ecf1;
+      color: #0c5460;
+    }
+    
+    .tipo-bloqueio {
+      background: #f8d7da;
+      color: #721c24;
+    }
+  </style>
+</head>
+<body>
+  <div id="overlay" class="overlay">
+    <div class="overlay-box">
+      <div id="spinner" class="spinner"></div>
+      <div id="overlayText" class="overlay-text">Processando...</div>
+    </div>
+  </div>
+  <div class="container">
+    <div class="header">
+      <h1>➕ Novo Registro</h1>
+      <p>Evento • Reunião • Bloqueio de Data</p>
+    </div>
+    
+    <div class="form-container">
+      <form id="formEvento" onsubmit="return false;">
+        
+        <!-- SEÇÃO: TIPO DE REGISTRO -->
+        <div class="form-section">
+          <div class="section-title">
+            🎯 Tipo de Registro
+            <span id="tipoIndicator" class="tipo-indicator tipo-evento">EVENTO</span>
+          </div>
+          
+          <div class="form-group">
+            <label for="tipoRegistro" class="required">O que deseja cadastrar?</label>
+            <select id="tipoRegistro" required onchange="alterarTipoRegistro()">
+              <option value="Evento">Evento (com dados financeiros)</option>
+              <option value="Reunião">Reunião (sem cobrança)</option>
+              <option value="Bloqueio">Bloqueio de Data (férias, etc)</option>
+            </select>
+          </div>
+          
+          <div id="infoBloqueio" class="info-badge" style="display: none;">
+            ℹ️ Bloqueios não possuem dados financeiros - apenas data e motivo
+          </div>
+          
+          <div id="infoReuniao" class="info-badge" style="display: none;">
+            ℹ️ Reuniões não geram comissões nem valores - são apenas compromissos
+          </div>
+        </div>
+        
+        <!-- SEÇÃO: INFORMAÇÕES BÁSICAS -->
+        <div class="form-section">
+          <div class="section-title">
+            📅 Informações Básicas
+          </div>
+          
+          <!-- EVENTO: Tipo de evento -->
+          <div id="campoTipoEvento" class="form-group">
+            <label for="tipoEvento" class="required">Tipo de Evento</label>
+            <select id="tipoEvento">
+              <option value="">Selecione...</option>
+              <option value="Casamento">Casamento</option>
+              <option value="Aniversário">Aniversário</option>
+              <option value="Formatura">Formatura</option>
+              <option value="Corporativo">Corporativo</option>
+              <option value="Festa">Festa</option>
+              <option value="Outro">Outro</option>
+            </select>
+          </div>
+          
+          <!-- BLOQUEIO/REUNIÃO: Motivo -->
+          <div id="campoMotivo" class="form-group" style="display: none;">
+            <label for="motivo" class="required">Motivo</label>
+            <input type="text" id="motivo" placeholder="">
+          </div>
+          
+          <div class="form-row-3">
+            <div class="form-group">
+              <label for="dataEvento" class="required">Data</label>
+              <input type="date" id="dataEvento" required onchange="verificarConflitos()">
+
+              <!-- EVENTO: múltiplos dias (MESMO PADRÃO DA DURAÇÃO DO BLOQUEIO) -->
+              <div id="campoEventoMultiDias"
+                   class="checkbox-group"
+                   style="display:none;margin-top:8px;">
+                <input type="checkbox"
+                       id="eventoMultiDias"
+                       onchange="toggleDataFimEvento()">
+                <label for="eventoMultiDias" style="margin:0;">
+                  Evento com mais de um dia
+                </label>
+              </div>
+            </div>
+            
+            <div class="form-group">
+              <label for="horaInicio" class="required">Hora de Início</label>
+              <input type="time" id="horaInicio" required value="19:00">
+            </div>
+            
+            <div class="form-group">
+              <label for="duracao">Duração</label>
+              
+              <!-- Checkbox para bloqueio -->
+              <div id="checkboxDuracaoBloqueio" style="display: none; margin-bottom: 8px;">
+                <label style="display: flex; align-items: center; font-weight: normal; cursor: pointer;">
+                  <input type="checkbox" id="temDuracaoEspecifica" onchange="toggleDuracaoBloqueio()" style="margin-right: 8px; width: auto;">
+                  Tem duração/horário específico
+                </label>
+              </div>
+              
+              <select id="duracao">
+                <option value="">Carregando...</option>
+              </select>
+            </div>
+          </div>
+          
+          <!-- Campo Data Fim (só para bloqueios) -->
+          <div id="campoDataFim" class="form-group" style="display: none;">
+            <label for="dataFim">Data Fim (opcional)</label>
+            <input type="date" id="dataFim" onchange="verificarConflitos()">
+          </div>
+          
+          <!-- Alerta de conflitos de agenda -->
+          <!-- Alerta de conflitos (preenchido dinamicamente) -->
+          <div id="alertaConflitos" style="display: none; margin-top: 10px;"></div>
+          
+          <div id="campoProjeto" class="form-group">
+            <label for="projeto">Projeto/Formação</label>
+            <select id="projeto">
+              <option value="">Carregando...</option>
+            </select>
+          </div>
+        </div>
+        
+        <!-- SEÇÃO: PESSOAS E LOCAL -->
+        <div id="secaoPessoasLocal" class="form-section">
+          <div class="section-title">
+            👥 Pessoas e Local
+          </div>
+          
+          <!-- CONTRATANTE -->
+          <div class="form-group">
+            <label for="contratante" id="labelContratante">Contratante (opcional)</label>
+            <div class="hybrid-field">
+              <input type="text" id="contratanteNome" placeholder="Digite o nome ou selecione">
+              <input type="hidden" id="idContratante">
+              <button type="button" class="add-new-btn" onclick="abrirModalContratante()">
+                ➕ Novo
+              </button>
+            </div>
+          </div>
+          
+          <!-- CERIMONIALISTA (só para eventos) -->
+          <div id="campoCerimonialista" class="form-group">
+            <label for="cerimonialista">Cerimonialista (opcional)</label>
+            <div class="hybrid-field">
+              <input type="text" id="cerimonialistaNome" placeholder="Digite o nome ou deixe em branco">
+              <input type="hidden" id="idCerimonialista">
+              <button type="button" class="add-new-btn" onclick="abrirModalCerimonialista()">
+                ➕ Novo
+              </button>
+            </div>
+          </div>
+          
+          <!-- LOCAL/ENDEREÇO -->
+          <div class="form-group">
+            <label for="local" id="labelLocal">Local</label>
+            <div class="hybrid-field">
+              <input type="text" id="localNome" placeholder="Digite o nome do local" >
+              <input type="hidden" id="idEndereco">
+              <button type="button" class="add-new-btn" onclick="abrirModalEndereco()">
+                ➕ Novo
+              </button>
+            </div>
+          </div>
+        </div>
+        
+        <!-- SEÇÃO: VALORES (SÓ PARA EVENTOS) -->
+        <div id="secaoValores" class="form-section">
+          <div class="section-title">
+            💰 Valores e Comissões
+          </div>
+          
+          <div class="form-row">
+            <div class="form-group">
+              <label for="valorTotal" class="required">Valor Total do Evento</label>
+              <input type="number" id="valorTotal" step="0.01" placeholder="0.00">
+            </div>
+            
+            <div class="form-group">
+              <label for="idVendedor" class="required">Vendedor</label>
+              <select id="idVendedor">
+                <option value="">Carregando...</option>
+              </select>
+            </div>
+          </div>
+          
+          <div class="form-row">
+            <div class="form-group">
+              <label for="comissaoTipo">Tipo de Comissão</label>
+              <select id="comissaoTipo" onchange="alterarTipoComissao()">
+                <option value="Padrão">Padrão</option>
+                <option value="Percentual">Percentual Customizado</option>
+                <option value="Fixo">Valor Fixo</option>
+                <option value="Sem Comissão">Sem Comissão</option>
+              </select>
+            </div>
+            
+            <div class="form-group" id="campoValorComissao">
+              <label for="comissaoValor">Valor/Percentual</label>
+              <input type="number" id="comissaoValor" step="0.1" min="0" max="100" placeholder="Ex: 10 para 10%, 12 para 12%">
+            </div>
+          </div>
+          
+          <!-- BV -->
+          <div class="form-group">
+            <label for="parceiroBV">Parceiro BV (opcional)</label>
+            <div class="hybrid-field">
+              <select id="idBV">
+                <option value="">Sem parceiro BV</option>
+              </select>
+              <button type="button" class="add-new-btn" onclick="abrirModalParceiroBV()">
+                ➕ Novo
+              </button>
+            </div>
+          </div>
+          
+          <div class="form-group">
+            <label for="valorBV">Valor BV</label>
+            <input type="number" id="valorBV" step="0.01" placeholder="0.00">
+          </div>
+          
+          <!-- NOTA FISCAL -->
+          <div class="checkbox-group">
+            <input type="checkbox" id="temNF">
+            <label for="temNF" style="margin: 0;" id="labelNF">Emitir Nota Fiscal (carregando...)</label>
+          </div>
+          <div class="info-badge" id="infoNF">
+            ℹ️ A Nota Fiscal é considerada <strong>processada automaticamente</strong> ao criar o evento.
+            Este registro é apenas informativo para controle financeiro e estatísticas.
+          </div>
+        </div>
+        
+        <!-- SEÇÃO: INFORMAÇÕES ADICIONAIS -->
+        <div id="secaoInformacoesAdicionais" class="form-section">
+          <div class="section-title">
+            📝 Informações Adicionais
+          </div>
+          
+          <div id="camposAdicionaisEvento" class="form-row">
+            <div class="form-group">
+              <label for="look">Look/Vestimenta</label>
+              <input type="text" id="look" placeholder="Ex: Social, Esporte Fino, Casual">
+            </div>
+            
+            <div class="form-group">
+              <label for="somResponsavel">Responsável pelo Som</label>
+              <input type="text" id="somResponsavel" placeholder="Nome do responsável">
+            </div>
+          </div>
+          
+          <div id="campoObservacoes" class="form-group">
+            <label for="observacoes">Observações</label>
+            <textarea id="observacoes" placeholder="Informações adicionais..."></textarea>
+          </div>
+        </div>
+        
+        <!-- AÇÕES -->
+        <div class="actions">
+          <button type="button" class="btn btn-secondary" onclick="voltarParaAgenda()">
+            Cancelar
+          </button>
+          <button type="submit" class="btn btn-primary" onclick="salvarEvento()">
+            💾 Salvar
+          </button>
+        </div>
+      </form>
+      
+      <!-- LOADING -->
+      <div id="loading" class="loading">
+        <div class="spinner"></div>
+        <p>Salvando...</p>
+      </div>
+    </div>
+  </div>
+  
+  <!-- MODAIS (mantidos do código anterior) -->
+  <div id="modalContratante" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>➕ Novo Contratante</h3>
+        <button class="close-modal" onclick="fecharModal('modalContratante')">×</button>
+      </div>
+      
+      <div id="alertContratante"></div>
+      
+      <div class="form-group">
+        <label for="nomeContratante" class="required">Nome Completo</label>
+        <input type="text" id="nomeContratante" required>
+      </div>
+      
+      <div class="form-group">
+        <label for="telefoneContratante">Telefone</label>
+        <input type="tel" id="telefoneContratante" placeholder="(85) 99999-9999">
+      </div>
+      
+      <div class="form-group">
+        <label for="emailContratante">Email</label>
+        <input type="email" id="emailContratante">
+      </div>
+      
+      <div class="form-group">
+        <label for="cpfCnpjContratante">CPF/CNPJ</label>
+        <input type="text" id="cpfCnpjContratante">
+      </div>
+      
+      <div class="actions">
+        <button type="button" class="btn btn-secondary" onclick="fecharModal('modalContratante')">
+          Cancelar
+        </button>
+        <button type="button" class="btn btn-primary" onclick="salvarContratante()">
+          💾 Salvar
+        </button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- MODAL CERIMONIALISTA -->
+  <div id="modalCerimonialista" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>➕ Novo Cerimonialista</h3>
+        <button class="close-modal" onclick="fecharModal('modalCerimonialista')">×</button>
+      </div>
+      
+      <div id="alertCerimonialista"></div>
+      
+      <div class="form-group">
+        <label for="nomeCerimonialista" class="required">Nome</label>
+        <input type="text" id="nomeCerimonialista" required>
+      </div>
+      
+      <div class="form-group">
+        <label for="telefoneCerimonialista">Telefone</label>
+        <input type="tel" id="telefoneCerimonialista">
+      </div>
+      
+      <div class="form-group">
+        <label for="empresaCerimonialista">Empresa</label>
+        <input type="text" id="empresaCerimonialista">
+      </div>
+      
+      <div class="actions">
+        <button type="button" class="btn btn-secondary" onclick="fecharModal('modalCerimonialista')">
+          Cancelar
+        </button>
+        <button type="button" class="btn btn-primary" onclick="salvarCerimonialista()">
+          💾 Salvar
+        </button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- MODAL ENDEREÇO -->
+  <div id="modalEndereco" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>➕ Novo Local/Endereço</h3>
+        <button class="close-modal" onclick="fecharModal('modalEndereco')">×</button>
+      </div>
+      
+      <div id="alertEndereco"></div>
+      
+      <div class="form-group">
+        <label for="nomeLocal" class="required">Nome do Local</label>
+        <input type="text" id="nomeLocal" placeholder="Ex: Espaço Flor de Lis" required>
+      </div>
+      
+      <div class="form-group">
+        <label for="enderecoCompleto">Endereço Completo</label>
+        <textarea id="enderecoCompleto" placeholder="Rua, número, bairro..."></textarea>
+      </div>
+      
+      <div class="form-row">
+        <div class="form-group">
+          <label for="cidadeLocal">Cidade</label>
+          <input type="text" id="cidadeLocal" placeholder="Fortaleza">
+        </div>
+        
+        <div class="form-group">
+          <label for="estadoLocal">Estado</label>
+          <select id="estadoLocal">
+            <option value="">Selecione...</option>
+            <option value="AC">AC</option>
+            <option value="AL">AL</option>
+            <option value="AP">AP</option>
+            <option value="AM">AM</option>
+            <option value="BA">BA</option>
+            <option value="CE" selected>CE</option>
+            <option value="DF">DF</option>
+            <option value="ES">ES</option>
+            <option value="GO">GO</option>
+            <option value="MA">MA</option>
+            <option value="MT">MT</option>
+            <option value="MS">MS</option>
+            <option value="MG">MG</option>
+            <option value="PA">PA</option>
+            <option value="PB">PB</option>
+            <option value="PR">PR</option>
+            <option value="PE">PE</option>
+            <option value="PI">PI</option>
+            <option value="RJ">RJ</option>
+            <option value="RN">RN</option>
+            <option value="RS">RS</option>
+            <option value="RO">RO</option>
+            <option value="RR">RR</option>
+            <option value="SC">SC</option>
+            <option value="SP">SP</option>
+            <option value="SE">SE</option>
+            <option value="TO">TO</option>
+          </select>
+        </div>
+      </div>
+      
+      <div class="form-group">
+        <label for="linkMaps">Link Google Maps</label>
+        <input type="url" id="linkMaps" placeholder="https://maps.google.com/...">
+      </div>
+      
+      <div class="form-group">
+        <label for="obsEndereco">Observações</label>
+        <textarea id="obsEndereco" placeholder="Informações adicionais sobre o local..."></textarea>
+      </div>
+      
+      <div class="actions">
+        <button type="button" class="btn btn-secondary" onclick="fecharModal('modalEndereco')">
+          Cancelar
+        </button>
+        <button type="button" class="btn btn-primary" onclick="salvarEndereco()">
+          💾 Salvar
+        </button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- MODAL PARCEIRO BV -->
+  <div id="modalParceiroBV" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>➕ Novo Parceiro BV</h3>
+        <button class="close-modal" onclick="fecharModal('modalParceiroBV')">×</button>
+      </div>
+      
+      <div id="alertParceiroBV"></div>
+      
+      <div class="form-group">
+        <label for="nomeParceiroBV" class="required">Nome</label>
+        <input type="text" id="nomeParceiroBV" required>
+      </div>
+      
+      <div class="form-group">
+        <label for="telefoneParceiroBV">Telefone</label>
+        <input type="tel" id="telefoneParceiroBV">
+      </div>
+      
+      <div class="form-group">
+        <label for="tipoParceiroBV">Tipo</label>
+        <select id="tipoParceiroBV">
+          <option value="BV">BV</option>
+          <option value="Indicação">Indicação</option>
+          <option value="Parceria">Parceria</option>
+        </select>
+      </div>
+      
+      <div class="actions">
+        <button type="button" class="btn btn-secondary" onclick="fecharModal('modalParceiroBV')">
+          Cancelar
+        </button>
+        <button type="button" class="btn btn-primary" onclick="salvarParceiroBV()">
+          💾 Salvar
+        </button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- MODAL CONFIRMAÇÃO DE CRIAÇÃO RÁPIDA -->
+  <div id="modalConfirmarCriacao" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>⚠️ Confirmação necessária</h3>
+        <button class="close-modal" onclick="fecharModal('modalConfirmarCriacao')">×</button>
+      </div>
+      <div id="textoConfirmacao" style="font-size:14px;color:#333;margin-bottom:20px;"></div>
+      <div class="actions">
+        <button class="btn btn-secondary" onclick="fecharModal('modalConfirmarCriacao')">
+          Cancelar
+        </button>
+        <button class="btn btn-primary" id="btnConfirmarCriacao">
+          ➕ Criar e continuar
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ========================================
+    // SESSÃO FRONTEND (PADRÃO DA AGENDA)
+    // ========================================
+    const AUTH = {
+      email: localStorage.getItem('auth_email'),
+      nome: localStorage.getItem('auth_nome'),
+      perfil: localStorage.getItem('auth_perfil')
+    };
+
+    // 🔐 Proteção de sessão
+    if (!AUTH.email) {
+      window.location.href = 'index.html';
+    }
+
+    // ========================================
+    // FUNÇÕES DE OVERLAY/LOADING
+    // ========================================
+    function loading(texto) {
+      document.getElementById('overlayText').textContent = texto || 'Processando...';
+      document.getElementById('spinner').style.display = 'block';
+      document.getElementById('overlay').classList.add('active');
+    }
+
+    function sucesso(titulo, msg, callback) {
+      document.getElementById('spinner').style.display = 'none';
+      document.getElementById('overlayText').innerHTML = `
+        <div style="font-size:50px;margin-bottom:15px;">✅</div>
+        <h3 style="color:#4caf50;margin-bottom:10px;font-size:18px;">${titulo}</h3>
+        <p style="color:#666;font-size:14px;">${msg}</p>
+      `;
+      setTimeout(() => {
+        fecharLoading();
+        if (callback) callback();
+      }, 2200);
+    }
+
+    function fecharLoading() {
+      document.getElementById('overlay').classList.remove('active');
+      document.getElementById('overlayText').textContent = 'Processando...';
+      document.getElementById('spinner').style.display = 'block';
+    }
+
+    // ========================================
+    // DADOS GLOBAIS
+    // ========================================
+    let perfilUsuario = null;
+    let contratantes = [];
+    let cerimonialistas = [];
+    let enderecos = [];
+    let vendedores = [];
+    let parceirosBV = [];
+
+    // ========================================
+    // NAVEGAÇÃO
+    // ========================================
+    function voltarParaAgenda() {
+      window.location.href = 'agenda.html';
+    }
+
+    // ========================================
+    // INICIALIZAÇÃO
+    // ========================================
+    window.onload = async function() {
+      try {
+        await carregarDados();
+        alterarTipoRegistro();
+        alterarTipoComissao();
+
+        // Buscar usuário logado e aplicar permissões
+        perfilUsuario = AUTH.perfil || 'Músico';
+        aplicarPermissoesComissao(perfilUsuario);
+      } catch (error) {
+        console.error('Erro na inicialização:', error);
+        alert('Erro ao carregar dados iniciais');
+      }
+    };
+
+    // ========================================
+    // CARREGAMENTO DE DADOS VIA API
+    // ========================================
+    async function carregarDados() {
+      try {
+        // Carrega vendedores
+        const resVendedores = await Auth.apiCall('listarVendedores');
+        vendedores = resVendedores.vendedores || resVendedores || [];
+        const selectVendedor = document.getElementById('idVendedor');
+        selectVendedor.innerHTML = '<option value="">Selecione...</option>';
+        vendedores.forEach(v => {
+          selectVendedor.innerHTML += `<option value="${v.id}">${v.nome}</option>`;
+        });
+
+        // Carrega contratantes
+        const resContratantes = await Auth.apiCall('listarContratantes');
+        contratantes = resContratantes.contratantes || resContratantes || [];
+        configurarAutocomplete('contratanteNome', 'idContratante', contratantes);
+
+        // Carrega cerimonialistas
+        const resCerimonialistas = await Auth.apiCall('listarCerimonialistas');
+        cerimonialistas = resCerimonialistas.cerimonialistas || resCerimonialistas || [];
+        configurarAutocomplete('cerimonialistaNome', 'idCerimonialista', cerimonialistas);
+
+        // Carrega endereços
+        const resEnderecos = await Auth.apiCall('listarEnderecos');
+        enderecos = resEnderecos.enderecos || resEnderecos || [];
+        configurarAutocomplete('localNome', 'idEndereco', enderecos);
+
+        // Carrega parceiros BV
+        const resParceirosBV = await Auth.apiCall('listarParceirosBV');
+        parceirosBV = resParceirosBV.parceiros || resParceirosBV || [];
+        const selectBV = document.getElementById('idBV');
+        parceirosBV.forEach(p => {
+          selectBV.innerHTML += `<option value="${p.id}">${p.nome}</option>`;
+        });
+
+        // Carrega durações da CONFIG
+        const resDuracoes = await Auth.apiCall('listarDuracoesPadrao');
+        const duracoes = resDuracoes.duracoes || resDuracoes || [];
+        const selectDuracao = document.getElementById('duracao');
+        selectDuracao.innerHTML = '<option value="">Selecione...</option>';
+        duracoes.forEach(d => {
+          const valor = String(d).trim();
+          const minutos = parseInt(valor);
+          const textoExibicao = formatarDuracao(minutos);
+          selectDuracao.innerHTML += `<option value="${minutos}">${textoExibicao}</option>`;
+        });
+        // Seleciona 120 (2h) por padrão se existir
+        if (duracoes.includes('120') || duracoes.includes(120)) {
+          selectDuracao.value = '120';
+        }
+
+        // Carrega projetos da CONFIG
+        const resProjetos = await Auth.apiCall('listarProjetosSugeridos');
+        const projetos = resProjetos.projetos || resProjetos || [];
+        const selectProjeto = document.getElementById('projeto');
+        selectProjeto.innerHTML = '<option value="">Selecione...</option>';
+        projetos.forEach(p => {
+          selectProjeto.innerHTML += `<option value="${p}">${p}</option>`;
+        });
+
+        // Carrega tipos de evento da CONFIG
+        const resTipos = await Auth.apiCall('listarTiposEvento');
+        const tipos = resTipos.tipos || resTipos || [];
+        const selectTipo = document.getElementById('tipoEvento');
+        selectTipo.innerHTML = '<option value="">Selecione...</option>';
+        tipos.forEach(t => {
+          selectTipo.innerHTML += `<option value="${t}">${t}</option>`;
+        });
+
+        // Carrega percentual padrão de comissão da CONFIG
+        try {
+          const resComissao = await Auth.apiCall('obterConfig', { chave: 'COMISSAO_PADRAO_PERCENTUAL' });
+          const percentual = resComissao.valor || resComissao || 10;
+          const optionPadrao = document.querySelector('#comissaoTipo option[value="Padrão"]');
+          if (optionPadrao) {
+            optionPadrao.textContent = `Padrão (${percentual}%)`;
+          }
+        } catch (e) {
+          console.log('Não foi possível carregar percentual padrão');
+        }
+
+        // Carrega percentual NF da CONFIG
+        try {
+          const resNF = await Auth.apiCall('obterPercentualNF');
+          const percentualNF = resNF.percentual || resNF || 0;
+          const labelNF = document.getElementById('labelNF');
+          if (labelNF) {
+            labelNF.textContent = `Emitir Nota Fiscal (${percentualNF}% do valor total)`;
+          }
+        } catch (e) {
+          console.log('Não foi possível carregar percentual NF');
+        }
+
+      } catch (error) {
+        console.error('Erro ao carregar dados:', error);
+        throw error;
+      }
+    }
+
+    // ========================================
+    // AUTOCOMPLETE
+    // ========================================
+    function configurarAutocomplete(inputId, hiddenId, dados) {
+      const input = document.getElementById(inputId);
+      const hidden = document.getElementById(hiddenId);
+
+      input.addEventListener('input', function() {
+        const valor = this.value.toLowerCase();
+        hidden.value = '';
+
+        let lista = document.querySelector('.autocomplete-items');
+        if (lista) lista.remove();
+
+        if (!valor) return;
+
+        const filtrados = dados.filter(d => 
+          d.nome.toLowerCase().includes(valor)
+        );
+
+        if (filtrados.length === 0) return;
+
+        lista = document.createElement('div');
+        lista.className = 'autocomplete-items';
+        input.parentNode.appendChild(lista);
+
+        filtrados.forEach(item => {
+          const div = document.createElement('div');
+          div.innerHTML = item.nome;
+          div.addEventListener('click', function() {
+            input.value = item.nome;
+            hidden.value = item.id;
+            lista.remove();
+          });
+          lista.appendChild(div);
+        });
+      });
+
+      document.addEventListener('click', function(e) {
+        if (e.target !== input) {
+          const lista = document.querySelector('.autocomplete-items');
+          if (lista) lista.remove();
+        }
+      });
+    }
+
+    // ========================================
+    // MODAIS
+    // ========================================
+    function abrirModal(id) {
+      document.getElementById(id).classList.add('active');
+    }
+
+    function fecharModal(id) {
+      document.getElementById(id).classList.remove('active');
+    }
+
+    function abrirModalContratante() {
+      document.getElementById('nomeContratante').value = '';
+      document.getElementById('telefoneContratante').value = '';
+      document.getElementById('emailContratante').value = '';
+      document.getElementById('cpfCnpjContratante').value = '';
+      document.getElementById('alertContratante').innerHTML = '';
+      abrirModal('modalContratante');
+    }
+
+    function abrirModalCerimonialista() {
+      document.getElementById('nomeCerimonialista').value = '';
+      document.getElementById('telefoneCerimonialista').value = '';
+      document.getElementById('empresaCerimonialista').value = '';
+      document.getElementById('alertCerimonialista').innerHTML = '';
+      abrirModal('modalCerimonialista');
+    }
+
+    function abrirModalEndereco() {
+      document.getElementById('nomeLocal').value = '';
+      document.getElementById('enderecoCompleto').value = '';
+      document.getElementById('cidadeLocal').value = '';
+      document.getElementById('estadoLocal').value = 'CE';
+      document.getElementById('linkMaps').value = '';
+      document.getElementById('obsEndereco').value = '';
+      document.getElementById('alertEndereco').innerHTML = '';
+      abrirModal('modalEndereco');
+    }
+
+    function abrirModalParceiroBV() {
+      document.getElementById('nomeParceiroBV').value = '';
+      document.getElementById('telefoneParceiroBV').value = '';
+      document.getElementById('tipoParceiroBV').value = 'BV';
+      document.getElementById('alertParceiroBV').innerHTML = '';
+      abrirModal('modalParceiroBV');
+    }
+
+    // ========================================
+    // SALVAR CADASTROS RÁPIDOS
+    // ========================================
+    async function salvarContratante() {
+      const nome = document.getElementById('nomeContratante').value.trim();
+
+      if (!nome) {
+        mostrarAlerta('alertContratante', 'Nome é obrigatório', 'error');
+        return;
+      }
+
+      const dados = {
+        nome: nome,
+        telefone: document.getElementById('telefoneContratante').value,
+        email: document.getElementById('emailContratante').value,
+        cpfCnpj: document.getElementById('cpfCnpjContratante').value
+      };
+
+      try {
+        const resultado = await Auth.apiCall('cadastrarContratanteRapido', dados);
+        if (resultado.sucesso) {
+          contratantes.push({ id: resultado.id, nome: resultado.nome });
+          document.getElementById('contratanteNome').value = resultado.nome;
+          document.getElementById('idContratante').value = resultado.id;
+          fecharModal('modalContratante');
+        } else {
+          mostrarAlerta('alertContratante', resultado.mensagem, 'error');
+        }
+      } catch (error) {
+        mostrarAlerta('alertContratante', 'Erro ao salvar: ' + error.message, 'error');
+      }
+    }
+
+    async function salvarCerimonialista() {
+      const nome = document.getElementById('nomeCerimonialista').value.trim();
+
+      if (!nome) {
+        mostrarAlerta('alertCerimonialista', 'Nome é obrigatório', 'error');
+        return;
+      }
+
+      const dados = {
+        nome: nome,
+        telefone: document.getElementById('telefoneCerimonialista').value,
+        empresa: document.getElementById('empresaCerimonialista').value
+      };
+
+      try {
+        const resultado = await Auth.apiCall('cadastrarCerimonialistaRapido', dados);
+        if (resultado.sucesso) {
+          cerimonialistas.push({ id: resultado.id, nome: resultado.nome });
+          document.getElementById('cerimonialistaNome').value = resultado.nome;
+          document.getElementById('idCerimonialista').value = resultado.id;
+          fecharModal('modalCerimonialista');
+        } else {
+          mostrarAlerta('alertCerimonialista', resultado.mensagem, 'error');
+        }
+      } catch (error) {
+        mostrarAlerta('alertCerimonialista', 'Erro ao salvar: ' + error.message, 'error');
+      }
+    }
+
+    async function salvarEndereco() {
+      const nome = document.getElementById('nomeLocal').value.trim();
+
+      if (!nome) {
+        mostrarAlerta('alertEndereco', 'Nome do local é obrigatório', 'error');
+        return;
+      }
+
+      const dados = {
+        nomeLocal: nome,
+        enderecoCompleto: document.getElementById('enderecoCompleto').value,
+        cidade: document.getElementById('cidadeLocal').value,
+        estado: document.getElementById('estadoLocal').value,
+        linkMaps: document.getElementById('linkMaps').value,
+        observacoes: document.getElementById('obsEndereco').value
+      };
+
+      try {
+        const resultado = await Auth.apiCall('cadastrarEnderecoRapido', dados);
+        if (resultado.sucesso) {
+          enderecos.push({ id: resultado.id, nome: resultado.nome });
+          document.getElementById('localNome').value = resultado.nome;
+          document.getElementById('idEndereco').value = resultado.id;
+          fecharModal('modalEndereco');
+        } else {
+          mostrarAlerta('alertEndereco', resultado.mensagem, 'error');
+        }
+      } catch (error) {
+        mostrarAlerta('alertEndereco', 'Erro ao salvar: ' + error.message, 'error');
+      }
+    }
+
+    async function salvarParceiroBV() {
+      const nome = document.getElementById('nomeParceiroBV').value.trim();
+
+      if (!nome) {
+        mostrarAlerta('alertParceiroBV', 'Nome é obrigatório', 'error');
+        return;
+      }
+
+      const dados = {
+        nome: nome,
+        telefone: document.getElementById('telefoneParceiroBV').value,
+        tipo: document.getElementById('tipoParceiroBV').value
+      };
+
+      try {
+        const resultado = await Auth.apiCall('cadastrarParceiroBVRapido', dados);
+        if (resultado.sucesso) {
+          parceirosBV.push({ id: resultado.id, nome: resultado.nome });
+
+          const select = document.getElementById('idBV');
+          const option = document.createElement('option');
+          option.value = resultado.id;
+          option.text = resultado.nome;
+          option.selected = true;
+          select.add(option);
+
+          fecharModal('modalParceiroBV');
+        } else {
+          mostrarAlerta('alertParceiroBV', resultado.mensagem, 'error');
+        }
+      } catch (error) {
+        mostrarAlerta('alertParceiroBV', 'Erro ao salvar: ' + error.message, 'error');
+      }
+    }
+
+    // ========================================
+    // SALVAR EVENTO
+    // ========================================
+    async function salvarEvento() {
+      const form = document.getElementById('formEvento');
+      if (!form.checkValidity()) {
+        form.reportValidity();
+        return;
+      }
+
+      const tipoRegistro = document.getElementById('tipoRegistro').value;
+      const dados = {
+        tipoRegistro: tipoRegistro,
+        dataEvento: document.getElementById('dataEvento').value,
+        dataFim: (tipoRegistro === 'Evento' || tipoRegistro === 'Bloqueio')
+          ? (document.getElementById('dataFim').value || null)
+          : null,
+        horaInicio: document.getElementById('horaInicio').value,
+        duracao: parseInt(document.getElementById('duracao').value) || null,
+        idContratante: document.getElementById('idContratante').value || null,
+        idEndereco: document.getElementById('idEndereco').value || null
+      };
+
+      /* ───── Resolução automática de IDs por nome digitado ───── */
+
+      // CONTRATANTE (Evento ou Reunião)
+      if ((tipoRegistro === 'Evento' || tipoRegistro === 'Reunião') &&
+          !dados.idContratante &&
+          document.getElementById('contratanteNome').value) {
+
+        const idResolvido = resolverIdPorNomeDigitado(
+          document.getElementById('contratanteNome').value.trim(),
+          contratantes
+        );
+
+        if (idResolvido) {
+          document.getElementById('idContratante').value = idResolvido;
+          dados.idContratante = idResolvido;
+        }
+      }
+
+      // CERIMONIALISTA (Evento)
+      if (tipoRegistro === 'Evento' &&
+          !dados.idCerimonialista &&
+          document.getElementById('cerimonialistaNome').value) {
+
+        const idResolvido = resolverIdPorNomeDigitado(
+          document.getElementById('cerimonialistaNome').value.trim(),
+          cerimonialistas
+        );
+
+        if (idResolvido) {
+          document.getElementById('idCerimonialista').value = idResolvido;
+          dados.idCerimonialista = idResolvido;
+        }
+      }
+
+      // LOCAL (Evento ou Reunião)
+      if ((tipoRegistro === 'Evento' || tipoRegistro === 'Reunião') &&
+          !dados.idEndereco &&
+          document.getElementById('localNome').value) {
+
+        const idResolvido = resolverIdPorNomeDigitado(
+          document.getElementById('localNome').value.trim(),
+          enderecos
+        );
+
+        if (idResolvido) {
+          document.getElementById('idEndereco').value = idResolvido;
+          dados.idEndereco = idResolvido;
+        }
+      }
+
+      // EVENTO
+      if (tipoRegistro === 'Evento') {
+        dados.tipoEvento = document.getElementById('tipoEvento').value;
+        dados.projeto = document.getElementById('projeto').value;
+        dados.idCerimonialista = document.getElementById('idCerimonialista').value || null;
+        dados.valorTotal = parseFloat(document.getElementById('valorTotal').value);
+        dados.idVendedor = document.getElementById('idVendedor').value;
+        dados.comissaoTipo = document.getElementById('comissaoTipo').value;
+        dados.comissaoValor = document.getElementById('comissaoValor').value || null;
+        dados.idBV = document.getElementById('idBV').value || null;
+        dados.valorBV = parseFloat(document.getElementById('valorBV').value) || 0;
+        dados.temNF = document.getElementById('temNF').checked;
+        dados.look = document.getElementById('look').value;
+        dados.somResponsavel = document.getElementById('somResponsavel').value;
+        dados.observacoes = document.getElementById('observacoes').value;
+      } 
+      // REUNIÃO ou BLOQUEIO
+      else {
+        dados.motivo = document.getElementById('motivo').value;
+        dados.observacoes = document.getElementById('observacoes').value;
+      }
+
+      // ───── Validação profissional: CONTRATANTE ─────
+      if ((tipoRegistro === 'Evento' || tipoRegistro === 'Reunião') &&
+          campoDigitadoSemId('contratanteNome', 'idContratante')) {
+
+        // EVENTO → cria automaticamente
+        if (tipoRegistro === 'Evento') {
+          cadastrarContratanteAutomatico(
+            document.getElementById('contratanteNome').value,
+            id => {
+              document.getElementById('idContratante').value = id;
+              dados.idContratante = id;
+              salvarEvento();
+            }
+          );
+          return;
+        }
+
+        // REUNIÃO → pedir confirmação
+        abrirConfirmacao(
+          'Contratante',
+          document.getElementById('contratanteNome').value,
+          () => {
+            cadastrarContratanteAutomatico(
+              document.getElementById('contratanteNome').value,
+              id => {
+                document.getElementById('idContratante').value = id;
+                dados.idContratante = id;
+                salvarEvento();
+              }
+            );
+          }
+        );
+        return;
+      }
+
+      // CERIMONIALISTA (opcional) – confirmação, mas fixa o loop setando o hidden antes
+      if (tipoRegistro === 'Evento' && campoDigitadoSemId('cerimonialistaNome', 'idCerimonialista')) {
+        abrirConfirmacao(
+          'Cerimonialista',
+          document.getElementById('cerimonialistaNome').value,
+          () => {
+            fecharModal('modalConfirmarCriacao');
+
+            setTimeout(() => {
+              loading('Criando cerimonialista...');
+
+              cadastrarCerimonialistaAutomatico(
+                document.getElementById('cerimonialistaNome').value,
+                id => {
+                  fecharLoading();
+                  document.getElementById('idCerimonialista').value = id;
+                  dados.idCerimonialista = id;
+                  salvarEvento();
+                }
+              );
+            }, 0);
+          }
+        );
+        return;
+      }
+
+      // LOCAL – confirmação, mas fixa o loop setando o hidden antes
+      if ((tipoRegistro === 'Evento' || tipoRegistro === 'Reunião') &&
+          campoDigitadoSemId('localNome', 'idEndereco')) {
+        abrirConfirmacao(
+          'Local',
+          document.getElementById('localNome').value,
+          () => {
+            fecharModal('modalConfirmarCriacao');
+
+            setTimeout(() => {
+              loading('Criando local...');
+
+              cadastrarEnderecoAutomatico(
+                document.getElementById('localNome').value,
+                id => {
+                  fecharLoading();
+                  document.getElementById('idEndereco').value = id;
+                  dados.idEndereco = id;
+                  salvarEvento();
+                }
+              );
+            }, 0);
+          }
+        );
+        return;
+      }
+
+      enviarEvento(dados);
+    }
+
+    // Função para detectar se campo foi digitado mas não selecionado
+    function campoDigitadoSemId(nomeInputId, idHiddenId) {
+      const nome = document.getElementById(nomeInputId).value.trim();
+      const id = document.getElementById(idHiddenId).value;
+      return nome && !id;
+    }
+
+    function resolverIdPorNomeDigitado(nome, lista) {
+      if (!nome || !lista || !lista.length) return null;
+
+      const encontrado = lista.find(item =>
+        item.nome.toLowerCase() === nome.toLowerCase()
+      );
+
+      return encontrado ? encontrado.id : null;
+    }
+
+    // Função para abrir modal de confirmação de criação rápida
+    function abrirConfirmacao(tipo, nome, onConfirm) {
+      document.getElementById('textoConfirmacao').innerHTML = `
+        Você digitou <strong>${nome}</strong> como <strong>${tipo}</strong>,<br>
+        mas ele ainda não existe no sistema.<br><br>
+        Deseja <strong>criar agora</strong> e continuar o cadastro?
+      `;
+      const btn = document.getElementById('btnConfirmarCriacao');
+      btn.onclick = () => {
+        fecharModal('modalConfirmarCriacao');
+        onConfirm();
+      };
+      abrirModal('modalConfirmarCriacao');
+    }
+
+    // Cadastro automático de cerimonialista
+    async function cadastrarCerimonialistaAutomatico(nome, callback) {
+      try {
+        const r = await Auth.apiCall('cadastrarCerimonialistaRapido', { nome });
+        if (r.sucesso) {
+          callback(r.id);
+        } else {
+          alert('Erro ao cadastrar cerimonialista: ' + r.mensagem);
+        }
+      } catch (error) {
+        alert('Erro ao cadastrar cerimonialista: ' + error.message);
+      }
+    }
+
+    async function cadastrarContratanteAutomatico(nome, callback) {
+      try {
+        const resultado = await Auth.apiCall('cadastrarContratanteRapido', { nome: nome });
+        if (resultado.sucesso) {
+          callback(resultado.id);
+        } else {
+          alert('Erro ao cadastrar contratante: ' + resultado.mensagem);
+        }
+      } catch (error) {
+        alert('Erro ao cadastrar contratante: ' + error.message);
+      }
+    }
+
+    async function cadastrarEnderecoAutomatico(nome, callback) {
+      try {
+        const resultado = await Auth.apiCall('cadastrarEnderecoRapido', { nomeLocal: nome });
+        if (resultado.sucesso) {
+          callback(resultado.id);
+        } else {
+          alert('Erro ao cadastrar local: ' + resultado.mensagem);
+        }
+      } catch (error) {
+        alert('Erro ao cadastrar local: ' + error.message);
+      }
+    }
+
+    async function enviarEvento(dados) {
+      loading('Salvando registro...');
+      
+      try {
+        const resultado = await Auth.apiCall('criarEvento', dados);
+        if (resultado.sucesso) {
+          sucesso('Registro criado!', resultado.mensagem, () => {
+            window.location.href = 'agenda.html';
+          });
+        } else {
+          fecharLoading();
+          alert('❌ ' + resultado.mensagem);
+        }
+      } catch (erro) {
+        fecharLoading();
+        alert('Erro: ' + erro.message);
+      }
+    }
+
+    function mostrarAlerta(elementoId, mensagem, tipo) {
+      const elemento = document.getElementById(elementoId);
+      elemento.innerHTML = `<div class="alert alert-${tipo}">${mensagem}</div>`;
+      setTimeout(() => {
+        elemento.innerHTML = '';
+      }, 5000);
+    }
+
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // CONTROLE DO CAMPO DATA FIM PARA EVENTO MULTI-DIA
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    function toggleDataFimEvento() {
+      const temMultiplosDias = document.getElementById('eventoMultiDias').checked;
+      const campoDataFim = document.getElementById('campoDataFim');
+
+      if (temMultiplosDias) {
+        campoDataFim.style.display = 'block';
+      } else {
+        campoDataFim.style.display = 'none';
+        document.getElementById('dataFim').value = '';
+      }
+
+      verificarConflitos();
+    }
+
+    function aplicarPermissoesComissao(perfil) {
+      const select = document.getElementById('comissaoTipo');
+      if (!select) return;
+
+      // Proprietário vê tudo
+      if (perfil === 'Proprietário') {
+        Array.from(select.options).forEach(o => o.disabled = false);
+        return;
+      }
+
+      // Sócio e Músico: apenas Padrão e Sem Comissão
+      Array.from(select.options).forEach(option => {
+        if (option.value === 'Padrão' || option.value === 'Sem Comissão') {
+          option.disabled = false;
+        } else {
+          option.disabled = true;
+        }
+      });
+
+      // Força seleção segura
+      if (!['Padrão', 'Sem Comissão'].includes(select.value)) {
+        select.value = 'Padrão';
+      }
+
+      alterarTipoComissao();
+    }
+
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // CONTROLE DO CAMPO VALOR/PERCENTUAL DE COMISSÃO
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    function alterarTipoComissao() {
+      const tipo = document.getElementById('comissaoTipo').value;
+      const campoValor = document.getElementById('campoValorComissao');
+
+      if (tipo === 'Padrão') {
+        campoValor.style.display = 'none';
+        document.getElementById('comissaoValor').value = '';
+      } else {
+        campoValor.style.display = 'block';
+      }
+    }
+
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // CONTROLE DA DURAÇÃO EM BLOQUEIO
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    function toggleDuracaoBloqueio() {
+      const temDuracao = document.getElementById('temDuracaoEspecifica').checked;
+      const selectDuracao = document.getElementById('duracao');
+
+      if (temDuracao) {
+        selectDuracao.style.display = 'block';
+        selectDuracao.required = false; // Opcional mesmo ativado
+      } else {
+        selectDuracao.style.display = 'none';
+        selectDuracao.value = '';
+      }
+    }
+
+    // Alternar tipo de registro
+    function alterarTipoRegistro() {
+      const tipo = document.getElementById('tipoRegistro').value;
+      const indicator = document.getElementById('tipoIndicator');
+
+      // Atualiza indicador
+      indicator.textContent = tipo.toUpperCase();
+      indicator.className = 'tipo-indicator tipo-' + tipo.toLowerCase();
+
+      // Mostra/oculta info
+      document.getElementById('infoBloqueio').style.display = tipo === 'Bloqueio' ? 'block' : 'none';
+      document.getElementById('infoReuniao').style.display = tipo === 'Reunião' ? 'block' : 'none';
+
+      // Campos específicos
+      const isEvento = tipo === 'Evento';
+      const isBloqueio = tipo === 'Bloqueio';
+      const isReuniao = tipo === 'Reunião';
+
+      const campoEventoMultiDias = document.getElementById('campoEventoMultiDias');
+
+      // Tipo de Evento vs Motivo
+      document.getElementById('campoTipoEvento').style.display = isEvento ? 'block' : 'none';
+      document.getElementById('campoMotivo').style.display = (isBloqueio || isReuniao) ? 'block' : 'none';
+
+      // Altera placeholder do motivo baseado no tipo
+      const campoMotivo = document.getElementById('motivo');
+      if (isReuniao) {
+        campoMotivo.placeholder = 'Ex: Reunião de Repertório, Reunião Geral, Reunião de Planejamento...';
+      } else if (isBloqueio) {
+        campoMotivo.placeholder = 'Ex: Férias, Viagem, Manutenção, Folga...';
+      }
+
+      // Campo Data Fim (só para bloqueios)
+      document.getElementById('campoDataFim').style.display = isBloqueio ? 'block' : 'none';
+
+      campoEventoMultiDias.style.display = isEvento ? 'flex' : 'none';
+
+      if (!isEvento) {
+        document.getElementById('eventoMultiDias').checked = false;
+      }
+
+      // Limpar DATA_FIM e resetar conflitos ao trocar para REUNIÃO
+      if (isReuniao) {
+        document.getElementById('dataFim').value = '';
+        document.getElementById('alertaConflitos').style.display = 'none';
+      }
+
+      // Cerimonialista (SÓ EVENTO)
+      document.getElementById('campoCerimonialista').style.display = isEvento ? 'block' : 'none';
+
+      // Projeto (opcional para reunião e bloqueio, mas visível)
+      document.getElementById('campoProjeto').style.display = 'block';
+
+      // Seção de valores (SÓ EVENTO)
+      document.getElementById('secaoValores').style.display = isEvento ? 'block' : 'none';
+
+      // Seção Informações Adicionais completa - só para EVENTO
+      document.getElementById('secaoInformacoesAdicionais').style.display = isEvento ? 'block' : 'none';
+
+      // Altera label do contratante e controle required
+      const labelContratante = document.getElementById('labelContratante');
+
+      if (isEvento) {
+        labelContratante.innerHTML = 'Contratante';
+        labelContratante.classList.add('required');
+      } else if (isReuniao) {
+        labelContratante.innerHTML = 'Cliente/Pessoa (opcional)';
+        labelContratante.classList.remove('required');
+      } else {
+        labelContratante.innerHTML = 'Responsável (opcional)';
+        labelContratante.classList.remove('required');
+      }
+
+      // Controle visual do label do local
+      const labelLocal = document.getElementById('labelLocal');
+      if (isEvento) {
+        labelLocal.classList.add('required');
+        labelLocal.textContent = 'Local';
+      } else {
+        labelLocal.classList.remove('required');
+        labelLocal.textContent = 'Local (opcional)';
+      }
+
+      // Controle do campo duração e checkbox
+      const checkboxDuracao = document.getElementById('checkboxDuracaoBloqueio');
+      const selectDuracao = document.getElementById('duracao');
+      const labelDuracao = document.querySelector('label[for="duracao"]');
+
+      if (isBloqueio) {
+        // Bloqueio: mostra checkbox, esconde select inicialmente
+        checkboxDuracao.style.display = 'block';
+        selectDuracao.style.display = 'none';
+        selectDuracao.required = false;
+        document.getElementById('temDuracaoEspecifica').checked = false;
+        selectDuracao.value = '';
+        labelDuracao.textContent = 'Duração (opcional)';
+      } else if (isReuniao) {
+        // Reunião: mostra select, sem required
+        checkboxDuracao.style.display = 'none';
+        selectDuracao.style.display = 'block';
+        selectDuracao.required = false;
+        labelDuracao.textContent = 'Duração (opcional)';
+      } else {
+        // Evento: mostra select, com required
+        checkboxDuracao.style.display = 'none';
+        selectDuracao.style.display = 'block';
+        selectDuracao.required = true;
+        labelDuracao.innerHTML = 'Duração <span class="required"></span>';
+      }
+
+      // Required nos campos
+      document.getElementById('tipoEvento').required = isEvento;
+      document.getElementById('motivo').required = !isEvento;
+      document.getElementById('valorTotal').required = isEvento;
+      document.getElementById('idVendedor').required = isEvento;
+
+      // Contratante e Local obrigatórios SOMENTE para EVENTO
+      document.getElementById('contratanteNome').required = isEvento;
+      document.getElementById('localNome').required = isEvento;
+    }
+
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // VERIFICAÇÃO DE CONFLITOS DE AGENDA
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+    // ID global para execuções do verificador de conflitos
+    let verificadorExecucaoId = 0;
+
+    /**
+     * Calcula hora final baseado na hora de início e duração
+     */
+    function calcularHoraFinal(horaInicio, duracao) {
+      if (!horaInicio || !duracao) return null;
+
+      // Parse da hora de início (formato HH:MM)
+      const [horas, minutos] = horaInicio.split(':').map(Number);
+
+      // Parse da duração (pode ser número em minutos ou string "2h", "1h30")
+      let duracaoMinutos = 0;
+
+      if (typeof duracao === 'number') {
+        // Já está em minutos
+        duracaoMinutos = duracao;
+      } else if (typeof duracao === 'string') {
+        // Tenta converter de string
+        if (duracao.includes('h')) {
+          // Formato "2h" ou "2h30"
+          const partes = duracao.toLowerCase().split('h');
+          duracaoMinutos = parseInt(partes[0]) * 60;
+          if (partes[1]) {
+            duracaoMinutos += parseInt(partes[1]) || 0;
+          }
+        } else {
+          // Pode ser número como string "120"
+          duracaoMinutos = parseInt(duracao) || 0;
+        }
+      }
+
+      // Calcula hora final
+      const horaInicioMinutos = horas * 60 + minutos;
+      const horaFinalMinutos = horaInicioMinutos + duracaoMinutos;
+
+      const horaFinal = Math.floor(horaFinalMinutos / 60);
+      const minutoFinal = horaFinalMinutos % 60;
+
+      return `${String(horaFinal).padStart(2, '0')}:${String(minutoFinal).padStart(2, '0')}`;
+    }
+
+    /**
+     * Converte minutos para formato legível
+     */
+    function formatarDuracao(minutos) {
+      if (!minutos) return '';
+
+      const horas = Math.floor(minutos / 60);
+      const mins = minutos % 60;
+
+      if (mins === 0) return `${horas}h`;
+      return `${horas}h${mins}`;
+    }
+
+    async function verificarConflitos() {
+      // Incrementa o ID de execução para esta chamada
+      verificadorExecucaoId++;
+      const execucaoAtual = verificadorExecucaoId;
+      // Limpa visual do alerta no início da execução
+      document.getElementById('alertaConflitos').style.display = 'none';
+
+      const dataInicio = document.getElementById('dataEvento').value;
+      const dataFimCampo = document.getElementById('dataFim');
+      // Nova lógica para usaIntervalo
+      const tipoRegistro = document.getElementById('tipoRegistro').value;
+      const usaIntervalo =
+        (tipoRegistro === 'Evento' &&
+         document.getElementById('eventoMultiDias')?.checked &&
+         dataFimCampo?.value) ||
+        (tipoRegistro === 'Bloqueio' && dataFimCampo?.value);
+      // Blindagem: Se for reunião, nunca considerar dataFim
+      if (tipoRegistro === 'Reunião') {
+        dataFimCampo.value = '';
+      }
+
+      if (!dataInicio) {
+        document.getElementById('alertaConflitos').style.display = 'none';
+        return;
+      }
+
+      // Função auxiliar para gerar datas entre início e fim
+      function gerarIntervaloDatas(inicio, fim) {
+        const datas = [];
+        let atual = new Date(inicio + 'T12:00:00');
+        const final = new Date(fim + 'T12:00:00');
+
+        while (atual <= final) {
+          const d = atual.toISOString().slice(0, 10);
+          datas.push(d);
+          atual.setDate(atual.getDate() + 1);
+        }
+        return datas;
+      }
+
+      const datasParaVerificar = usaIntervalo
+        ? gerarIntervaloDatas(dataInicio, dataFimCampo.value)
+        : [dataInicio];
+
+      loading('Verificando agenda...');
+
+      let conflitosEncontrados = [];
+      let chamadasConcluidas = 0;
+
+      for (const data of datasParaVerificar) {
+        try {
+          const eventos = await Auth.apiCall('buscarEventosPorData', { data: data });
+
+          // Descarta respostas antigas
+          if (execucaoAtual !== verificadorExecucaoId) {
+            return;
+          }
+
+          if (eventos && eventos.length > 0) {
+            eventos.forEach(ev => {
+              const chave =
+                ev.id + '|' +
+                (ev.dataFim ? ev.data + '_' + ev.dataFim : ev.data);
+
+              const jaExiste = conflitosEncontrados.some(c =>
+                (c.id + '|' +
+                  (c.dataFim ? c.data + '_' + c.dataFim : c.data)
+                ) === chave
+              );
+
+              if (!jaExiste) {
+                conflitosEncontrados.push({ ...ev, dataVerificada: data });
+              }
+            });
+          }
+
+          chamadasConcluidas++;
+
+          if (chamadasConcluidas === datasParaVerificar.length) {
+            fecharLoading();
+            renderizarConflitos(conflitosEncontrados, datasParaVerificar.length > 1);
+          }
+        } catch (error) {
+          // Descarta respostas antigas
+          if (execucaoAtual !== verificadorExecucaoId) {
+            return;
+          }
+          chamadasConcluidas++;
+          if (chamadasConcluidas === datasParaVerificar.length) {
+            fecharLoading();
+          }
+        }
+      }
+    }
+
+    // Função auxiliar para formatar data no padrão brasileiro (DD/MM/YYYY)
+    function formatarDataBRTexto(dataISO) {
+      if (!dataISO) return '';
+      if (dataISO.includes('/')) return dataISO; // já está em BR
+      const [ano, mes, dia] = dataISO.split('-');
+      return `${dia}/${mes}/${ano}`;
+    }
+
+    function renderizarConflitos(eventos, intervalo) {
+      const alertaDiv = document.getElementById('alertaConflitos');
+
+      if (!eventos || eventos.length === 0) {
+        alertaDiv.innerHTML = `
+          <div style="background:#d4edda;border:2px solid #28a745;padding:12px;border-radius:8px;text-align:center;">
+            <div style="font-size:24px;">✅</div>
+            <strong>${intervalo ? 'Período totalmente disponível' : 'Data disponível'}</strong>
+          </div>`;
+        alertaDiv.style.display = 'block';
+        return;
+      }
+
+      let html = `
+        <div style="background:#fff3cd;border:1px solid #ffc107;padding:12px;border-radius:8px;">
+          <strong>⚠️ Conflitos encontrados no ${intervalo ? 'período selecionado' : 'dia selecionado'}:</strong>
+          <div style="margin-top:8px;">`;
+
+      eventos.forEach(ev => {
+        const badge =
+          ev.tipoRegistro === 'Evento' ? 'background:#d4edda;color:#155724' :
+          ev.tipoRegistro === 'Reunião' ? 'background:#d1ecf1;color:#0c5460' :
+          'background:#f8d7da;color:#721c24';
+
+        html += `
+  <div style="background:#fff;padding:8px;margin:6px 0;border-radius:6px;font-size:13px;">
+    <span style="display:inline-block;padding:2px 6px;border-radius:4px;font-size:11px;font-weight:600;${badge}">
+      ${ev.tipoRegistro}
+    </span>
+    <div>
+      Conflito em <strong>${formatarDataBRTexto(ev.data)}</strong>${ev.dataFim ? ` até <strong>${formatarDataBRTexto(ev.dataFim)}</strong>` : ''}
+    </div>
+    ${ev.tipoEvento || ev.observacoes || ''}
+    ${ev.nomeLocal && ev.nomeLocal !== 'N/A' ? '<br>📍 ' + ev.nomeLocal : ''}
+  </div>`;
+      });
+
+      html += '</div></div>';
+      alertaDiv.innerHTML = html;
+      alertaDiv.style.display = 'block';
+    }
+  </script>
+</body>
+</html>
