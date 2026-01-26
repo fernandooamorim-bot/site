@@ -983,9 +983,23 @@
   <script>
 console.log('🚀 editar-evento.html iniciado (frontend externo)');
 
-if (!window.Auth) {
-  alert('Sessão expirada. Volte ao menu.');
-  window.location.href = 'index.html';
+function aguardarAuth(maxTentativas = 50) {
+  return new Promise((resolve, reject) => {
+    let tentativas = 0;
+
+    const intervalo = setInterval(() => {
+      if (window.Auth && typeof Auth.apiCall === 'function') {
+        clearInterval(intervalo);
+        resolve();
+      }
+
+      tentativas++;
+      if (tentativas >= maxTentativas) {
+        clearInterval(intervalo);
+        reject(new Error('Auth não carregou'));
+      }
+    }, 100);
+  });
 }
 
 // ============================
@@ -1191,14 +1205,19 @@ function setValueSafe(id, valor, tentativas = 0) {
   }
 }
     
-    window.onload = async function() {
+    window.onload = async function () {
+      try {
+        await aguardarAuth();
+      } catch (e) {
+        alert('Sessão expirada. Volte ao menu.');
+        window.location.href = 'index.html';
+        return;
+      }
+
       fecharModal();
       carregarDropdowns();
       carregarContratantesParaAutocomplete();
 
-      // ============================
-      // PASSO 2 — ID VIA URL
-      // ============================
       EVENTO_ID_URL = getIdEventoFromURL();
 
       if (EVENTO_ID_URL) {
