@@ -17,7 +17,7 @@
     }
     
     .container {
-      max-width: 900px;
+      max-width: 900px; 
       margin: 0 auto;
       background: white;
       padding: 30px;
@@ -980,6 +980,23 @@
   </div>
   
   <script>
+console.log('🚀 editar-evento.html iniciado (frontend externo)');
+
+if (!window.Auth) {
+  alert('Sessão expirada. Volte ao menu.');
+  window.location.href = 'index.html';
+}
+
+// ============================
+// CONTEXTO GLOBAL
+// ============================
+let EVENTO_ID_URL = null;
+
+function getIdEventoFromURL() {
+  const params = new URLSearchParams(window.location.search);
+  return params.get('id');
+}
+
 let eventoAtual = null;
 let eventoOriginal = null;
 let contratantesCache = [];
@@ -1164,10 +1181,33 @@ function setValueSafe(id, valor, tentativas = 0) {
   }
 }
     
-    window.onload = function() {
+    window.onload = async function() {
       fecharModal();
       carregarDropdowns();
       carregarContratantesParaAutocomplete();
+
+      // ============================
+      // PASSO 2 — ID VIA URL
+      // ============================
+      EVENTO_ID_URL = getIdEventoFromURL();
+
+      if (EVENTO_ID_URL) {
+        try {
+          mostrarAlerta('Carregando evento...', 'info');
+          const evento = await carregarEventoPorId(EVENTO_ID_URL);
+          eventoAtual = evento;
+          eventoOriginal = JSON.parse(JSON.stringify(evento));
+
+          preencherFormulario(eventoAtual);
+          document.querySelector('.search-section').style.display = 'none';
+          document.getElementById('formEdicao').classList.remove('hidden');
+
+          mostrarAlerta('Evento carregado pela URL.', 'success');
+        } catch (err) {
+          console.error(err);
+          mostrarAlerta('Erro ao carregar evento pela URL.', 'error');
+        }
+      }
     };
     
     // TOGGLE DE TIPO DE BUSCA
@@ -1205,110 +1245,126 @@ function setValueSafe(id, valor, tentativas = 0) {
     }
     
     // BUSCA POR ID
-    function buscarPorID() {
+    async function buscarPorID() {
       const id = document.getElementById('inputID').value.trim();
-      console.log('🔍 buscarPorID: ID =', id);
-      
+      console.log('🔍 buscarPorID:', id);
+
       if (!id) {
         mostrarAlerta('Digite um ID para buscar', 'error');
         return;
       }
-      
+
       mostrarLoading();
-      console.log('⏳ Chamando buscarEventoPorID no backend...');
-      
-      google.script.run
-        .withSuccessHandler(function(resultado) {
-          console.log('✅ Backend retornou:', resultado);
-          mostrarResultados(resultado);
-        })
-        .withFailureHandler(function(erro) {
-          console.error('❌ Erro:', erro);
-          mostrarAlerta('Erro: ' + erro.message, 'error');
-        })
-        .buscarEventoPorID(id);
+
+      try {
+        const resultado = await Auth.apiCall({
+          action: 'buscarEventoPorID',
+          idEvento: id
+        });
+
+        mostrarResultados(resultado);
+      } catch (erro) {
+        console.error('❌ Erro:', erro);
+        mostrarAlerta('Erro ao buscar evento', 'error');
+      }
+    }
+
+    // Helper para carregar evento por id (usado na inicialização por URL)
+    async function carregarEventoPorId(idEvento) {
+      const response = await Auth.apiCall({
+        action: 'buscarEventoPorID',
+        idEvento: idEvento
+      });
+
+      if (!response || !response.id) {
+        throw new Error('Evento não encontrado');
+      }
+
+      return response;
     }
     
     // BUSCA POR NOME
-    function buscarPorNome() {
+    async function buscarPorNome() {
       const nome = document.getElementById('inputNome').value.trim();
       console.log('🔍 buscarPorNome: Nome =', nome);
-      
       if (!nome) {
         mostrarAlerta('Digite um nome para buscar', 'error');
         return;
       }
-      
       mostrarLoading();
-      console.log('⏳ Chamando buscarEventoPorContratante no backend...');
-      
-      google.script.run
-        .withSuccessHandler(function(resultado) {
-          console.log('✅ Backend retornou:', resultado);
-          mostrarResultados(resultado);
-        })
-        .withFailureHandler(function(erro) {
-          console.error('❌ Erro:', erro);
-          mostrarAlerta('Erro: ' + erro.message, 'error');
-        })
-        .buscarEventoPorContratante(nome);
+      try {
+        const response = await Auth.apiCall({
+          action: 'buscarEventoPorContratante',
+          nome: nome
+        });
+        if (response && response.error) {
+          throw new Error(response.error);
+        }
+        mostrarResultados(response);
+      } catch (erro) {
+        console.error('❌ Erro:', erro);
+        mostrarAlerta('Erro ao buscar evento', 'error');
+      }
     }
     
     // BUSCA POR DATA
-    function buscarPorData() {
+    async function buscarPorData() {
       const data = document.getElementById('inputData').value;
       console.log('🔍 buscarPorData: Data =', data);
-      
       if (!data) {
         mostrarAlerta('Selecione uma data', 'error');
         return;
       }
-      
       mostrarLoading();
-      console.log('⏳ Chamando buscarEventoPorData no backend...');
-      
-      google.script.run
-        .withSuccessHandler(function(resultado) {
-          console.log('✅ Backend retornou:', resultado);
-          mostrarResultados(resultado);
-        })
-        .withFailureHandler(function(erro) {
-          console.error('❌ Erro:', erro);
-          mostrarAlerta('Erro: ' + erro.message, 'error');
-        })
-        .buscarEventoPorData(data);
+      try {
+        const response = await Auth.apiCall({
+          action: 'buscarEventoPorData',
+          data: data
+        });
+        if (response && response.error) {
+          throw new Error(response.error);
+        }
+        mostrarResultados(response);
+      } catch (erro) {
+        console.error('❌ Erro:', erro);
+        mostrarAlerta('Erro ao buscar evento', 'error');
+      }
     }
     
     // BUSCA POR PERÍODO
-    function buscarPorPeriodo() {
+    async function buscarPorPeriodo() {
       const periodo = document.getElementById('inputPeriodo').value;
       console.log('🔍 buscarPorPeriodo: Período =', periodo);
-      
       if (!periodo) {
         mostrarAlerta('Selecione um período', 'error');
         return;
       }
-      
       mostrarLoading();
-      console.log('⏳ Chamando buscarEventoPorPeriodo no backend...');
-      
-      google.script.run
-        .withSuccessHandler(function(resultado) {
-          console.log('✅ Backend retornou:', resultado);
-          mostrarResultados(resultado);
-        })
-        .withFailureHandler(function(erro) {
-          console.error('❌ Erro:', erro);
-          mostrarAlerta('Erro: ' + erro.message, 'error');
-        })
-        .buscarEventoPorPeriodo(periodo);
+      try {
+        const response = await Auth.apiCall({
+          action: 'buscarEventoPorPeriodo',
+          periodo: periodo
+        });
+        if (response && response.error) {
+          throw new Error(response.error);
+        }
+        mostrarResultados(response);
+      } catch (erro) {
+        console.error('❌ Erro:', erro);
+        mostrarAlerta('Erro ao buscar evento', 'error');
+      }
     }
     
     // AUTOCOMPLETE
-    function carregarContratantesParaAutocomplete() {
-      google.script.run
-        .withSuccessHandler(lista => { contratantesCache = lista; })
-        .listarContratantes();
+    async function carregarContratantesParaAutocomplete() {
+      try {
+        const lista = await Auth.apiCall({ action: 'listarContratantes' });
+        if (lista && lista.error) throw new Error(lista.error);
+        contratantesCache = lista;
+      } catch (erro) {
+        contratantesCache = [];
+        console.error('Erro ao carregar contratantes:', erro);
+      }
     }
     
     function autocompleteContratante(termo) {
@@ -1417,149 +1473,170 @@ function setValueSafe(id, valor, tentativas = 0) {
 }
     
     // SELECIONAR EVENTO PARA EDIÇÃO
-  function selecionarEvento(idEvento) {
-  console.log('1️⃣ clicar editar', idEvento);
-  mostrarAlerta('Carregando evento...', 'info');
-
-  google.script.run
-    .withSuccessHandler(function(resultado) {
+  async function selecionarEvento(idEvento) {
+    console.log('1️⃣ clicar editar', idEvento);
+    mostrarAlerta('Carregando evento...', 'info');
+    try {
+      const resultado = await Auth.apiCall({
+        action: 'buscarEventoParaEdicao',
+        idEvento: idEvento
+      });
       console.log('2️⃣ retorno backend', resultado);
-
       if (!resultado || !resultado.sucesso) {
         console.log('❌ resultado inválido');
         mostrarAlerta(resultado?.mensagem || 'Erro desconhecido', 'error');
         return;
       }
-
       console.log('3️⃣ sucesso true');
-
       eventoAtual = resultado.evento;
       eventoOriginal = JSON.parse(JSON.stringify(resultado.evento));
-
       console.log('4️⃣ eventoAtual setado');
-
-      setTimeout(() => {
+      setTimeout(async () => {
         console.log('5️⃣ timeout entrou');
-
         preencherFormulario(eventoAtual);
         console.log('6️⃣ formulário preenchido');
-
         mostrarStatusFinanceiro(resultado.statusFinanceiro);
         // --- Permissão financeira (Fase 3 – A) ---
-        google.script.run
-          .withSuccessHandler(function(permissao) {
-            permissaoFinanceira = permissao;
-
-            if (!permissao.permitido) {
-              bloquearEdicaoFinanceira(permissao.motivo);
-            }
-          })
-          .verificarPermissaoEdicaoFinanceira(eventoAtual.id);
+        try {
+          const permissao = await Auth.apiCall({
+            action: 'verificarPermissaoEdicaoFinanceira',
+            idEvento: eventoAtual.id
+          });
+          permissaoFinanceira = permissao;
+          if (permissao && !permissao.permitido) {
+            bloquearEdicaoFinanceira(permissao.motivo);
+          }
+        } catch (erroPerm) {
+          console.error('Erro permissão financeira:', erroPerm);
+        }
         // --- Fim permissão financeira ---
         console.log('7️⃣ status financeiro ok');
-
         document.querySelector('.search-section').style.display = 'none';
         console.log('8️⃣ busca escondida');
-
         document.getElementById('formEdicao').classList.remove('hidden');
-    // ===============================
-// BLOCO 2 — ATIVAR CONFLITOS APÓS LOAD
-// ===============================
-setTimeout(() => {
-  ['dataEvento', 'dataFim', 'horaInicio', 'duracao'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) {
-      el.removeEventListener('change', verificarConflitosEdicao);
-      el.addEventListener('change', verificarConflitosEdicao);
-    }
-  });
-
-  // Primeira verificação automática
-  verificarConflitosEdicao();
-}, 300);
+        // ===============================
+        // BLOCO 2 — ATIVAR CONFLITOS APÓS LOAD
+        // ===============================
+        setTimeout(() => {
+          ['dataEvento', 'dataFim', 'horaInicio', 'duracao'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) {
+              el.removeEventListener('change', verificarConflitosEdicao);
+              el.addEventListener('change', verificarConflitosEdicao);
+            }
+          });
+          // Primeira verificação automática
+          verificarConflitosEdicao();
+        }, 300);
         console.log('9️⃣ formulário exibido');
-
         mostrarAlerta('Evento carregado! Faça as alterações desejadas.', 'success');
       }, 150);
-    })
-    .withFailureHandler(function(erro) {
+    } catch (erro) {
       console.error('🔥 erro backend', erro);
-      mostrarAlerta('Erro: ' + erro.message, 'error');
-    })
-    .buscarEventoParaEdicao(idEvento);
-}
+      mostrarAlerta('Erro: ' + (erro && erro.message ? erro.message : 'Erro desconhecido'), 'error');
+    }
+  }
 // --- Validação de impacto financeiro antes de salvar ---
-function validarImpactoFinanceiroAntesSalvar(callback) {
-  google.script.run
-    .withSuccessHandler(function(resultado) {
-      if (resultado?.risco === 'EXCESSO_GERADO') {
-        mostrarAlerta(
-          '❌ Alteração bloqueada: já existe comissão gerada maior que a nova comissão calculada.',
-          'error'
-        );
-        return;
-      }
-      callback();
-    })
-    .withFailureHandler(function(err) {
-      mostrarAlerta('Erro ao validar impacto financeiro: ' + err.message, 'error');
-    })
-    .validarAlteracoesEvento(eventoOriginal.id, coletarDadosFormulario());
+async function validarImpactoFinanceiroAntesSalvar(callback) {
+  try {
+    const resultado = await Auth.apiCall({
+      action: 'validarAlteracoesEvento',
+      idEvento: eventoOriginal.id,
+      dados: coletarDadosFormulario()
+    });
+    if (resultado && resultado.risco === 'EXCESSO_GERADO') {
+      mostrarAlerta(
+        '❌ Alteração bloqueada: já existe comissão gerada maior que a nova comissão calculada.',
+        'error'
+      );
+      return;
+    }
+    callback();
+  } catch (err) {
+    mostrarAlerta('Erro ao validar impacto financeiro: ' + (err && err.message ? err.message : err), 'error');
+  }
 }
     
     // Resto das funções (igual à versão anterior)
-    function carregarDropdowns() {
-      google.script.run.withSuccessHandler(lista => popularDropdown('idContratante', lista)).listarContratantes();
-      google.script.run.withSuccessHandler(lista => popularDropdown('idCerimonialista', lista, true)).listarCerimonialistas();
-      google.script.run.withSuccessHandler(lista => popularDropdown('idEndereco', lista)).listarEnderecos();
-      google.script.run.withSuccessHandler(lista => popularDropdown('idVendedor', lista)).listarVendedores();
-      google.script.run.withSuccessHandler(lista => popularDropdown('idBV', lista, true)).listarParceirosBV();
-      
+    async function carregarDropdowns() {
+      try {
+        let lista;
+        lista = await Auth.apiCall({ action: 'listarContratantes' });
+        if (lista && lista.error) throw new Error(lista.error);
+        popularDropdown('idContratante', lista);
+      } catch (e) {}
+      try {
+        let lista = await Auth.apiCall({ action: 'listarCerimonialistas' });
+        if (lista && lista.error) throw new Error(lista.error);
+        popularDropdown('idCerimonialista', lista, true);
+      } catch (e) {}
+      try {
+        let lista = await Auth.apiCall({ action: 'listarEnderecos' });
+        if (lista && lista.error) throw new Error(lista.error);
+        popularDropdown('idEndereco', lista);
+      } catch (e) {}
+      try {
+        let lista = await Auth.apiCall({ action: 'listarVendedores' });
+        if (lista && lista.error) throw new Error(lista.error);
+        popularDropdown('idVendedor', lista);
+      } catch (e) {}
+      try {
+        let lista = await Auth.apiCall({ action: 'listarParceirosBV' });
+        if (lista && lista.error) throw new Error(lista.error);
+        popularDropdown('idBV', lista, true);
+      } catch (e) {}
       // CONFIG - Tipo de Evento
-      google.script.run.withSuccessHandler(function(tipos) {
+      try {
+        let tipos = await Auth.apiCall({ action: 'listarTiposEvento' });
+        if (tipos && tipos.error) throw new Error(tipos.error);
         const sel = document.getElementById('tipoEvento');
-        if (!sel) return;
-        const valorAtual = sel.value;
-        sel.innerHTML = '<option value="">Selecione...</option>';
-        tipos.forEach(function(tipo) {
-          const opt = document.createElement('option');
-          opt.value = tipo;
-          opt.textContent = tipo;
-          sel.appendChild(opt);
-        });
-        if (valorAtual) sel.value = valorAtual;
-      }).listarTiposEvento();
-      
+        if (sel) {
+          const valorAtual = sel.value;
+          sel.innerHTML = '<option value="">Selecione...</option>';
+          tipos.forEach(function(tipo) {
+            const opt = document.createElement('option');
+            opt.value = tipo;
+            opt.textContent = tipo;
+            sel.appendChild(opt);
+          });
+          if (valorAtual) sel.value = valorAtual;
+        }
+      } catch (e) {}
       // CONFIG - Durações
-      google.script.run.withSuccessHandler(function(duracoes) {
+      try {
+        let duracoes = await Auth.apiCall({ action: 'listarDuracoesPadrao' });
+        if (duracoes && duracoes.error) throw new Error(duracoes.error);
         const sel = document.getElementById('duracao');
-        if (!sel) return;
-        const valorAtual = sel.value;
-        sel.innerHTML = '<option value="">Selecione...</option>';
-        duracoes.forEach(function(dur) {
-          const opt = document.createElement('option');
-          opt.value = dur;
-          opt.textContent = dur;
-          sel.appendChild(opt);
-        });
-        if (valorAtual) sel.value = valorAtual;
-      }).listarDuracoesPadrao();
-      
+        if (sel) {
+          const valorAtual = sel.value;
+          sel.innerHTML = '<option value="">Selecione...</option>';
+          duracoes.forEach(function(dur) {
+            const opt = document.createElement('option');
+            opt.value = dur;
+            opt.textContent = dur;
+            sel.appendChild(opt);
+          });
+          if (valorAtual) sel.value = valorAtual;
+        }
+      } catch (e) {}
       // CONFIG - Projetos
-      google.script.run.withSuccessHandler(function(projetos) {
+      try {
+        let projetos = await Auth.apiCall({ action: 'listarProjetosSugeridos' });
+        if (projetos && projetos.error) throw new Error(projetos.error);
         const sel = document.getElementById('projeto');
-        if (!sel) return;
-        const valorAtual = sel.value;
-        sel.innerHTML = '<option value="">Selecione...</option>';
-        projetos.forEach(function(proj) {
-          const opt = document.createElement('option');
-          const v = String(proj).trim();
-          opt.value = v;
-          opt.textContent = v;
-          sel.appendChild(opt);
-        });
-        if (valorAtual) sel.value = valorAtual;
-      }).listarProjetosSugeridos();
+        if (sel) {
+          const valorAtual = sel.value;
+          sel.innerHTML = '<option value="">Selecione...</option>';
+          projetos.forEach(function(proj) {
+            const opt = document.createElement('option');
+            const v = String(proj).trim();
+            opt.value = v;
+            opt.textContent = v;
+            sel.appendChild(opt);
+          });
+          if (valorAtual) sel.value = valorAtual;
+        }
+      } catch (e) {}
     }
     
     function popularDropdown(id, lista, opcional = false) {
@@ -1638,22 +1715,18 @@ function validarImpactoFinanceiroAntesSalvar(callback) {
   `;
 }
     
-    function validarEMostrarResumo() {
+    async function validarEMostrarResumo() {
       if (!eventoOriginal || !eventoAtual) {
         mostrarAlerta('❌ Nenhum evento selecionado!', 'error');
         return;
       }
-      
       const alteracoes = detectarAlteracoes();
-      
       if (alteracoes.length === 0) {
         mostrarAlerta('ℹ️ Nenhuma alteração detectada', 'info');
         return;
       }
-      
       const lista = document.getElementById('listaAlteracoes');
       lista.innerHTML = '';
-      
       alteracoes.forEach(alt => {
         const li = document.createElement('li');
         li.className = 'change-item';
@@ -1668,14 +1741,17 @@ function validarImpactoFinanceiroAntesSalvar(callback) {
         li.innerHTML = html;
         lista.appendChild(li);
       });
-      
-      google.script.run
-        .withSuccessHandler(resultado => {
-          mostrarResumoValidacoes(resultado);
-          abrirModal();
-        })
-        .withFailureHandler(erro => mostrarAlerta('Erro: ' + erro.message, 'error'))
-        .validarAlteracoesEvento(eventoOriginal.id, coletarDadosFormulario());
+      try {
+        const resultado = await Auth.apiCall({
+          action: 'validarAlteracoesEvento',
+          idEvento: eventoOriginal.id,
+          dados: coletarDadosFormulario()
+        });
+        mostrarResumoValidacoes(resultado);
+        abrirModal();
+      } catch (erro) {
+        mostrarAlerta('Erro: ' + (erro && erro.message ? erro.message : erro), 'error');
+      }
     }
     
     function detectarAlteracoes() {
@@ -1723,8 +1799,14 @@ function validarImpactoFinanceiroAntesSalvar(callback) {
     }
     
     function coletarDadosFormulario() {
+      // Detectar se "Evento com mais de um dia" está marcado
+      const multiDias = document.getElementById('eventoMultiDias')?.checked;
+      const dataFim = multiDias
+        ? document.getElementById('dataFim')?.value || ''
+        : '';
       return {
         dataEvento: document.getElementById('dataEvento').value,
+        dataFim: dataFim,
         horaInicio: document.getElementById('horaInicio').value,
         duracao: document.getElementById('duracao').value,
         tipoEvento: document.getElementById('tipoEvento').value,
@@ -1744,24 +1826,29 @@ function validarImpactoFinanceiroAntesSalvar(callback) {
       };
     }
     
-    function confirmarEdicao() {
+    async function confirmarEdicao() {
       fecharModal();
       mostrarAlerta('Validando impacto financeiro...', 'info');
-
-      validarImpactoFinanceiroAntesSalvar(function() {
+      await validarImpactoFinanceiroAntesSalvar(async function() {
         mostrarAlerta('Salvando alterações...', 'info');
-
-        google.script.run
-          .withSuccessHandler(resultado => {
-            if (resultado.sucesso) {
-              mostrarAlerta('✅ ' + resultado.mensagem, 'success');
-              setTimeout(() => google.script.host.close(), 2000);
-            } else {
-              mostrarAlerta('❌ ' + resultado.mensagem, 'error');
-            }
-          })
-          .withFailureHandler(erro => mostrarAlerta('Erro: ' + erro.message, 'error'))
-          .salvarEdicaoEvento(eventoOriginal.id, coletarDadosFormulario());
+        try {
+          const resultado = await Auth.apiCall({
+            action: 'salvarEdicaoEvento',
+            idEvento: eventoOriginal.id,
+            dados: coletarDadosFormulario()
+          });
+          if (resultado && resultado.sucesso) {
+            mostrarAlerta('✅ ' + resultado.mensagem, 'success');
+            setTimeout(() => {
+              // Não usar google.script.host.close()
+              window.location.reload();
+            }, 2000);
+          } else {
+            mostrarAlerta('❌ ' + (resultado && resultado.mensagem ? resultado.mensagem : 'Erro ao salvar'), 'error');
+          }
+        } catch (erro) {
+          mostrarAlerta('Erro: ' + (erro && erro.message ? erro.message : erro), 'error');
+        }
       });
     }
     
