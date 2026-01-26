@@ -3,7 +3,6 @@
 <head>
  <script src="https://accounts.google.com/gsi/client" async defer></script>
 <script src="auth.js" defer></script>
-
   <meta charset="UTF-8">
   <style>
     * {
@@ -1188,30 +1187,39 @@ function setValueSafe(id, valor, tentativas = 0) {
   }
 }
     
-    window.onload = function () {
-      fecharModal();
-      carregarDropdowns();
-      carregarContratantesParaAutocomplete();
+    window.onload = async function () {
+      try {
+        // 🔐 GARANTE LOGIN (PADRÃO IGUAL AO cadastro-evento.html)
+        const auth = await Auth.verificarUsuario();
+        if (!auth || !auth.ok) {
+          throw new Error('Sessão inválida');
+        }
 
-      EVENTO_ID_URL = getIdEventoFromURL();
+        fecharModal();
 
-      if (EVENTO_ID_URL) {
-        mostrarAlerta('Carregando evento...', 'info');
-        carregarEventoPorId(EVENTO_ID_URL)
-          .then(evento => {
-            eventoAtual = evento;
-            eventoOriginal = JSON.parse(JSON.stringify(evento));
+        // carregar dados SOMENTE após auth
+        await carregarDropdowns();
+        await carregarContratantesParaAutocomplete();
 
-            preencherFormulario(eventoAtual);
-            document.querySelector('.search-section').style.display = 'none';
-            document.getElementById('formEdicao').classList.remove('hidden');
+        EVENTO_ID_URL = getIdEventoFromURL();
 
-            mostrarAlerta('Evento carregado pela URL.', 'success');
-          })
-          .catch(err => {
-            console.error(err);
-            mostrarAlerta('Erro ao carregar evento pela URL.', 'error');
-          });
+        if (EVENTO_ID_URL) {
+          mostrarAlerta('Carregando evento...', 'info');
+          const evento = await carregarEventoPorId(EVENTO_ID_URL);
+
+          eventoAtual = evento;
+          eventoOriginal = JSON.parse(JSON.stringify(evento));
+
+          preencherFormulario(eventoAtual);
+          document.querySelector('.search-section').style.display = 'none';
+          document.getElementById('formEdicao').classList.remove('hidden');
+
+          mostrarAlerta('Evento carregado pela URL.', 'success');
+        }
+
+      } catch (err) {
+        alert('Sessão expirada. Volte ao menu.');
+        window.location.href = 'index.html';
       }
     };
     
