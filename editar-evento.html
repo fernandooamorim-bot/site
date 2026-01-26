@@ -1,13 +1,9 @@
 <!DOCTYPE html>
 <html>
 <head>
-<script src="auth.js" ></script>
-<script>
-  if (!window.Auth) {
-    alert('Erro de autenticação. Volte ao menu.');
-    window.location.href = 'index.html';
-  }
-</script>
+ <script src="https://accounts.google.com/gsi/client" async defer></script>
+<script src="auth.js" defer></script>
+
   <meta charset="UTF-8">
   <style>
     * {
