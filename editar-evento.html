@@ -1111,27 +1111,36 @@ function verificarConflitosEdicao() {
   let concluidas = 0;
 
   datasParaVerificar.forEach(data => {
-    google.script.run
-      .withSuccessHandler(eventos => {
-        if (execucaoAtual !== verificadorExecucaoId) return;
+    Auth.apiCall({
+      action: 'buscarEventosPorData',
+      data: data
+    })
+    .then(eventos => {
+      if (execucaoAtual !== verificadorExecucaoId) return;
 
-        if (Array.isArray(eventos)) {
-          eventos.forEach(ev => {
-            if (String(ev.id) !== String(eventoOriginal.id)) {
-              const chave = ev.id + '|' + ev.data + '|' + (ev.dataFim || '');
-              if (!conflitos.some(c => c.__chave === chave)) {
-                conflitos.push({ ...ev, __chave: chave });
-              }
+      if (Array.isArray(eventos)) {
+        eventos.forEach(ev => {
+          if (String(ev.id) !== String(eventoOriginal.id)) {
+            const chave = ev.id + '|' + ev.data + '|' + (ev.dataFim || '');
+            if (!conflitos.some(c => c.__chave === chave)) {
+              conflitos.push({ ...ev, __chave: chave });
             }
-          });
-        }
+          }
+        });
+      }
 
-        concluidas++;
-        if (concluidas === datasParaVerificar.length) {
-          renderizarConflitosEdicao(conflitos);
-        }
-      })
-      .buscarEventosPorData(data);
+      concluidas++;
+      if (concluidas === datasParaVerificar.length) {
+        renderizarConflitosEdicao(conflitos);
+      }
+    })
+    .catch(err => {
+      console.error('Erro ao verificar conflitos:', err);
+      concluidas++;
+      if (concluidas === datasParaVerificar.length) {
+        renderizarConflitosEdicao(conflitos);
+      }
+    });
   });
 }
 
