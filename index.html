@@ -2,1154 +2,247 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
-  <meta name="theme-color" content="#0f1a2e"/>
-  <meta name="apple-mobile-web-app-capable" content="yes"/>
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
-  <meta name="mobile-web-app-capable" content="yes"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  
 
   <script src="https://accounts.google.com/gsi/client" async defer></script>
   <script src="auth.js" defer></script>
   <title>FA Produções • Sistema</title>
 
-  <!-- Lucide Icons -->
-  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js" defer></script>
-
-  <!-- Google Fonts - Inter -->
-  <link rel="preconnect" href="https://fonts.googleapis.com"/>
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
-
   <style>
-    /* ============================================
-       DESIGN SYSTEM — FA PRODUÇÕES
-       Estilo: Premium Híbrido
-       Paleta: Azul Profundo + Dourado
-       Ícones: Lucide (outline)
-       Mobile: Bottom Navigation
-       ============================================ */
-
     :root {
-      /* Core Navy */
-      --navy-900: #0a1628;
-      --navy-800: #0f1a2e;
-      --navy-700: #142240;
-      --navy-600: #1e3a5f;
-      --navy-500: #264a7a;
-      --navy-400: #3a6098;
-
-      /* Gold Accent */
-      --gold-600: #b8903e;
-      --gold-500: #d4a853;
-      --gold-400: #e0bc6a;
-      --gold-300: #ebd08c;
-
-      /* Neutrals */
-      --gray-50: #f8f9fc;
-      --gray-100: #f1f3f8;
-      --gray-200: #e2e6ef;
-      --gray-300: #cdd3e0;
-      --gray-400: #9ca3b8;
-      --gray-500: #6b7490;
-      --gray-600: #4a5268;
-      --gray-700: #374151;
-      --gray-800: #1f2937;
-
-      /* Semantic */
-      --success: #10b981;
-      --warning: #f59e0b;
-      --danger: #ef4444;
-
-      /* Surfaces */
-      --bg-app: var(--gray-50);
-      --bg-card: #ffffff;
-      --bg-header: var(--navy-800);
-
-      /* Spacing */
-      --space-xs: 4px;
-      --space-sm: 8px;
-      --space-md: 16px;
-      --space-lg: 24px;
-      --space-xl: 32px;
-      --space-2xl: 48px;
-
-      /* Radius */
-      --radius-sm: 8px;
-      --radius-md: 12px;
-      --radius-lg: 16px;
-      --radius-xl: 20px;
-      --radius-full: 999px;
-
-      /* Shadows */
-      --shadow-sm: 0 1px 3px rgba(10,22,40,0.06);
-      --shadow-md: 0 4px 16px rgba(10,22,40,0.08);
-      --shadow-lg: 0 8px 32px rgba(10,22,40,0.12);
-      --shadow-xl: 0 16px 48px rgba(10,22,40,0.16);
-      --shadow-gold: 0 4px 24px rgba(212,168,83,0.18);
-
-      /* Typography */
-      --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-
-      /* Layout */
-      --header-height: 68px;
-      --bottom-nav-height: 68px;
+      --bg: #f6f7fb;
+      --card: #ffffff;
+      --primary: #5b6cff;
+      --secondary: #8b5cf6;
+      --success: #16a34a;
+      --warning: #d97706;
+      --danger: #dc2626;
+      --text: #1f2937;
+      --muted: #6b7280;
+      --border: #e5e7eb;
+      --radius: 16px;
     }
 
-    /* ============================================
-       RESET
-       ============================================ */
-    *, *::before, *::after {
+    * {
       box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
-
-    html {
-      -webkit-font-smoothing: antialiased;
-      -moz-osx-font-smoothing: grayscale;
-      text-rendering: optimizeLegibility;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     }
 
     body {
-      font-family: var(--font);
-      background: var(--bg-app);
-      color: var(--gray-800);
-      min-height: 100vh;
-      min-height: 100dvh;
-      overflow-x: hidden;
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
     }
 
-    /* ============================================
-       LOADING SCREEN (splash inicial)
-       ============================================ */
-    .splash-screen {
-      position: fixed;
-      inset: 0;
-      z-index: 9999;
-      background: var(--navy-800);
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 20px;
-      transition: opacity 0.5s ease, visibility 0.5s ease;
-    }
-
-    .splash-screen.fade-out {
-      opacity: 0;
-      visibility: hidden;
-      pointer-events: none;
-    }
-
-    .splash-logo {
-      width: 64px;
-      height: 64px;
-      border-radius: var(--radius-lg);
-      background: linear-gradient(135deg, var(--gold-500), var(--gold-400));
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      animation: pulse-glow 2s ease-in-out infinite;
-    }
-
-    .splash-logo i {
-      color: var(--navy-900);
-      width: 28px;
-      height: 28px;
-    }
-
-    @keyframes pulse-glow {
-      0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(212,168,83,0.3); }
-      50% { transform: scale(1.05); box-shadow: 0 0 0 16px rgba(212,168,83,0); }
-    }
-
-    .splash-brand {
-      color: #ffffff;
-      font-size: 20px;
-      font-weight: 700;
-      letter-spacing: -0.3px;
-    }
-
-    .splash-spinner {
-      width: 28px;
-      height: 28px;
-      border: 3px solid rgba(255,255,255,0.1);
-      border-top-color: var(--gold-500);
-      border-radius: 50%;
-      animation: spin 0.8s linear infinite;
-    }
-
-    @keyframes spin {
-      to { transform: rotate(360deg); }
-    }
-
-    .splash-text {
-      color: rgba(255,255,255,0.4);
-      font-size: 13px;
-      font-weight: 500;
-    }
-
-    /* ============================================
-       AUTH SCREEN (tela de login)
-       ============================================ */
-    .auth-screen {
-      position: fixed;
-      inset: 0;
-      z-index: 8000;
-      background: var(--navy-800);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: var(--space-lg);
-    }
-
-    .auth-screen.hidden {
-      display: none !important;
-    }
-
-    .auth-card {
-      background: var(--navy-700);
-      border: 1px solid rgba(255,255,255,0.08);
-      border-radius: var(--radius-xl);
-      padding: 48px 36px;
-      max-width: 420px;
-      width: 100%;
-      text-align: center;
-      box-shadow: var(--shadow-xl);
-    }
-
-    .auth-logo {
-      width: 72px;
-      height: 72px;
-      border-radius: var(--radius-lg);
-      background: linear-gradient(135deg, var(--gold-500), var(--gold-400));
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      margin: 0 auto 24px;
-    }
-
-    .auth-logo i {
-      color: var(--navy-900);
-      width: 32px;
-      height: 32px;
-    }
-
-    .auth-title {
-      color: #ffffff;
-      font-size: 22px;
-      font-weight: 700;
-      margin-bottom: 8px;
-    }
-
-    .auth-subtitle {
-      color: rgba(255,255,255,0.5);
-      font-size: 14px;
-      line-height: 1.5;
-      margin-bottom: 32px;
-    }
-
-    .auth-google-wrapper {
-      display: flex;
-      justify-content: center;
-      margin-bottom: 24px;
-    }
-
-    .auth-hint {
-      color: rgba(255,255,255,0.3);
-      font-size: 12px;
-    }
-
-    /* ============================================
-       APP SHELL (conteúdo principal)
-       ============================================ */
-    .app-shell {
-      display: flex;
-      flex-direction: column;
-      min-height: 100vh;
-      min-height: 100dvh;
-      opacity: 0;
-      transition: opacity 0.4s ease 0.1s;
-    }
-
-    .app-shell.visible {
-      opacity: 1;
-    }
-
-    .app-shell.hidden {
-      display: none !important;
-    }
-
-    /* ============================================
-       HEADER
-       ============================================ */
-    .app-header {
-      background: var(--bg-header);
-      height: var(--header-height);
-      display: flex;
-      align-items: center;
-      padding: 0 var(--space-lg);
-      position: sticky;
-      top: 0;
-      z-index: 100;
-      border-bottom: 1px solid rgba(255,255,255,0.06);
-    }
-
-    .header-brand {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-
-    .brand-icon {
-      width: 38px;
-      height: 38px;
-      border-radius: var(--radius-md);
-      background: linear-gradient(135deg, var(--gold-500), var(--gold-400));
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex-shrink: 0;
-    }
-
-    .brand-icon i {
-      color: var(--navy-900);
-      width: 20px;
-      height: 20px;
-    }
-
-    .brand-text {
-      display: flex;
-      flex-direction: column;
-    }
-
-    .brand-name {
-      color: #ffffff;
-      font-size: 15px;
-      font-weight: 700;
-      letter-spacing: -0.3px;
-      line-height: 1.2;
-    }
-
-    .brand-sub {
-      color: rgba(255,255,255,0.35);
-      font-size: 10px;
-      font-weight: 600;
-      letter-spacing: 0.5px;
-      text-transform: uppercase;
-    }
-
-    .header-spacer {
-      flex: 1;
-    }
-
-    /* User Pill */
-    .header-user {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      padding: 5px 14px 5px 5px;
-      background: rgba(255,255,255,0.06);
-      border-radius: var(--radius-full);
-      border: 1px solid rgba(255,255,255,0.08);
-      cursor: pointer;
-      transition: background 0.2s;
-    }
-
-    .header-user:hover {
-      background: rgba(255,255,255,0.1);
-    }
-
-    .user-avatar {
-      width: 30px;
-      height: 30px;
-      border-radius: 50%;
-      background: linear-gradient(135deg, var(--navy-600), var(--navy-500));
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 12px;
-      font-weight: 700;
-      color: var(--gold-400);
-      text-transform: uppercase;
-    }
-
-    .user-details {
-      display: flex;
-      flex-direction: column;
-    }
-
-    .user-name-text {
-      color: #ffffff;
-      font-size: 12px;
-      font-weight: 600;
-      line-height: 1.2;
-      max-width: 120px;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-
-    .user-role-text {
-      color: var(--gold-400);
-      font-size: 10px;
-      font-weight: 600;
-    }
-
-    .header-logout {
-      background: none;
-      border: none;
-      cursor: pointer;
-      padding: 6px;
-      border-radius: var(--radius-sm);
-      transition: background 0.2s;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      margin-left: 4px;
-    }
-
-    .header-logout:hover {
-      background: rgba(239,68,68,0.15);
-    }
-
-    .header-logout i {
-      width: 18px;
-      height: 18px;
-      color: rgba(255,255,255,0.4);
-      transition: color 0.2s;
-    }
-
-    .header-logout:hover i {
-      color: var(--danger);
-    }
-
-    /* ============================================
-       MAIN CONTENT
-       ============================================ */
-    .app-content {
-      flex: 1;
-      padding: var(--space-lg);
-      padding-bottom: calc(var(--bottom-nav-height) + var(--space-xl));
+    header {
+      padding: 32px 24px;
       max-width: 1200px;
-      margin: 0 auto;
-      width: 100%;
+      margin: auto;
     }
 
-    /* Page Header */
-    .page-header {
-      margin-bottom: var(--space-lg);
-    }
-
-    .page-greeting {
-      font-size: 14px;
-      font-weight: 500;
-      color: var(--gray-500);
-      margin-bottom: 2px;
-    }
-
-    .page-title {
-      font-size: 24px;
+    .title {
+      font-size: 28px;
       font-weight: 800;
-      color: var(--gray-800);
       letter-spacing: -0.5px;
     }
 
-    /* ============================================
-       SECTION LABEL
-       ============================================ */
-    .section-label {
-      font-size: 11px;
-      font-weight: 700;
-      color: var(--gray-400);
-      text-transform: uppercase;
-      letter-spacing: 1.2px;
-      margin-bottom: var(--space-md);
+    .subtitle {
+      margin-top: 6px;
+      color: var(--muted);
+      font-size: 14px;
     }
 
-    /* ============================================
-       NAVIGATION GRID
-       ============================================ */
-    .nav-grid {
+    .user-box {
+      margin-top: 16px;
+      padding: 14px 18px;
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      color: white;
+      border-radius: 14px;
+      display: inline-block;
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    main {
+      max-width: 1200px;
+      margin: auto;
+      padding: 24px;
+    }
+
+    .grid {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-      gap: var(--space-md);
+      gap: 20px;
     }
 
-    /* ============================================
-       NAV CARD
-       ============================================ */
-    .nav-card {
-      background: var(--bg-card);
-      border-radius: var(--radius-lg);
-      padding: var(--space-lg);
-      border: 1px solid var(--gray-200);
-      box-shadow: var(--shadow-sm);
+    .card {
+      background: var(--card);
+      border-radius: var(--radius);
+      padding: 26px;
+      border: 1px solid var(--border);
+      box-shadow: 0 10px 30px rgba(0,0,0,0.06);
       cursor: pointer;
-      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      transition: all .25s ease;
       display: flex;
       flex-direction: column;
-      gap: var(--space-md);
-      position: relative;
-      overflow: hidden;
-      -webkit-tap-highlight-color: transparent;
+      gap: 14px;
     }
 
-    .nav-card::before {
-      content: '';
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      height: 3px;
-      background: linear-gradient(90deg, var(--gold-500), var(--gold-400));
-      opacity: 0;
-      transition: opacity 0.3s;
+    .card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 20px 40px rgba(0,0,0,0.12);
     }
 
-    .nav-card:hover {
-      transform: translateY(-3px);
-      box-shadow: var(--shadow-lg);
-      border-color: var(--gold-500);
+    .icon {
+      font-size: 34px;
     }
 
-    .nav-card:hover::before {
-      opacity: 1;
-    }
-
-    .nav-card:active {
-      transform: translateY(0);
-      box-shadow: var(--shadow-md);
-    }
-
-    .nav-card-top {
-      display: flex;
-      align-items: flex-start;
-      justify-content: space-between;
-    }
-
-    .nav-card-icon {
-      width: 48px;
-      height: 48px;
-      border-radius: var(--radius-md);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex-shrink: 0;
-    }
-
-    .nav-card-icon i {
-      width: 24px;
-      height: 24px;
-    }
-
-    .nav-card-icon.navy {
-      background: rgba(30,58,95,0.12);
-      color: var(--navy-500);
-    }
-
-    .nav-card-icon.gold {
-      background: rgba(212,168,83,0.15);
-      color: var(--gold-500);
-    }
-
-    .nav-card-icon.green {
-      background: rgba(16,185,129,0.12);
-      color: #059669;
-    }
-
-    .nav-card-icon.purple {
-      background: rgba(139,92,246,0.12);
-      color: #7c3aed;
-    }
-
-    .nav-card-arrow {
-      width: 32px;
-      height: 32px;
-      border-radius: var(--radius-sm);
-      background: var(--gray-50);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      opacity: 0;
-      transform: translateX(-4px);
-      transition: all 0.3s;
-    }
-
-    .nav-card-arrow i {
-      width: 16px;
-      height: 16px;
-      color: var(--gray-400);
-    }
-
-    .nav-card:hover .nav-card-arrow {
-      opacity: 1;
-      transform: translateX(0);
-    }
-
-    .nav-card-body {
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-    }
-
-    .nav-card-title {
-      font-size: 16px;
+    .card-title {
+      font-size: 18px;
       font-weight: 700;
-      color: var(--gray-800);
-      letter-spacing: -0.2px;
     }
 
-    .nav-card-desc {
-      font-size: 13px;
-      color: var(--gray-500);
-      line-height: 1.4;
-    }
-
-    .nav-card-footer {
+    .badge {
       margin-top: auto;
-    }
-
-    /* Badges */
-    .access-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 5px;
-      padding: 4px 10px;
-      border-radius: var(--radius-full);
-      font-size: 11px;
+      display: inline-block;
+      padding: 6px 12px;
+      font-size: 12px;
+      border-radius: 999px;
       font-weight: 600;
+      width: fit-content;
     }
 
-    .access-badge i {
-      width: 12px;
-      height: 12px;
-    }
+    .badge.public { background: #e0e7ff; color: #3730a3; }
+    .badge.restricted { background: #fee2e2; color: #991b1b; }
 
-    .access-badge.public {
-      background: rgba(16,185,129,0.1);
-      color: var(--success);
-    }
-
-    .access-badge.restricted {
-      background: rgba(212,168,83,0.1);
-      color: var(--gold-600);
-    }
-
-    .access-badge.owner {
-      background: rgba(30,58,95,0.08);
-      color: var(--navy-600);
-    }
-
-    /* ============================================
-       BOTTOM NAVIGATION (mobile)
-       ============================================ */
-    .bottom-nav {
-      position: fixed;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      height: var(--bottom-nav-height);
-      background: var(--navy-800);
-      border-top: 1px solid rgba(255,255,255,0.06);
-      display: flex;
-      align-items: center;
-      justify-content: space-around;
-      z-index: 100;
-      padding-bottom: env(safe-area-inset-bottom);
-    }
-
-    .bnav-item {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 3px;
-      padding: 8px 14px;
-      border-radius: var(--radius-md);
-      cursor: pointer;
-      -webkit-tap-highlight-color: transparent;
-      text-decoration: none;
-      border: none;
-      background: none;
-      transition: all 0.2s;
-    }
-
-    .bnav-item i {
-      width: 22px;
-      height: 22px;
-      color: rgba(255,255,255,0.55);
-      transition: color 0.2s;
-    }
-
-    .bnav-item span {
-      font-family: var(--font);
-      font-size: 10px;
-      font-weight: 600;
-      color: rgba(255,255,255,0.55);
-      transition: color 0.2s;
-    }
-
-    .bnav-item.active i,
-    .bnav-item:hover i {
-      color: var(--gold-400);
-    }
-
-    .bnav-item.active span,
-    .bnav-item:hover span {
-      color: var(--gold-400);
-    }
-
-    .bnav-item.active {
-      background: rgba(212,168,83,0.08);
-    }
-
-    /* ============================================
-       HIDDEN (mantido do original)
-       ============================================ */
     .hidden {
       display: none !important;
     }
 
-    /* ============================================
-       FOOTER
-       ============================================ */
-    .app-footer {
+    footer {
       text-align: center;
-      padding: var(--space-xl) var(--space-md);
+      padding: 30px;
       font-size: 12px;
-      color: var(--gray-400);
-    }
-
-    .app-footer strong {
-      color: var(--gray-500);
-      font-weight: 600;
-    }
-
-    /* ============================================
-       ANIMATIONS
-       ============================================ */
-    @keyframes fadeInUp {
-      from { opacity: 0; transform: translateY(16px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-
-    .anim-in {
-      animation: fadeInUp 0.45s ease both;
-    }
-
-    .anim-d1 { animation-delay: 0.04s; }
-    .anim-d2 { animation-delay: 0.08s; }
-    .anim-d3 { animation-delay: 0.12s; }
-    .anim-d4 { animation-delay: 0.16s; }
-    .anim-d5 { animation-delay: 0.2s; }
-
-    /* ============================================
-       RESPONSIVE — Desktop (>= 768px)
-       ============================================ */
-    @media (min-width: 768px) {
-      .bottom-nav {
-        display: none;
-      }
-
-      .app-content {
-        padding-bottom: var(--space-xl);
-      }
-
-      .nav-grid {
-        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-      }
-
-      .page-title {
-        font-size: 28px;
-      }
-
-      .app-footer {
-        padding-bottom: var(--space-xl);
-      }
-    }
-
-    @media (min-width: 1100px) {
-      .nav-grid {
-        grid-template-columns: repeat(3, 1fr);
-      }
-
-      .app-content {
-        padding: var(--space-xl) var(--space-2xl);
-      }
-    }
-
-    /* ============================================
-       RESPONSIVE — Small Mobile (<= 380px)
-       ============================================ */
-    @media (max-width: 380px) {
-      .nav-grid {
-        grid-template-columns: 1fr;
-      }
-
-      .brand-text {
-        display: none;
-      }
-
-      .user-details {
-        display: none;
-      }
+      color: var(--muted);
     }
   </style>
 </head>
 <body>
 
-  <!-- ============================================
-       SPLASH SCREEN (loading inicial)
-       ============================================ -->
-  <div class="splash-screen" id="splashScreen">
-    <div class="splash-logo">
-      <i data-lucide="music"></i>
+<!-- TELA DE LOGIN -->
+<div id="auth-screen" style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:#f6f7fb">
+  <div style="background:#fff;padding:40px;border-radius:16px;max-width:420px;text-align:center;box-shadow:0 20px 40px rgba(0,0,0,.12)">
+    <h2>🔐 Acesso ao Sistema</h2>
+    <p style="margin:12px 0 24px;color:#555">
+      Entre com sua conta Google autorizada
+    </p>
+
+    <div id="google-btn"></div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app" class="hidden">
+
+<header>
+  <div class="title">🎵 FA Produções</div>
+  <div class="subtitle">Sistema de gestão de agenda, eventos e financeiro</div>
+  <div class="user-box" id="userBox">Carregando usuário...</div>
+</header>
+
+<main>
+  <div class="grid">
+
+    <div class="card" onclick="abrir('agenda')">
+      <div class="icon">📅</div>
+      <div class="card-title">Agenda</div>
+      <span class="badge public">Acesso geral</span>
     </div>
-    <div class="splash-brand">FA Produções</div>
-    <div class="splash-spinner"></div>
-    <div class="splash-text">Verificando acesso...</div>
-  </div>
 
-  <!-- ============================================
-       TELA DE LOGIN (id mantido: auth-screen)
-       ============================================ -->
-  <div class="auth-screen hidden" id="auth-screen">
-    <div class="auth-card">
-      <div class="auth-logo">
-        <i data-lucide="music"></i>
-      </div>
-      <h2 class="auth-title">Acesso ao Sistema</h2>
-      <p class="auth-subtitle">
-        Entre com sua conta Google autorizada para acessar o painel de gestão.
-      </p>
-      <div class="auth-google-wrapper">
-        <div id="google-btn"></div>
-      </div>
-      <p class="auth-hint">Apenas contas autorizadas têm acesso</p>
+    <div class="card" id="cardNovoEvento" onclick="abrir('novoEvento')">
+  <div class="icon">➕</div>
+  <div class="card-title">Novo Evento</div>
+  <span class="badge restricted">Restrito</span>
+</div>
+
+    <div class="card" id="cardEditarEvento" onclick="abrir('editarEvento')">
+  <div class="icon">✏️</div>
+  <div class="card-title">Editar Evento</div>
+  <span class="badge restricted">Restrito</span>
+</div>
+
+    <div class="card" id="cardCentralFinanceira">
+      <div class="icon">💰</div>
+      <div class="card-title">Central Financeira</div>
+      <span class="badge restricted">Proprietário</span>
     </div>
-  </div>
-
-  <!-- ============================================
-       APP (id mantido: app)
-       ============================================ -->
-  <div class="app-shell hidden" id="app">
-
-    <!-- HEADER -->
-    <header class="app-header">
-      <div class="header-brand">
-        <div class="brand-icon">
-          <i data-lucide="music"></i>
-        </div>
-        <div class="brand-text">
-          <div class="brand-name">FA Produções</div>
-          <div class="brand-sub">Gestão & Shows</div>
-        </div>
-      </div>
-
-      <div class="header-spacer"></div>
-
-      <div class="header-user" id="userBox">
-        <div class="user-avatar" id="userAvatar">...</div>
-        <div class="user-details">
-          <span class="user-name-text" id="userNameText">Carregando...</span>
-          <span class="user-role-text" id="userRoleText">--</span>
-        </div>
-      </div>
-
-      <button class="header-logout" onclick="Auth.logout()" title="Sair">
-        <i data-lucide="log-out"></i>
-      </button>
-    </header>
-
-    <!-- MAIN CONTENT -->
-    <main class="app-content">
-
-      <!-- Page Header -->
-      <div class="page-header anim-in">
-        <div class="page-greeting" id="pageGreeting">Bem-vindo</div>
-        <h1 class="page-title">Painel Principal</h1>
-      </div>
-
-      <!-- Section Label -->
-      <div class="section-label anim-in anim-d1">Acesso rápido</div>
-
-      <!-- Navigation Grid -->
-      <div class="nav-grid">
-
-        <!-- Card: Agenda -->
-        <div class="nav-card anim-in anim-d2" onclick="abrir('agenda')">
-          <div class="nav-card-top">
-            <div class="nav-card-icon navy">
-              <i data-lucide="calendar-days"></i>
-            </div>
-            <div class="nav-card-arrow">
-              <i data-lucide="arrow-right"></i>
-            </div>
-          </div>
-          <div class="nav-card-body">
-            <div class="nav-card-title">Agenda</div>
-            <div class="nav-card-desc">Visualize eventos, horários e compromissos da semana.</div>
-          </div>
-          <div class="nav-card-footer">
-            <span class="access-badge public">
-              <i data-lucide="globe"></i>
-              Acesso geral
-            </span>
-          </div>
-        </div>
-
-        <!-- Card: Novo Evento (id mantido: cardNovoEvento) -->
-        <div class="nav-card anim-in anim-d3" id="cardNovoEvento" onclick="abrir('novoEvento')">
-          <div class="nav-card-top">
-            <div class="nav-card-icon green">
-              <i data-lucide="plus-circle"></i>
-            </div>
-            <div class="nav-card-arrow">
-              <i data-lucide="arrow-right"></i>
-            </div>
-          </div>
-          <div class="nav-card-body">
-            <div class="nav-card-title">Novo Evento</div>
-            <div class="nav-card-desc">Cadastre um novo evento com todos os detalhes necessários.</div>
-          </div>
-          <div class="nav-card-footer">
-            <span class="access-badge restricted">
-              <i data-lucide="shield"></i>
-              Restrito
-            </span>
-          </div>
-        </div>
-
-        <!-- Card: Editar Evento (id mantido: cardEditarEvento) -->
-        <div class="nav-card anim-in anim-d3" id="cardEditarEvento" onclick="abrir('editarEvento')">
-          <div class="nav-card-top">
-            <div class="nav-card-icon purple">
-              <i data-lucide="pencil-line"></i>
-            </div>
-            <div class="nav-card-arrow">
-              <i data-lucide="arrow-right"></i>
-            </div>
-          </div>
-          <div class="nav-card-body">
-            <div class="nav-card-title">Editar Evento</div>
-            <div class="nav-card-desc">Altere dados, valores e informações de eventos existentes.</div>
-          </div>
-          <div class="nav-card-footer">
-            <span class="access-badge restricted">
-              <i data-lucide="shield"></i>
-              Restrito
-            </span>
-          </div>
-        </div>
-
-        <!-- Card: Central Financeira (id mantido: cardCentralFinanceira) -->
-        <div class="nav-card anim-in anim-d4" id="cardCentralFinanceira">
-          <div class="nav-card-top">
-            <div class="nav-card-icon gold">
-              <i data-lucide="landmark"></i>
-            </div>
-            <div class="nav-card-arrow">
-              <i data-lucide="arrow-right"></i>
-            </div>
-          </div>
-          <div class="nav-card-body">
-            <div class="nav-card-title">Central Financeira</div>
-            <div class="nav-card-desc">Gestão completa de pagamentos, recebimentos e comissões.</div>
-          </div>
-          <div class="nav-card-footer">
-            <span class="access-badge owner">
-              <i data-lucide="crown"></i>
-              Proprietário
-            </span>
-          </div>
-        </div>
-
-      </div>
-    </main>
-
-    <!-- FOOTER -->
-    <footer class="app-footer">
-      <strong>FA Produções</strong> · Sistema Interno · v2.0
-    </footer>
-
-    <!-- BOTTOM NAVIGATION (Mobile) — Padrão Global -->
-    <nav class="bottom-nav">
-      <button class="bnav-item active" onclick="abrir('home')">
-        <i data-lucide="layout-grid"></i>
-        <span>Início</span>
-      </button>
-      <button class="bnav-item" onclick="abrir('agenda')">
-        <i data-lucide="calendar-days"></i>
-        <span>Agenda</span>
-      </button>
-      <button class="bnav-item" id="bnavNovoEvento" onclick="abrir('novoEvento')">
-        <i data-lucide="plus-circle"></i>
-        <span>Novo</span>
-      </button>
-      <button class="bnav-item" onclick="abrir('editarEvento')">
-        <i data-lucide="pencil-line"></i>
-        <span>Editar</span>
-      </button>
-      <button class="bnav-item" id="bnavFinanceiro" onclick="abrir('centralFinanceira')">
-        <i data-lucide="dollar-sign"></i>
-        <span>Financeiro</span>
-      </button>
-    </nav>
 
   </div>
+</main>
 
-  <!-- ============================================
-       JAVASCRIPT
-       ============================================ -->
-  <script>
-  /**
-   * ============================================
-   * BOOT — EXATAMENTE a mesma lógica do original
-   * ============================================
-   */
-  async function boot() {
-    const email = localStorage.getItem('auth_email');
-    const perfil = localStorage.getItem('auth_perfil');
+<footer>
+  FA Produções • Sistema Interno • v1.0
+</footer>
 
-    if (email && perfil) {
-      onLoginSuccess({ email, perfil });
-      aplicarPermissoes({ email, perfil });
-      return;
-    }
+</div>
 
-    // Sem sessão → mostra login
-    hideSplash();
-    showAuthScreen();
-    Auth.initGoogle();
+<script>
+async function boot() {
+  const email = localStorage.getItem('auth_email');
+  const perfil = localStorage.getItem('auth_perfil');
+
+  if (email && perfil) {
+    onLoginSuccess({ email, perfil });
+    aplicarPermissoes({ email, perfil });
+    return;
   }
 
-  /**
-   * ============================================
-   * LOGIN SUCCESS — mesma lógica + novo layout
-   * ============================================
-   */
-  function onLoginSuccess(user) {
-    document.getElementById('auth-screen').classList.add('hidden');
-    document.getElementById('app').classList.remove('hidden');
+  Auth.initGoogle();
+}
 
-    // Atualiza userBox (mantém compatibilidade com auth.js)
-    var box = document.getElementById('userBox');
-    if (box) {
-      // Preenche os sub-elementos do novo layout
-      var avatarEl = document.getElementById('userAvatar');
-      var nameEl = document.getElementById('userNameText');
-      var roleEl = document.getElementById('userRoleText');
+function onLoginSuccess(user) {
+  document.getElementById('auth-screen').classList.add('hidden');
+  document.getElementById('app').classList.remove('hidden');
 
-      var nome = user.nome || localStorage.getItem('auth_nome') || user.email;
-      var perfil = user.perfil || localStorage.getItem('auth_perfil') || '';
+  document.getElementById('userBox').innerHTML =
+    `👤 ${user.email}`;
+}
 
-      if (avatarEl) {
-        var parts = nome.split(' ');
-        var initials = parts.length >= 2
-          ? (parts[0][0] + parts[parts.length - 1][0])
-          : nome.substring(0, 2);
-        avatarEl.textContent = initials.toUpperCase();
-      }
-
-      if (nameEl) nameEl.textContent = nome;
-      if (roleEl) roleEl.textContent = perfil;
-    }
-
-    // Saudação dinâmica
-    var greetingEl = document.getElementById('pageGreeting');
-    if (greetingEl) {
-      var hour = new Date().getHours();
-      var greeting = 'Boa noite';
-      if (hour >= 5 && hour < 12) greeting = 'Bom dia';
-      else if (hour >= 12 && hour < 18) greeting = 'Boa tarde';
-      var firstName = (user.nome || localStorage.getItem('auth_nome') || '').split(' ')[0];
-      greetingEl.textContent = greeting + (firstName ? ', ' + firstName : '');
-    }
-
-    // Reveal
-    hideSplash();
-    setTimeout(function() {
-      document.getElementById('app').classList.add('visible');
-    }, 50);
+function aplicarPermissoes(user) {
+  if (user.perfil === 'Músico') {
+    ocultar('cardNovoEvento');
+    ocultar('cardCentralFinanceira');
   }
 
-  /**
-   * ============================================
-   * PERMISSÕES — mesma lógica exata
-   * ============================================
-   */
-  function aplicarPermissoes(user) {
-    if (user.perfil === 'Músico') {
-      ocultar('cardNovoEvento');
-      ocultar('cardCentralFinanceira');
-      ocultar('bnavNovoEvento');
-      ocultar('bnavFinanceiro');
-    }
+  if (user.perfil === 'Sócio') {
+    ocultar('cardCentralFinanceira');
+  }
+}
 
-    if (user.perfil === 'Sócio') {
-      ocultar('cardCentralFinanceira');
-      ocultar('bnavFinanceiro');
-    }
+function ocultar(id) {
+  const el = document.getElementById(id);
+  if (el) el.classList.add('hidden');
+}
+
+function abrir(pagina) {
+  const rotas = {
+    agenda: './agenda.html',
+    novoEvento: './cadastro-evento.html',
+    editarEvento: './editar-evento.html'
+  };
+
+  const destino = rotas[pagina];
+  if (!destino) {
+    alert('Página não encontrada');
+    return;
   }
 
-  function ocultar(id) {
-    var el = document.getElementById(id);
-    if (el) el.classList.add('hidden');
-  }
+  window.location.assign(destino);
+}
 
-  /**
-   * ============================================
-   * NAVEGAÇÃO — mesmas rotas exatas
-   * ============================================
-   */
-  function abrir(pagina) {
-    var rotas = {
-      agenda: './agenda.html',
-      novoEvento: './cadastro-evento.html',
-      editarEvento: './editar-evento.html',
-      centralFinanceira: './CentralFinanceira.html'
-    };
-
-    var destino = rotas[pagina];
-    if (!destino) {
-      // home ou rota não mapeada → ignora sem alert
-      if (pagina !== 'home') {
-        console.warn('Rota não encontrada:', pagina);
-      }
-      return;
-    }
-
-    window.location.assign(destino);
-  }
-
-  /**
-   * ============================================
-   * SPLASH / AUTH helpers
-   * ============================================
-   */
-  function hideSplash() {
-    var splash = document.getElementById('splashScreen');
-    if (splash) {
-      splash.classList.add('fade-out');
-      setTimeout(function() { splash.style.display = 'none'; }, 500);
-    }
-  }
-
-  function showAuthScreen() {
-    var screen = document.getElementById('auth-screen');
-    if (screen) screen.classList.remove('hidden');
-  }
-
-  /**
-   * ============================================
-   * INIT LUCIDE + BOOT
-   * ============================================
-   */
-  window.addEventListener('load', function() {
-    if (window.lucide) lucide.createIcons();
-    boot();
-  });
-  </script>
+window.addEventListener('load', boot);
+</script>
 
 </body>
 </html>
