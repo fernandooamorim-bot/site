@@ -261,74 +261,6 @@
     }
 
     /* ============================================
-       AUTH LOADING (pós-popup Google)
-       ============================================ */
-    .auth-loading {
-      position: fixed;
-      inset: 0;
-      z-index: 9500;
-      background: var(--navy-800);
-      display: none;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 24px;
-      opacity: 0;
-      transition: opacity 0.35s ease;
-    }
-
-    .auth-loading.visible {
-      display: flex;
-      opacity: 1;
-    }
-
-    .auth-loading-icon {
-      width: 72px;
-      height: 72px;
-      border-radius: var(--radius-lg);
-      background: linear-gradient(135deg, var(--gold-500), var(--gold-400));
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      animation: pulse-glow 2s ease-in-out infinite;
-    }
-
-    .auth-loading-icon i {
-      color: var(--navy-900);
-      width: 32px;
-      height: 32px;
-    }
-
-    .auth-loading-content {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 16px;
-    }
-
-    .auth-loading-spinner {
-      width: 32px;
-      height: 32px;
-      border: 3px solid rgba(255,255,255,0.08);
-      border-top-color: var(--gold-500);
-      border-radius: 50%;
-      animation: spin 0.8s linear infinite;
-    }
-
-    .auth-loading-text {
-      color: rgba(255,255,255,0.6);
-      font-size: 15px;
-      font-weight: 500;
-      letter-spacing: -0.1px;
-    }
-
-    .auth-loading-sub {
-      color: rgba(255,255,255,0.25);
-      font-size: 12px;
-      font-weight: 500;
-    }
-
-    /* ============================================
        APP SHELL (conteúdo principal)
        ============================================ */
     .app-shell {
@@ -898,20 +830,6 @@
   </div>
 
   <!-- ============================================
-       AUTH LOADING (transição pós-login Google)
-       ============================================ -->
-  <div class="auth-loading" id="authLoading">
-    <div class="auth-loading-icon">
-      <i data-lucide="music"></i>
-    </div>
-    <div class="auth-loading-content">
-      <div class="auth-loading-spinner"></div>
-      <div class="auth-loading-text" id="authLoadingText">Autenticando...</div>
-      <div class="auth-loading-sub">FA Produções • Sistema</div>
-    </div>
-  </div>
-
-  <!-- ============================================
        APP (id mantido: app)
        ============================================ -->
   <div class="app-shell hidden" id="app">
@@ -1082,72 +1000,6 @@
   <script>
   /**
    * ============================================
-   * AUTH LOADING — loading pós-popup Google
-   * ============================================
-   */
-  function showAuthLoading() {
-    var el = document.getElementById('authLoading');
-    if (el) {
-      el.style.display = 'flex';
-      // Force reflow para animar
-      el.offsetHeight;
-      el.classList.add('visible');
-    }
-    updateAuthLoadingText('Autenticando...');
-  }
-
-  function updateAuthLoadingText(text) {
-    var el = document.getElementById('authLoadingText');
-    if (el) el.textContent = text;
-  }
-
-  function hideAuthLoading() {
-    var el = document.getElementById('authLoading');
-    if (el) {
-      el.classList.remove('visible');
-      setTimeout(function() { el.style.display = 'none'; }, 350);
-    }
-  }
-
-  // Wrapper do Auth.handleCredential para exibir loading
-  function wrapAuthHandler() {
-    if (!window.Auth || !Auth.handleCredential) return;
-
-    var originalHandler = Auth.handleCredential;
-
-    Auth.handleCredential = async function(response) {
-      showAuthLoading();
-
-      try {
-        // Decodifica o token para mostrar o nome
-        if (response && response.credential) {
-          try {
-            var payload = JSON.parse(atob(response.credential.split('.')[1]));
-            if (payload.name) {
-              updateAuthLoadingText('Bem-vindo, ' + payload.name.split(' ')[0] + '!');
-            }
-          } catch(e) {}
-        }
-
-        // Pequeno delay para o texto ser visível
-        await new Promise(function(r) { setTimeout(r, 600); });
-        updateAuthLoadingText('Verificando permissões...');
-
-        await originalHandler.call(Auth, response);
-
-        updateAuthLoadingText('Preparando seu painel...');
-        await new Promise(function(r) { setTimeout(r, 400); });
-
-        hideAuthLoading();
-      } catch(err) {
-        hideAuthLoading();
-        throw err;
-      }
-    };
-  }
-
-  /**
-   * ============================================
    * BOOT — EXATAMENTE a mesma lógica do original
    * ============================================
    */
@@ -1164,7 +1016,6 @@
     // Sem sessão → mostra login
     hideSplash();
     showAuthScreen();
-    wrapAuthHandler();
     Auth.initGoogle();
   }
 
