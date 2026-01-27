@@ -2,517 +2,145 @@
 <html>
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <meta name="theme-color" content="#0f1a2e"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
   <!-- Google Identity -->
   <script src="https://accounts.google.com/gsi/client" async defer></script>
 
   <!-- Auth padrão do sistema -->
   <script src="auth.js"></script>
-
-  <!-- Lucide Icons -->
-  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js" defer></script>
-  <!-- Google Fonts - Inter -->
-  <link rel="preconnect" href="https://fonts.googleapis.com"/>
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
-
   <style>
-    /* ============================================
-       GLOBAL NAV — FA PRODUÇÕES Design System
-       ============================================ */
-    :root {
-      --nav-navy-900: #0a1628;
-      --nav-navy-800: #0f1a2e;
-      --nav-navy-700: #142240;
-      --nav-navy-600: #1e3a5f;
-      --nav-gold-500: #d4a853;
-      --nav-gold-400: #e0bc6a;
-      --nav-font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      --nav-height: 68px;
-      --nav-radius-md: 12px;
-      --nav-radius-sm: 8px;
-      --nav-radius-full: 999px;
+    .container{
+      max-width:1200px;
+      margin:0 auto;
     }
-
-    .global-header {
-      background: var(--nav-navy-800);
-      color: white;
-      padding: 0 20px;
-      height: 56px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      border-bottom: 1px solid rgba(255,255,255,0.06);
-      position: sticky;
-      top: 0;
-      z-index: 200;
-      font-family: var(--nav-font);
+    .loading-overlay{
+      position:fixed;
+      top:0;left:0;right:0;bottom:0;
+      background:rgba(2,6,23,.85);
+      display:none;
+      align-items:center;
+      justify-content:center;
+      z-index:9999;
+      flex-direction:column;
     }
-
-    .global-header-brand {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      cursor: pointer;
-      -webkit-tap-highlight-color: transparent;
-      text-decoration: none;
-      transition: opacity 0.2s;
+    .loading-overlay.active{display:flex;}
+    .loading-spinner{
+      width:48px;height:48px;
+      border:4px solid #1e293b;
+      border-top:4px solid #38bdf8;
+      border-radius:50%;
+      animation:spin 1s linear infinite;
     }
-
-    .global-header-brand:hover { opacity: 0.85; }
-
-    .global-header-back {
-      width: 32px;
-      height: 32px;
-      border-radius: var(--nav-radius-sm);
-      background: rgba(255,255,255,0.08);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex-shrink: 0;
-      transition: background 0.2s;
-    }
-
-    .global-header-brand:hover .global-header-back {
-      background: rgba(212,168,83,0.15);
-    }
-
-    .global-header-back i { color: var(--nav-gold-400); width: 18px; height: 18px; }
-
-    .global-header-title {
-      font-size: 15px;
-      font-weight: 700;
-      letter-spacing: -0.3px;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .global-header-title i { width: 20px; height: 20px; color: var(--nav-gold-400); }
-
-    .global-header-user {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 4px 12px 4px 4px;
-      background: rgba(255,255,255,0.06);
-      border-radius: var(--nav-radius-full);
-      border: 1px solid rgba(255,255,255,0.08);
-      font-family: var(--nav-font);
-    }
-
-    .global-header-avatar {
-      width: 28px;
-      height: 28px;
-      border-radius: 50%;
-      background: linear-gradient(135deg, var(--nav-navy-600), rgba(58,96,152,0.8));
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 11px;
-      font-weight: 700;
-      color: var(--nav-gold-400);
-      text-transform: uppercase;
-    }
-
-    .global-header-name {
-      color: rgba(255,255,255,0.7);
-      font-size: 12px;
-      font-weight: 600;
-      max-width: 100px;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-
-    .bottom-nav {
-      position: fixed;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      height: var(--nav-height);
-      background: var(--nav-navy-800);
-      border-top: 1px solid rgba(255,255,255,0.06);
-      display: flex;
-      align-items: center;
-      justify-content: space-around;
-      z-index: 200;
-      padding-bottom: env(safe-area-inset-bottom);
-      font-family: var(--nav-font);
-    }
-
-    .bnav-item {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 3px;
-      padding: 8px 14px;
-      border-radius: var(--nav-radius-md);
-      cursor: pointer;
-      -webkit-tap-highlight-color: transparent;
-      text-decoration: none;
-      border: none;
-      background: none;
-      transition: all 0.2s;
-    }
-
-    .bnav-item i { width: 22px; height: 22px; color: rgba(255,255,255,0.55); transition: color 0.2s; }
-    .bnav-item span { font-family: var(--nav-font); font-size: 10px; font-weight: 600; color: rgba(255,255,255,0.55); transition: color 0.2s; }
-    .bnav-item.active i, .bnav-item:hover i { color: var(--nav-gold-400); }
-    .bnav-item.active span, .bnav-item:hover span { color: var(--nav-gold-400); }
-    .bnav-item.active { background: rgba(212,168,83,0.08); }
-
-    @media (min-width: 768px) {
-      .bottom-nav { display: none; }
-      body { padding-bottom: 0 !important; }
-    }
-
-    @media (max-width: 767px) {
-      body { padding-bottom: calc(var(--nav-height) + 16px) !important; }
-    }
-  </style>
-
-  <style>
-    /* ============================================
-       DESIGN SYSTEM — FA PRODUÇÕES (central-financeira)
-       ============================================ */
-    :root {
-      --navy-900: #0a1628;
-      --navy-800: #0f1a2e;
-      --navy-700: #142240;
-      --navy-600: #1e3a5f;
-      --navy-500: #264a7a;
-      --navy-400: #3a6098;
-      --gold-600: #b8903e;
-      --gold-500: #d4a853;
-      --gold-400: #e0bc6a;
-      --gold-300: #ebd08c;
-      --gray-50: #f8f9fc;
-      --gray-100: #f1f3f8;
-      --gray-200: #e2e6ef;
-      --gray-300: #cdd3e0;
-      --gray-400: #9ca3b8;
-      --gray-500: #6b7490;
-      --gray-600: #4a5268;
-      --gray-700: #374151;
-      --gray-800: #1f2937;
-      --gray-900: #111827;
-      --success-color: #10b981;
-      --warning-color: #f59e0b;
-      --danger-color: #ef4444;
-      --info-color: #3b82f6;
-      --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      --radius-sm: 8px;
-      --radius-md: 12px;
-      --radius-lg: 16px;
-      --shadow-sm: 0 1px 3px rgba(10,22,40,0.06);
-      --shadow-md: 0 4px 16px rgba(10,22,40,0.08);
-      --shadow-lg: 0 8px 32px rgba(10,22,40,0.14);
-    }
-
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-
+    @keyframes spin{to{transform:rotate(360deg)}}
     body {
-      font-family: var(--font);
-      background: var(--gray-50);
-      color: var(--gray-800);
-      -webkit-font-smoothing: antialiased;
-      -moz-osx-font-smoothing: grayscale;
+      font-family: Inter, Arial, sans-serif;
+      background:#0f172a;
+      color:#e5e7eb;
+      margin:0;
+      padding:20px;
     }
+    h1 { margin:0 0 16px 0; }
 
-    /* ============================================
-       CONTAINER
-       ============================================ */
-    .container {
-      max-width: 1100px;
-      margin: 0 auto;
-      padding: 24px 20px 32px;
-    }
-
-    @media (min-width: 768px) {
-      .container { padding: 32px; }
-    }
-
-    .container > h1 {
-      display: none;
-    }
-
-    /* ============================================
-       LOADING OVERLAY
-       ============================================ */
-    .loading-overlay {
-      position: fixed;
-      top: 0; left: 0; right: 0; bottom: 0;
-      background: rgba(10,22,40,0.7);
-      backdrop-filter: blur(4px);
-      -webkit-backdrop-filter: blur(4px);
-      display: none;
-      align-items: center;
-      justify-content: center;
-      z-index: 9999;
-      flex-direction: column;
-      gap: 14px;
-      color: rgba(255,255,255,0.7);
-      font-family: var(--font);
-      font-size: 14px;
-      font-weight: 500;
-    }
-
-    .loading-overlay.active { display: flex; }
-
-    .loading-spinner {
-      width: 44px;
-      height: 44px;
-      border: 3px solid rgba(255,255,255,0.1);
-      border-top: 3px solid var(--gold-500);
-      border-radius: 50%;
-      animation: spin 0.8s linear infinite;
-    }
-
-    @keyframes spin { to { transform: rotate(360deg); } }
-
-    /* ============================================
-       INTENT BUTTONS (operation selector)
-       ============================================ */
     .intent {
-      display: flex;
-      gap: 10px;
-      margin-bottom: 20px;
-      flex-wrap: wrap;
+      display:flex;
+      gap:12px;
+      margin-bottom:16px;
+      flex-wrap:wrap;
     }
-
     .intent button {
-      flex: 1;
-      min-width: 130px;
-      padding: 14px 16px;
-      border-radius: var(--radius-md);
-      border: 1.5px solid var(--gray-200);
-      background: white;
-      color: var(--gray-600);
-      cursor: pointer;
-      font-size: 14px;
-      font-weight: 600;
-      font-family: var(--font);
-      transition: all 0.2s;
-      box-shadow: var(--shadow-sm);
+      flex:1;
+      padding:14px;
+      border-radius:12px;
+      border:none;
+      background:#1e293b;
+      color:#e5e7eb;
+      cursor:pointer;
+      font-size:15px;
     }
-
-    .intent button:hover {
-      border-color: var(--navy-400);
-      color: var(--navy-600);
-      background: rgba(30,58,95,0.03);
-    }
-
     .intent button.active {
-      border-color: var(--navy-600);
-      background: var(--navy-600);
-      color: white;
-      box-shadow: 0 2px 8px rgba(30,58,95,0.2);
+      outline:2px solid #38bdf8;
+      background:#020617;
     }
 
-    /* ============================================
-       MAIN LAYOUT (form + side)
-       ============================================ */
     .main {
-      display: flex;
-      gap: 16px;
-      flex-wrap: wrap;
+      display:flex;
+      gap:20px;
+      flex-wrap:wrap;
     }
 
     .box {
-      background: white;
-      border-radius: var(--radius-lg);
-      padding: 24px 20px;
-      flex: 1;
-      min-width: 280px;
-      border: 1px solid var(--gray-200);
-      box-shadow: var(--shadow-sm);
-    }
-
-    .box h3 {
-      font-size: 16px;
-      font-weight: 700;
-      color: var(--navy-600);
-      margin-bottom: 4px;
-      letter-spacing: -0.2px;
-    }
-
-    .box h4 {
-      font-size: 14px;
-      font-weight: 700;
-      color: var(--gray-800);
-      margin-bottom: 4px;
+      background:#020617;
+      border-radius:16px;
+      padding:16px;
+      flex:1;
+      min-width:280px;
     }
 
     .side {
-      width: 360px;
-      max-width: 100%;
+      width:340px;
+      max-width:100%;
     }
 
-    /* ============================================
-       FORM ELEMENTS
-       ============================================ */
     label {
-      display: block;
-      margin-top: 14px;
-      font-size: 13px;
-      font-weight: 600;
-      color: var(--gray-700);
-      letter-spacing: -0.1px;
+      display:block;
+      margin-top:12px;
+      font-size:13px;
+      opacity:.9;
     }
 
     input, select, textarea {
-      width: 100%;
-      padding: 11px 14px;
-      margin-top: 6px;
-      border-radius: var(--radius-sm);
-      border: 1.5px solid var(--gray-200);
-      background: white;
-      color: var(--gray-800);
-      font-size: 14px;
-      font-family: var(--font);
-      transition: border-color 0.2s, box-shadow 0.2s;
+      width:100%;
+      padding:10px;
+      margin-top:6px;
+      border-radius:10px;
+      border:none;
+      background:#0f172a;
+      color:#e5e7eb;
+      font-size:14px;
     }
 
-    input:focus, select:focus, textarea:focus {
-      outline: none;
-      border-color: var(--navy-500);
-      box-shadow: 0 0 0 3px rgba(30,58,95,0.08);
-    }
+    textarea { resize:vertical; }
 
-    input::placeholder, textarea::placeholder {
-      color: var(--gray-400);
-    }
-
-    input[readonly] {
-      background: var(--gray-50);
-      color: var(--gray-500);
-    }
-
-    textarea { resize: vertical; }
-
-    /* ============================================
-       ACTION BUTTONS
-       ============================================ */
     .btn {
-      margin-top: 16px;
-      padding: 12px 20px;
-      border-radius: var(--radius-sm);
-      border: none;
-      cursor: pointer;
-      font-size: 14px;
-      font-weight: 600;
-      font-family: var(--font);
-      transition: all 0.2s;
-      width: 100%;
-      letter-spacing: -0.1px;
+      margin-top:16px;
+      padding:12px;
+      border-radius:12px;
+      border:none;
+      cursor:pointer;
+      font-size:15px;
     }
 
-    .primary {
-      background: linear-gradient(135deg, var(--navy-600), var(--navy-700));
-      color: white;
-      box-shadow: 0 2px 8px rgba(30,58,95,0.2);
-    }
+    .primary { background:#22c55e; color:#022c22; }
+    .secondary { background:#38bdf8; color:#020617; }
+    .danger { background:#ef4444; color:#020617; }
 
-    .primary:hover {
-      transform: translateY(-1px);
-      box-shadow: 0 4px 16px rgba(30,58,95,0.25);
-    }
-
-    .secondary {
-      background: var(--navy-500);
-      color: white;
-      box-shadow: 0 2px 6px rgba(30,58,95,0.15);
-    }
-
-    .secondary:hover {
-      background: var(--navy-400);
-    }
-
-    .danger {
-      background: var(--danger-color);
-      color: white;
-      box-shadow: 0 2px 6px rgba(239,68,68,0.2);
-    }
-
-    .danger:hover {
-      background: #dc2626;
-    }
-
-    /* ============================================
-       AUTOCOMPLETE
-       ============================================ */
     .autocomplete {
-      background: white;
-      border: 1px solid var(--gray-200);
-      border-radius: 0 0 var(--radius-sm) var(--radius-sm);
-      margin-top: 0;
-      overflow: hidden;
-      box-shadow: 0 6px 16px rgba(10,22,40,0.1);
+      background:#020617;
+      border:1px solid #1e293b;
+      border-radius:10px;
+      margin-top:4px;
+      overflow:hidden;
     }
 
     .autocomplete div {
-      padding: 10px 14px;
-      cursor: pointer;
-      font-size: 14px;
-      color: var(--gray-700);
-      border-bottom: 1px solid var(--gray-100);
-      transition: background 0.15s;
+      padding:10px;
+      cursor:pointer;
+      font-size:14px;
     }
-
     .autocomplete div:hover {
-      background: var(--gray-50);
+      background:#1e293b;
     }
 
-    .autocomplete div:last-child {
-      border-bottom: none;
-    }
-
-    /* ============================================
-       DIVIDER & MUTED
-       ============================================ */
     .divider {
-      margin: 16px 0;
-      border: none;
-      border-top: 1px solid var(--gray-200);
+      margin:18px 0;
+      border-top:1px solid #1e293b;
     }
 
-    .muted {
-      color: var(--gray-500);
-      font-size: 13px;
-      font-weight: 500;
-      line-height: 1.5;
-    }
-
-    .muted strong {
-      color: var(--gray-700);
-    }
+    .muted { opacity:.7; font-size:13px; }
   </style>
 </head>
 <body>
-  <!-- Global Header -->
-  <div class="global-header">
-    <a class="global-header-brand" onclick="window.location.href='index.html'" title="Voltar ao Início">
-      <div class="global-header-back">
-        <i data-lucide="arrow-left"></i>
-      </div>
-      <div class="global-header-title">
-        <i data-lucide="dollar-sign"></i>
-        <span>Central Financeira</span>
-      </div>
-    </a>
-    <div class="global-header-user">
-      <div class="global-header-avatar" id="ghAvatar">--</div>
-      <div class="global-header-name" id="ghName"></div>
-    </div>
-  </div>
-
 <div class="container">
 
 <h1>💰 Central Financeira</h1>
@@ -1651,48 +1279,7 @@ function executarFechamentoV2(){
 </div>
 <div id="loading" class="loading-overlay">
   <div class="loading-spinner"></div>
-  <div id="loadingText">Processando...</div>
+  <div style="margin-top:12px" id="loadingText">Processando...</div>
 </div>
-
-  <!-- Bottom Navigation — Padrão Global -->
-  <nav class="bottom-nav">
-    <button class="bnav-item" onclick="window.location.href='index.html'">
-      <i data-lucide="layout-grid"></i>
-      <span>Início</span>
-    </button>
-    <button class="bnav-item" onclick="window.location.href='agenda.html'">
-      <i data-lucide="calendar-days"></i>
-      <span>Agenda</span>
-    </button>
-    <button class="bnav-item" onclick="window.location.href='cadastro-evento.html'">
-      <i data-lucide="plus-circle"></i>
-      <span>Novo</span>
-    </button>
-    <button class="bnav-item" onclick="window.location.href='editar-evento.html'">
-      <i data-lucide="pencil-line"></i>
-      <span>Editar</span>
-    </button>
-    <button class="bnav-item active">
-      <i data-lucide="dollar-sign"></i>
-      <span>Financeiro</span>
-    </button>
-  </nav>
-
-  <script>
-  // Inicializa Lucide icons e header do usuário
-  document.addEventListener('DOMContentLoaded', function() {
-    if (window.lucide) lucide.createIcons();
-    var nome = localStorage.getItem('auth_nome') || '';
-    var avatarEl = document.getElementById('ghAvatar');
-    var nameEl = document.getElementById('ghName');
-    if (avatarEl && nome) {
-      var parts = nome.split(' ');
-      avatarEl.textContent = parts.length >= 2
-        ? (parts[0][0] + parts[parts.length-1][0]).toUpperCase()
-        : nome.substring(0,2).toUpperCase();
-    }
-    if (nameEl) nameEl.textContent = nome.split(' ')[0];
-  });
-  </script>
 </body>
 </html>
