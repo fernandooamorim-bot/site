@@ -1,10 +1,12 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <base target="_top">
+  
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Painel Financeiro</title>
+
+  <script src="auth.js"></script>
 
   <style>
     /* ===== Espelho Financeiro - Visualização com Scroll Horizontal ===== */
@@ -622,17 +624,29 @@
     window.location.href = 'central-financeira.html';
   }
 
-  window.addEventListener('load', async () => {
-    try {
-      const auth = await Auth.verificarUsuario();
-      if (!auth || !auth.ok) throw new Error('NOT_AUTH');
+  console.log('🚀 painel-financeiro.html iniciado (frontend externo)');
 
-      carregarPainel();
-    } catch (err) {
-      alert('Sessão expirada. Volte ao menu.');
-      window.location.href = 'index.html';
-    }
-  });
+window.addEventListener('load', async () => {
+  try {
+    if (!window.Auth) throw new Error('AUTH_NOT_LOADED');
+
+    const auth = await Auth.verificarUsuario();
+    if (!auth || !auth.ok) throw new Error('NOT_AUTH');
+
+    console.log('🔐 Usuário autenticado:', auth.user?.email);
+
+    iniciarPainelFinanceiro();
+
+  } catch (err) {
+    console.error('Erro de autenticação:', err);
+    alert('Sessão expirada. Volte ao menu.');
+    window.location.href = 'index.html';
+  }
+});
+
+function iniciarPainelFinanceiro() {
+  carregarPainel();
+}
 </script>
 
 </body>
