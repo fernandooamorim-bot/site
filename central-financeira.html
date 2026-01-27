@@ -329,7 +329,7 @@ function submitEstorno(){
     hideLoading();
     lockSubmit = false;
     liberarBotao(btn);
-    alert(err.message || 'Erro ao registrar estorno');
+    tratarErroApi(err);
   });
 }
 
@@ -564,27 +564,26 @@ function submitSaidaEvento() {
     linkComprovante: comprovante
   };
 
-  google.script.run
-    .withSuccessHandler(resp => {
-      hideLoading();
-      lockSubmit = false;
-      liberarBotao(btn);
+  Auth.apiCall('apiRegistrarSaidaEvento', payload)
+  .then(resp => {
+    hideLoading();
+    lockSubmit = false;
+    liberarBotao(btn);
 
-      if (!resp || resp.sucesso !== true) {
-        alert(resp?.mensagem || 'Erro ao registrar saída');
-        return;
-      }
+    if (!resp || resp.sucesso !== true) {
+      alert(resp?.mensagem || 'Erro ao registrar saída');
+      return;
+    }
 
-      alert('Saída registrada com sucesso');
-      resetObrigacaoForm();
-    })
-    .withFailureHandler(e => {
-      hideLoading();
-      lockSubmit = false;
-      liberarBotao(btn);
-      alert(e.message);
-    })
-    .apiRegistrarSaidaEvento(payload);
+    alert('Saída registrada com sucesso');
+    resetObrigacaoForm();
+  })
+  .catch(err => {
+    hideLoading();
+    lockSubmit = false;
+    liberarBotao(btn);
+    tratarErroApi(err);
+  });
 }
 
 /* ================= AUTOCOMPLETE EVENTO ================= */
@@ -766,7 +765,10 @@ function buscarVendedor(q){
 function carregarResumoVendedor(){
   resumo.innerHTML = '<span class="muted">Carregando resumo do fechamento...</span>';
 
-  google.script.run.withSuccessHandler(preview => {
+  Auth.apiCall('visualizarPreviewFechamento', {
+    idVendedor: vendedorSelecionado.id
+  })
+  .then(preview => {
     ultimoPreview = preview;
 
     // ================= NOVA REGRA DE FILTRO DO PREVIEW DE FECHAMENTO =================
@@ -1016,13 +1018,45 @@ function carregarResumoVendedor(){
     `;
 
     resumo.innerHTML = html;
-
-  }).visualizarPreviewFechamento(vendedorSelecionado.id);
+  })
+  .catch(err => {
+    console.error('Erro ao gerar preview de comissão:', err);
+    resumo.innerHTML = `
+      <div><strong>Vendedor:</strong> ${vendedorSelecionado?.nome || '—'}</div>
+      <div class="muted">Erro ao gerar resumo do fechamento</div>
+    `;
+  });
 }
 
 /* ================= VALIDACOES & UTIL ================= */
 
 let lockSubmit = false;
+
+function tratarErroApi(err) {
+  console.error('Erro API:', err);
+
+  if (!err) {
+    alert('Erro inesperado.');
+    return;
+  }
+
+  if (err.mensagem) {
+    alert(err.mensagem);
+    return;
+  }
+
+  if (err.error) {
+    alert(err.error);
+    return;
+  }
+
+  if (typeof err === 'string') {
+    alert(err);
+    return;
+  }
+
+  alert('Erro ao processar a operação.');
+}
 
 function parseValorSeguro(raw) {
   if (raw === null || raw === undefined) return null;
@@ -1176,7 +1210,7 @@ function submitRecebimento(){
     hideLoading();
     lockSubmit = false;
     liberarBotao(btn);
-    alert(err.message || 'Erro ao registrar recebimento');
+    tratarErroApi(err);
   });
 }
 
@@ -1213,35 +1247,32 @@ function executarFechamentoV2(){
 
   showLoading('Gerando fechamento e PDF...');
 
-  google.script.run
-    .withSuccessHandler(resp => {
-      hideLoading();
-      lockSubmit = false;
-      liberarBotao(btn);
+  Auth.apiCall('fecharComissaoVendedor', {
+    idVendedor: payload.idVendedor,
+    ajusteCredito: payload.ajusteCredito,
+    ajusteDebito: payload.ajusteDebito,
+    linkComprovante: payload.linkComprovante
+  })
+  .then(resp => {
+    hideLoading();
+    lockSubmit = false;
+    liberarBotao(btn);
 
-      if (!resp || resp.sucesso !== true) {
-        alert(resp?.mensagem || 'Erro ao fechar comissão');
-        return;
-      }
+    if (!resp || resp.sucesso !== true) {
+      alert(resp?.mensagem || 'Erro ao fechar comissão');
+      return;
+    }
 
-      resetFechamentoForm();
-      alert(resp.mensagem || 'Fechamento realizado com sucesso');
-      if (resp.linkPdf) window.open(resp.linkPdf, '_blank');
-    })
-    .withFailureHandler(e=>{
-      hideLoading();
-      lockSubmit = false;
-      liberarBotao(btn);
-      alert(e.message);
-    })
-    .fecharComissaoVendedor(
-      payload.idVendedor,
-      null,
-      null,
-      payload.ajusteCredito,
-      payload.ajusteDebito,
-      ''
-    );
+    resetFechamentoForm();
+    alert(resp.mensagem || 'Fechamento realizado com sucesso');
+    if (resp.linkPdf) window.open(resp.linkPdf, '_blank');
+  })
+  .catch(err => {
+    hideLoading();
+    lockSubmit = false;
+    liberarBotao(btn);
+    tratarErroApi(err);
+  });
 }
 </script>
 
