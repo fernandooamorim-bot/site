@@ -1,206 +1,142 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html>
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <meta name="theme-color" content="#0f1a2e"/>
-  <title>Agenda de Eventos • FA Produções</title>
+  <title>Agenda de Eventos</title>
   <script src="https://accounts.google.com/gsi/client" async defer></script>
-  <script src="auth.js" defer></script>
-
-  <!-- Lucide Icons -->
-  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js" defer></script>
-
-  <!-- Google Fonts - Inter -->
-  <link rel="preconnect" href="https://fonts.googleapis.com"/>
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
-
+<script src="auth.js" defer></script>
   <style>
-    /* ============================================
-       DESIGN SYSTEM — FA PRODUÇÕES
-       Página: Agenda de Eventos
-       ============================================ */
-
-    :root {
-      /* Core Navy */
-      --navy-900: #0a1628;
-      --navy-800: #0f1a2e;
-      --navy-700: #142240;
-      --navy-600: #1e3a5f;
-      --navy-500: #264a7a;
-      --navy-400: #3a6098;
-
-      /* Gold Accent */
-      --gold-600: #b8903e;
-      --gold-500: #d4a853;
-      --gold-400: #e0bc6a;
-      --gold-300: #ebd08c;
-
-      /* Neutrals */
-      --gray-50: #f8f9fc;
-      --gray-100: #f1f3f8;
-      --gray-200: #e2e6ef;
-      --gray-300: #cdd3e0;
-      --gray-400: #9ca3b8;
-      --gray-500: #6b7490;
-      --gray-600: #4a5268;
-      --gray-700: #374151;
-      --gray-800: #1f2937;
-      --gray-900: #111827;
-
-      /* Semantic */
-      --success-color: #10b981;
-      --warning-color: #f59e0b;
-      --danger-color: #ef4444;
-      --info-color: #3b82f6;
-
-      /* Primary mapped to navy+gold */
-      --primary-color: var(--navy-600);
-      --primary-dark: var(--navy-700);
-      --secondary-color: var(--gold-500);
-
-      /* Surfaces */
-      --bg-app: var(--gray-50);
-      --bg-card: #ffffff;
-      --bg-header: var(--navy-800);
-
-      /* Shadows */
-      --shadow-sm: 0 1px 3px rgba(10,22,40,0.06);
-      --shadow: 0 2px 8px rgba(10,22,40,0.08);
-      --shadow-md: 0 4px 16px rgba(10,22,40,0.1);
-      --shadow-lg: 0 8px 32px rgba(10,22,40,0.14);
-      --shadow-gold: 0 4px 24px rgba(212,168,83,0.18);
-
-      /* Typography */
-      --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-
-      /* Layout */
-      --header-height: 68px;
-      --bottom-nav-height: 68px;
-      --radius-sm: 8px;
-      --radius-md: 12px;
-      --radius-lg: 16px;
-      --radius-xl: 20px;
-      --radius-full: 999px;
-      --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    }
-
-    /* ============================================
-       RESET
-       ============================================ */
-    *, *::before, *::after {
+    /* ========================================
+       RESET E CONFIGURAÇÕES GLOBAIS
+       ======================================== */
+    * {
       margin: 0;
       padding: 0;
       box-sizing: border-box;
     }
-
-    html {
-      -webkit-font-smoothing: antialiased;
-      -moz-osx-font-smoothing: grayscale;
-      text-rendering: optimizeLegibility;
+    
+    :root {
+      --primary-color: #667eea;
+      --primary-dark: #5568d3;
+      --secondary-color: #764ba2;
+      --success-color: #48bb78;
+      --warning-color: #f6ad55;
+      --danger-color: #f56565;
+      --gray-50: #f9fafb;
+      --gray-100: #f3f4f6;
+      --gray-200: #e5e7eb;
+      --gray-300: #d1d5db;
+      --gray-400: #9ca3af;
+      --gray-500: #6b7280;
+      --gray-600: #4b5563;
+      --gray-700: #374151;
+      --gray-800: #1f2937;
+      --gray-900: #111827;
+      --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+      --shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.15);
+      --shadow-lg: 0 10px 25px rgba(0, 0, 0, 0.2);
+      --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     }
-
+    
     body {
-      font-family: var(--font);
-      background: var(--bg-app);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background: var(--gray-50);
       color: var(--gray-900);
       line-height: 1.5;
-      padding-bottom: calc(var(--bottom-nav-height) + 16px);
-      min-height: 100vh;
-      min-height: 100dvh;
+      padding-bottom: 80px;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
     }
-
-    /* ============================================
-       HEADER
-       ============================================ */
+    
+    /* ========================================
+       CABEÇALHO
+       ======================================== */
     .header {
-      background: var(--bg-header);
+      background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
       color: white;
-      padding: 16px 20px;
+      padding: 20px;
       position: sticky;
       top: 0;
       z-index: 100;
-      border-bottom: 1px solid rgba(255,255,255,0.06);
+      box-shadow: var(--shadow-md);
     }
-
+    
     .header-content {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 8px;
+      margin-bottom: 10px;
     }
-
+    
     .header h1 {
-      font-size: 18px;
+      font-size: 22px;
       font-weight: 700;
       display: flex;
       align-items: center;
-      gap: 10px;
-      letter-spacing: -0.3px;
+      gap: 8px;
     }
-
+    
     .header-stats {
-      font-size: 12px;
-      opacity: 0.9;
+      font-size: 13px;
+      opacity: 0.95;
       display: flex;
       flex-direction: column;
       align-items: flex-end;
-      gap: 4px;
+      gap: 2px;
     }
-
+    
     .header-info {
-      font-size: 12px;
-      opacity: 0.5;
-      margin-top: 4px;
+      font-size: 13px;
+      opacity: 0.9;
+      margin-top: 8px;
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: 15px;
       flex-wrap: wrap;
     }
-
+    
     .user-badge {
-      background: rgba(212,168,83,0.15);
-      color: var(--gold-400);
+      background: rgba(255, 255, 255, 0.2);
       padding: 4px 12px;
-      border-radius: var(--radius-full);
-      font-size: 11px;
-      font-weight: 700;
-      border: 1px solid rgba(212,168,83,0.25);
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 600;
+      border: 1px solid rgba(255, 255, 255, 0.3);
     }
-
-    /* ============================================
-       FILTERS BAR
-       ============================================ */
+    
+    /* ========================================
+       BARRA DE FILTROS
+       ======================================== */
     .filters-container {
-      background: var(--bg-card);
+      background: white;
       border-bottom: 1px solid var(--gray-200);
       position: sticky;
-      top: 62px;
+      top: 78px;
       z-index: 90;
       box-shadow: var(--shadow-sm);
     }
-
+    
     .filters-quick {
       display: flex;
       gap: 8px;
-      padding: 12px 16px;
+      padding: 12px 15px;
       overflow-x: auto;
       scrollbar-width: none;
       -ms-overflow-style: none;
     }
-
+    
     .filters-quick::-webkit-scrollbar {
       display: none;
     }
-
+    
     .filter-btn {
       padding: 8px 16px;
-      border: 1.5px solid var(--gray-300);
-      background: var(--bg-card);
-      color: var(--gray-600);
-      border-radius: var(--radius-full);
-      font-family: var(--font);
+      border: 2px solid var(--primary-color);
+      background: white;
+      color: var(--primary-color);
+      border-radius: 20px;
       font-size: 13px;
       font-weight: 600;
       white-space: nowrap;
@@ -208,254 +144,303 @@
       transition: var(--transition);
       flex-shrink: 0;
     }
-
+    
     .filter-btn:hover {
-      border-color: var(--navy-500);
-      color: var(--navy-600);
       background: var(--gray-50);
+      transform: translateY(-1px);
     }
-
+    
     .filter-btn.active {
-      background: var(--navy-600);
+      background: var(--primary-color);
       color: white;
-      border-color: var(--navy-600);
-      box-shadow: 0 2px 8px rgba(30,58,95,0.25);
+      box-shadow: var(--shadow);
     }
-
+    
     .filter-btn:active {
-      transform: scale(0.97);
+      transform: translateY(0);
     }
-
+    
     .filters-advanced {
-      padding: 16px;
+      padding: 15px;
       border-top: 1px solid var(--gray-200);
       display: none;
-      background: var(--gray-50);
     }
-
+    
     .filters-advanced.show {
       display: block;
     }
-
+    
     .filters-grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
       gap: 12px;
     }
-
+    
     .filter-group {
       display: flex;
       flex-direction: column;
       gap: 6px;
     }
-
+    
     .filter-label {
-      font-size: 11px;
-      font-weight: 700;
-      color: var(--gray-500);
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--gray-700);
       text-transform: uppercase;
-      letter-spacing: 0.8px;
+      letter-spacing: 0.5px;
     }
-
+    
     .filter-input,
     .filter-select {
-      padding: 10px 12px;
-      border: 1.5px solid var(--gray-300);
-      border-radius: var(--radius-sm);
-      font-family: var(--font);
+      padding: 8px 12px;
+      border: 1px solid var(--gray-300);
+      border-radius: 8px;
       font-size: 14px;
-      color: var(--gray-800);
-      background: var(--bg-card);
       transition: var(--transition);
       width: 100%;
     }
-
+    
     .filter-input:focus,
     .filter-select:focus {
       outline: none;
-      border-color: var(--navy-500);
-      box-shadow: 0 0 0 3px rgba(30,58,95,0.1);
+      border-color: var(--primary-color);
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
     }
-
+    
     .filter-actions {
       display: flex;
       gap: 8px;
-      margin-top: 14px;
+      margin-top: 12px;
     }
-
+    
     .btn-filter {
       flex: 1;
       padding: 10px;
       border: none;
-      border-radius: var(--radius-sm);
-      font-family: var(--font);
+      border-radius: 8px;
       font-size: 14px;
       font-weight: 600;
       cursor: pointer;
       transition: var(--transition);
     }
-
+    
     .btn-primary {
-      background: var(--navy-600);
+      background: var(--primary-color);
       color: white;
     }
-
+    
     .btn-primary:hover {
-      background: var(--navy-700);
+      background: var(--primary-dark);
+      transform: translateY(-1px);
       box-shadow: var(--shadow);
     }
-
+    
     .btn-secondary {
-      background: var(--bg-card);
+      background: white;
       color: var(--gray-700);
-      border: 1.5px solid var(--gray-300);
+      border: 1px solid var(--gray-300);
     }
-
+    
     .btn-secondary:hover {
-      background: var(--gray-100);
+      background: var(--gray-50);
     }
-
+    
     .toggle-filters {
       display: flex;
       align-items: center;
       justify-content: center;
       gap: 8px;
-      padding: 10px 16px;
+      padding: 10px 15px;
       background: var(--gray-50);
       border: none;
       border-top: 1px solid var(--gray-200);
       width: 100%;
-      font-family: var(--font);
       font-size: 13px;
       font-weight: 600;
-      color: var(--navy-500);
+      color: var(--primary-color);
       cursor: pointer;
       transition: var(--transition);
     }
-
+    
     .toggle-filters:hover {
       background: var(--gray-100);
-      color: var(--navy-600);
     }
-
-    /* ============================================
-       EVENTS CONTAINER
-       ============================================ */
+    
+    /* ========================================
+       CONTAINER DE EVENTOS
+       ======================================== */
     .eventos-container {
-      padding: 16px;
-      max-width: 900px;
+      padding: 15px;
+      max-width: 1200px;
       margin: 0 auto;
     }
-
+    
     .eventos-list {
       display: flex;
       flex-direction: column;
-      gap: 12px;
+      gap: 15px;
     }
-
-    /* ============================================
-       EVENT CARDS
-       ============================================ */
+    
+    /* ========================================
+       CARDS DE EVENTOS
+       ======================================== */
     .evento-card {
-      background: var(--bg-card);
-      border-radius: var(--radius-lg);
-      padding: 18px;
+      background: white;
+      border-radius: 12px;
+      padding: 16px;
       box-shadow: var(--shadow);
-      border-left: 4px solid var(--navy-500);
+      border-left: 4px solid var(--primary-color);
       transition: var(--transition);
       cursor: pointer;
       position: relative;
       overflow: hidden;
     }
-
+    
     .evento-card:hover {
       transform: translateY(-2px);
       box-shadow: var(--shadow-md);
     }
-
+    
     .evento-card:active {
       transform: translateY(0);
     }
 
-    /* Card type variants */
+    /* ========================================
+       ESTILOS PARA BLOQUEIOS E REUNIÕES
+       ======================================== */
+    
+    /* Cards por tipo de registro */
     .evento-card.bloqueio {
       border-left-color: var(--danger-color);
-      background: linear-gradient(to right, rgba(239,68,68,0.03), var(--bg-card));
+      background: linear-gradient(to right, rgba(245, 101, 101, 0.05), white);
     }
-
+    
     .evento-card.reuniao {
-      border-left-color: var(--info-color);
-      background: linear-gradient(to right, rgba(59,130,246,0.03), var(--bg-card));
+      border-left-color: #4299e1;
+      background: linear-gradient(to right, rgba(66, 153, 225, 0.05), white);
     }
-
+    
+    /* Badge por tipo */
+    .evento-tipo-badge.bloqueio {
+      background: var(--danger-color);
+    }
+    
+    .evento-tipo-badge.reuniao {
+      background: #4299e1;
+    }
+    
+    /* Eventos com intervalo */
+    .evento-intervalo {
+      background: linear-gradient(to right, rgba(102, 126, 234, 0.08), white);
+    }
+    
+    .evento-periodo {
+      font-size: 13px;
+      color: var(--gray-600);
+      margin-top: 4px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    
+    /* Eventos dentro de intervalo (indentados) */
+    .evento-dentro {
+      margin-left: 20px;
+      margin-top: 8px;
+      padding: 10px;
+      background: rgba(255, 255, 255, 0.8);
+      border-left: 2px solid var(--gray-300);
+      border-radius: 8px;
+    }
+    
+    .evento-dentro-header {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--gray-700);
+      margin-bottom: 6px;
+    }
+    
+    .evento-dentro-item {
+      padding: 8px;
+      margin-bottom: 6px;
+      background: white;
+      border-radius: 6px;
+      font-size: 12px;
+      border: 1px solid var(--gray-200);
+    }
+    
+    .evento-dentro-item:last-child {
+      margin-bottom: 0;
+    }
+    
+    /* Status visual por tipo */
     .evento-card.passado {
-      opacity: 0.6;
+      opacity: 0.7;
       border-left-color: var(--gray-400);
     }
-
+    
     .evento-card.hoje {
       border-left-color: var(--success-color);
-      background: linear-gradient(to right, rgba(16,185,129,0.04), var(--bg-card));
+      background: linear-gradient(to right, rgba(72, 187, 120, 0.05), white);
     }
-
+    
     .evento-card.proximo {
-      border-left-color: var(--gold-500);
+      border-left-color: var(--warning-color);
     }
-
-    .evento-card.evento-intervalo {
-      background: linear-gradient(to right, rgba(30,58,95,0.04), var(--bg-card));
+    
+    .evento-card.bloqueio {
+      border-left-color: var(--danger-color);
+      background: linear-gradient(to right, rgba(245, 101, 101, 0.05), white);
     }
-
+    
     /* Status badge */
     .status-badge {
       position: absolute;
-      top: 14px;
-      right: 14px;
+      top: 12px;
+      right: 12px;
       padding: 4px 10px;
-      border-radius: var(--radius-full);
+      border-radius: 12px;
       font-size: 10px;
       font-weight: 700;
       text-transform: uppercase;
       letter-spacing: 0.5px;
     }
 
+   .conflict-badge {
+  margin-top: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(246, 173, 85, 0.15);
+  color: #c05621;
+  border: 1px solid rgba(246, 173, 85, 0.6);
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.conflict-badge:hover {
+  background: rgba(246, 173, 85, 0.25);
+}
+    
     .status-pendente {
-      background: rgba(245,158,11,0.12);
-      color: #b45309;
+      background: rgba(246, 173, 85, 0.2);
+      color: #c05621;
     }
-
+    
     .status-pago {
-      background: rgba(16,185,129,0.12);
-      color: #047857;
+      background: rgba(72, 187, 120, 0.2);
+      color: #22543d;
     }
-
+    
     .status-parcial {
-      background: rgba(59,130,246,0.12);
-      color: #1d4ed8;
+      background: rgba(66, 153, 225, 0.2);
+      color: #2c5282;
     }
-
-    /* Conflict badge */
-    .conflict-badge {
-      margin-top: 8px;
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      background: rgba(245,158,11,0.1);
-      color: #b45309;
-      border: 1px solid rgba(245,158,11,0.3);
-      padding: 6px 12px;
-      border-radius: var(--radius-full);
-      font-size: 12px;
-      font-weight: 700;
-      cursor: pointer;
-      transition: var(--transition);
-    }
-
-    .conflict-badge:hover {
-      background: rgba(245,158,11,0.18);
-    }
-
-    /* Card header */
+    
+    /* Cabeçalho do card */
     .evento-header {
       display: flex;
       justify-content: space-between;
@@ -463,147 +448,98 @@
       margin-bottom: 12px;
       padding-right: 80px;
     }
-
+    
     .evento-data-info {
       display: flex;
       flex-direction: column;
       gap: 4px;
     }
-
+    
     .evento-data {
-      font-size: 14px;
+      font-size: 15px;
       font-weight: 700;
-      color: var(--navy-600);
+      color: var(--primary-color);
       display: flex;
       align-items: center;
       gap: 6px;
     }
-
+    
     .evento-hora {
       font-size: 13px;
-      color: var(--gray-500);
+      color: var(--gray-600);
       display: flex;
       align-items: center;
       gap: 4px;
     }
-
-    .evento-periodo {
-      font-size: 12px;
-      color: var(--gray-500);
-      margin-top: 4px;
-      display: flex;
-      align-items: center;
-      gap: 4px;
-    }
-
+    
     .evento-tipo-badge {
-      background: var(--navy-600);
+      background: var(--primary-color);
       color: white;
       padding: 5px 12px;
-      border-radius: var(--radius-full);
-      font-size: 10px;
+      border-radius: 12px;
+      font-size: 11px;
       font-weight: 700;
       text-transform: uppercase;
       letter-spacing: 0.5px;
-      white-space: nowrap;
     }
-
-    .evento-tipo-badge.bloqueio {
-      background: var(--danger-color);
-    }
-
-    .evento-tipo-badge.reuniao {
-      background: var(--info-color);
-    }
-
-    /* Card content */
+    
+    /* Conteúdo do card */
     .evento-titulo {
-      font-size: 16px;
+      font-size: 17px;
       font-weight: 700;
-      color: var(--gray-800);
+      color: var(--gray-900);
       margin-bottom: 10px;
       line-height: 1.3;
     }
-
+    
     .evento-info {
       display: flex;
       flex-direction: column;
       gap: 6px;
       font-size: 13px;
-      color: var(--gray-600);
+      color: var(--gray-700);
     }
-
+    
     .evento-info-line {
       display: flex;
       align-items: flex-start;
       gap: 8px;
     }
-
+    
     .evento-info-icon {
-      color: var(--gray-400);
+      color: var(--gray-500);
       font-size: 14px;
       margin-top: 2px;
       flex-shrink: 0;
     }
-
+    
     .evento-info-label {
       font-weight: 600;
-      color: var(--gray-600);
+      color: var(--gray-700);
       min-width: 80px;
       flex-shrink: 0;
     }
-
+    
     .evento-info-value {
-      color: var(--gray-800);
+      color: var(--gray-900);
     }
-
-    /* Nested events (inside interval) */
-    .evento-dentro {
-      margin-left: 16px;
-      margin-top: 8px;
-      padding: 10px;
-      background: var(--gray-50);
-      border-left: 2px solid var(--gray-300);
-      border-radius: var(--radius-sm);
-    }
-
-    .evento-dentro-header {
-      font-size: 12px;
-      font-weight: 700;
-      color: var(--gray-600);
-      margin-bottom: 6px;
-    }
-
-    .evento-dentro-item {
-      padding: 10px;
-      margin-bottom: 6px;
-      background: var(--bg-card);
-      border-radius: var(--radius-sm);
-      font-size: 12px;
-      border: 1px solid var(--gray-200);
-    }
-
-    .evento-dentro-item:last-child {
-      margin-bottom: 0;
-    }
-
-    /* Card actions */
+    
+    /* Área de ações */
     .evento-actions {
       display: flex;
       gap: 8px;
-      margin-top: 14px;
-      padding-top: 14px;
+      margin-top: 12px;
+      padding-top: 12px;
       border-top: 1px solid var(--gray-200);
     }
-
+    
     .btn-action {
       flex: 1;
-      padding: 9px 12px;
-      border: 1.5px solid var(--gray-300);
-      background: var(--bg-card);
+      padding: 8px 12px;
+      border: 1px solid var(--gray-300);
+      background: white;
       color: var(--gray-700);
-      border-radius: var(--radius-sm);
-      font-family: var(--font);
+      border-radius: 8px;
       font-size: 13px;
       font-weight: 600;
       cursor: pointer;
@@ -613,33 +549,34 @@
       justify-content: center;
       gap: 6px;
     }
-
+    
     .btn-action:hover {
       background: var(--gray-50);
       border-color: var(--gray-400);
+      transform: translateY(-1px);
     }
-
+    
     .btn-action.primary {
-      background: var(--navy-600);
+      background: var(--primary-color);
       color: white;
-      border-color: var(--navy-600);
+      border-color: var(--primary-color);
     }
-
+    
     .btn-action.primary:hover {
-      background: var(--navy-700);
+      background: var(--primary-dark);
     }
-
-    /* ============================================
-       MODAL
-       ============================================ */
+    
+    /* ========================================
+       MODAL DE DETALHES
+       ======================================== */
     .modal-overlay {
       position: fixed;
       top: 0;
       left: 0;
       right: 0;
       bottom: 0;
-      background: rgba(10,22,40,0.6);
-      backdrop-filter: blur(6px);
+      background: rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(4px);
       display: none;
       justify-content: center;
       align-items: flex-start;
@@ -648,53 +585,63 @@
       overflow-y: auto;
       animation: fadeIn 0.2s ease-out;
     }
-
+    
     .modal-overlay.show {
       display: flex;
     }
-
+    
     @keyframes fadeIn {
-      from { opacity: 0; }
-      to { opacity: 1; }
+      from {
+        opacity: 0;
+      }
+      to {
+        opacity: 1;
+      }
     }
-
+    
     .modal-content {
-      background: var(--bg-card);
-      border-radius: var(--radius-xl);
+      background: white;
+      border-radius: 16px;
       max-width: 600px;
       width: 100%;
       margin-top: 40px;
       box-shadow: var(--shadow-lg);
       animation: slideUp 0.3s ease-out;
-      overflow: hidden;
     }
-
+    
     @keyframes slideUp {
-      from { transform: translateY(20px); opacity: 0; }
-      to { transform: translateY(0); opacity: 1; }
+      from {
+        transform: translateY(20px);
+        opacity: 0;
+      }
+      to {
+        transform: translateY(0);
+        opacity: 1;
+      }
     }
-
+    
     .modal-header {
-      background: var(--bg-header);
+      background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
       color: white;
-      padding: 20px 24px;
+      padding: 20px;
+      border-radius: 16px 16px 0 0;
       display: flex;
       justify-content: space-between;
       align-items: center;
     }
-
+    
     .modal-title {
-      font-size: 18px;
+      font-size: 20px;
       font-weight: 700;
     }
-
+    
     .modal-close {
-      background: rgba(255,255,255,0.1);
+      background: rgba(255, 255, 255, 0.2);
       border: none;
       color: white;
-      font-size: 22px;
-      width: 34px;
-      height: 34px;
+      font-size: 24px;
+      width: 32px;
+      height: 32px;
       border-radius: 50%;
       cursor: pointer;
       transition: var(--transition);
@@ -702,310 +649,287 @@
       align-items: center;
       justify-content: center;
     }
-
+    
     .modal-close:hover {
-      background: rgba(255,255,255,0.2);
+      background: rgba(255, 255, 255, 0.3);
       transform: rotate(90deg);
     }
-
+    
     .modal-body {
       padding: 24px;
-      max-height: 65vh;
+      max-height: 70vh;
       overflow-y: auto;
     }
-
+    
     .detail-section {
       margin-bottom: 24px;
     }
-
+    
     .detail-section:last-child {
       margin-bottom: 0;
     }
-
+    
     .detail-section-title {
-      font-size: 12px;
+      font-size: 14px;
       font-weight: 700;
-      color: var(--gray-500);
+      color: var(--gray-700);
       text-transform: uppercase;
-      letter-spacing: 1px;
-      margin-bottom: 14px;
+      letter-spacing: 0.5px;
+      margin-bottom: 12px;
       padding-bottom: 8px;
       border-bottom: 2px solid var(--gray-200);
     }
-
+    
     .detail-grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-      gap: 14px;
+      gap: 12px;
     }
-
+    
     .detail-item {
       display: flex;
       flex-direction: column;
       gap: 4px;
     }
-
+    
     .detail-label {
-      font-size: 11px;
-      font-weight: 700;
-      color: var(--gray-400);
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--gray-600);
       text-transform: uppercase;
       letter-spacing: 0.3px;
     }
-
+    
     .detail-value {
       font-size: 15px;
       font-weight: 600;
-      color: var(--gray-800);
+      color: var(--gray-900);
     }
-
+    
     .detail-value.money {
       color: var(--success-color);
       font-size: 16px;
     }
-
+    
     .modal-actions {
       padding: 16px 24px;
       background: var(--gray-50);
+      border-radius: 0 0 16px 16px;
       display: flex;
       gap: 12px;
-      border-top: 1px solid var(--gray-200);
     }
-
+    
     .btn-modal {
       flex: 1;
       padding: 12px;
       border: none;
-      border-radius: var(--radius-sm);
-      font-family: var(--font);
+      border-radius: 8px;
       font-size: 14px;
       font-weight: 600;
       cursor: pointer;
       transition: var(--transition);
     }
-
+    
     .btn-modal.primary {
-      background: var(--navy-600);
+      background: var(--primary-color);
       color: white;
     }
-
+    
     .btn-modal.primary:hover {
-      background: var(--navy-700);
+      background: var(--primary-dark);
+      transform: translateY(-2px);
       box-shadow: var(--shadow);
     }
-
+    
     .btn-modal.secondary {
-      background: var(--bg-card);
+      background: white;
       color: var(--gray-700);
-      border: 1.5px solid var(--gray-300);
+      border: 1px solid var(--gray-300);
     }
-
+    
     .btn-modal.secondary:hover {
-      background: var(--gray-100);
+      background: var(--gray-50);
     }
-
-    /* ============================================
-       STATES: Loading, Empty, Error
-       ============================================ */
+    
+    /* ========================================
+       ESTADOS ESPECIAIS
+       ======================================== */
     .loading-container {
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      padding: 80px 20px;
+      padding: 60px 20px;
       gap: 16px;
     }
-
+    
     .loading-spinner {
-      width: 40px;
-      height: 40px;
-      border: 3px solid var(--gray-200);
-      border-top-color: var(--gold-500);
+      width: 48px;
+      height: 48px;
+      border: 4px solid var(--gray-200);
+      border-top-color: var(--primary-color);
       border-radius: 50%;
-      animation: spin 0.8s linear infinite;
+      animation: spin 1s linear infinite;
     }
-
+    
     @keyframes spin {
-      to { transform: rotate(360deg); }
+      to {
+        transform: rotate(360deg);
+      }
     }
-
+    
     .loading-text {
       font-size: 14px;
-      color: var(--gray-500);
+      color: var(--gray-600);
       font-weight: 600;
     }
-
+    
     .empty-state {
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      padding: 80px 20px;
+      padding: 60px 20px;
       text-align: center;
-      gap: 12px;
+      gap: 16px;
     }
-
+    
     .empty-icon {
-      font-size: 48px;
+      font-size: 64px;
       opacity: 0.3;
     }
-
+    
     .empty-title {
-      font-size: 17px;
+      font-size: 18px;
       font-weight: 700;
       color: var(--gray-700);
     }
-
+    
     .empty-text {
       font-size: 14px;
-      color: var(--gray-500);
-      max-width: 360px;
-      line-height: 1.5;
+      color: var(--gray-600);
+      max-width: 400px;
     }
-
+    
     .error-state {
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      padding: 80px 20px;
+      padding: 60px 20px;
       text-align: center;
-      gap: 12px;
+      gap: 16px;
     }
-
+    
     .error-icon {
-      font-size: 48px;
+      font-size: 64px;
       color: var(--danger-color);
     }
-
+    
     .error-title {
-      font-size: 17px;
+      font-size: 18px;
       font-weight: 700;
       color: var(--danger-color);
     }
-
+    
     .error-text {
       font-size: 14px;
-      color: var(--gray-500);
-      max-width: 360px;
-      line-height: 1.5;
+      color: var(--gray-600);
+      max-width: 400px;
     }
-
-    /* ============================================
-       BOTTOM NAVIGATION
-       ============================================ */
+    
+    /* ========================================
+       NAVEGAÇÃO INFERIOR
+       ======================================== */
     .footer-nav {
       position: fixed;
       bottom: 0;
       left: 0;
       right: 0;
-      height: var(--bottom-nav-height);
-      background: var(--bg-header);
-      border-top: 1px solid rgba(255,255,255,0.06);
+      background: white;
+      border-top: 1px solid var(--gray-200);
+      padding: 12px;
       display: flex;
-      align-items: center;
       justify-content: space-around;
+      box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
       z-index: 50;
-      padding-bottom: env(safe-area-inset-bottom);
     }
-
+    
     .footer-btn {
       background: none;
       border: none;
-      color: rgba(255,255,255,0.4);
-      font-size: 20px;
-      padding: 8px 18px;
+      color: var(--primary-color);
+      font-size: 24px;
+      padding: 8px 20px;
       cursor: pointer;
       transition: var(--transition);
-      border-radius: var(--radius-md);
+      border-radius: 12px;
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 3px;
-      -webkit-tap-highlight-color: transparent;
+      gap: 4px;
     }
-
+    
     .footer-btn:hover {
-      color: var(--gold-400);
-      background: rgba(212,168,83,0.08);
+      background: var(--gray-50);
     }
-
+    
     .footer-btn:active {
       transform: scale(0.95);
     }
-
+    
     .footer-btn-label {
-      font-family: var(--font);
       font-size: 10px;
-      font-weight: 700;
+      font-weight: 600;
       text-transform: uppercase;
       letter-spacing: 0.5px;
     }
-
-    /* ============================================
-       RESPONSIVE
-       ============================================ */
+    
+    /* ========================================
+       RESPONSIVIDADE
+       ======================================== */
     @media (max-width: 640px) {
       .header h1 {
-        font-size: 16px;
+        font-size: 18px;
       }
-
+      
       .header-stats {
         font-size: 11px;
       }
-
+      
       .filters-grid {
         grid-template-columns: 1fr;
       }
-
+      
       .evento-header {
         flex-direction: column;
         gap: 8px;
-        padding-right: 70px;
       }
-
+      
       .modal-content {
-        margin-top: 16px;
+        margin-top: 20px;
       }
-
+      
       .detail-grid {
         grid-template-columns: 1fr;
       }
     }
-
-    @media (min-width: 768px) {
-      .footer-nav {
-        display: none;
-      }
-
-      body {
-        padding-bottom: 24px;
-      }
-
-      .eventos-container {
-        padding: 24px;
-      }
-
-      .header {
-        padding: 18px 24px;
-      }
-    }
-
-    /* ============================================
-       UTILITIES
-       ============================================ */
+    
+    /* ========================================
+       UTILITÁRIOS
+       ======================================== */
     .hidden {
       display: none !important;
     }
-
+    
     .text-center {
       text-align: center;
     }
-
+    
     .mt-2 {
       margin-top: 8px;
     }
-
+    
     .mb-2 {
       margin-bottom: 8px;
     }
@@ -1013,11 +937,11 @@
 </head>
 
 <body>
-  <!-- Header -->
+  <!-- Cabeçalho -->
   <div class="header">
     <div class="header-content">
       <h1>
-        <i data-lucide="calendar-days" style="width:22px;height:22px;color:var(--gold-400)"></i>
+        <span>📅</span>
         <span>Agenda de Eventos</span>
       </h1>
       <div class="header-stats">
@@ -1039,7 +963,7 @@
       <button class="filter-btn" data-filter="todos">Todos</button>
     </div>
 
-    <!-- Toggle filtros avançados -->
+    <!-- Botão toggle filtros avançados -->
     <button class="toggle-filters" id="toggleAdvanced">
       <span id="toggleIcon">▼</span>
       <span id="toggleText">Filtros Avançados</span>
@@ -1093,10 +1017,10 @@
       </div>
       <div class="filter-actions">
         <button class="btn-filter btn-primary" id="btnAplicarFiltros">
-          Aplicar Filtros
+          🔍 Aplicar Filtros
         </button>
         <button class="btn-filter btn-secondary" id="btnLimparFiltros">
-          Limpar
+          ✕ Limpar
         </button>
       </div>
     </div>
@@ -1115,7 +1039,7 @@
     <div class="modal-content">
       <div class="modal-header">
         <h2 class="modal-title">Detalhes do Evento</h2>
-        <button class="modal-close" id="btnFecharModal">&times;</button>
+        <button class="modal-close" id="btnFecharModal">×</button>
       </div>
       <div class="modal-body" id="modalBody">
         <!-- Conteúdo dinâmico -->
@@ -1126,25 +1050,24 @@
     </div>
   </div>
 
-  <!-- Bottom Navigation -->
+  <!-- Navegação inferior -->
   <div class="footer-nav">
     <button class="footer-btn" onclick="irParaHome()">
-      <i data-lucide="layout-grid" style="width:22px;height:22px"></i>
+      <span>🏠</span>
       <span class="footer-btn-label">Home</span>
     </button>
     <button class="footer-btn" id="btnRecarregar">
-      <i data-lucide="refresh-cw" style="width:22px;height:22px"></i>
+      <span>🔄</span>
       <span class="footer-btn-label">Atualizar</span>
     </button>
     <button class="footer-btn" id="btnToggleFilters">
-      <i data-lucide="search" style="width:22px;height:22px"></i>
+      <span>🔍</span>
       <span class="footer-btn-label">Filtros</span>
     </button>
   </div>
 
-  <!-- ============================================
-       JAVASCRIPT (INTOCADO — cópia exata do original)
-       ============================================ -->
+  
+  <!-- JavaScript -->
   <script>
     // ========================================
     // DEBUG ATIVO
@@ -1159,7 +1082,7 @@
       nome: localStorage.getItem('auth_nome'),
       perfil: localStorage.getItem('auth_perfil')
     };
-
+    
 
    // 🔐 Proteção de sessão
 if (!AUTH.email) {
@@ -1167,7 +1090,7 @@ if (!AUTH.email) {
 }
 
 
-
+  
     // ========================================
     // CONFIGURAÇÕES E CONSTANTES
     // ========================================
@@ -1189,14 +1112,14 @@ if (!AUTH.email) {
   debug: false,       // ← ADICIONAR
   viewport: { start: 0, end: 0 }
 },
-
+  
   // Configurações globais
   config: {
     AGENDA_FILTRO_PADRAO: 'proximos',
     AGENDA_CACHE_TIMEOUT: 300000,
     AGENDA_CORES_PERSONALIZADAS: true
   },
-
+  
   // Cache de eventos
   cache: {
     timestamp: 0,
@@ -1208,7 +1131,7 @@ if (!AUTH.email) {
       filtroAtivo: 'todos',
       ultimaAtualizacao: null,
       loading: false
-
+      
     };
 
     // ========================================
@@ -1218,14 +1141,14 @@ if (!AUTH.email) {
       log(...args) {
         console.log('[AgendaVisual]', ...args);
       },
-
+      
       error(...args) {
         console.error('[AgendaVisual]', ...args);
       },
-
+      
       formatarData(data) {
         if (!data) return '';
-
+        
         try {
           let dataObj;
           if (data instanceof Date) {
@@ -1235,7 +1158,7 @@ if (!AUTH.email) {
             if (data.includes('/')) {
               const [dia, mes, ano] = data.split('/');
               dataObj = new Date(ano, mes - 1, dia, 12, 0, 0);
-            }
+            } 
             // Tenta YYYY-MM-DD
             else if (data.includes('-')) {
               dataObj = new Date(data + 'T12:00:00');
@@ -1245,9 +1168,9 @@ if (!AUTH.email) {
           } else {
             dataObj = new Date(data);
           }
-
+          
           if (isNaN(dataObj.getTime())) return '';
-
+          
           return dataObj.toLocaleDateString('pt-BR', {
             weekday: 'short',
             day: '2-digit',
@@ -1259,10 +1182,10 @@ if (!AUTH.email) {
           return '';
         }
       },
-
+      
       formatarHora(hora) {
         if (!hora) return '';
-
+        
         try {
           if (hora instanceof Date) {
             return hora.toLocaleTimeString('pt-BR', {
@@ -1270,17 +1193,17 @@ if (!AUTH.email) {
               minute: '2-digit'
             });
           }
-
+          
           return hora.toString();
         } catch (e) {
           Utils.error('Erro ao formatar hora:', e);
           return '';
         }
       },
-
+      
       formatarMoeda(valor) {
         if (!valor && valor !== 0) return 'R$ 0,00';
-
+        
         try {
           return new Intl.NumberFormat('pt-BR', {
             style: 'currency',
@@ -1291,7 +1214,7 @@ if (!AUTH.email) {
           return 'R$ 0,00';
         }
       },
-
+      
      /**
        * Parse robusto de data DD/MM/YYYY
        * Valida formato, componentes e data real
@@ -1301,10 +1224,10 @@ if (!AUTH.email) {
           Utils.log('⚠️ parseData: data vazia');
           return null;
         }
-
+        
         try {
           let dataObj;
-
+          
           // Se já é Date, valida e retorna
           if (dataStr instanceof Date) {
             if (isNaN(dataStr.getTime())) {
@@ -1313,107 +1236,107 @@ if (!AUTH.email) {
             }
             return dataStr;
           }
-
+          
           // Converte para string
           const str = String(dataStr).trim();
-
+          
           // Formato DD/MM/YYYY
           if (str.includes('/')) {
             const regex = /^(\d{2})\/(\d{2})\/(\d{4})$/;
             const match = str.match(regex);
-
+            
             if (!match) {
               Utils.error('Formato inválido (esperado DD/MM/YYYY):', str);
               return null;
             }
-
+            
             const dia = parseInt(match[1], 10);
             const mes = parseInt(match[2], 10) - 1; // 0-based
             const ano = parseInt(match[3], 10);
-
+            
             // Validações básicas
             if (ano < 1900 || ano > 2100) {
               Utils.error('Ano inválido:', ano);
               return null;
             }
-
+            
             if (mes < 0 || mes > 11) {
               Utils.error('Mês inválido:', mes + 1);
               return null;
             }
-
+            
             if (dia < 1 || dia > 31) {
               Utils.error('Dia inválido:', dia);
               return null;
             }
-
+            
             // Cria data (meio-dia para evitar problemas de fuso)
             dataObj = new Date(ano, mes, dia, 12, 0, 0, 0);
-
+            
             // Valida se data é válida (31/02 vira 03/03)
             if (isNaN(dataObj.getTime())) {
               Utils.error('Data inválida:', str);
               return null;
             }
-
+            
             // Valida se componentes batem
-            if (dataObj.getDate() !== dia ||
-                dataObj.getMonth() !== mes ||
+            if (dataObj.getDate() !== dia || 
+                dataObj.getMonth() !== mes || 
                 dataObj.getFullYear() !== ano) {
               Utils.error('Data inexistente (ex: 31/02):', str);
               return null;
             }
-
+            
             return dataObj;
           }
-
+          
           // Formato ISO (YYYY-MM-DD)
           if (str.includes('-')) {
             dataObj = new Date(str + 'T12:00:00');
-
+            
             if (isNaN(dataObj.getTime())) {
               Utils.error('Data inválida (ISO):', str);
               return null;
             }
-
+            
             return dataObj;
           }
-
+          
           // Formato desconhecido
           Utils.error('Formato desconhecido:', str);
           return null;
-
+          
         } catch (e) {
           Utils.error('Erro ao fazer parse de data:', e.message, dataStr);
           return null;
         }
       },
-
+      
       classificarEvento(dataEvento) {
         try {
           const hoje = new Date();
           hoje.setHours(0, 0, 0, 0);
-
+          
           const data = Utils.parseData(dataEvento);
           if (!data) return 'futuro';
-
+          
           data.setHours(0, 0, 0, 0);
-
+          
           if (data < hoje) return 'passado';
           if (data.getTime() === hoje.getTime()) return 'hoje';
-
+          
           const proximos7 = new Date(hoje);
           proximos7.setDate(hoje.getDate() + 7);
-
+          
           if (data <= proximos7) return 'proximo';
-
+          
           return 'futuro';
         } catch (e) {
           Utils.error('Erro ao classificar evento:', e);
           return 'futuro';
         }
       },
-
+      
       getStatusBadge(status) {
         const badges = {
           'Pendente': 'status-pendente',
@@ -1421,10 +1344,10 @@ if (!AUTH.email) {
           'Parcial': 'status-parcial',
           'Parcialmente Pago': 'status-parcial'
         };
-
+        
         return badges[status] || 'status-pendente';
       },
-
+      
       getStatusLabel(status) {
         const labels = {
           'Pendente': 'Pendente',
@@ -1432,28 +1355,28 @@ if (!AUTH.email) {
           'Parcial': 'Parcial',
           'Parcialmente Pago': 'Parcial'
         };
-
+        
         return labels[status] || status;
       },
 calcularDiasIntervalo(dataInicio, dataFim) {
     try {
       const inicio = Utils.parseData(dataInicio);
       const fim = Utils.parseData(dataFim);
-
+      
       if (!inicio || !fim) return 0;
-
+      
       const diff = fim - inicio;
       const dias = Math.ceil(diff / (1000 * 60 * 60 * 24)) + 1;
-
+      
       return dias;
     } catch (e) {
       return 0;
     }
   },
-
+  
   formatarDataCurta(data) {
     if (!data) return '';
-
+    
     try {
       let dataObj;
       if (data instanceof Date) {
@@ -1470,9 +1393,9 @@ calcularDiasIntervalo(dataInicio, dataFim) {
       } else {
         dataObj = new Date(data);
       }
-
+      
       if (isNaN(dataObj.getTime())) return '';
-
+      
       return dataObj.toLocaleDateString('pt-BR', {
         day: '2-digit',
         month: '2-digit'
@@ -1481,7 +1404,7 @@ calcularDiasIntervalo(dataInicio, dataFim) {
       return '';
     }
   }
-
+      
     };
 
     // ========================================
@@ -1500,7 +1423,7 @@ calcularDiasIntervalo(dataInicio, dataFim) {
           `;
         }
       },
-
+      
       showEmpty(mensagem = 'Nenhum evento encontrado', icone = '📅') {
         Utils.log('Mostrando empty state...');
         const container = document.getElementById('eventosContainer');
@@ -1510,15 +1433,15 @@ calcularDiasIntervalo(dataInicio, dataFim) {
               <div class="empty-icon">${icone}</div>
               <div class="empty-title">${mensagem}</div>
               <div class="empty-text">
-                ${AppState.filtroAtivo !== 'todos'
-                  ? 'Tente ajustar os filtros ou criar um novo evento.'
+                ${AppState.filtroAtivo !== 'todos' 
+                  ? 'Tente ajustar os filtros ou criar um novo evento.' 
                   : 'Cadastre novos eventos para visualizá-los aqui.'}
               </div>
             </div>
           `;
         }
       },
-
+      
       showError(mensagem = 'Erro ao carregar eventos') {
         Utils.error('Mostrando erro:', mensagem);
         const container = document.getElementById('eventosContainer');
@@ -1535,24 +1458,24 @@ calcularDiasIntervalo(dataInicio, dataFim) {
           `;
         }
       },
-
+      
       atualizarHeader() {
         const count = AppState.eventosFiltrados.length;
         const countEl = document.getElementById('eventoCount');
         if (countEl) {
           countEl.textContent = `${count} evento${count !== 1 ? 's' : ''}`;
         }
-
+        
         if (AppState.usuario) {
           const profileEl = document.getElementById('userProfile');
           if (profileEl) {
             profileEl.textContent = AppState.usuario.perfil || 'Usuário';
           }
         }
-
+        
         // Informações adicionais
         const info = [];
-
+        
         if (AppState.ultimaAtualizacao) {
           const tempo = new Date(AppState.ultimaAtualizacao).toLocaleTimeString('pt-BR', {
             hour: '2-digit',
@@ -1560,22 +1483,22 @@ calcularDiasIntervalo(dataInicio, dataFim) {
           });
           info.push(`Atualizado às ${tempo}`);
         }
-
+        
         if (AppState.filtroAtivo !== 'todos') {
           info.push(`Filtro: ${AppState.filtroAtivo}`);
         }
-
+        
         const infoEl = document.getElementById('headerInfo');
         if (infoEl) {
           infoEl.innerHTML = info.join(' • ');
         }
       },
-
+      
        renderizarEventos(eventos) {
     Utils.log('📋 Renderizando eventos:', eventos.length);
-
+    
     const container = document.getElementById('eventosContainer');
-
+    
     if (!eventos || eventos.length === 0) {
       container.innerHTML = `
         <div class="empty-state">
@@ -1586,26 +1509,26 @@ calcularDiasIntervalo(dataInicio, dataFim) {
       `;
       return;
     }
-
+    
     // NOVA LÓGICA: Usa virtualização ou renderização normal
     if (AppState.virtualizacao.enabled && eventos.length >= AppState.virtualizacao.threshold) {
       this.renderizarEventosVirtualizados(eventos);
     } else {
       this.renderizarEventosNormal(eventos);
     }
-
+    
     // Atualiza contador
     document.getElementById('eventoCount').textContent = `${eventos.length} eventos`;
   },
-
+      
       /**
  * ========================================
  * MODIFICAÇÃO 5: FUNÇÃO criarCardEvento()
  * ========================================
- *
+ * 
  * LOCALIZAÇÃO: Busque por "criarCardEvento(evento) {" no arquivo
  * AÇÃO: SUBSTITUIR toda a função antiga por esta
- *
+ * 
  * Esta é a função mais longa - ~150 linhas
  * Suporta: Eventos, Bloqueios, Reuniões e Intervalos
  */
@@ -1613,19 +1536,19 @@ calcularDiasIntervalo(dataInicio, dataFim) {
 criarCardEvento(evento) {
   const classificacao = Utils.classificarEvento(evento.data);
   const dataFormatada = Utils.formatarData(evento.data);
-
+  
   // Verifica permissões
-  const podeVerValor = AppState.usuario &&
+  const podeVerValor = AppState.usuario && 
     (AppState.usuario.perfil === 'Proprietário' || AppState.usuario.perfil === 'Sócio');
-
-  const podeEditar = AppState.usuario &&
+  
+  const podeEditar = AppState.usuario && 
     (AppState.usuario.perfil === 'Proprietário' || AppState.usuario.perfil === 'Sócio');
-
+  
   // Define classe e ícone por tipo
   let classeExtra = '';
   let icone = '🎵';
   let badgeLabel = evento.projeto || evento.tipoEvento;
-
+  
   if (evento.tipo === 'Bloqueio') {
     classeExtra = 'bloqueio';
     icone = '🚫';
@@ -1635,7 +1558,7 @@ criarCardEvento(evento) {
     icone = '📅';
     badgeLabel = 'REUNIÃO';
   }
-
+  
   // Badge de status (só para Eventos com valor financeiro)
   let statusBadge = '';
   if (evento.tipo === 'Evento' && podeVerValor && evento.status) {
@@ -1653,17 +1576,17 @@ if (evento.eventosDentro && evento.eventosDentro.length > 0) {
     </div>
   `;
 }
-
+  
   // Monta HTML baseado no tipo
   let cardHTML = '';
-
+  
   // ========================================
   // EVENTO COM INTERVALO (tem dataFim)
   // ========================================
   if (evento.dataFim) {
     const dataFimFormatada = Utils.formatarData(evento.dataFim);
     const diasIntervalo = Utils.calcularDiasIntervalo(evento.data, evento.dataFim);
-
+    
     cardHTML = `
       <div class="evento-card ${classificacao} ${classeExtra} evento-intervalo" data-evento-id="${evento.id}">
         ${statusBadge}
@@ -1681,11 +1604,11 @@ if (evento.eventosDentro && evento.eventosDentro.length > 0) {
             ${badgeLabel}
           </div>
         </div>
-
+        
         <div class="evento-titulo">
-
+          
           ${evento.tipoEvento}${evento.contratante ? ' ' + evento.contratante : ''}
-
+          
         </div>
         ${conflictBadge}
         <div class="evento-info">
@@ -1696,9 +1619,9 @@ if (evento.eventosDentro && evento.eventosDentro.length > 0) {
             </div>
           ` : ''}
         </div>
-
+        
         ${UI.renderizarEventosDentro(evento)}
-
+        
         ${podeEditar ? `
           <div class="evento-actions">
             <button class="btn-action" onclick="verDetalhesEvento('${evento.id}'); event.stopPropagation();">
@@ -1711,8 +1634,8 @@ if (evento.eventosDentro && evento.eventosDentro.length > 0) {
         ` : ''}
       </div>
     `;
-
-  }
+    
+  } 
   // ========================================
   // EVENTO PONTUAL (sem dataFim)
   // ========================================
@@ -1733,7 +1656,7 @@ if (evento.eventosDentro && evento.eventosDentro.length > 0) {
         `;
       }
     }
-
+    
     cardHTML = `
       <div class="evento-card ${classificacao} ${classeExtra}" data-evento-id="${evento.id}">
         ${statusBadge}
@@ -1749,11 +1672,11 @@ if (evento.eventosDentro && evento.eventosDentro.length > 0) {
             ${badgeLabel}
           </div>
         </div>
-
+        
         <div class="evento-titulo">
           ${evento.tipoEvento}${evento.contratante ? ' ' + evento.contratante : ''}
         </div>
-
+        
         <div class="evento-info">
           ${evento.local ? `
             <div class="evento-info-line">
@@ -1761,7 +1684,7 @@ if (evento.eventosDentro && evento.eventosDentro.length > 0) {
               <span class="evento-info-value">${evento.local}</span>
             </div>
           ` : ''}
-
+          
           ${podeVerValor && evento.valor && evento.tipo === 'Evento' ? `
             <div class="evento-info-line">
               <span class="evento-info-icon">💰</span>
@@ -1769,7 +1692,7 @@ if (evento.eventosDentro && evento.eventosDentro.length > 0) {
             </div>
           ` : ''}
         </div>
-
+        
         ${podeEditar ? `
           <div class="evento-actions">
             <button class="btn-action" onclick="verDetalhesEvento('${evento.id}'); event.stopPropagation();">
@@ -1783,7 +1706,7 @@ if (evento.eventosDentro && evento.eventosDentro.length > 0) {
       </div>
     `;
   }
-
+  
   return cardHTML;
 },
   /**
@@ -1791,93 +1714,93 @@ if (evento.eventosDentro && evento.eventosDentro.length > 0) {
    */
   renderizarEventosVirtualizados(eventos) {
     Utils.log('Renderizando com virtualização:', eventos.length);
-
+    
     if (!AppState.virtualizacao.enabled || eventos.length < AppState.virtualizacao.threshold) {
-
+      
       return this.renderizarEventosNormal(eventos);
     }
-
+    
     // Calcula viewport
     const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
     const viewportHeight = window.innerHeight;
-
+    
     const itemHeight = AppState.virtualizacao.itemHeight;
     const buffer = AppState.virtualizacao.buffer;
-
+    
     // Índices visíveis
     const startIndex = Math.max(0, Math.floor(scrollTop / itemHeight) - buffer);
     const endIndex = Math.min(
       eventos.length,
       Math.ceil((scrollTop + viewportHeight) / itemHeight) + buffer
     );
-
+    
     AppState.virtualizacao.viewport = { start: startIndex, end: endIndex };
-
+    
     Utils.log(`Viewport: ${startIndex} → ${endIndex} de ${eventos.length}`);
-
+    
     // Container
     const container = document.getElementById('eventosContainer');
-
+    
     // Altura total (para manter scroll)
     const totalHeight = eventos.length * itemHeight;
-
+    
     // Offset do primeiro item
     const offsetY = startIndex * itemHeight;
-
+    
     let html = `
       <div style="height: ${totalHeight}px; position: relative;">
         <div class="eventos-list" style="position: absolute; top: ${offsetY}px; left: 0; right: 0;">
     `;
-
+    
     // Renderiza apenas eventos visíveis
     for (let i = startIndex; i < endIndex; i++) {
       html += this.criarCardEvento(eventos[i]);
     }
-
+    
     html += `
         </div>
       </div>
     `;
-
+    
     container.innerHTML = html;
-
+    
     // Debug info
     const info = document.createElement('div');
     info.style.cssText = 'position: fixed; bottom: 80px; right: 20px; background: rgba(0,0,0,0.8); color: white; padding: 8px 12px; border-radius: 8px; font-size: 11px; z-index: 999;';
     info.innerHTML = `📊 ${startIndex}-${endIndex}/${eventos.length}`;
     document.body.appendChild(info);
-
+    
     setTimeout(() => info.remove(), 2000);
-
+   
 // Debug info (se ativado na CONFIG)
 if (AppState.virtualizacao.debug) {  // ✅ CORRETO
   this.mostrarDebugVirtualizacao(startIndex, endIndex, eventos.length);
 }
   },
-
+  
   /**
    * Renderiza eventos normalmente (sem virtualização)
    */
   renderizarEventosNormal(eventos) {
     Utils.log('Renderizando normalmente:', eventos.length);
-
+    
     const container = document.getElementById('eventosContainer');
-
+    
     let html = '<div class="eventos-list">';
-
+    
     eventos.forEach(evento => {
       html += this.criarCardEvento(evento);
     });
-
+    
     html += '</div>';
-
+    
     container.innerHTML = html;
   },
   mostrarDebugVirtualizacao(start, end, total) {
   // Remove info anterior
   const oldInfo = document.getElementById('virtualizacao-debug');
   if (oldInfo) oldInfo.remove();
-
+  
   // Cria container principal
   const info = document.createElement('div');
   info.id = 'virtualizacao-debug';
@@ -1895,50 +1818,50 @@ if (AppState.virtualizacao.debug) {  // ✅ CORRETO
     box-shadow: 0 4px 12px rgba(0,0,0,0.3);
     min-width: 200px;
   `;
-
+  
   // Calcula valores
   const renderizados = end - start;
   const percentual = ((renderizados / total) * 100).toFixed(1);
-
+  
   // Título
   const titulo = document.createElement('div');
   titulo.style.cssText = 'margin-bottom: 8px; font-weight: bold; color: #4ade80;';
   titulo.textContent = '⚡ VIRTUALIZAÇÃO';
   info.appendChild(titulo);
-
+  
   // Total
   const totalDiv = document.createElement('div');
   totalDiv.textContent = `📊 Total: ${total} eventos`;
   info.appendChild(totalDiv);
-
+  
   // Visíveis
   const visiveisDiv = document.createElement('div');
   visiveisDiv.textContent = `👁️ Visíveis: ${start}→${end}`;
   info.appendChild(visiveisDiv);
-
+  
   // Renderizados
   const renderizadosDiv = document.createElement('div');
   renderizadosDiv.textContent = `🎨 Renderizados: ${renderizados} (${percentual}%)`;
   info.appendChild(renderizadosDiv);
-
+  
   // Separador
   const separador = document.createElement('div');
   separador.style.cssText = 'margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.2);';
-
+  
   // Config
   const configDiv = document.createElement('div');
   configDiv.style.cssText = 'font-size: 10px; color: #fbbf24;';
   configDiv.textContent = `⚙️ Config: threshold=${AppState.virtualizacao.threshold}, buffer=${AppState.virtualizacao.buffer}`;
   separador.appendChild(configDiv);
-
+  
   info.appendChild(separador);
-
+  
   // Texto scroll
   const scrollDiv = document.createElement('div');
   scrollDiv.style.cssText = 'margin-top: 4px; font-size: 10px; color: #aaa;';
   scrollDiv.textContent = 'Scroll para atualizar';
   info.appendChild(scrollDiv);
-
+  
   // Adiciona ao body
   document.body.appendChild(info);
 },
@@ -1970,26 +1893,26 @@ mostrarConflitos(eventoId) {
   `;
   modal.classList.add('show');
 },
-
+  
       mostrarDetalhes(evento) {
         Utils.log('Mostrando detalhes do evento:', evento.id);
-
+        
         const modal = document.getElementById('modalDetalhes');
         const modalBody = document.getElementById('modalBody');
         const modalActions = document.getElementById('modalActions');
-
+        
         if (!modal || !modalBody || !modalActions) {
           Utils.error('Elementos do modal não encontrados!');
           return;
         }
-
+        
         // Verifica permissões
-        const podeVerValor = AppState.usuario &&
+        const podeVerValor = AppState.usuario && 
           (AppState.usuario.perfil === 'Proprietário' || AppState.usuario.perfil === 'Sócio');
-
-        const podeEditar = AppState.usuario &&
+        
+        const podeEditar = AppState.usuario && 
           (AppState.usuario.perfil === 'Proprietário' || AppState.usuario.perfil === 'Sócio');
-
+        
         // Monta o HTML dos detalhes
         let html = `
           <div class="detail-section">
@@ -2013,7 +1936,7 @@ mostrarConflitos(eventoId) {
               </div>
             </div>
           </div>
-
+          
           <div class="detail-section">
             <div class="detail-section-title">👥 Contratante e Local</div>
             <div class="detail-grid">
@@ -2028,7 +1951,7 @@ mostrarConflitos(eventoId) {
             </div>
           </div>
         `;
-
+        
         // Seção financeira (apenas para Proprietário e Sócio)
         if (podeVerValor) {
           html += `
@@ -2047,16 +1970,16 @@ mostrarConflitos(eventoId) {
             </div>
           `;
         }
-
+        
         modalBody.innerHTML = html;
-
+        
         // Botões de ação
         let actionsHtml = `
           <button class="btn-modal secondary" onclick="fecharModal()">
             Fechar
           </button>
         `;
-
+        
         if (podeEditar) {
           actionsHtml = `
             <button class="btn-modal secondary" onclick="fecharModal()">
@@ -2067,16 +1990,16 @@ mostrarConflitos(eventoId) {
             </button>
           `;
         }
-
+        
         modalActions.innerHTML = actionsHtml;
-
+        
         // Mostra o modal
         modal.classList.add('show');
       },
-
+      
       popularFiltrosAvancados() {
         Utils.log('Populando filtros avançados...');
-
+        
         try {
           // Tipos de evento únicos
           const tipos = [...new Set(AppState.eventos.map(e => e.tipoEvento))].filter(Boolean).sort();
@@ -2094,7 +2017,7 @@ mostrarConflitos(eventoId) {
               selectTipo.appendChild(option);
             });
           }
-
+          
           // Locais únicos
           const locais = [...new Set(AppState.eventos.map(e => e.local))].filter(Boolean).sort();
           const selectLocal = document.getElementById('filterLocal');
@@ -2123,50 +2046,50 @@ mostrarConflitos(eventoId) {
     const FiltroManager = {
       filtrarPorPerfil(eventos) {
     Utils.log('Filtrando eventos por perfil...');
-
+    
     if (!AppState.usuario) {
       Utils.log('Sem usuário, retornando array vazio');
       return [];
     }
-
+    
     const perfil = AppState.usuario.perfil;
     Utils.log('Perfil do usuário:', perfil);
-
+    
     // Proprietário e Sócio veem TUDO
     if (perfil === 'Proprietário' || perfil === 'Sócio') {
       Utils.log('Proprietário/Sócio: mostrando todos os eventos');
-
+      
       // Mostra filtro de tipo de registro
       const filterGroup = document.getElementById('filterTipoRegistroGroup');
       if (filterGroup) {
         filterGroup.style.display = 'flex';
       }
-
+      
       return eventos;
     }
-
+    
     // Músicos veem APENAS Eventos
     Utils.log('Músico: filtrando apenas tipo Evento');
     return eventos.filter(e => e.tipo === 'Evento');
   },
       aplicarFiltroRapido(tipo) {
         Utils.log('Aplicando filtro rápido:', tipo);
-
+        
         AppState.filtroAtivo = tipo;
-
+        
         const hoje = new Date();
         hoje.setHours(0, 0, 0, 0);
-
+        
         let eventosFiltrados = [...AppState.eventos];
-
+        
         switch (tipo) {
           case 'todos':
             // LIMITE PARA FILTRO "TODOS"
             const LIMITE_TODOS = 200;
-
+            
             if (eventosFiltrados.length > LIMITE_TODOS) {
               Utils.log(`⚠️ Muitos eventos (${eventosFiltrados.length}), limitando a ${LIMITE_TODOS}`);
-
+              
               // Mostra alerta
               const alertDiv = document.createElement('div');
               alertDiv.style.cssText = `
@@ -2190,21 +2113,21 @@ mostrarConflitos(eventoId) {
                 <br>
                 💡 Use filtros para uma experiência melhor.
               `;
-
+              
               document.body.appendChild(alertDiv);
-
+              
               setTimeout(() => {
                 alertDiv.style.transition = 'opacity 0.3s ease-out';
                 alertDiv.style.opacity = '0';
                 setTimeout(() => alertDiv.remove(), 300);
               }, 5000);
-
+              
               // Limita eventos
               eventosFiltrados = eventosFiltrados.slice(0, LIMITE_TODOS);
             }
             // Não filtra nada
             break;
-
+            
           case 'hoje':
             eventosFiltrados = eventosFiltrados.filter(e => {
               const data = Utils.parseData(e.data);
@@ -2213,7 +2136,7 @@ mostrarConflitos(eventoId) {
               return data.getTime() === hoje.getTime();
             });
             break;
-
+            
           case 'proximos7':
             const proximos7 = new Date(hoje);
             proximos7.setDate(hoje.getDate() + 7);
@@ -2224,7 +2147,7 @@ mostrarConflitos(eventoId) {
               return data >= hoje && data <= proximos7;
             });
             break;
-
+            
           case 'mesAtual':
             const mesAtual = hoje.getMonth();
             const anoAtual = hoje.getFullYear();
@@ -2234,7 +2157,7 @@ mostrarConflitos(eventoId) {
               return data.getMonth() === mesAtual && data.getFullYear() === anoAtual;
             });
             break;
-
+            
           case 'proximos':
             eventosFiltrados = eventosFiltrados.filter(e => {
               const data = Utils.parseData(e.data);
@@ -2244,17 +2167,17 @@ mostrarConflitos(eventoId) {
             });
             break;
         }
-
+        
         Utils.log('Eventos filtrados:', eventosFiltrados.length);
-
+        
         AppState.eventosFiltrados = eventosFiltrados;
         UI.renderizarEventos(eventosFiltrados);
         UI.atualizarHeader();
       },
-
+      
       aplicarFiltrosAvancados() {
         Utils.log('Aplicando filtros avançados...');
-
+        
         try {
           const dataInicio = document.getElementById('filterDataInicio')?.value || '';
           const dataFim = document.getElementById('filterDataFim')?.value || '';
@@ -2262,9 +2185,9 @@ mostrarConflitos(eventoId) {
           const status = document.getElementById('filterStatus')?.value || '';
           const local = document.getElementById('filterLocal')?.value || '';
           const busca = (document.getElementById('filterBusca')?.value || '').toLowerCase();
-
+          
           let eventosFiltrados = [...AppState.eventos];
-
+          
           // Filtro de data início
           if (dataInicio) {
             const dataInicioObj = new Date(dataInicio + 'T00:00:00');
@@ -2273,7 +2196,7 @@ mostrarConflitos(eventoId) {
               return data >= dataInicioObj;
             });
           }
-
+          
           // Filtro de data fim
           if (dataFim) {
             const dataFimObj = new Date(dataFim + 'T23:59:59');
@@ -2282,22 +2205,22 @@ mostrarConflitos(eventoId) {
               return data <= dataFimObj;
             });
           }
-
+          
           // Filtro de tipo
           if (tipoEvento) {
             eventosFiltrados = eventosFiltrados.filter(e => e.tipoEvento === tipoEvento);
           }
-
+          
           // Filtro de status
           if (status) {
             eventosFiltrados = eventosFiltrados.filter(e => e.status === status);
           }
-
+          
           // Filtro de local
           if (local) {
             eventosFiltrados = eventosFiltrados.filter(e => e.local === local);
           }
-
+          
           // Busca textual
           if (busca) {
             eventosFiltrados = eventosFiltrados.filter(e => {
@@ -2305,14 +2228,14 @@ mostrarConflitos(eventoId) {
               return texto.includes(busca);
             });
           }
-
+          
           Utils.log('Eventos filtrados (avançado):', eventosFiltrados.length);
-
+          
           AppState.filtroAtivo = 'personalizado';
           AppState.eventosFiltrados = eventosFiltrados;
           UI.renderizarEventos(eventosFiltrados);
           UI.atualizarHeader();
-
+          
           // Fecha filtros avançados
           const filtersAdvanced = document.getElementById('filtersAdvanced');
           if (filtersAdvanced) {
@@ -2330,10 +2253,10 @@ mostrarConflitos(eventoId) {
           Utils.error('Erro ao aplicar filtros avançados:', e);
         }
       },
-
+      
       limparFiltros() {
         Utils.log('Limpando filtros...');
-
+        
         const campos = [
           'filterDataInicio',
           'filterDataFim',
@@ -2342,14 +2265,14 @@ mostrarConflitos(eventoId) {
           'filterLocal',
           'filterBusca'
         ];
-
+        
         campos.forEach(id => {
           const el = document.getElementById(id);
           if (el) {
             el.value = '';
           }
         });
-
+        
         FiltroManager.aplicarFiltroRapido('todos');
       }
     };
@@ -2360,44 +2283,44 @@ mostrarConflitos(eventoId) {
     const AgendaController = {
       async init() {
         Utils.log('🚀 Inicializando Agenda Visual...');
-
+        
         try {
           // Mostra loading
           UI.showLoading();
-
+          
           // 1. Carrega configurações globais
           await AgendaController.carregarConfiguracoes();
-
+          
           // 2. Aplica configurações de virtualização
           AgendaController.aplicarConfigVirtualizacao();
-
+          
           // 3. Aplica cores personalizadas
           if (AppState.config.AGENDA_CORES_PERSONALIZADAS) {
             AgendaController.aplicarCoresPersonalizadas();
           }
-
+          
           // 4. Carrega usuário
           await AgendaController.carregarUsuario();
-
+          
           // 5. Carrega eventos (com cache)
           await AgendaController.carregarEventosComCache();
-
+          
           // 6. Configura event listeners
           AgendaController.setupEventListeners();
-
+          
           // 7. Aplica filtro padrão da CONFIG
           const filtroPadrao = AppState.config.AGENDA_FILTRO_PADRAO || 'todos';
           Utils.log('Aplicando filtro padrão:', filtroPadrao);
           FiltroManager.aplicarFiltroRapido(filtroPadrao);
-
+          
           // 8. Popula filtros avançados
           UI.popularFiltrosAvancados();
-
+          
           // 9. Ativa botão do filtro padrão
           AgendaController.ativarBotaoFiltro(filtroPadrao);
-
+          
           Utils.log('✅ Agenda Visual inicializada com sucesso!');
-
+          
         } catch (error) {
           Utils.error('❌ Erro ao inicializar:', error);
           UI.showError('Erro ao carregar a agenda: ' + error.message);
@@ -2414,7 +2337,7 @@ mostrarConflitos(eventoId) {
 
         return AppState.usuario;
       },
-
+      
       async carregarEventos() {
         Utils.log('Carregando eventos via API...');
 
@@ -2445,7 +2368,7 @@ mostrarConflitos(eventoId) {
           return AppState.config;
         }
       },
-
+  
   /**
    * Verifica se cache é válido
    */
@@ -2487,7 +2410,7 @@ mostrarConflitos(eventoId) {
   },
   aplicarConfigVirtualizacao() {
         const config = AppState.config;
-
+        
         // Valores padrão
         const defaults = {
           enabled: true,
@@ -2495,62 +2418,62 @@ mostrarConflitos(eventoId) {
           buffer: 50,
           debug: false
         };
-
+        
         // Aplica configs da planilha (ou usa padrão)
-        AppState.virtualizacao.enabled = config.AGENDA_VIRTUALIZACAO_ENABLED !== undefined
-          ? config.AGENDA_VIRTUALIZACAO_ENABLED
+        AppState.virtualizacao.enabled = config.AGENDA_VIRTUALIZACAO_ENABLED !== undefined 
+          ? config.AGENDA_VIRTUALIZACAO_ENABLED 
           : defaults.enabled;
-
+        
         AppState.virtualizacao.threshold = config.AGENDA_VIRTUALIZACAO_THRESHOLD || defaults.threshold;
         AppState.virtualizacao.buffer = config.AGENDA_VIRTUALIZACAO_BUFFER || defaults.buffer;
         AppState.virtualizacao.debug = config.AGENDA_VIRTUALIZACAO_DEBUG || defaults.debug;
-
+        
         Utils.log('🎨 Configurações de virtualização aplicadas:', {
           enabled: AppState.virtualizacao.enabled,
           threshold: AppState.virtualizacao.threshold,
           buffer: AppState.virtualizacao.buffer,
           debug: AppState.virtualizacao.debug
         });
-
+        
         if (AppState.virtualizacao.debug) {
           Utils.log('🐛 DEBUG MODE ativado - Você verá contador de virtualização na tela');
         }
       },
-
+      
       aplicarCoresPersonalizadas() {
         Utils.log('🎨 Aplicando cores personalizadas');
-
+        
         // Por enquanto só loga
         // No futuro você pode:
         // - Ler cores da CONFIG
         // - Aplicar no :root CSS
         // - Customizar tema
-
+        
         // Exemplo:
         // document.documentElement.style.setProperty('--primary-color', '#custom-color');
       },
-
+      
       ativarBotaoFiltro(filtro) {
   Utils.log('Ativando botão do filtro:', filtro);
-
+  
   // Remove classe active de todos os botões de filtro
   const botoes = document.querySelectorAll('[data-filter], .filter-btn, button[onclick*="aplicarFiltroRapido"]');
-
+  
   botoes.forEach(btn => {
     btn.classList.remove('active');
   });
-
+  
   // Tenta diferentes seletores para encontrar o botão correto
   let btnFiltro = null;
-
+  
   // Tentativa 1: Atributo data-filter (MAIS COMUM)
   btnFiltro = document.querySelector(`[data-filter="${filtro}"]`);
-
+  
   // Tentativa 2: Atributo onclick
   if (!btnFiltro) {
     btnFiltro = document.querySelector(`[onclick*="'${filtro}'"]`);
   }
-
+  
   // Tentativa 3: Qualquer botão com o texto do filtro
   if (!btnFiltro) {
     const mapeamento = {
@@ -2560,7 +2483,7 @@ mostrarConflitos(eventoId) {
       'mesAtual': 'Mês Atual',
       'todos': 'Todos'
     };
-
+    
     const textoEsperado = mapeamento[filtro];
     if (textoEsperado) {
       botoes.forEach(btn => {
@@ -2570,7 +2493,7 @@ mostrarConflitos(eventoId) {
       });
     }
   }
-
+  
   // Ativa o botão se encontrou
   if (btnFiltro) {
     btnFiltro.classList.add('active');
@@ -2585,10 +2508,10 @@ mostrarConflitos(eventoId) {
         Utils.log('🔄 Recarregando agenda...');
         await AgendaController.init();
       },
-
+      
       setupEventListeners() {
         Utils.log('Configurando event listeners...');
-
+        
         try {
           // Filtros rápidos
           document.querySelectorAll('.filter-btn').forEach(btn => {
@@ -2603,7 +2526,7 @@ mostrarConflitos(eventoId) {
               FiltroManager.aplicarFiltroRapido(filtro);
             });
           });
-
+          
           // Toggle filtros avançados
           const toggleBtn = document.getElementById('toggleAdvanced');
           if (toggleBtn) {
@@ -2612,7 +2535,7 @@ mostrarConflitos(eventoId) {
               const advanced = document.getElementById('filtersAdvanced');
               const icon = document.getElementById('toggleIcon');
               const text = document.getElementById('toggleText');
-
+              
               if (advanced && icon && text) {
                 if (advanced.classList.contains('show')) {
                   advanced.classList.remove('show');
@@ -2628,29 +2551,29 @@ mostrarConflitos(eventoId) {
             // Scroll listener para virtualização
           let scrollTimeout;
           let ultimoScroll = 0;
-
+          
           window.addEventListener('scroll', () => {
             clearTimeout(scrollTimeout);
-
+            
             const agora = Date.now();
-
+            
             // Throttle: só atualiza a cada 100ms
             if (agora - ultimoScroll < 100) return;
-
+            
             scrollTimeout = setTimeout(() => {
               const threshold = AppState.virtualizacao.threshold || 50;
-
-              if (AppState.virtualizacao.enabled &&
-                  AppState.eventosFiltrados &&
+              
+              if (AppState.virtualizacao.enabled && 
+                  AppState.eventosFiltrados && 
                   AppState.eventosFiltrados.length >= threshold) {
-
+                
                 UI.renderizarEventosVirtualizados(AppState.eventosFiltrados);
                 ultimoScroll = Date.now();
               }
             }, 50);
           });
           }
-
+          
           // Botão aplicar filtros
           const btnAplicar = document.getElementById('btnAplicarFiltros');
           if (btnAplicar) {
@@ -2659,7 +2582,7 @@ mostrarConflitos(eventoId) {
               FiltroManager.aplicarFiltrosAvancados();
             });
           }
-
+          
           // Botão limpar filtros
           const btnLimpar = document.getElementById('btnLimparFiltros');
           if (btnLimpar) {
@@ -2668,19 +2591,19 @@ mostrarConflitos(eventoId) {
               FiltroManager.limparFiltros();
             });
           }
-
+          
           // Botão recarregar
           const btnRecarregar = document.getElementById('btnRecarregar');
           if (btnRecarregar) {
             btnRecarregar.addEventListener('click', async () => {
               Utils.log('🔄 Recarregando (limpando cache)...');
-
+              
               // Limpa cache
               AppState.cache = {
                 timestamp: 0,
                 dados: null
               };
-
+              
               // Mostra loading
               document.getElementById('eventosContainer').innerHTML = `
                 <div class="loading-container">
@@ -2688,16 +2611,16 @@ mostrarConflitos(eventoId) {
                   <div class="loading-text">Atualizando eventos...</div>
                 </div>
               `;
-
+              
               // Recarrega
               await AgendaController.carregarEventosComCache();
               const filtroPadrao = AppState.config.AGENDA_FILTRO_PADRAO || 'todos';
               FiltroManager.aplicarFiltroRapido(filtroPadrao);
-
+              
               Utils.log('✅ Atualização concluída');
             });
           }
-
+          
           // Botão toggle filtros no footer
           const btnToggleFilters = document.getElementById('btnToggleFilters');
           if (btnToggleFilters) {
@@ -2708,7 +2631,7 @@ mostrarConflitos(eventoId) {
               }
             });
           }
-
+          
           // Fechar modal
           const btnFecharModal = document.getElementById('btnFecharModal');
           if (btnFecharModal) {
@@ -2720,7 +2643,7 @@ mostrarConflitos(eventoId) {
               }
             });
           }
-
+          
           // Fechar modal clicando fora
           const modal = document.getElementById('modalDetalhes');
           if (modal) {
@@ -2731,7 +2654,7 @@ mostrarConflitos(eventoId) {
               }
             });
           }
-
+          
           // Busca em tempo real
           const inputBusca = document.getElementById('filterBusca');
           if (inputBusca) {
@@ -2746,7 +2669,7 @@ mostrarConflitos(eventoId) {
               }, 500);
             });
           }
-
+          
           Utils.log('✅ Event listeners configurados');
         } catch (e) {
           Utils.error('Erro ao configurar event listeners:', e);
@@ -2764,13 +2687,13 @@ mostrarConflitos(eventoId) {
         UI.mostrarDetalhes(evento);
       }
     }
-
+    
     function editarEvento(eventoId) {
       Utils.log('Editar evento:', eventoId);
       const url = `?page=editarEvento&id=${eventoId}`;
       window.location.href = url;
     }
-
+    
     function fecharModal() {
       Utils.log('Fechar modal');
       const modal = document.getElementById('modalDetalhes');
@@ -2778,7 +2701,7 @@ mostrarConflitos(eventoId) {
         modal.classList.remove('show');
       }
     }
-
+    
     function irParaHome() {
       Utils.log('Ir para home');
       window.location.href = 'index.html';
@@ -2788,13 +2711,10 @@ mostrarConflitos(eventoId) {
     // INICIALIZAÇÃO
     // ========================================
     window.addEventListener('load', () => {
-      // Init Lucide icons
-      if (window.lucide) lucide.createIcons();
-
       Utils.log('🎬 Window load - iniciando agenda...');
       AgendaController.init();
     });
-
+    
     // Log quando o script termina de carregar
     Utils.log('📝 Script carregado completamente');
   </script>
