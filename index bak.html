@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  
+
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <script src="auth.js" defer></script>
+  <title>FA Produções • Sistema</title>
+
+  <style>
+    :root {
+      --bg: #f6f7fb;
+      --card: #ffffff;
+      --primary: #5b6cff;
+      --secondary: #8b5cf6;
+      --success: #16a34a;
+      --warning: #d97706;
+      --danger: #dc2626;
+      --text: #1f2937;
+      --muted: #6b7280;
+      --border: #e5e7eb;
+      --radius: 16px;
+    }
+
+    * {
+      box-sizing: border-box;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    header {
+      padding: 32px 24px;
+      max-width: 1200px;
+      margin: auto;
+    }
+
+    .title {
+      font-size: 28px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+    }
+
+    .subtitle {
+      margin-top: 6px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .user-box {
+      margin-top: 16px;
+      padding: 14px 18px;
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      color: white;
+      border-radius: 14px;
+      display: inline-block;
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    main {
+      max-width: 1200px;
+      margin: auto;
+      padding: 24px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 20px;
+    }
+
+    .card {
+      background: var(--card);
+      border-radius: var(--radius);
+      padding: 26px;
+      border: 1px solid var(--border);
+      box-shadow: 0 10px 30px rgba(0,0,0,0.06);
+      cursor: pointer;
+      transition: all .25s ease;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 20px 40px rgba(0,0,0,0.12);
+    }
+
+    .icon {
+      font-size: 34px;
+    }
+
+    .card-title {
+      font-size: 18px;
+      font-weight: 700;
+    }
+
+    .badge {
+      margin-top: auto;
+      display: inline-block;
+      padding: 6px 12px;
+      font-size: 12px;
+      border-radius: 999px;
+      font-weight: 600;
+      width: fit-content;
+    }
+
+    .badge.public { background: #e0e7ff; color: #3730a3; }
+    .badge.restricted { background: #fee2e2; color: #991b1b; }
+
+    .hidden {
+      display: none !important;
+    }
+
+    footer {
+      text-align: center;
+      padding: 30px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+  </style>
+</head>
+<body>
+
+<!-- TELA DE LOGIN -->
+<div id="auth-screen" style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:#f6f7fb">
+  <div style="background:#fff;padding:40px;border-radius:16px;max-width:420px;text-align:center;box-shadow:0 20px 40px rgba(0,0,0,.12)">
+    <h2>🔐 Acesso ao Sistema</h2>
+    <p style="margin:12px 0 24px;color:#555">
+      Entre com sua conta Google autorizada
+    </p>
+
+    <div id="google-btn"></div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app" class="hidden">
+
+<header>
+  <div class="title">🎵 FA Produções</div>
+  <div class="subtitle">Sistema de gestão de agenda, eventos e financeiro</div>
+  <div class="user-box" id="userBox">Carregando usuário...</div>
+</header>
+
+<main>
+  <div class="grid">
+
+    <div class="card" onclick="abrir('agenda')">
+      <div class="icon">📅</div>
+      <div class="card-title">Agenda</div>
+      <span class="badge public">Acesso geral</span>
+    </div>
+
+    <div class="card" id="cardNovoEvento" onclick="abrir('novoEvento')">
+  <div class="icon">➕</div>
+  <div class="card-title">Novo Evento</div>
+  <span class="badge restricted">Restrito</span>
+</div>
+
+    <div class="card" id="cardEditarEvento" onclick="abrir('editarEvento')">
+  <div class="icon">✏️</div>
+  <div class="card-title">Editar Evento</div>
+  <span class="badge restricted">Restrito</span>
+</div>
+
+    <div class="card" id="cardCentralFinanceira">
+      <div class="icon">💰</div>
+      <div class="card-title">Central Financeira</div>
+      <span class="badge restricted">Proprietário</span>
+    </div>
+
+  </div>
+</main>
+
+<footer>
+  FA Produções • Sistema Interno • v1.0
+</footer>
+
+</div>
+
+<script>
+async function boot() {
+  const email = localStorage.getItem('auth_email');
+  const perfil = localStorage.getItem('auth_perfil');
+
+  if (email && perfil) {
+    onLoginSuccess({ email, perfil });
+    aplicarPermissoes({ email, perfil });
+    return;
+  }
+
+  Auth.initGoogle();
+}
+
+function onLoginSuccess(user) {
+  document.getElementById('auth-screen').classList.add('hidden');
+  document.getElementById('app').classList.remove('hidden');
+
+  document.getElementById('userBox').innerHTML =
+    `👤 ${user.email}`;
+}
+
+function aplicarPermissoes(user) {
+  if (user.perfil === 'Músico') {
+    ocultar('cardNovoEvento');
+    ocultar('cardCentralFinanceira');
+  }
+
+  if (user.perfil === 'Sócio') {
+    ocultar('cardCentralFinanceira');
+  }
+}
+
+function ocultar(id) {
+  const el = document.getElementById(id);
+  if (el) el.classList.add('hidden');
+}
+
+function abrir(pagina) {
+  const rotas = {
+    agenda: './agenda.html',
+    novoEvento: './cadastro-evento.html',
+    editarEvento: './editar-evento.html'
+  };
+
+  const destino = rotas[pagina];
+  if (!destino) {
+    alert('Página não encontrada');
+    return;
+  }
+
+  window.location.assign(destino);
+}
+
+window.addEventListener('load', boot);
+</script>
+
+</body>
+</html>
