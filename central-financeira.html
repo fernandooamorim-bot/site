@@ -1,8 +1,14 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <base target="_top">
+  <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <!-- Google Identity -->
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+
+  <!-- Auth padrão do sistema -->
+  <script src="auth.js"></script>
   <style>
     .container{
       max-width:1200px;
@@ -156,6 +162,26 @@
 </div>
 
 <script>
+console.log('🚀 central-financeira.html iniciado (frontend externo)');
+
+window.addEventListener('load', async () => {
+  try {
+    if (!window.Auth) throw new Error('AUTH_NOT_LOADED');
+
+    const auth = await Auth.verificarUsuario();
+    if (!auth || !auth.ok) throw new Error('NOT_AUTH');
+
+    console.log('🔐 Usuário autenticado:', auth.user?.email);
+
+    iniciarCentralFinanceira();
+
+  } catch (err) {
+    console.error('Erro de autenticação:', err);
+    alert('Sessão expirada. Volte ao menu.');
+    window.location.href = 'index.html';
+  }
+});
+
 function showLoading(txt){
   document.getElementById('loadingText').innerText = txt || 'Processando...';
   document.getElementById('loading').classList.add('active');
@@ -179,9 +205,9 @@ const resumo = document.getElementById('resumo');
 
 /* ================= INIT ================= */
 
-google.script.run.withSuccessHandler(list=>{
-  vendedoresCache = list || [];
-}).listarVendedores();
+// google.script.run.withSuccessHandler(list=>{
+//  vendedoresCache = list || [];
+// }).listarVendedores();
 
 /* ================= MODE ================= */
 
@@ -201,6 +227,17 @@ buttons.forEach(b=>{
     render();
   };
 });
+
+async function iniciarCentralFinanceira() {
+  try {
+    // Pré-carrega vendedores
+    vendedoresCache = await Auth.apiCall('listarVendedores') || [];
+    console.log('✅ Vendedores carregados:', vendedoresCache.length);
+  } catch (err) {
+    console.error('Erro ao iniciar Central Financeira:', err);
+    alert('Erro ao carregar dados iniciais');
+  }
+}
 
 /* ================= RENDER ================= */
 
@@ -274,27 +311,26 @@ function submitEstorno(){
     motivo: motivo
   };
 
-  google.script.run
-    .withSuccessHandler(resp=>{
-      hideLoading();
-      lockSubmit = false;
-      liberarBotao(btn);
+  Auth.apiCall('apiEstornarRecebimento', payload)
+  .then(resp => {
+    hideLoading();
+    lockSubmit = false;
+    liberarBotao(btn);
 
-      if (!resp || resp.sucesso !== true) {
-        alert(resp?.mensagem || 'Erro ao registrar estorno');
-        return;
-      }
+    if (!resp || resp.sucesso !== true) {
+      alert(resp?.mensagem || 'Erro ao registrar estorno');
+      return;
+    }
 
-      resumo.innerHTML = '<span class="muted">Estorno registrado com sucesso</span>';
-      alert('Estorno realizado com sucesso');
-    })
-    .withFailureHandler(e=>{
-      hideLoading();
-      lockSubmit = false;
-      liberarBotao(btn);
-      alert(e.message);
-    })
-    .apiEstornarRecebimento(payload);
+    resumo.innerHTML = '<span class="muted">Estorno registrado com sucesso</span>';
+    alert('Estorno realizado com sucesso');
+  })
+  .catch(err => {
+    hideLoading();
+    lockSubmit = false;
+    liberarBotao(btn);
+    alert(err.message || 'Erro ao registrar estorno');
+  });
 }
 
 /* ================= RECEBIMENTO ================= */
@@ -334,15 +370,19 @@ function renderRecebimento(){
 
 /* ================= COMISSAO ================= */
 
-function garantirVendedoresCarregados(callback){
+async function garantirVendedoresCarregados(callback){
   if (Array.isArray(vendedoresCache) && vendedoresCache.length > 0) {
     callback();
     return;
   }
-  google.script.run.withSuccessHandler(list=>{
-    vendedoresCache = list || [];
+
+  try {
+    vendedoresCache = await Auth.apiCall('listarVendedores') || [];
     callback();
-  }).listarVendedores();
+  } catch (err) {
+    console.error('Erro ao carregar vendedores:', err);
+    alert('Erro ao carregar vendedores');
+  }
 }
 
 function renderComissao(){
@@ -549,21 +589,33 @@ function submitSaidaEvento() {
 
 /* ================= AUTOCOMPLETE EVENTO ================= */
 
-function buscarEvento(q){
-  if(q.length < 2) return;
-  google.script.run.withSuccessHandler(list=>{
-    const box = document.getElementById('evSug');
+async function buscarEvento(q){
+  if (!q || q.length < 2) return;
+
+  const box = document.getElementById('evSug');
+  if (!box) return;
+
+  try {
+    const list = await Auth.apiCall('buscarEventoPorContratante', {
+      nome: q
+    });
+
     box.innerHTML = '';
-    (list || []).forEach(ev=>{
+
+    (list || []).forEach(ev => {
       const d = document.createElement('div');
       d.textContent = ev.id + ' — ' + ev.contratante;
-      d.onclick = ()=>selectEvento(ev);
+      d.onclick = () => selectEvento(ev);
       box.appendChild(d);
     });
-  }).buscarEventoPorContratante(q);
+
+  } catch (err) {
+    console.error('Erro ao buscar evento:', err);
+    box.innerHTML = '';
+  }
 }
 
-function selectEvento(ev){
+async function selectEvento(ev){
   const inp = document.getElementById('inputEvento');
   if (inp) inp.value = ev.id + ' — ' + ev.contratante;
   const idEventoReal = ev.id || ev.ID_EVENTO;
@@ -572,87 +624,102 @@ function selectEvento(ev){
 
   resumo.innerHTML = '<span class="muted">Carregando resumo financeiro...</span>';
 
-  google.script.run.withSuccessHandler(fin => {
-    ultimoResumoFinanceiro = fin;
-    if (!fin) {
-      resumo.innerHTML = '<span class="muted">Resumo financeiro indisponível</span>';
-      return;
-    }
+  try {
+  const fin = await Auth.apiCall('buscarResumoFinanceiroEvento', {
+    idEvento: idEventoReal
+  });
 
-    // NOVA LÓGICA PARA vr e vp
-    const vt = Number(fin.valorTotal) || 0;
-    let vr = Number(fin.valorRecebido);
-    let vp = Number(fin.valorPendente);
+  ultimoResumoFinanceiro = fin;
 
-    if (isNaN(vr)) {
-      // Se valorRecebido não existe, calcula pelo total - pendente
-      vr = vt - (isNaN(vp) ? 0 : vp);
-    }
+  if (!fin) {
+    resumo.innerHTML = '<span class="muted">Resumo financeiro indisponível</span>';
+    return;
+  }
 
-    if (isNaN(vp)) {
-      // Se valorPendente não existe, calcula pelo total - recebido
-      vp = vt - (isNaN(vr) ? 0 : vr);
-    }
+  const vt = Number(fin.valorTotal) || 0;
+  let vr = Number(fin.valorRecebido);
+  let vp = Number(fin.valorPendente);
 
-    let extraHtml = '';
-    let statusFinal = fin.statusRecebimento || '—';
+  if (isNaN(vr)) {
+    vr = vt - (isNaN(vp) ? 0 : vp);
+  }
 
-    if (vp < 0) {
-      const excedente = Math.abs(vp);
-      extraHtml = `
-        <div style="margin-top:6px;color:#facc15">
-          ⚠️ Valor pago a mais: R$ ${excedente.toFixed(2)}
-        </div>
-      `;
-      statusFinal = 'QUITADO (com excedente)';
-    }
+  if (isNaN(vp)) {
+    vp = vt - (isNaN(vr) ? 0 : vr);
+  }
 
-    resumo.innerHTML = `
-      <div><strong>Evento:</strong> ${ev.tipoEvento}</div>
-      <div><strong>Contratante:</strong> ${ev.contratante}</div>
-      <div class="divider"></div>
-      <div><strong>Valor total do evento:</strong> R$ ${vt.toFixed(2)}</div>
-      <div><strong>Valor recebido até agora:</strong> R$ ${vr.toFixed(2)}</div>
-      <div><strong>Valor pendente atual:</strong> R$ ${vp.toFixed(2)}</div>
-      ${extraHtml}
-      <div><strong>Status:</strong> ${statusFinal}</div>
+  let extraHtml = '';
+  let statusFinal = fin.statusRecebimento || '—';
+
+  if (vp < 0) {
+    const excedente = Math.abs(vp);
+    extraHtml = `
+      <div style="margin-top:6px;color:#facc15">
+        ⚠️ Valor pago a mais: R$ ${excedente.toFixed(2)}
+      </div>
     `;
-    if (mode === 'estorno') {
-      listarRecebimentosEvento(idEventoReal);
-    }
-  }).buscarResumoFinanceiroEvento(idEventoReal);
+    statusFinal = 'QUITADO (com excedente)';
+  }
+
+  resumo.innerHTML = `
+    <div><strong>Evento:</strong> ${ev.tipoEvento}</div>
+    <div><strong>Contratante:</strong> ${ev.contratante}</div>
+    <div class="divider"></div>
+    <div><strong>Valor total do evento:</strong> R$ ${vt.toFixed(2)}</div>
+    <div><strong>Valor recebido até agora:</strong> R$ ${vr.toFixed(2)}</div>
+    <div><strong>Valor pendente atual:</strong> R$ ${vp.toFixed(2)}</div>
+    ${extraHtml}
+    <div><strong>Status:</strong> ${statusFinal}</div>
+  `;
+
+  if (mode === 'estorno') {
+    listarRecebimentosEvento(idEventoReal);
+  }
+
+} catch (err) {
+  console.error('Erro ao carregar resumo financeiro:', err);
+  resumo.innerHTML = '<span class="muted">Erro ao carregar resumo financeiro</span>';
+}
 }
 
-function listarRecebimentosEvento(idEvento){
+async function listarRecebimentosEvento(idEvento){
   const box = document.getElementById('listaRecebimentos');
   box.innerHTML = '<span class="muted">Carregando recebimentos...</span>';
 
-  google.script.run.withSuccessHandler(list=>{
-    if (!Array.isArray(list) || list.length === 0) {
-      box.innerHTML = '<span class="muted">ℹ️ Este evento ainda não possui recebimentos registrados. Caso tenha sido pago fora do sistema, registre primeiro o recebimento.</span>';
-      return;
-    }
+  try {
+  const list = await Auth.apiCall('listarRecebimentosPorEvento', {
+    idEvento: idEvento
+  });
 
-    box.innerHTML = '<strong>Recebimentos do evento:</strong>';
+  if (!Array.isArray(list) || list.length === 0) {
+    box.innerHTML = '<span class="muted">ℹ️ Este evento ainda não possui recebimentos registrados. Caso tenha sido pago fora do sistema, registre primeiro o recebimento.</span>';
+    return;
+  }
 
-    list.forEach(r=>{
-      const div = document.createElement('div');
-      div.style.marginTop = '8px';
-      div.style.padding = '8px';
-      div.style.borderRadius = '8px';
-      div.style.background = '#0f172a';
-      div.style.cursor = 'pointer';
+  box.innerHTML = '<strong>Recebimentos do evento:</strong>';
 
-      div.innerHTML = `
-        <div>${r.dataFormatada} • ${r.formaPagamento || '—'} • <strong>R$ ${Number(r.valor).toFixed(2)}</strong></div>
-        <div class="muted">ID: ${r.id}</div>
-      `;
+  list.forEach(r=>{
+    const div = document.createElement('div');
+    div.style.marginTop = '8px';
+    div.style.padding = '8px';
+    div.style.borderRadius = '8px';
+    div.style.background = '#0f172a';
+    div.style.cursor = 'pointer';
 
-      div.onclick = () => selecionarRecebimentoParaEstorno(r);
+    div.innerHTML = `
+      <div>${r.dataFormatada} • ${r.formaPagamento || '—'} • <strong>R$ ${Number(r.valor).toFixed(2)}</strong></div>
+      <div class="muted">ID: ${r.id}</div>
+    `;
 
-      box.appendChild(div);
-    });
-  }).listarRecebimentosPorEvento(idEvento);
+    div.onclick = () => selecionarRecebimentoParaEstorno(r);
+
+    box.appendChild(div);
+  });
+
+} catch (err) {
+  console.error('Erro ao listar recebimentos:', err);
+  box.innerHTML = '<span class="muted">Erro ao carregar recebimentos</span>';
+}
 }
 
 function selecionarRecebimentoParaEstorno(r){
@@ -1097,21 +1164,20 @@ function submitRecebimento(){
     observacoes:document.getElementById('obs').value
   };
 
-  google.script.run
-    .withSuccessHandler(()=>{
-      hideLoading();
-      lockSubmit = false;
-      liberarBotao(btn);
-      resetRecebimentoForm();
-      alert('Recebimento registrado');
-    })
-    .withFailureHandler(e=>{
-      hideLoading();
-      lockSubmit = false;
-      liberarBotao(btn);
-      alert(e.message);
-    })
-    .apiRegistrarRecebimento(payload);
+  Auth.apiCall('apiRegistrarRecebimento', payload)
+  .then(() => {
+    hideLoading();
+    lockSubmit = false;
+    liberarBotao(btn);
+    resetRecebimentoForm();
+    alert('Recebimento registrado');
+  })
+  .catch(err => {
+    hideLoading();
+    lockSubmit = false;
+    liberarBotao(btn);
+    alert(err.message || 'Erro ao registrar recebimento');
+  });
 }
 
 
