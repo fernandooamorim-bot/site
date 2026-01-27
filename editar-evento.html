@@ -2,7 +2,7 @@
 <html>
 <head>
  <script src="https://accounts.google.com/gsi/client" async defer></script>
-<script src="auth.js" defer> </script>
+<script src="auth.js"></script>
   <meta charset="UTF-8">
   <style>
     * {
@@ -1968,22 +1968,31 @@ async function validarImpactoFinanceiroAntesSalvar(callback) {
     // BLOCO 2 — DATAS/CONFLITOS: EVENT LISTENERS
     // ========================================
   
-Auth.onReady(async () => {
-  console.log('🔐 Auth pronto — iniciar editar-evento');
-
-  try {
-    const auth = await Auth.verificarUsuario();
-    if (!auth || !auth.ok) {
-      throw new Error('NOT_AUTH');
-    }
-
-    await iniciarEditarEvento();
-
-  } catch (err) {
-    console.error('AUTH ERROR:', err);
+window.addEventListener('load', () => {
+  if (!window.Auth) {
+    console.error('Auth não carregou');
     alert('Sessão expirada. Volte ao menu.');
     window.location.href = 'index.html';
+    return;
   }
+
+  Auth.onReady(async () => {
+    console.log('🔐 Auth pronto — iniciar editar-evento');
+
+    try {
+      const auth = await Auth.verificarUsuario();
+      if (!auth || !auth.ok) {
+        throw new Error('NOT_AUTH');
+      }
+
+      await iniciarEditarEvento();
+
+    } catch (err) {
+      console.error('AUTH ERROR:', err);
+      alert('Sessão expirada. Volte ao menu.');
+      window.location.href = 'index.html';
+    }
+  });
 });
   </script>
 </body>
