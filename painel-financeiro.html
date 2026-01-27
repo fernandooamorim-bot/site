@@ -271,10 +271,23 @@
     COMISSAO_GERADA_MAIOR_QUE_ESPERADO: 'Comissão gerada maior que o valor esperado'
   };
 
-  function carregarPainel() {
-    google.script.run
-      .withSuccessHandler(renderizarEventos)
-      .listarEventosFinanceiros();
+  async function carregarPainel() {
+    try {
+      const resp = await Auth.apiCall('listarEventosFinanceiros');
+
+      if (!resp) {
+        document.getElementById('lista').innerHTML =
+          '<div class="loading">Erro ao carregar painel financeiro.</div>';
+        return;
+      }
+
+      const eventos = resp.eventos || resp;
+      renderizarEventos(eventos);
+    } catch (err) {
+      console.error('Erro ao carregar painel financeiro:', err);
+      document.getElementById('lista').innerHTML =
+        '<div class="loading">Sessão expirada ou erro ao carregar dados.</div>';
+    }
   }
 
   function renderizarEventos(eventos) {
@@ -598,18 +611,28 @@
   }
 
   function irReceber(id) {
-    window.location.href = `?page=centralFinanceira&evento=${id}`;
+    window.location.href = 'central-financeira.html';
   }
 
   function irPagarBV(id) {
-    window.location.href = `?page=centralFinanceira&evento=${id}&acao=bv`;
+    window.location.href = 'central-financeira.html';
   }
 
   function irCustos(id) {
-    window.location.href = `?page=centralFinanceira&evento=${id}&acao=custos`;
+    window.location.href = 'central-financeira.html';
   }
 
-  window.onload = carregarPainel;
+  window.addEventListener('load', async () => {
+    try {
+      const auth = await Auth.verificarUsuario();
+      if (!auth || !auth.ok) throw new Error('NOT_AUTH');
+
+      carregarPainel();
+    } catch (err) {
+      alert('Sessão expirada. Volte ao menu.');
+      window.location.href = 'index.html';
+    }
+  });
 </script>
 
 </body>

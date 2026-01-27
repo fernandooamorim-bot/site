@@ -1046,6 +1046,30 @@
           </div>
         </div>
 
+        <!-- Card: Painel Financeiro -->
+        <div class="nav-card anim-in anim-d5" id="cardPainelFinanceiro" onclick="abrir('painelFinanceiro')">
+          <div class="nav-card-top">
+            <div class="nav-card-icon navy">
+              <i data-lucide="bar-chart-3"></i>
+            </div>
+            <div class="nav-card-arrow">
+              <i data-lucide="arrow-right"></i>
+            </div>
+          </div>
+          <div class="nav-card-body">
+            <div class="nav-card-title">Painel Financeiro</div>
+            <div class="nav-card-desc">
+              Visão geral de pendências, status financeiros e alertas do sistema.
+            </div>
+          </div>
+          <div class="nav-card-footer">
+            <span class="access-badge owner">
+              <i data-lucide="crown"></i>
+              Proprietário
+            </span>
+          </div>
+        </div>
+
       </div>
     </main>
 
@@ -1250,7 +1274,8 @@
       agenda: './agenda.html',
       novoEvento: './cadastro-evento.html',
       editarEvento: './editar-evento.html',
-      centralFinanceira: './central-financeira.html'
+      centralFinanceira: './central-financeira.html',
+      painelFinanceiro: './painel-financeiro.html'
     };
 
     var destino = rotas[pagina];
