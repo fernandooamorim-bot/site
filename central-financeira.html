@@ -168,7 +168,7 @@ window.addEventListener('load', async () => {
   try {
     if (!window.Auth) throw new Error('AUTH_NOT_LOADED');
 
-    const auth = await Auth.verificarUsuario();
+    const auth = await Auth.apiCall('verificarUsuario');
     if (!auth || !auth.ok) throw new Error('NOT_AUTH');
 
     console.log('🔐 Usuário autenticado:', auth.user?.email);
