@@ -1976,23 +1976,27 @@ window.addEventListener('load', () => {
     return;
   }
 
-  Auth.onReady(async () => {
-    console.log('🔐 Auth pronto — iniciar editar-evento');
+  window.addEventListener('load', async () => {
+  if (!window.Auth) {
+    alert('Sessão expirada. Volte ao menu.');
+    window.location.href = 'index.html';
+    return;
+  }
 
-    try {
-      const auth = await Auth.verificarUsuario();
-      if (!auth || !auth.ok) {
-        throw new Error('NOT_AUTH');
-      }
-
-      await iniciarEditarEvento();
-
-    } catch (err) {
-      console.error('AUTH ERROR:', err);
-      alert('Sessão expirada. Volte ao menu.');
-      window.location.href = 'index.html';
+  try {
+    const auth = await Auth.verificarUsuario();
+    if (!auth || !auth.ok) {
+      throw new Error('NOT_AUTH');
     }
-  });
+
+    await iniciarEditarEvento();
+
+  } catch (err) {
+    console.error('AUTH ERROR:', err);
+    alert('Sessão expirada. Volte ao menu.');
+    window.location.href = 'index.html';
+  }
+});
 });
   </script>
 </body>
