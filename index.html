@@ -677,7 +677,7 @@
     .bnav-item i {
       width: 22px;
       height: 22px;
-      color: rgba(255,255,255,0.35);
+      color: rgba(255,255,255,0.55);
       transition: color 0.2s;
     }
 
@@ -685,7 +685,7 @@
       font-family: var(--font);
       font-size: 10px;
       font-weight: 600;
-      color: rgba(255,255,255,0.35);
+      color: rgba(255,255,255,0.55);
       transition: color 0.2s;
     }
 
@@ -972,7 +972,7 @@
       <strong>FA Produções</strong> · Sistema Interno · v2.0
     </footer>
 
-    <!-- BOTTOM NAVIGATION (Mobile) -->
+    <!-- BOTTOM NAVIGATION (Mobile) — Padrão Global -->
     <nav class="bottom-nav">
       <button class="bnav-item active" onclick="abrir('home')">
         <i data-lucide="layout-grid"></i>
@@ -989,6 +989,10 @@
       <button class="bnav-item" onclick="abrir('editarEvento')">
         <i data-lucide="pencil-line"></i>
         <span>Editar</span>
+      </button>
+      <button class="bnav-item" id="bnavFinanceiro" onclick="abrir('centralFinanceira')">
+        <i data-lucide="dollar-sign"></i>
+        <span>Financeiro</span>
       </button>
     </nav>
 
@@ -1079,10 +1083,12 @@
       ocultar('cardNovoEvento');
       ocultar('cardCentralFinanceira');
       ocultar('bnavNovoEvento');
+      ocultar('bnavFinanceiro');
     }
 
     if (user.perfil === 'Sócio') {
       ocultar('cardCentralFinanceira');
+      ocultar('bnavFinanceiro');
     }
   }
 
@@ -1100,7 +1106,8 @@
     var rotas = {
       agenda: './agenda.html',
       novoEvento: './cadastro-evento.html',
-      editarEvento: './editar-evento.html'
+      editarEvento: './editar-evento.html',
+      centralFinanceira: './CentralFinanceira.html'
     };
 
     var destino = rotas[pagina];
