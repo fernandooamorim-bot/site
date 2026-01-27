@@ -1106,10 +1106,8 @@ function verificarConflitosEdicao() {
   let concluidas = 0;
 
   datasParaVerificar.forEach(data => {
-    Auth.apiCall({
-      action: 'buscarEventosPorData',
-      data: data,
-      email: Auth.email
+    Auth.apiCall('buscarEventosPorData', {
+      data: data
     })
     .then(eventos => {
       if (execucaoAtual !== verificadorExecucaoId) return;
@@ -1188,40 +1186,30 @@ function setValueSafe(id, valor, tentativas = 0) {
 }
     
 async function iniciarEditarEvento() {
-      try {
-        // 🔐 autenticação padrão (igual cadastro-evento)
-        const auth = await Auth.verificarUsuario();
-        if (!auth || !auth.ok) throw new Error('NOT_AUTH');
+  try {
+    fecharModal();
+    // carregar dados base após auth OK
+    await carregarDropdowns();
+    await carregarContratantesParaAutocomplete();
 
-        fecharModal();
+    EVENTO_ID_URL = getIdEventoFromURL();
 
-        // carregar dados base após auth OK
-        await carregarDropdowns();
-        await carregarContratantesParaAutocomplete();
-
-        EVENTO_ID_URL = getIdEventoFromURL();
-
-        if (EVENTO_ID_URL) {
-          mostrarAlerta('Carregando evento...', 'info');
-
-          const evento = await carregarEventoPorId(EVENTO_ID_URL);
-
-          eventoAtual = evento;
-          eventoOriginal = JSON.parse(JSON.stringify(evento));
-
-          preencherFormulario(eventoAtual);
-          document.querySelector('.search-section').style.display = 'none';
-          document.getElementById('formEdicao').classList.remove('hidden');
-
-          mostrarAlerta('Evento carregado pela URL.', 'success');
-        }
-
-      } catch (err) {
-        console.error('AUTH ERROR:', err);
-        alert('Sessão expirada. Volte ao menu.');
-        window.location.href = 'index.html';
-      }
-    };
+    if (EVENTO_ID_URL) {
+      mostrarAlerta('Carregando evento...', 'info');
+      const evento = await carregarEventoPorId(EVENTO_ID_URL);
+      eventoAtual = evento;
+      eventoOriginal = JSON.parse(JSON.stringify(evento));
+      preencherFormulario(eventoAtual);
+      document.querySelector('.search-section').style.display = 'none';
+      document.getElementById('formEdicao').classList.remove('hidden');
+      mostrarAlerta('Evento carregado pela URL.', 'success');
+    }
+  } catch (err) {
+    console.error('AUTH ERROR:', err);
+    alert('Sessão expirada. Volte ao menu.');
+    window.location.href = 'index.html';
+  }
+}
     
     // TOGGLE DE TIPO DE BUSCA
     function trocarTipoBusca(tipo) {
@@ -1270,10 +1258,8 @@ async function iniciarEditarEvento() {
       mostrarLoading();
 
       try {
-      const resultado = await Auth.apiCall({
-        action: 'buscarEventoPorID',
-        idEvento: id,
-        email: Auth.email
+      const resultado = await Auth.apiCall('buscarEventoPorID', {
+        idEvento: id
       });
 
         mostrarResultados(resultado);
@@ -1283,20 +1269,18 @@ async function iniciarEditarEvento() {
       }
     }
 
-    // Helper para carregar evento por id (usado na inicialização por URL)
-    async function carregarEventoPorId(idEvento) {
-      const response = await Auth.apiCall({
-        action: 'buscarEventoPorID',
-        idEvento: idEvento,
-        email: Auth.email
-      });
+// Helper para carregar evento por id (usado na inicialização por URL)
+async function carregarEventoPorId(idEvento) {
+  const response = await Auth.apiCall('buscarEventoParaEdicao', {
+    idEvento: idEvento
+  });
 
-      if (!response || !response.id) {
-        throw new Error('Evento não encontrado');
-      }
+  if (!response || !response.sucesso) {
+    throw new Error(response?.mensagem || 'Evento não encontrado');
+  }
 
-      return response;
-    }
+  return response.evento;
+}
     
     // BUSCA POR NOME
     async function buscarPorNome() {
@@ -1308,10 +1292,8 @@ async function iniciarEditarEvento() {
       }
       mostrarLoading();
       try {
-        const response = await Auth.apiCall({
-          action: 'buscarEventoPorContratante',
-          nome: nome,
-          email: Auth.email
+        const response = await Auth.apiCall('buscarEventoPorContratante', {
+          nome: nome
         });
         if (response && response.error) {
           throw new Error(response.error);
@@ -1333,10 +1315,8 @@ async function iniciarEditarEvento() {
       }
       mostrarLoading();
       try {
-        const response = await Auth.apiCall({
-          action: 'buscarEventoPorData',
-          data: data,
-          email: Auth.email
+        const response = await Auth.apiCall('buscarEventoPorData', {
+          data: data
         });
         if (response && response.error) {
           throw new Error(response.error);
@@ -1358,10 +1338,8 @@ async function iniciarEditarEvento() {
       }
       mostrarLoading();
       try {
-        const response = await Auth.apiCall({
-          action: 'buscarEventoPorPeriodo',
-          periodo: periodo,
-          email: Auth.email
+        const response = await Auth.apiCall('buscarEventoPorPeriodo', {
+          periodo: periodo
         });
         if (response && response.error) {
           throw new Error(response.error);
@@ -1376,7 +1354,7 @@ async function iniciarEditarEvento() {
     // AUTOCOMPLETE
     async function carregarContratantesParaAutocomplete() {
       try {
-        const lista = await Auth.apiCall({ action: 'listarContratantes', email: Auth.email });
+        const lista = await Auth.apiCall('listarContratantes', {});
         if (lista && lista.error) throw new Error(lista.error);
         contratantesCache = lista;
       } catch (erro) {
@@ -1495,10 +1473,8 @@ async function iniciarEditarEvento() {
     console.log('1️⃣ clicar editar', idEvento);
     mostrarAlerta('Carregando evento...', 'info');
     try {
-      const resultado = await Auth.apiCall({
-        action: 'buscarEventoParaEdicao',
-        idEvento: idEvento,
-        email: Auth.email
+      const resultado = await Auth.apiCall('buscarEventoParaEdicao', {
+        idEvento: idEvento
       });
       console.log('2️⃣ retorno backend', resultado);
       if (!resultado || !resultado.sucesso) {
@@ -1517,10 +1493,8 @@ async function iniciarEditarEvento() {
         mostrarStatusFinanceiro(resultado.statusFinanceiro);
         // --- Permissão financeira (Fase 3 – A) ---
         try {
-          const permissao = await Auth.apiCall({
-            action: 'verificarPermissaoEdicaoFinanceira',
-            idEvento: eventoAtual.id,
-            email: Auth.email
+          const permissao = await Auth.apiCall('verificarPermissaoEdicaoFinanceira', {
+            idEvento: eventoAtual.id
           });
           permissaoFinanceira = permissao;
           if (permissao && !permissao.permitido) {
@@ -1559,11 +1533,9 @@ async function iniciarEditarEvento() {
 // --- Validação de impacto financeiro antes de salvar ---
 async function validarImpactoFinanceiroAntesSalvar(callback) {
   try {
-    const resultado = await Auth.apiCall({
-      action: 'validarAlteracoesEvento',
+    const resultado = await Auth.apiCall('validarAlteracoesEvento', {
       idEvento: eventoOriginal.id,
-      dados: coletarDadosFormulario(),
-      email: Auth.email
+      ...coletarDadosFormulario()
     });
     if (resultado && resultado.risco === 'EXCESSO_GERADO') {
       mostrarAlerta(
@@ -1582,33 +1554,33 @@ async function validarImpactoFinanceiroAntesSalvar(callback) {
     async function carregarDropdowns() {
       try {
         let lista;
-        lista = await Auth.apiCall({ action: 'listarContratantes', email: Auth.email });
+        lista = await Auth.apiCall('listarContratantes', {});
         if (lista && lista.error) throw new Error(lista.error);
         popularDropdown('idContratante', lista);
       } catch (e) {}
       try {
-        let lista = await Auth.apiCall({ action: 'listarCerimonialistas', email: Auth.email });
+        let lista = await Auth.apiCall('listarCerimonialistas', {});
         if (lista && lista.error) throw new Error(lista.error);
         popularDropdown('idCerimonialista', lista, true);
       } catch (e) {}
       try {
-        let lista = await Auth.apiCall({ action: 'listarEnderecos', email: Auth.email });
+        let lista = await Auth.apiCall('listarEnderecos', {});
         if (lista && lista.error) throw new Error(lista.error);
         popularDropdown('idEndereco', lista);
       } catch (e) {}
       try {
-        let lista = await Auth.apiCall({ action: 'listarVendedores', email: Auth.email });
+        let lista = await Auth.apiCall('listarVendedores', {});
         if (lista && lista.error) throw new Error(lista.error);
         popularDropdown('idVendedor', lista);
       } catch (e) {}
       try {
-        let lista = await Auth.apiCall({ action: 'listarParceirosBV', email: Auth.email });
+        let lista = await Auth.apiCall('listarParceirosBV', {});
         if (lista && lista.error) throw new Error(lista.error);
         popularDropdown('idBV', lista, true);
       } catch (e) {}
       // CONFIG - Tipo de Evento
       try {
-        let tipos = await Auth.apiCall({ action: 'listarTiposEvento', email: Auth.email });
+        let tipos = await Auth.apiCall('listarTiposEvento', {});
         if (tipos && tipos.error) throw new Error(tipos.error);
         const sel = document.getElementById('tipoEvento');
         if (sel) {
@@ -1625,7 +1597,7 @@ async function validarImpactoFinanceiroAntesSalvar(callback) {
       } catch (e) {}
       // CONFIG - Durações
       try {
-        let duracoes = await Auth.apiCall({ action: 'listarDuracoesPadrao', email: Auth.email });
+        let duracoes = await Auth.apiCall('listarDuracoesPadrao', {});
         if (duracoes && duracoes.error) throw new Error(duracoes.error);
         const sel = document.getElementById('duracao');
         if (sel) {
@@ -1642,7 +1614,7 @@ async function validarImpactoFinanceiroAntesSalvar(callback) {
       } catch (e) {}
       // CONFIG - Projetos
       try {
-        let projetos = await Auth.apiCall({ action: 'listarProjetosSugeridos', email: Auth.email });
+        let projetos = await Auth.apiCall('listarProjetosSugeridos', {});
         if (projetos && projetos.error) throw new Error(projetos.error);
         const sel = document.getElementById('projeto');
         if (sel) {
@@ -1763,11 +1735,9 @@ async function validarImpactoFinanceiroAntesSalvar(callback) {
         lista.appendChild(li);
       });
       try {
-        const resultado = await Auth.apiCall({
-          action: 'validarAlteracoesEvento',
+        const resultado = await Auth.apiCall('validarAlteracoesEvento', {
           idEvento: eventoOriginal.id,
-          dados: coletarDadosFormulario(),
-          email: Auth.email
+          ...coletarDadosFormulario()
         });
         mostrarResumoValidacoes(resultado);
         abrirModal();
@@ -1854,11 +1824,9 @@ async function validarImpactoFinanceiroAntesSalvar(callback) {
       await validarImpactoFinanceiroAntesSalvar(async function() {
         mostrarAlerta('Salvando alterações...', 'info');
         try {
-          const resultado = await Auth.apiCall({
-            action: 'salvarEdicaoEvento',
+          const resultado = await Auth.apiCall('salvarEdicaoEvento', {
             idEvento: eventoOriginal.id,
-            dados: coletarDadosFormulario(),
-            email: Auth.email
+            ...coletarDadosFormulario()
           });
           if (resultado && resultado.sucesso) {
             mostrarAlerta('✅ ' + resultado.mensagem, 'success');
@@ -1968,35 +1936,17 @@ async function validarImpactoFinanceiroAntesSalvar(callback) {
     // BLOCO 2 — DATAS/CONFLITOS: EVENT LISTENERS
     // ========================================
   
-window.addEventListener('load', () => {
-  if (!window.Auth) {
-    console.error('Auth não carregou');
-    alert('Sessão expirada. Volte ao menu.');
-    window.location.href = 'index.html';
-    return;
-  }
-
-  window.addEventListener('load', async () => {
-  if (!window.Auth) {
-    alert('Sessão expirada. Volte ao menu.');
-    window.location.href = 'index.html';
-    return;
-  }
-
+window.addEventListener('load', async () => {
   try {
-    const auth = await Auth.verificarUsuario();
-    if (!auth || !auth.ok) {
-      throw new Error('NOT_AUTH');
-    }
-
+    if (!window.Auth) throw new Error('AUTH_NOT_LOADED');
+    const email = localStorage.getItem('auth_email');
+    if (!email) throw new Error('NOT_AUTH');
     await iniciarEditarEvento();
-
   } catch (err) {
-    console.error('AUTH ERROR:', err);
+    console.error('Erro de autenticação:', err);
     alert('Sessão expirada. Volte ao menu.');
     window.location.href = 'index.html';
   }
-});
 });
   </script>
 </body>
