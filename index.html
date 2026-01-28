@@ -1249,9 +1249,12 @@
    */
   function aplicarPermissoes(user) {
     if (user.perfil === 'Músico') {
-      ocultar('cardNovoEvento');
-      ocultar('cardCentralFinanceira');
-      ocultar('bnavNovoEvento');
+       ocultar('cardNovoEvento');
+    ocultar('cardEditarEvento');
+    ocultar('cardCentralFinanceira');
+
+    ocultar('bnavNovoEvento');
+    ocultar('bnavEditarEvento');
     }
 
     if (user.perfil === 'Sócio') {
