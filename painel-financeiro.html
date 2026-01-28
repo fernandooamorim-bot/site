@@ -626,27 +626,10 @@
 
   console.log('🚀 painel-financeiro.html iniciado (frontend externo)');
 
-window.addEventListener('load', async () => {
-  try {
-    if (!window.Auth) throw new Error('AUTH_NOT_LOADED');
-
-    const auth = await Auth.verificarUsuario();
-    if (!auth || !auth.ok) throw new Error('NOT_AUTH');
-
-    console.log('🔐 Usuário autenticado:', auth.user?.email);
-
-    iniciarPainelFinanceiro();
-
-  } catch (err) {
-    console.error('Erro de autenticação:', err);
-    alert('Sessão expirada. Volte ao menu.');
-    window.location.href = 'index.html';
-  }
-});
-
-function iniciarPainelFinanceiro() {
+window.addEventListener('load', () => {
+  console.log('🚀 painel-financeiro.html iniciado (frontend externo)');
   carregarPainel();
-}
+});
 </script>
 
 </body>
