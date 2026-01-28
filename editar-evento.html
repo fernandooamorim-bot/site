@@ -2156,29 +2156,38 @@ async function validarImpactoFinanceiroAntesSalvar(callback) {
     }
     
     async function confirmarEdicao() {
-      fecharModal();
-      mostrarAlerta('Validando impacto financeiro...', 'info');
-      await validarImpactoFinanceiroAntesSalvar(async function() {
-        mostrarAlerta('Salvando alterações...', 'info');
-        try {
-          const resultado = await Auth.apiCall('salvarEdicaoEvento', {
-            idEvento: eventoOriginal.id,
-            ...coletarDadosFormulario()
-          });
-          if (resultado && resultado.sucesso) {
-            mostrarAlerta('✅ ' + resultado.mensagem, 'success');
-            setTimeout(() => {
-              // Não usar google.script.host.close()
-              window.location.reload();
-            }, 2000);
-          } else {
-            mostrarAlerta('❌ ' + (resultado && resultado.mensagem ? resultado.mensagem : 'Erro ao salvar'), 'error');
-          }
-        } catch (erro) {
-          mostrarAlerta('Erro: ' + (erro && erro.message ? erro.message : erro), 'error');
-        }
+  fecharModal();
+  mostrarAlerta('Validando impacto financeiro...', 'info');
+
+  await validarImpactoFinanceiroAntesSalvar(async function () {
+    mostrarAlerta('Salvando alterações...', 'info');
+
+    try {
+      const dadosFormulario = coletarDadosFormulario();
+
+      const resultado = await Auth.apiCall('salvarEdicaoEvento', {
+        idEvento: eventoOriginal.id,
+        ...dadosFormulario,
+        email: Auth.user.email
       });
+
+      if (resultado && resultado.sucesso) {
+        mostrarAlerta('✅ ' + resultado.mensagem, 'success');
+        setTimeout(() => window.location.reload(), 2000);
+      } else {
+        mostrarAlerta(
+          '❌ ' + (resultado?.mensagem || 'Erro ao salvar'),
+          'error'
+        );
+      }
+    } catch (erro) {
+      mostrarAlerta(
+        'Erro: ' + (erro?.message || erro),
+        'error'
+      );
     }
+  });
+}
     
     function abrirModal() {
       document.getElementById('modalConfirmacao').classList.add('show');
