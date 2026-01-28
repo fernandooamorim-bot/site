@@ -1092,7 +1092,7 @@
         <i data-lucide="plus-circle"></i>
         <span>Novo</span>
       </button>
-      <button class="bnav-item" onclick="abrir('editarEvento')">
+      <button class="bnav-item" id="bnavEditarEvento" onclick="abrir('editarEvento')">
         <i data-lucide="pencil-line"></i>
         <span>Editar</span>
       </button>
@@ -1249,9 +1249,11 @@
    */
   function aplicarPermissoes(user) {
     if (user.perfil === 'Músico') {
-       ocultar('cardNovoEvento');
+    ocultar('cardNovoEvento');
     ocultar('cardEditarEvento');
     ocultar('cardCentralFinanceira');
+    ocultar('cardPainelFinanceiro');
+    
 
     ocultar('bnavNovoEvento');
     ocultar('bnavEditarEvento');
