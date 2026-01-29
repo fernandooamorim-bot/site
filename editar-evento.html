@@ -977,6 +977,14 @@
     <h2>✏️ Editar Evento</h2>
     <p class="subtitle">Busque e edite eventos com validações automáticas de segurança</p>
     
+    <div id="globalLoading" class="modal-overlay">
+      <div class="modal">
+        <div class="loading">
+          <div class="spinner"></div>
+          <p id="globalLoadingText">Processando...</p>
+        </div>
+      </div>
+    </div>
     <div id="alertContainer"></div>
     
     <!-- SEÇÃO DE BUSCA -->
@@ -1330,10 +1338,22 @@ function getIdEventoFromURL() {
   return params.get('id');
 }
 
-let eventoAtual = null;
-let eventoOriginal = null;
-let contratantesCache = [];
-let permissaoFinanceira = null;
+  let eventoAtual = null;
+  let eventoOriginal = null;
+  let contratantesCache = [];
+  let permissaoFinanceira = null;
+
+  function mostrarLoadingGlobal(texto) {
+    const overlay = document.getElementById('globalLoading');
+    const label = document.getElementById('globalLoadingText');
+    if (label && texto) label.textContent = texto;
+    if (overlay) overlay.classList.add('show');
+  }
+
+  function esconderLoadingGlobal() {
+    const overlay = document.getElementById('globalLoading');
+    if (overlay) overlay.classList.remove('show');
+  }
 
 function bloquearEdicaoFinanceira(motivo) {
   const campos = [
@@ -1592,15 +1612,18 @@ async function iniciarEditarEvento() {
         return;
       }
 
+      mostrarLoadingGlobal('Buscando evento...');
       mostrarLoading();
 
       try {
-      const resultado = await Auth.apiCall('buscarEventoPorID', {
-        idEvento: id
-      });
+        const resultado = await Auth.apiCall('buscarEventoPorID', {
+          idEvento: id
+        });
 
         mostrarResultados(resultado);
+        esconderLoadingGlobal();
       } catch (erro) {
+        esconderLoadingGlobal();
         console.error('❌ Erro:', erro);
         mostrarAlerta('Erro ao buscar evento', 'error');
       }
@@ -1627,6 +1650,7 @@ async function carregarEventoPorId(idEvento) {
         mostrarAlerta('Digite um nome para buscar', 'error');
         return;
       }
+      mostrarLoadingGlobal('Buscando eventos...');
       mostrarLoading();
       try {
         const response = await Auth.apiCall('buscarEventoPorContratante', {
@@ -1636,7 +1660,9 @@ async function carregarEventoPorId(idEvento) {
           throw new Error(response.error);
         }
         mostrarResultados(response);
+        esconderLoadingGlobal();
       } catch (erro) {
+        esconderLoadingGlobal();
         console.error('❌ Erro:', erro);
         mostrarAlerta('Erro ao buscar evento', 'error');
       }
@@ -1650,6 +1676,7 @@ async function carregarEventoPorId(idEvento) {
         mostrarAlerta('Selecione uma data', 'error');
         return;
       }
+      mostrarLoadingGlobal('Buscando eventos...');
       mostrarLoading();
       try {
         const response = await Auth.apiCall('buscarEventoPorData', {
@@ -1659,7 +1686,9 @@ async function carregarEventoPorId(idEvento) {
           throw new Error(response.error);
         }
         mostrarResultados(response);
+        esconderLoadingGlobal();
       } catch (erro) {
+        esconderLoadingGlobal();
         console.error('❌ Erro:', erro);
         mostrarAlerta('Erro ao buscar evento', 'error');
       }
@@ -1673,6 +1702,7 @@ async function carregarEventoPorId(idEvento) {
         mostrarAlerta('Selecione um período', 'error');
         return;
       }
+      mostrarLoadingGlobal('Buscando eventos...');
       mostrarLoading();
       try {
         const response = await Auth.apiCall('buscarEventoPorPeriodo', {
@@ -1682,7 +1712,9 @@ async function carregarEventoPorId(idEvento) {
           throw new Error(response.error);
         }
         mostrarResultados(response);
+        esconderLoadingGlobal();
       } catch (erro) {
+        esconderLoadingGlobal();
         console.error('❌ Erro:', erro);
         mostrarAlerta('Erro ao buscar evento', 'error');
       }
@@ -1807,6 +1839,7 @@ async function carregarEventoPorId(idEvento) {
     
     // SELECIONAR EVENTO PARA EDIÇÃO
   async function selecionarEvento(idEvento) {
+    mostrarLoadingGlobal('Carregando dados do evento...');
     console.log('1️⃣ clicar editar', idEvento);
     mostrarAlerta('Carregando evento...', 'info');
     try {
@@ -1815,6 +1848,7 @@ async function carregarEventoPorId(idEvento) {
       });
       console.log('2️⃣ retorno backend', resultado);
       if (!resultado || !resultado.sucesso) {
+        esconderLoadingGlobal();
         console.log('❌ resultado inválido');
         mostrarAlerta(resultado?.mensagem || 'Erro desconhecido', 'error');
         return;
@@ -1860,9 +1894,11 @@ async function carregarEventoPorId(idEvento) {
           verificarConflitosEdicao();
         }, 300);
         console.log('9️⃣ formulário exibido');
+        esconderLoadingGlobal();
         mostrarAlerta('Evento carregado! Faça as alterações desejadas.', 'success');
       }, 150);
     } catch (erro) {
+      esconderLoadingGlobal();
       console.error('🔥 erro backend', erro);
       mostrarAlerta('Erro: ' + (erro && erro.message ? erro.message : 'Erro desconhecido'), 'error');
     }
@@ -2160,7 +2196,7 @@ async function validarImpactoFinanceiroAntesSalvar(callback) {
   mostrarAlerta('Validando impacto financeiro...', 'info');
 
   await validarImpactoFinanceiroAntesSalvar(async function () {
-    mostrarAlerta('Salvando alterações...', 'info');
+    mostrarLoadingGlobal('Salvando alterações...');
 
     try {
       const dadosFormulario = coletarDadosFormulario();
@@ -2172,15 +2208,18 @@ async function validarImpactoFinanceiroAntesSalvar(callback) {
       });
 
       if (resultado && resultado.sucesso) {
+        esconderLoadingGlobal();
         mostrarAlerta('✅ ' + resultado.mensagem, 'success');
         setTimeout(() => window.location.reload(), 2000);
       } else {
+        esconderLoadingGlobal();
         mostrarAlerta(
           '❌ ' + (resultado?.mensagem || 'Erro ao salvar'),
           'error'
         );
       }
     } catch (erro) {
+      esconderLoadingGlobal();
       mostrarAlerta(
         'Erro: ' + (erro?.message || erro),
         'error'
