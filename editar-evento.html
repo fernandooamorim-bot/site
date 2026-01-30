@@ -2237,7 +2237,9 @@ async function validarImpactoFinanceiroAntesSalvar(callback) {
         valorBV: parseFloat(document.getElementById('valorBV').value) || 0,
         idBV: document.getElementById('idBV').value,
         valorNF: parseFloat(document.getElementById('valorNF').value) || 0,
-        temNF: document.getElementById('temNF').value === 'SIM',
+        temNF: document.getElementById('temNF').disabled
+        ? eventoOriginal.temNF === 'SIM'
+        : document.getElementById('temNF').value === 'SIM',
         look: document.getElementById('look').value,
         somResponsavel: document.getElementById('somResponsavel').value,
         observacoes: document.getElementById('observacoes').value
@@ -2260,7 +2262,28 @@ async function validarImpactoFinanceiroAntesSalvar(callback) {
           if (resultado && resultado.sucesso) {
             esconderLoadingGlobal();
             travarAcoes(false);
-            document.getElementById('successCard').classList.remove('hidden');
+            const modal = document.getElementById('modalConfirmacao');
+modal.innerHTML = `
+  <div class="modal">
+    <div class="modal-title">✅ Evento atualizado com sucesso</div>
+
+    <p style="margin:16px 0;color:#555;">
+      As alterações foram salvas corretamente.
+    </p>
+
+    <div class="actions">
+      <button class="btn btn-secondary" onclick="window.location.reload()">
+        ✏️ Editar outro evento
+      </button>
+      <button class="btn btn-secondary" onclick="window.location.href='agenda.html'">
+        📅 Ir para agenda
+      </button>
+      <button class="btn btn-primary" onclick="window.location.href='index.html'">
+        🏠 Menu inicial
+      </button>
+    </div>
+  </div>
+`;
           } else {
             esconderLoadingGlobal();
             travarAcoes(false);
