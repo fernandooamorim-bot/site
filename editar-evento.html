@@ -1734,7 +1734,7 @@ async function carregarEventoPorId(idEvento) {
       mostrarLoading();
       try {
         const response = await Auth.apiCall('buscarEventoPorData', {
-          data: data
+          dataISO: data
         });
         if (response && response.error) {
           throw new Error(response.error);
