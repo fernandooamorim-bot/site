@@ -2185,17 +2185,25 @@ async function validarImpactoFinanceiroAntesSalvar(callback) {
       };
       
       for (let campo in campos) {
-        const valorAntigo = String(eventoOriginal[campo] || '');
-        const valorNovo = String(dados[campo] || '');
-        if (valorAntigo !== valorNovo) {
-          alteracoes.push({
-            campo: campos[campo],
-            valorAntigo: valorAntigo || '(vazio)',
-            valorNovo: valorNovo || '(vazio)',
-            impacto: impactos[campo] || null
-          });
-        }
-      }
+  const el = document.getElementById(campo);
+
+  // ✅ NOVO: se campo está desabilitado, ignora
+  if (el && el.disabled) {
+    continue;
+  }
+
+  const valorAntigo = String(eventoOriginal[campo] || '');
+  const valorNovo = String(dados[campo] || '');
+
+  if (valorAntigo !== valorNovo) {
+    alteracoes.push({
+      campo: campos[campo],
+      valorAntigo: valorAntigo || '(vazio)',
+      valorNovo: valorNovo || '(vazio)',
+      impacto: impactos[campo] || null
+    });
+  }
+}
       return alteracoes;
     }
     
