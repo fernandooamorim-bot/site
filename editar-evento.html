@@ -1928,8 +1928,7 @@ function executarAutocompleteContratante(termo) {
       console.log('4️⃣ eventoAtual setado');
       setTimeout(async () => {
         console.log('5️⃣ timeout entrou');
-       // preencherFormulario(eventoAtual);
-        console.log('6️⃣ formulário preenchido');
+        // mostrarStatusFinanceiro e permissaoFinanceira continuam aqui
         mostrarStatusFinanceiro(resultado.statusFinanceiro);
         // --- Permissão financeira (Fase 3 – A) ---
         try {
@@ -1945,9 +1944,8 @@ function executarAutocompleteContratante(termo) {
         }
         // --- Fim permissão financeira ---
         console.log('7️⃣ status financeiro ok');
-        document.querySelector('.search-section').style.display = 'none';
-        console.log('8️⃣ busca escondida');
-        document.getElementById('formEdicao').classList.remove('hidden');
+        // NÃO mostrar formulário ou esconder loading aqui!
+        // O formulário será exibido após os dropdowns e o preenchimento real, em tentarPreencherEventoAposDropdowns()
         // ===============================
         // BLOCO 2 — ATIVAR CONFLITOS APÓS LOAD
         // ===============================
@@ -1962,9 +1960,7 @@ function executarAutocompleteContratante(termo) {
           // Primeira verificação automática
           verificarConflitosEdicao();
         }, 300);
-        console.log('9️⃣ formulário exibido');
-        esconderLoadingGlobal();
-        mostrarAlerta('Evento carregado! Faça as alterações desejadas.', 'success');
+        // O resto do fluxo (exibir formulário, esconder loading) agora é feito em tentarPreencherEventoAposDropdowns
       }, 150);
     } catch (erro) {
       esconderLoadingGlobal();
@@ -2092,6 +2088,10 @@ async function validarImpactoFinanceiroAntesSalvar(callback) {
   ) return;
 
   preencherFormulario(eventoAtual);
+  // Exibir formulário de edição SÓ AGORA, após dropdowns carregados e formulário preenchido
+  document.querySelector('.search-section').style.display = 'none';
+  document.getElementById('formEdicao').classList.remove('hidden');
+  esconderLoadingGlobal();
 }
 
     function popularDropdown(id, lista, opcional = false) {
