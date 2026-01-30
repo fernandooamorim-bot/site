@@ -1514,7 +1514,7 @@ function verificarConflitosEdicao() {
 
   datasParaVerificar.forEach(data => {
     Auth.apiCall('buscarEventosPorData', {
-      data: data
+      dataISO: data
     })
     .then(eventos => {
       if (execucaoAtual !== verificadorExecucaoId) return;
