@@ -1602,7 +1602,7 @@ async function iniciarEditarEvento() {
     fecharModal();
     await carregarContratantesParaAutocomplete();
     // carregar dados base após auth OK
-    await carregarDropdowns();
+    carregarDropdowns();
 
     EVENTO_ID_URL = getIdEventoFromURL();
 
@@ -1786,37 +1786,52 @@ async function carregarEventoPorId(idEvento) {
       }
     }
     
-    function autocompleteContratante(termo) {
-      const list = document.getElementById('autocompleteList');
-      
-      if (!termo || termo.length < 2) {
-        list.classList.remove('show');
-        return;
-      }
-      
-      const matches = contratantesCache.filter(c => 
-        c.nome.toLowerCase().includes(termo.toLowerCase())
-      ).slice(0, 10);
-      
-      if (matches.length === 0) {
-        list.classList.remove('show');
-        return;
-      }
-      
-      list.innerHTML = '';
-      matches.forEach(c => {
-        const item = document.createElement('div');
-        item.className = 'autocomplete-item';
-        item.textContent = c.nome;
-        item.onclick = () => {
-          document.getElementById('inputNome').value = c.nome;
-          list.classList.remove('show');
-        };
-        list.appendChild(item);
-      });
-      
-      list.classList.add('show');
-    }
+ // ===============================
+// AUTOCOMPLETE COM DEBOUNCE
+// ===============================
+let autocompleteTimer = null;
+
+function autocompleteContratante(termo) {
+  clearTimeout(autocompleteTimer);
+
+  autocompleteTimer = setTimeout(() => {
+    executarAutocompleteContratante(termo);
+  }, 200);
+}
+
+function executarAutocompleteContratante(termo) {
+  const list = document.getElementById('autocompleteList');
+
+  if (!termo || termo.length < 2) {
+    list.classList.remove('show');
+    return;
+  }
+
+  const termoLower = termo.toLowerCase();
+
+  const matches = contratantesCache
+    .filter(c => c.nome.toLowerCase().includes(termoLower))
+    .slice(0, 10);
+
+  if (!matches.length) {
+    list.classList.remove('show');
+    return;
+  }
+
+  list.innerHTML = '';
+  matches.forEach(c => {
+    const item = document.createElement('div');
+    item.className = 'autocomplete-item';
+    item.textContent = c.nome;
+    item.onclick = () => {
+      document.getElementById('inputNome').value = c.nome;
+      list.classList.remove('show');
+    };
+    list.appendChild(item);
+  });
+
+  list.classList.add('show');
+}
     
     // Fecha autocomplete ao clicar fora
     document.addEventListener('click', function(e) {
