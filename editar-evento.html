@@ -1929,13 +1929,13 @@ async function validarImpactoFinanceiroAntesSalvar(callback) {
       idEvento: eventoOriginal.id,
       ...coletarDadosFormulario()
     });
-    if (resultado && resultado.risco === 'EXCESSO_GERADO') {
-      mostrarAlerta(
-        '❌ Alteração bloqueada: já existe comissão gerada maior que a nova comissão calculada.',
-        'error'
-      );
-      return;
-    }
+   if (resultado?.impactoFinanceiro?.risco === 'EXCESSO_GERADO') {
+  mostrarAlerta(
+    '❌ Alteração bloqueada: já existe comissão gerada maior que a nova comissão calculada.',
+    'error'
+  );
+  return;
+}
     callback();
   } catch (err) {
     mostrarAlerta('Erro ao validar impacto financeiro: ' + (err && err.message ? err.message : err), 'error');
