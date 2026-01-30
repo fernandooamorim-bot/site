@@ -1925,6 +1925,11 @@ function executarAutocompleteContratante(termo) {
       console.log('3️⃣ sucesso true');
       eventoAtual = resultado.evento;
       eventoOriginal = JSON.parse(JSON.stringify(resultado.evento));
+      // RESTAURAR: Preencher formulário e exibir imediatamente após backend
+      preencherFormulario(eventoAtual);
+      document.querySelector('.search-section').style.display = 'none';
+      document.getElementById('formEdicao').classList.remove('hidden');
+      esconderLoadingGlobal();
       console.log('4️⃣ eventoAtual setado');
       setTimeout(async () => {
         console.log('5️⃣ timeout entrou');
@@ -1944,8 +1949,6 @@ function executarAutocompleteContratante(termo) {
         }
         // --- Fim permissão financeira ---
         console.log('7️⃣ status financeiro ok');
-        // NÃO mostrar formulário ou esconder loading aqui!
-        // O formulário será exibido após os dropdowns e o preenchimento real, em tentarPreencherEventoAposDropdowns()
         // ===============================
         // BLOCO 2 — ATIVAR CONFLITOS APÓS LOAD
         // ===============================
@@ -1960,7 +1963,6 @@ function executarAutocompleteContratante(termo) {
           // Primeira verificação automática
           verificarConflitosEdicao();
         }, 300);
-        // O resto do fluxo (exibir formulário, esconder loading) agora é feito em tentarPreencherEventoAposDropdowns
       }, 150);
     } catch (erro) {
       esconderLoadingGlobal();
@@ -2079,20 +2081,9 @@ async function validarImpactoFinanceiroAntesSalvar(callback) {
     }
     
     function tentarPreencherEventoAposDropdowns() {
-  if (!eventoAtual) return;
-
-  if (
-    !__dropdownsProntos.tipoEvento ||
-    !__dropdownsProntos.duracao ||
-    !__dropdownsProntos.projeto
-  ) return;
-
-  preencherFormulario(eventoAtual);
-  // Exibir formulário de edição SÓ AGORA, após dropdowns carregados e formulário preenchido
-  document.querySelector('.search-section').style.display = 'none';
-  document.getElementById('formEdicao').classList.remove('hidden');
-  esconderLoadingGlobal();
-}
+      if (!eventoAtual) return;
+      preencherFormulario(eventoAtual);
+    }
 
     function popularDropdown(id, lista, opcional = false) {
       const select = document.getElementById(id);
