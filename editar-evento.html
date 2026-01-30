@@ -795,6 +795,34 @@
     }
 
     /* ============================================
+   SUCCESS CARD — CENTRALIZADO
+   ============================================ */
+.success-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1500;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  background: rgba(10,22,40,0.55);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
+.success-card {
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 28px 24px;
+  max-width: 420px;
+  width: 90%;
+  box-shadow: 0 12px 40px rgba(10,22,40,0.25);
+  border: 1px solid rgba(16,185,129,0.25);
+  text-align: center;
+}
+
+    /* ============================================
        MODAL
        ============================================ */
     .modal-overlay {
@@ -986,14 +1014,21 @@
       </div>
     </div>
     <div id="alertContainer"></div>
-    <div id="successCard" class="alert alert-success hidden" style="position:fixed;top:80px;right:20px;z-index:1500;max-width:320px;">
-      <strong>✅ Evento atualizado com sucesso</strong>
-      <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;">
-        <button class="btn btn-secondary" onclick="window.location.reload()">Editar outro</button>
-        <button class="btn btn-secondary" onclick="window.location.href='agenda.html'">Ver agenda</button>
-        <button class="btn btn-secondary" onclick="window.location.href='index.html'">Menu</button>
-      </div>
+    <div id="successCard" class="hidden success-overlay">
+  <div class="success-card">
+    <strong style="font-size:16px;">✅ Evento atualizado com sucesso</strong>
+
+    <p style="margin:12px 0;color:#555;font-size:14px;">
+      As alterações foram salvas corretamente.
+    </p>
+
+    <div style="margin-top:16px;display:flex;gap:10px;flex-wrap:wrap;justify-content:center;">
+      <button class="btn btn-secondary" onclick="window.location.reload()">✏️ Editar outro</button>
+      <button class="btn btn-secondary" onclick="window.location.href='agenda.html'">📅 Ver agenda</button>
+      <button class="btn btn-primary" onclick="window.location.href='index.html'">🏠 Menu</button>
     </div>
+  </div>
+</div>
     
     <!-- SEÇÃO DE BUSCA -->
     <div class="search-section">
@@ -2262,30 +2297,7 @@ async function validarImpactoFinanceiroAntesSalvar(callback) {
           if (resultado && resultado.sucesso) {
             esconderLoadingGlobal();
             travarAcoes(false);
-            const modal = document.getElementById('modalConfirmacao');
-modal.innerHTML = `
-  <div class="modal">
-    <div class="modal-title">✅ Evento atualizado com sucesso</div>
-
-    <p style="margin:16px 0;color:#555;">
-      As alterações foram salvas corretamente.
-    </p>
-
-    <div class="actions">
-      <button class="btn btn-secondary" onclick="window.location.reload()">
-        ✏️ Editar outro evento
-      </button>
-      <button class="btn btn-secondary" onclick="window.location.href='agenda.html'">
-        📅 Ir para agenda
-      </button>
-      <button class="btn btn-primary" onclick="window.location.href='index.html'">
-        🏠 Menu inicial
-      </button>
-    </div>
-  </div>
-`;
-// ✅ ESTA LINHA É O QUE FALTAVA
-modal.classList.add('show');
+            document.getElementById('successCard').classList.remove('hidden');
           } else {
             esconderLoadingGlobal();
             travarAcoes(false);
