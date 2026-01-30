@@ -1155,13 +1155,8 @@
               <span class="indicator indicator-free">🟢 Livre</span>
             </label>
             <select id="tipoEvento">
-              <option value="Casamento">Casamento</option>
-              <option value="15 Anos">15 Anos</option>
-              <option value="Corporativo">Corporativo</option>
-              <option value="Aniversário">Aniversário</option>
-              <option value="Formatura">Formatura</option>
-              <option value="Outro">Outro</option>
-            </select>
+  <option value="">Selecione...</option>
+</select>
           </div>
           
           <div class="form-group">
@@ -1348,6 +1343,11 @@ function getIdEventoFromURL() {
 
   let eventoAtual = null;
   let eventoOriginal = null;
+  let __dropdownsProntos = {
+  tipoEvento: false,
+  duracao: false,
+  projeto: false
+};
   let contratantesCache = [];
   let permissaoFinanceira = null;
 
@@ -1576,7 +1576,6 @@ async function iniciarEditarEvento() {
       const evento = await carregarEventoPorId(EVENTO_ID_URL);
       eventoAtual = evento;
       eventoOriginal = JSON.parse(JSON.stringify(evento));
-      preencherFormulario(eventoAtual);
       document.querySelector('.search-section').style.display = 'none';
       document.getElementById('formEdicao').classList.remove('hidden');
       mostrarAlerta('Evento carregado pela URL.', 'success');
@@ -1879,7 +1878,7 @@ async function carregarEventoPorId(idEvento) {
       console.log('4️⃣ eventoAtual setado');
       setTimeout(async () => {
         console.log('5️⃣ timeout entrou');
-        preencherFormulario(eventoAtual);
+       // preencherFormulario(eventoAtual);
         console.log('6️⃣ formulário preenchido');
         mostrarStatusFinanceiro(resultado.statusFinanceiro);
         // --- Permissão financeira (Fase 3 – A) ---
@@ -1973,58 +1972,78 @@ async function validarImpactoFinanceiroAntesSalvar(callback) {
       } catch (e) {}
       // CONFIG - Tipo de Evento
       try {
-        let tipos = await Auth.apiCall('listarTiposEvento', {});
-        if (tipos && tipos.error) throw new Error(tipos.error);
-        const sel = document.getElementById('tipoEvento');
-        if (sel) {
-          const valorAtual = sel.value;
-          sel.innerHTML = '<option value="">Selecione...</option>';
-          tipos.forEach(function(tipo) {
-            const opt = document.createElement('option');
-            opt.value = tipo;
-            opt.textContent = tipo;
-            sel.appendChild(opt);
-          });
-          if (valorAtual) sel.value = valorAtual;
-        }
-      } catch (e) {}
+  let tipos = await Auth.apiCall('listarTiposEvento', {});
+  if (tipos && tipos.error) throw new Error(tipos.error);
+
+  const sel = document.getElementById('tipoEvento');
+  if (sel) {
+    sel.innerHTML = '<option value="">Selecione...</option>';
+    tipos.forEach(tipo => {
+      const opt = document.createElement('option');
+      opt.value = tipo;
+      opt.textContent = tipo;
+      sel.appendChild(opt);
+    });
+    __dropdownsProntos.tipoEvento = true;
+    tentarPreencherEventoAposDropdowns();
+  }
+} catch (e) {}
       // CONFIG - Durações
-      try {
-        let duracoes = await Auth.apiCall('listarDuracoesPadrao', {});
-        if (duracoes && duracoes.error) throw new Error(duracoes.error);
-        const sel = document.getElementById('duracao');
-        if (sel) {
-          const valorAtual = sel.value;
-          sel.innerHTML = '<option value="">Selecione...</option>';
-          duracoes.forEach(function(dur) {
-            const opt = document.createElement('option');
-            opt.value = dur;
-            opt.textContent = dur;
-            sel.appendChild(opt);
-          });
-          if (valorAtual) sel.value = valorAtual;
-        }
-      } catch (e) {}
+     try {
+  let duracoes = await Auth.apiCall('listarDuracoesPadrao', {});
+  if (duracoes && duracoes.error) throw new Error(duracoes.error);
+
+  const sel = document.getElementById('duracao');
+  if (sel) {
+    sel.innerHTML = '<option value="">Selecione...</option>';
+    duracoes.forEach(min => {
+      const minutos = Number(min);
+      const h = Math.floor(minutos / 60);
+      const m = minutos % 60;
+      const label = m > 0 ? `${h}h${m}` : `${h}h`;
+
+      const opt = document.createElement('option');
+      opt.value = String(minutos); // 🔑 value = 120
+      opt.textContent = label;     // label = 2h
+      sel.appendChild(opt);
+    });
+    __dropdownsProntos.duracao = true;
+    tentarPreencherEventoAposDropdowns();
+  }
+} catch (e) {}
       // CONFIG - Projetos
       try {
-        let projetos = await Auth.apiCall('listarProjetosSugeridos', {});
-        if (projetos && projetos.error) throw new Error(projetos.error);
-        const sel = document.getElementById('projeto');
-        if (sel) {
-          const valorAtual = sel.value;
-          sel.innerHTML = '<option value="">Selecione...</option>';
-          projetos.forEach(function(proj) {
-            const opt = document.createElement('option');
-            const v = String(proj).trim();
-            opt.value = v;
-            opt.textContent = v;
-            sel.appendChild(opt);
-          });
-          if (valorAtual) sel.value = valorAtual;
-        }
-      } catch (e) {}
+  let projetos = await Auth.apiCall('listarProjetosSugeridos', {});
+  if (projetos && projetos.error) throw new Error(projetos.error);
+
+  const sel = document.getElementById('projeto');
+  if (sel) {
+    sel.innerHTML = '<option value="">Selecione...</option>';
+    projetos.forEach(proj => {
+      const v = String(proj).trim();
+      const opt = document.createElement('option');
+      opt.value = v;
+      opt.textContent = v;
+      sel.appendChild(opt);
+    });
+    __dropdownsProntos.projeto = true;
+    tentarPreencherEventoAposDropdowns();
+  }
+} catch (e) {}
     }
     
+    function tentarPreencherEventoAposDropdowns() {
+  if (!eventoAtual) return;
+
+  if (
+    !__dropdownsProntos.tipoEvento ||
+    !__dropdownsProntos.duracao ||
+    !__dropdownsProntos.projeto
+  ) return;
+
+  preencherFormulario(eventoAtual);
+}
+
     function popularDropdown(id, lista, opcional = false) {
       const select = document.getElementById(id);
       if (!opcional) select.innerHTML = '';
