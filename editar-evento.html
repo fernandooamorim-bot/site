@@ -1016,7 +1016,7 @@
     <div id="alertContainer"></div>
     <div id="successCard" class="hidden success-overlay">
   <div class="success-card">
-    <strong style="font-size:16px;">✅ Evento atualizado com sucesso</strong>
+    <h3 style="margin-bottom:4px;">✅ Evento atualizado com sucesso</strong>
 
     <p style="margin:12px 0;color:#555;font-size:14px;">
       As alterações foram salvas corretamente.
@@ -1600,9 +1600,9 @@ function setValueSafe(id, valor, tentativas = 0) {
 async function iniciarEditarEvento() {
   try {
     fecharModal();
+    await carregarContratantesParaAutocomplete();
     // carregar dados base após auth OK
     await carregarDropdowns();
-    await carregarContratantesParaAutocomplete();
 
     EVENTO_ID_URL = getIdEventoFromURL();
 
