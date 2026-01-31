@@ -2059,19 +2059,36 @@ function executarAutocompleteContratante(termo) {
               bloquearEdicaoFinanceira(permissao.motivo);
             }
 
-            // ℹ️ Apenas restrição por perfil (não trava campos)
-            if (!permissao.permitido && permissao.bloqueio === 'PERMISSAO_USUARIO') {
-              const statusFinanceiro = document.getElementById('statusFinanceiro');
-              if (statusFinanceiro) {
-                statusFinanceiro.innerHTML = `
-                  <div class="status-box warning">
-                    <span class="status-icon">ℹ️</span>
-                    <div>
-                      <strong>Permissão limitada</strong><br>
-                      ${permissao.motivo || 'Usuário sem permissão para editar financeiro.'}
+            // ℹ️ Aviso de perfil SOMENTE se houver bloqueio real
+            if (
+              !permissao.permitido &&
+              permissao.bloqueio === 'PERMISSAO_USUARIO'
+            ) {
+              const algumCampoBloqueado = [
+                'valorTotal',
+                'valorBV',
+                'valorNF',
+                'idBV',
+                'idVendedor',
+                'temNF'
+              ].some(id => {
+                const el = document.getElementById(id);
+                return el && el.disabled;
+              });
+
+              if (algumCampoBloqueado) {
+                const statusFinanceiro = document.getElementById('statusFinanceiro');
+                if (statusFinanceiro) {
+                  statusFinanceiro.innerHTML = `
+                    <div class="status-box warning">
+                      <span class="status-icon">ℹ️</span>
+                      <div>
+                        <strong>Permissão limitada</strong><br>
+                        ${permissao.motivo || 'Usuário sem permissão para editar financeiro.'}
+                      </div>
                     </div>
-                  </div>
-                `;
+                  `;
+                }
               }
             }
 
