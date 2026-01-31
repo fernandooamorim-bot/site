@@ -2057,7 +2057,7 @@ function executarAutocompleteContratante(termo) {
             // 🔒 Bloqueio real do evento
             if (!permissao.permitido && permissao.bloqueio === 'MOVIMENTACAO_FINANCEIRA') {
               bloquearEdicaoFinanceira(permissao.motivo);
-              return;
+// NÃO retornar daqui
             }
 
             // ℹ️ Apenas restrição por perfil (não trava campos)
