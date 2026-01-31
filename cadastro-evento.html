@@ -745,6 +745,56 @@
       background: rgba(239,68,68,0.08);
       color: #991b1b;
     }
+    /* ============================================
+   TOGGLE SWITCH
+   ============================================ */
+.toggle-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.toggle-switch input {
+  display: none;
+}
+
+.toggle-slider {
+  position: relative;
+  width: 44px;
+  height: 24px;
+  background: var(--gray-300);
+  border-radius: 999px;
+  transition: background 0.25s;
+}
+
+.toggle-slider::before {
+  content: "";
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  top: 3px;
+  left: 3px;
+  background: white;
+  border-radius: 50%;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+  transition: transform 0.25s;
+}
+
+.toggle-switch input:checked + .toggle-slider {
+  background: var(--navy-600);
+}
+
+.toggle-switch input:checked + .toggle-slider::before {
+  transform: translateX(20px);
+}
+
+.toggle-text {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--gray-700);
+}
   </style>
 </head>
 <body>
@@ -837,16 +887,16 @@
               <input type="date" id="dataEvento" required onchange="verificarConflitos()">
 
               <!-- EVENTO: múltiplos dias (MESMO PADRÃO DA DURAÇÃO DO BLOQUEIO) -->
-              <div id="campoEventoMultiDias"
-                   class="checkbox-group"
-                   style="display:none;margin-top:8px;">
-                <input type="checkbox"
-                       id="eventoMultiDias"
-                       onchange="toggleDataFimEvento()">
-                <label for="eventoMultiDias" style="margin:0;">
-                  Evento com mais de um dia
-                </label>
-              </div>
+             <div id="campoEventoMultiDias"
+     style="display:none;margin-top:12px;">
+  <label class="toggle-switch">
+    <input type="checkbox"
+           id="eventoMultiDias"
+           onchange="toggleDataFimEvento()">
+    <span class="toggle-slider"></span>
+    <span class="toggle-text">Evento com mais de um dia</span>
+  </label>
+</div>
             </div>
             
             <div class="form-group">
