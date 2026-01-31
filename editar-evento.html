@@ -1057,6 +1057,30 @@
 .switch input:checked + .slider:before {
   transform: translateX(20px);
 }
+.form-toggle {
+  margin-top: 6px;
+  margin-bottom: 18px;
+}
+
+.toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.toggle-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--gray-700);
+}
+
+/* Mobile: mantém compacto */
+@media (max-width: 600px) {
+  .toggle-row {
+    padding-top: 4px;
+  }
+}
   </style>
 </head>
 <body>
@@ -1223,15 +1247,17 @@
             <p class="helper-text">Alteração verifica conflitos na agenda</p>
           </div>
         </div>
-        <div class="form-group">
-  <label class="label-indicator" style="display:flex;align-items:center;justify-content:space-between;">
-    <span>Evento com mais de um dia</span>
+        <div class="form-group form-toggle">
+  <div class="toggle-row">
+    <label for="eventoMultiDias" class="toggle-label">
+      Evento com mais de um dia
+    </label>
 
     <label class="switch">
       <input type="checkbox" id="eventoMultiDias" onchange="toggleDataFimEdicao()">
       <span class="slider"></span>
     </label>
-  </label>
+  </div>
 </div>
 
         <div class="form-group hidden" id="grupoDataFim">
