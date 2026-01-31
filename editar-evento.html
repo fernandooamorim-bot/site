@@ -1010,6 +1010,53 @@
       margin-bottom: 12px;
       opacity: 0.6;
     }
+
+    /* ============================================
+   TOGGLE SWITCH — Evento multi-dias
+   ============================================ */
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 46px;
+  height: 26px;
+  flex-shrink: 0;
+}
+
+.switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.slider {
+  position: absolute;
+  cursor: pointer;
+  inset: 0;
+  background-color: #cbd5e1;
+  transition: 0.3s;
+  border-radius: 999px;
+}
+
+.slider:before {
+  position: absolute;
+  content: "";
+  height: 20px;
+  width: 20px;
+  left: 3px;
+  bottom: 3px;
+  background-color: white;
+  transition: 0.3s;
+  border-radius: 50%;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+}
+
+.switch input:checked + .slider {
+  background-color: var(--navy-600);
+}
+
+.switch input:checked + .slider:before {
+  transform: translateX(20px);
+}
   </style>
 </head>
 <body>
@@ -1158,8 +1205,6 @@
     <!-- FORMULÁRIO DE EDIÇÃO (inicialmente oculto) -->
     <div id="formEdicao" class="hidden">
       
-      <!-- STATUS FINANCEIRO -->
-      <div id="statusFinanceiro"></div>
       
       <!-- DADOS DO EVENTO -->
       <div class="section">
@@ -1179,11 +1224,15 @@
           </div>
         </div>
         <div class="form-group">
-          <label>
-            <input type="checkbox" id="eventoMultiDias" onchange="toggleDataFimEdicao()">
-            Evento com mais de um dia
-          </label>
-        </div>
+  <label class="label-indicator" style="display:flex;align-items:center;justify-content:space-between;">
+    <span>Evento com mais de um dia</span>
+
+    <label class="switch">
+      <input type="checkbox" id="eventoMultiDias" onchange="toggleDataFimEdicao()">
+      <span class="slider"></span>
+    </label>
+  </label>
+</div>
 
         <div class="form-group hidden" id="grupoDataFim">
           <label class="label-indicator">
@@ -1268,6 +1317,8 @@
       <!-- DADOS FINANCEIROS -->
       <div class="section">
         <div class="section-title">💰 Dados Financeiros</div>
+        <!-- STATUS / BLOQUEIO FINANCEIRO -->
+        <div id="statusFinanceiro"></div>
         
         <div class="form-row">
           <div class="form-group">
