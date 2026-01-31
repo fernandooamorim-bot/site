@@ -1529,17 +1529,23 @@ function bloquearEdicaoFinanceira(motivo) {
     el.classList.add('campo-bloqueado');
   });
 
+  // Limpa antes de adicionar novo status
+  const statusFinanceiro = document.getElementById('statusFinanceiro');
+  if (statusFinanceiro) statusFinanceiro.innerHTML = '';
+
   if (document.getElementById('avisoFinanceiroBloqueado')) return;
 
   const aviso = document.createElement('div');
   aviso.id = 'avisoFinanceiroBloqueado';
-  aviso.className = 'alert alert-warning';
+  aviso.className = 'status-box danger';
   aviso.innerHTML = `
-    🔒 <strong>Edição financeira bloqueada</strong><br>
-    ${motivo || 'Este evento já possui movimentação financeira registrada.'}
+    <span class="status-icon">🔒</span>
+    <div>
+      <strong>Edição financeira bloqueada</strong><br>
+      ${motivo || 'Evento já possui recebimento registrado.'}
+    </div>
   `;
 
-  const statusFinanceiro = document.getElementById('statusFinanceiro');
   if (statusFinanceiro) {
     statusFinanceiro.prepend(aviso);
   }
