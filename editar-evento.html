@@ -2037,16 +2037,29 @@ function executarAutocompleteContratante(termo) {
       setTimeout(async () => {
         console.log('5️⃣ timeout entrou');
         // preencherFormulario(eventoAtual);
-      console.log('6 formulário preenchido');
-        mostrarStatusFinanceiro(resultado.statusFinanceiro);
+        console.log('6 formulário preenchido');
         // --- Permissão financeira (Fase 3 – A) ---
         try {
           const permissao = await Auth.apiCall('verificarPermissaoEdicaoFinanceira', {
             idEvento: eventoAtual.id
           });
           permissaoFinanceira = permissao;
+          // Limpa statusFinanceiro antes de exibir novo status
+          const statusFinanceiro = document.getElementById('statusFinanceiro');
+          if (statusFinanceiro) statusFinanceiro.innerHTML = '';
           if (permissao && !permissao.permitido) {
             bloquearEdicaoFinanceira(permissao.motivo);
+          }
+          if (permissao && permissao.permitido) {
+            const statusFinanceiro = document.getElementById('statusFinanceiro');
+            if (statusFinanceiro) {
+              statusFinanceiro.innerHTML = `
+                <div class="status-box safe">
+                  <span class="status-icon">🟢</span>
+                  <div><strong>Status Financeiro:</strong> Evento liberado para edição.</div>
+                </div>
+              `;
+            }
           }
         } catch (erroPerm) {
           console.error('Erro permissão financeira:', erroPerm);
@@ -2072,8 +2085,8 @@ function executarAutocompleteContratante(termo) {
           verificarConflitosEdicao();
         }, 300);
         console.log('9 formulário exibido');
-esconderLoadingGlobal();
-mostrarAlerta('Evento carregado! Faça as alterações desejadas.', 'success');
+        esconderLoadingGlobal();
+        mostrarAlerta('Evento carregado! Faça as alterações desejadas.', 'success');
       }, 150);
     } catch (erro) {
       esconderLoadingGlobal();
@@ -2256,30 +2269,7 @@ async function validarImpactoFinanceiroAntesSalvar(callback) {
   document.getElementById('formEdicao').classList.remove('skeleton');
 }
     
-   function mostrarStatusFinanceiro(status) {
-  const container = document.getElementById('statusFinanceiro');
-  if (!container) return;
-
-  let classe = 'safe';
-  let icone = 'ℹ️';
-  let mensagem = status?.mensagem || 'Status financeiro não informado';
-
-  if (status?.tipo === 'bloqueado') {
-    classe = 'danger';
-    icone = '🔒';
-    mensagem = 'Alterações financeiras bloqueadas. Este evento já possui recebimentos ou comissões geradas.';
-  } else if (status?.tipo === 'atencao') {
-    classe = 'warning';
-    icone = '⚠️';
-  }
-
-  container.innerHTML = `
-    <div class="status-box ${classe}">
-      <span class="status-icon">${icone}</span>
-      <div><strong>Status Financeiro:</strong> ${mensagem}</div>
-    </div>
-  `;
-}
+  // mostrarStatusFinanceiro REMOVIDA: nenhuma função deve mais escrever na div #statusFinanceiro, exceto lógica de permissão financeira.
     
     async function validarEMostrarResumo() {
       if (!eventoOriginal || !eventoAtual) {
