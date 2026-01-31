@@ -795,6 +795,35 @@
     }
 
     /* ============================================
+       SKELETON LOADER — FORM EDIÇÃO
+       ============================================ */
+    .skeleton input,
+    .skeleton select,
+    .skeleton textarea {
+      background: linear-gradient(
+        90deg,
+        #f0f0f0 25%,
+        #e6e6e6 37%,
+        #f0f0f0 63%
+      );
+      background-size: 400% 100%;
+      animation: shimmer 1.2s infinite;
+      color: transparent !important;
+      pointer-events: none;
+    }
+
+    .skeleton label,
+    .skeleton .indicator,
+    .skeleton .helper-text {
+      color: transparent !important;
+    }
+
+    @keyframes shimmer {
+      0% { background-position: 100% 0; }
+      100% { background-position: -100% 0; }
+    }
+
+    /* ============================================
    SUCCESS CARD — CENTRALIZADO
    ============================================ */
 .success-overlay {
@@ -1947,7 +1976,8 @@ function executarAutocompleteContratante(termo) {
         console.log('7️⃣ status financeiro ok');
         document.querySelector('.search-section').style.display = 'none';
         console.log('8 busca escondida');
-        document.getElementById('formEdicao').classList.remove('hidden') ;
+        document.getElementById('formEdicao').classList.remove('hidden');
+        document.getElementById('formEdicao').classList.add('skeleton');
         // ===============================
         // BLOCO 2 — ATIVAR CONFLITOS APÓS LOAD
         // ===============================
@@ -2144,6 +2174,7 @@ async function validarImpactoFinanceiroAntesSalvar(callback) {
   
   // Calcular horário fim após carregar os dados
   setTimeout(calcularHorarioFim, 500);
+  document.getElementById('formEdicao').classList.remove('skeleton');
 }
     
    function mostrarStatusFinanceiro(status) {
