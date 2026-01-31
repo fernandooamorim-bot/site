@@ -2053,18 +2053,43 @@ function executarAutocompleteContratante(termo) {
           // Limpa statusFinanceiro antes de exibir novo status
           const statusFinanceiro = document.getElementById('statusFinanceiro');
           if (statusFinanceiro) statusFinanceiro.innerHTML = '';
-          if (permissao && !permissao.permitido) {
-            bloquearEdicaoFinanceira(permissao.motivo);
-          }
-          if (permissao && permissao.permitido) {
-            const statusFinanceiro = document.getElementById('statusFinanceiro');
-            if (statusFinanceiro) {
-              statusFinanceiro.innerHTML = `
-                <div class="status-box safe">
-                  <span class="status-icon">🟢</span>
-                  <div><strong>Status Financeiro:</strong> Evento liberado para edição.</div>
-                </div>
-              `;
+          if (permissao) {
+            // 🔒 Bloqueio real do evento
+            if (!permissao.permitido && permissao.bloqueio === 'MOVIMENTACAO_FINANCEIRA') {
+              bloquearEdicaoFinanceira(permissao.motivo);
+              return;
+            }
+
+            // ℹ️ Apenas restrição por perfil (não trava campos)
+            if (!permissao.permitido && permissao.bloqueio === 'PERMISSAO_USUARIO') {
+              const statusFinanceiro = document.getElementById('statusFinanceiro');
+              if (statusFinanceiro) {
+                statusFinanceiro.innerHTML = `
+                  <div class="status-box warning">
+                    <span class="status-icon">ℹ️</span>
+                    <div>
+                      <strong>Permissão limitada</strong><br>
+                      ${permissao.motivo || 'Usuário sem permissão para editar financeiro.'}
+                    </div>
+                  </div>
+                `;
+              }
+              return;
+            }
+
+            // 🟢 Evento liberado
+            if (permissao.permitido) {
+              const statusFinanceiro = document.getElementById('statusFinanceiro');
+              if (statusFinanceiro) {
+                statusFinanceiro.innerHTML = `
+                  <div class="status-box safe">
+                    <span class="status-icon">🟢</span>
+                    <div>
+                      <strong>Status Financeiro:</strong> Evento liberado para edição.
+                    </div>
+                  </div>
+                `;
+              }
             }
           }
         } catch (erroPerm) {
