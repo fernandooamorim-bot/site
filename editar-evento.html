@@ -2327,6 +2327,25 @@ async function validarImpactoFinanceiroAntesSalvar(callback) {
         mostrarAlerta('ℹ️ Nenhuma alteração detectada', 'info');
         return;
       }
+
+      // 🔒 Defesa extra: impedir salvar se tentar alterar financeiro bloqueado
+      if (
+        permissaoFinanceira &&
+        permissaoFinanceira.permitido === false
+      ) {
+        const alteracaoFinanceira = alteracoes.some(a =>
+          ['Valor Total','Valor BV','Valor NF','Vendedor','Parceiro BV','Tem NF'].includes(a.campo)
+        );
+
+        if (alteracaoFinanceira) {
+          mostrarAlerta(
+            '❌ Alterações financeiras não podem ser salvas porque este evento já possui movimentações financeiras.',
+            'error'
+          );
+          return;
+        }
+      }
+
       const lista = document.getElementById('listaAlteracoes');
       lista.innerHTML = '';
       alteracoes.forEach(alt => {
