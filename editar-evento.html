@@ -2302,6 +2302,11 @@ async function validarImpactoFinanceiroAntesSalvar(callback) {
   // Calcular horário fim após carregar os dados
   setTimeout(calcularHorarioFim, 500);
   document.getElementById('formEdicao').classList.remove('skeleton');
+
+  // 🔒 Verificação de bloqueio financeiro frontend
+  if (evento && evento.id) {
+    verificarBloqueioFinanceiroFrontend(evento.id);
+  }
 }
     
   // mostrarStatusFinanceiro REMOVIDA: nenhuma função deve mais escrever na div #statusFinanceiro, exceto lógica de permissão financeira.
