@@ -2054,11 +2054,6 @@ function executarAutocompleteContratante(termo) {
           const statusFinanceiro = document.getElementById('statusFinanceiro');
           if (statusFinanceiro) statusFinanceiro.innerHTML = '';
           if (permissao) {
-            // 🔒 Bloqueio real do evento
-            if (!permissao.permitido && permissao.bloqueio === 'MOVIMENTACAO_FINANCEIRA') {
-              bloquearEdicaoFinanceira(permissao.motivo);
-            }
-
             // ℹ️ Aviso de perfil SOMENTE se houver bloqueio real
             if (
               !permissao.permitido &&
@@ -2091,21 +2086,6 @@ function executarAutocompleteContratante(termo) {
                 }
               }
             }
-
-            // 🟢 Evento liberado
-            if (permissao.permitido) {
-              const statusFinanceiro = document.getElementById('statusFinanceiro');
-              if (statusFinanceiro) {
-                statusFinanceiro.innerHTML = `
-                  <div class="status-box safe">
-                    <span class="status-icon">🟢</span>
-                    <div>
-                      <strong>Status Financeiro:</strong> Evento liberado para edição.
-                    </div>
-                  </div>
-                `;
-              }
-            }
           }
         } catch (erroPerm) {
           console.error('Erro permissão financeira:', erroPerm);
@@ -2116,6 +2096,15 @@ function executarAutocompleteContratante(termo) {
         console.log('8 busca escondida');
         document.getElementById('formEdicao').classList.remove('hidden');
         document.getElementById('formEdicao').classList.add('skeleton');
+        // --- Bloqueio financeiro após preencher formulário ---
+        preencherFormulario(eventoAtual);
+        if (
+          permissaoFinanceira &&
+          permissaoFinanceira.permitido === false &&
+          permissaoFinanceira.bloqueio === 'MOVIMENTACAO_FINANCEIRA'
+        ) {
+          bloquearEdicaoFinanceira(permissaoFinanceira.motivo);
+        }
         // ===============================
         // BLOCO 2 — ATIVAR CONFLITOS APÓS LOAD
         // ===============================
