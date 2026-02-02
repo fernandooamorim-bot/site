@@ -1493,6 +1493,7 @@ function getIdEventoFromURL() {
 };
   let contratantesCache = [];
   let permissaoFinanceira = null;
+  let BLOQUEIO_FINANCEIRO_ATIVO = false;
 
   function mostrarLoadingGlobal(texto) {
     const overlay = document.getElementById('globalLoading');
@@ -1513,6 +1514,8 @@ function getIdEventoFromURL() {
   }
 
 function bloquearEdicaoFinanceira(motivo) {
+  BLOQUEIO_FINANCEIRO_ATIVO = true;
+
   const campos = [
     'valorTotal',
     'valorBV',
@@ -1529,28 +1532,19 @@ function bloquearEdicaoFinanceira(motivo) {
     el.classList.add('campo-bloqueado');
   });
 
-  // Limpa antes de adicionar novo status
   const statusFinanceiro = document.getElementById('statusFinanceiro');
-  if (statusFinanceiro) statusFinanceiro.innerHTML = '';
-
-  if (document.getElementById('avisoFinanceiroBloqueado')) return;
-
-  const aviso = document.createElement('div');
-  aviso.id = 'avisoFinanceiroBloqueado';
-  aviso.className = 'status-box danger';
-  aviso.innerHTML = `
-    <span class="status-icon">🔒</span>
-    <div>
-      <strong>Edição financeira bloqueada</strong><br>
-      ${motivo || 'Evento já possui recebimento registrado.'}
-    </div>
-  `;
-
   if (statusFinanceiro) {
-    statusFinanceiro.prepend(aviso);
+    statusFinanceiro.innerHTML = `
+      <div class="status-box danger">
+        <span class="status-icon">🔒</span>
+        <div>
+          <strong>Edição financeira bloqueada</strong><br>
+          ${motivo || 'Evento possui movimentações financeiras registradas.'}
+        </div>
+      </div>
+    `;
   }
 }
-
 async function verificarBloqueioFinanceiroFrontend(idEvento) {
   try {
     if (!idEvento) return;
@@ -2144,13 +2138,17 @@ function executarAutocompleteContratante(termo) {
         document.getElementById('formEdicao').classList.add('skeleton');
         // --- Bloqueio financeiro após preencher formulário ---
         preencherFormulario(eventoAtual);
-        if (
-          permissaoFinanceira &&
-          permissaoFinanceira.permitido === false &&
-          permissaoFinanceira.bloqueio === 'MOVIMENTACAO_FINANCEIRA'
-        ) {
-          bloquearEdicaoFinanceira(permissaoFinanceira.motivo);
-        }
+
+// ⏱️ garante que DOM + dropdowns estejam prontos
+setTimeout(() => {
+  if (
+    permissaoFinanceira &&
+    permissaoFinanceira.permitido === false &&
+    permissaoFinanceira.bloqueio === 'MOVIMENTACAO_FINANCEIRA'
+  ) {
+    bloquearEdicaoFinanceira(permissaoFinanceira.motivo);
+  }
+}, 300);
         // ===============================
         // BLOCO 2 — ATIVAR CONFLITOS APÓS LOAD
         // ===============================
@@ -2349,10 +2347,12 @@ async function validarImpactoFinanceiroAntesSalvar(callback) {
   setTimeout(calcularHorarioFim, 500);
   document.getElementById('formEdicao').classList.remove('skeleton');
 
-  // 🔒 Verificação de bloqueio financeiro frontend
-  if (evento && evento.id) {
-    verificarBloqueioFinanceiroFrontend(evento.id);
-  }
+ 
+  // 🔒 GARANTIA FINAL — reaplica bloqueio após async / dropdowns
+if (BLOQUEIO_FINANCEIRO_ATIVO) {
+  bloquearEdicaoFinanceira(permissaoFinanceira?.motivo);
+}
+  
 }
     
   // mostrarStatusFinanceiro REMOVIDA: nenhuma função deve mais escrever na div #statusFinanceiro, exceto lógica de permissão financeira.
