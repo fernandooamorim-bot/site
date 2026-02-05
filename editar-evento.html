@@ -1389,15 +1389,6 @@
         <div class="form-row">
           <div class="form-group">
             <label class="label-indicator">
-              <span>Valor NF (R$)</span>
-              <span class="indicator indicator-critical">🔴 Crítico</span>
-            </label>
-            <input type="number" id="valorNF" step="0.01" min="0" disabled readonly>
-            <p class="helper-text">Valor calculado automaticamente pelo sistema</p>
-          </div>
-          
-          <div class="form-group">
-            <label class="label-indicator">
               <span>Tem NF?</span>
               <span class="indicator indicator-free">🟢 Livre</span>
             </label>
@@ -2305,7 +2296,6 @@ async function validarImpactoFinanceiroAntesSalvar(callback) {
   // Campos simples
   document.getElementById('valorTotal').value = evento.valorTotal || 0;
   document.getElementById('valorBV').value = evento.valorBV || 0;
-  document.getElementById('valorNF').value = evento.valorNF || 0;
   document.getElementById('look').value = evento.look || '';
   document.getElementById('somResponsavel').value = evento.somResponsavel || '';
   document.getElementById('observacoes').value = evento.observacoes || '';
