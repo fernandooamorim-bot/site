@@ -1392,7 +1392,8 @@
               <span>Valor NF (R$)</span>
               <span class="indicator indicator-critical">🔴 Crítico</span>
             </label>
-            <input type="number" id="valorNF" step="0.01" min="0">
+            <input type="number" id="valorNF" step="0.01" min="0" disabled readonly>
+            <p class="helper-text">Valor calculado automaticamente pelo sistema</p>
           </div>
           
           <div class="form-group">
@@ -1516,7 +1517,6 @@ function bloquearEdicaoFinanceira(motivo) {
   const campos = [
     'valorTotal',
     'valorBV',
-    'valorNF',
     'idBV',
     'idVendedor',
     'temNF'
@@ -2369,13 +2369,12 @@ async function validarImpactoFinanceiroAntesSalvar(callback) {
         duracao: 'Duração', tipoEvento: 'Tipo de Evento', projeto: 'Formato/Projeto',
         idContratante: 'Contratante', idCerimonialista: 'Cerimonialista', idEndereco: 'Local',
         valorTotal: 'Valor Total', idVendedor: 'Vendedor', valorBV: 'Valor BV',
-        idBV: 'Parceiro BV', valorNF: 'Valor NF', temNF: 'Tem NF',
+        idBV: 'Parceiro BV', temNF: 'Tem NF',
         look: 'Look', somResponsavel: 'Responsável Som', observacoes: 'Observações'
       };
       const impactos = {
         valorTotal: 'Comissões pendentes serão recalculadas',
         valorBV: 'Base de comissão será recalculada',
-        valorNF: 'Base de comissão será recalculada',
         idVendedor: 'Pode transferir comissões pendentes',
         dataEvento: 'Verificar conflitos na agenda',
         horaInicio: 'Verificar conflitos na agenda'
@@ -2433,7 +2432,6 @@ async function validarImpactoFinanceiroAntesSalvar(callback) {
         idVendedor: document.getElementById('idVendedor').value,
         valorBV: parseFloat(document.getElementById('valorBV').value) || 0,
         idBV: document.getElementById('idBV').value,
-        valorNF: parseFloat(document.getElementById('valorNF').value) || 0,
         temNF: document.getElementById('temNF').disabled
         ? eventoOriginal.temNF === 'SIM'
         : document.getElementById('temNF').value === 'SIM',
