@@ -2570,11 +2570,13 @@ async function validarImpactoFinanceiroAntesSalvar(callback) {
     }
     
     async function confirmarEdicao() {
+      // 1) Mostra loading e trava ações imediatamente ao clicar
+      mostrarLoadingGlobal('Salvando alterações...');
+      travarAcoes(true);
       fecharModal();
       mostrarAlerta('Validando impacto financeiro...', 'info');
       await validarImpactoFinanceiroAntesSalvar(async function () {
-        mostrarLoadingGlobal('Salvando alterações...');
-        travarAcoes(true);
+        // 2) Removido mostrarLoadingGlobal/travarAcoes duplicado aqui
         try {
           const dadosFormulario = coletarDadosFormulario();
           const resultado = await Auth.apiCall('salvarEdicaoEvento', {
