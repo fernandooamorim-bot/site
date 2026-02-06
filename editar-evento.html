@@ -2093,23 +2093,21 @@ function executarAutocompleteContratante(termo) {
     // MOSTRAR LOADING
     function mostrarLoading() {
       const section = document.getElementById('resultsSection');
-      section.classList.add('show');
       const list = document.getElementById('resultsList');
       const count = document.getElementById('resultsCount');
-      list.innerHTML = '';
-      if (count) count.textContent = 'Carregando...';
 
-      for (let i = 0; i < 3; i++) {
-        const card = document.createElement('div');
-        card.className = 'skeleton-card';
-        card.innerHTML = `
-          <div class="skeleton-line short"></div>
-          <div class="skeleton-line long"></div>
-          <div class="skeleton-line medium"></div>
-          <div class="skeleton-line short"></div>
-        `;
-        list.appendChild(card);
-      }
+      section.classList.add('show');
+      list.innerHTML = '';
+      if (count) count.textContent = '';
+
+      const loadingDiv = document.createElement('div');
+      loadingDiv.className = 'loading';
+      loadingDiv.innerHTML = `
+        <div class="spinner"></div>
+        <p>Buscando eventos...</p>
+      `;
+
+      list.appendChild(loadingDiv);
     }
     
     // MOSTRAR RESULTADOS
