@@ -1888,7 +1888,6 @@ async function iniciarEditarEvento() {
 
       const execId = ++buscaExecucaoId;
       travarBusca(true);
-      mostrarLoadingGlobal('Buscando evento...');
       mostrarLoading();
 
       let resultado = null;
@@ -1904,7 +1903,7 @@ async function iniciarEditarEvento() {
         }
       } finally {
         if (execId === buscaExecucaoId) {
-          esconderLoadingGlobal();
+        
           travarBusca(false);
           mostrarResultados(resultado);
         }
@@ -1934,7 +1933,6 @@ async function carregarEventoPorId(idEvento) {
       }
       const execId = ++buscaExecucaoId;
       travarBusca(true);
-      mostrarLoadingGlobal('Buscando eventos...');
       mostrarLoading();
       let response = null;
       try {
@@ -1951,7 +1949,7 @@ async function carregarEventoPorId(idEvento) {
         }
       } finally {
         if (execId === buscaExecucaoId) {
-          esconderLoadingGlobal();
+          
           travarBusca(false);
           mostrarResultados(response);
         }
@@ -1968,7 +1966,7 @@ async function carregarEventoPorId(idEvento) {
       }
       const execId = ++buscaExecucaoId;
       travarBusca(true);
-      mostrarLoadingGlobal('Buscando eventos...');
+    
       mostrarLoading();
       let response = null;
       try {
@@ -1985,7 +1983,7 @@ async function carregarEventoPorId(idEvento) {
         }
       } finally {
         if (execId === buscaExecucaoId) {
-          esconderLoadingGlobal();
+         
           travarBusca(false);
           mostrarResultados(response);
         }
@@ -2002,7 +2000,7 @@ async function carregarEventoPorId(idEvento) {
       }
       const execId = ++buscaExecucaoId;
       travarBusca(true);
-      mostrarLoadingGlobal('Buscando eventos...');
+    
       mostrarLoading();
       let response = null;
       try {
@@ -2019,7 +2017,7 @@ async function carregarEventoPorId(idEvento) {
         }
       } finally {
         if (execId === buscaExecucaoId) {
-          esconderLoadingGlobal();
+       
           travarBusca(false);
           mostrarResultados(response);
         }
