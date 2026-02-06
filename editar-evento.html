@@ -1514,16 +1514,31 @@ function getIdEventoFromURL() {
   return params.get('id');
 }
 
+
+  // ============================
+  // CACHE GLOBAL
+  // ============================
+  window.__CACHE = {
+    contratantes: null,
+    cerimonialistas: null,
+    enderecos: null,
+    vendedores: null,
+    parceirosBV: null,
+    tiposEvento: null,
+    duracoes: null,
+    projetos: null
+  };
+
   let eventoAtual = null;
   let eventoOriginal = null;
   let buscaExecucaoId = 0;
   let globalLoadingTimer = null;
   let globalLoadingSlowTimer = null;
   let __dropdownsProntos = {
-  tipoEvento: false,
-  duracao: false,
-  projeto: false
-};
+    tipoEvento: false,
+    duracao: false,
+    projeto: false
+  };
   let contratantesCache = [];
   let permissaoFinanceira = null;
 
@@ -2028,8 +2043,13 @@ async function carregarEventoPorId(idEvento) {
     // AUTOCOMPLETE
     async function carregarContratantesParaAutocomplete() {
       try {
+        if (window.__CACHE.contratantes) {
+          contratantesCache = window.__CACHE.contratantes;
+          return;
+        }
         const lista = await Auth.apiCall('listarContratantes', {});
         if (lista && lista.error) throw new Error(lista.error);
+        window.__CACHE.contratantes = lista;
         contratantesCache = lista;
       } catch (erro) {
         contratantesCache = [];
@@ -2294,90 +2314,121 @@ async function validarImpactoFinanceiroAntesSalvar(callback) {
     async function carregarDropdowns() {
       try {
         let lista;
-        lista = await Auth.apiCall('listarContratantes', {});
+        if (!window.__CACHE.contratantes) {
+          window.__CACHE.contratantes = await Auth.apiCall('listarContratantes', {});
+        }
+        lista = window.__CACHE.contratantes;
         if (lista && lista.error) throw new Error(lista.error);
         popularDropdown('idContratante', lista);
       } catch (e) {}
       try {
-        let lista = await Auth.apiCall('listarCerimonialistas', {});
+        let lista;
+        if (!window.__CACHE.cerimonialistas) {
+          window.__CACHE.cerimonialistas = await Auth.apiCall('listarCerimonialistas', {});
+        }
+        lista = window.__CACHE.cerimonialistas;
         if (lista && lista.error) throw new Error(lista.error);
         popularDropdown('idCerimonialista', lista, true);
       } catch (e) {}
       try {
-        let lista = await Auth.apiCall('listarEnderecos', {});
+        let lista;
+        if (!window.__CACHE.enderecos) {
+          window.__CACHE.enderecos = await Auth.apiCall('listarEnderecos', {});
+        }
+        lista = window.__CACHE.enderecos;
         if (lista && lista.error) throw new Error(lista.error);
         popularDropdown('idEndereco', lista);
       } catch (e) {}
       try {
-        let lista = await Auth.apiCall('listarVendedores', {});
+        let lista;
+        if (!window.__CACHE.vendedores) {
+          window.__CACHE.vendedores = await Auth.apiCall('listarVendedores', {});
+        }
+        lista = window.__CACHE.vendedores;
         if (lista && lista.error) throw new Error(lista.error);
         popularDropdown('idVendedor', lista);
       } catch (e) {}
       try {
-        let lista = await Auth.apiCall('listarParceirosBV', {});
+        let lista;
+        if (!window.__CACHE.parceirosBV) {
+          window.__CACHE.parceirosBV = await Auth.apiCall('listarParceirosBV', {});
+        }
+        lista = window.__CACHE.parceirosBV;
         if (lista && lista.error) throw new Error(lista.error);
         popularDropdown('idBV', lista, true);
       } catch (e) {}
       // CONFIG - Tipo de Evento
       try {
-  let tipos = await Auth.apiCall('listarTiposEvento', {});
-  if (tipos && tipos.error) throw new Error(tipos.error);
+        let tipos;
+        if (!window.__CACHE.tiposEvento) {
+          window.__CACHE.tiposEvento = await Auth.apiCall('listarTiposEvento', {});
+        }
+        tipos = window.__CACHE.tiposEvento;
+        if (tipos && tipos.error) throw new Error(tipos.error);
 
-  const sel = document.getElementById('tipoEvento');
-  if (sel) {
-    sel.innerHTML = '<option value="">Selecione...</option>';
-    tipos.forEach(tipo => {
-      const opt = document.createElement('option');
-      opt.value = tipo;
-      opt.textContent = tipo;
-      sel.appendChild(opt);
-    });
-    __dropdownsProntos.tipoEvento = true;
-    tentarPreencherEventoAposDropdowns();
-  }
-} catch (e) {}
+        const sel = document.getElementById('tipoEvento');
+        if (sel) {
+          sel.innerHTML = '<option value="">Selecione...</option>';
+          tipos.forEach(tipo => {
+            const opt = document.createElement('option');
+            opt.value = tipo;
+            opt.textContent = tipo;
+            sel.appendChild(opt);
+          });
+          __dropdownsProntos.tipoEvento = true;
+          tentarPreencherEventoAposDropdowns();
+        }
+      } catch (e) {}
       // CONFIG - Durações
-     try {
-  let duracoes = await Auth.apiCall('listarDuracoesPadrao', {});
-  if (duracoes && duracoes.error) throw new Error(duracoes.error);
+      try {
+        let duracoes;
+        if (!window.__CACHE.duracoes) {
+          window.__CACHE.duracoes = await Auth.apiCall('listarDuracoesPadrao', {});
+        }
+        duracoes = window.__CACHE.duracoes;
+        if (duracoes && duracoes.error) throw new Error(duracoes.error);
 
-  const sel = document.getElementById('duracao');
-  if (sel) {
-    sel.innerHTML = '<option value="">Selecione...</option>';
-    duracoes.forEach(min => {
-      const minutos = Number(min);
-      const h = Math.floor(minutos / 60);
-      const m = minutos % 60;
-      const label = m > 0 ? `${h}h${m}` : `${h}h`;
+        const sel = document.getElementById('duracao');
+        if (sel) {
+          sel.innerHTML = '<option value="">Selecione...</option>';
+          duracoes.forEach(min => {
+            const minutos = Number(min);
+            const h = Math.floor(minutos / 60);
+            const m = minutos % 60;
+            const label = m > 0 ? `${h}h${m}` : `${h}h`;
 
-      const opt = document.createElement('option');
-      opt.value = String(minutos); // 🔑 value = 120
-      opt.textContent = label;     // label = 2h
-      sel.appendChild(opt);
-    });
-    __dropdownsProntos.duracao = true;
-    tentarPreencherEventoAposDropdowns();
-  }
-} catch (e) {}
+            const opt = document.createElement('option');
+            opt.value = String(minutos); // 🔑 value = 120
+            opt.textContent = label;     // label = 2h
+            sel.appendChild(opt);
+          });
+          __dropdownsProntos.duracao = true;
+          tentarPreencherEventoAposDropdowns();
+        }
+      } catch (e) {}
       // CONFIG - Projetos
       try {
-  let projetos = await Auth.apiCall('listarProjetosSugeridos', {});
-  if (projetos && projetos.error) throw new Error(projetos.error);
+        let projetos;
+        if (!window.__CACHE.projetos) {
+          window.__CACHE.projetos = await Auth.apiCall('listarProjetosSugeridos', {});
+        }
+        projetos = window.__CACHE.projetos;
+        if (projetos && projetos.error) throw new Error(projetos.error);
 
-  const sel = document.getElementById('projeto');
-  if (sel) {
-    sel.innerHTML = '<option value="">Selecione...</option>';
-    projetos.forEach(proj => {
-      const v = String(proj).trim();
-      const opt = document.createElement('option');
-      opt.value = v;
-      opt.textContent = v;
-      sel.appendChild(opt);
-    });
-    __dropdownsProntos.projeto = true;
-    tentarPreencherEventoAposDropdowns();
-  }
-} catch (e) {}
+        const sel = document.getElementById('projeto');
+        if (sel) {
+          sel.innerHTML = '<option value="">Selecione...</option>';
+          projetos.forEach(proj => {
+            const v = String(proj).trim();
+            const opt = document.createElement('option');
+            opt.value = v;
+            opt.textContent = v;
+            sel.appendChild(opt);
+          });
+          __dropdownsProntos.projeto = true;
+          tentarPreencherEventoAposDropdowns();
+        }
+      } catch (e) {}
     }
     
     function tentarPreencherEventoAposDropdowns() {
@@ -2684,6 +2735,11 @@ window.addEventListener('load', async () => {
     if (!window.Auth) throw new Error('AUTH_NOT_LOADED');
     const email = localStorage.getItem('auth_email');
     if (!email) throw new Error('NOT_AUTH');
+    // Pré-carregar caches de contratantes e dropdowns
+    Promise.all([
+      carregarContratantesParaAutocomplete(),
+      carregarDropdowns()
+    ]);
     await iniciarEditarEvento();
   } catch (err) {
     console.error('Erro de autenticação:', err);
