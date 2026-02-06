@@ -795,15 +795,6 @@
     }
 
     /* ============================================
-       LOADING STATE (BOTÕES E INTERAÇÕES)
-       ============================================ */
-    [aria-busy="true"] {
-      cursor: wait !important;
-      opacity: 0.7;
-      pointer-events: none;
-    }
-
-    /* ============================================
        SKELETON LOADER — FORM EDIÇÃO
        ============================================ */
     .skeleton input,
@@ -831,35 +822,6 @@
       0% { background-position: 100% 0; }
       100% { background-position: -100% 0; }
     }
-
-    /* ============================================
-       SKELETON LOADER — LISTA DE RESULTADOS
-       ============================================ */
-    .skeleton-card {
-      background: white;
-      border: 1px solid var(--gray-200);
-      border-radius: var(--radius-md);
-      padding: 16px;
-      box-shadow: var(--shadow-sm);
-    }
-
-    .skeleton-line {
-      height: 12px;
-      border-radius: 6px;
-      margin-bottom: 10px;
-      background: linear-gradient(
-        90deg,
-        #f0f0f0 25%,
-        #e6e6e6 37%,
-        #f0f0f0 63%
-      );
-      background-size: 400% 100%;
-      animation: shimmer 1.2s infinite;
-    }
-
-    .skeleton-line.short { width: 40%; }
-    .skeleton-line.medium { width: 65%; }
-    .skeleton-line.long { width: 85%; }
 
     /* ============================================
    SUCCESS CARD — CENTRALIZADO
@@ -1516,9 +1478,6 @@ function getIdEventoFromURL() {
 
   let eventoAtual = null;
   let eventoOriginal = null;
-  let buscaExecucaoId = 0;
-  let globalLoadingTimer = null;
-  let globalLoadingSlowTimer = null;
   let __dropdownsProntos = {
   tipoEvento: false,
   duracao: false,
@@ -1532,84 +1491,19 @@ function getIdEventoFromURL() {
     const label = document.getElementById('globalLoadingText');
     if (label && texto) label.textContent = texto;
     if (overlay) overlay.classList.add('show');
-    document.body.setAttribute('aria-busy', 'true');
-
-    clearTimeout(globalLoadingSlowTimer);
-    clearTimeout(globalLoadingTimer);
-
-    globalLoadingSlowTimer = setTimeout(() => {
-      if (label && overlay && overlay.classList.contains('show')) {
-        label.textContent = 'Processo em andamento... só mais um momento.';
-      }
-    }, 4000);
-
-    globalLoadingTimer = setTimeout(() => {
-      if (overlay && overlay.classList.contains('show')) {
-        overlay.classList.remove('show');
-        document.body.removeAttribute('aria-busy');
-        if (document.body.dataset.loadingContext === 'busca') {
-          travarBusca(false);
-        }
-        if (typeof mostrarAlerta === 'function') {
-          mostrarAlerta('A operação está demorando mais que o normal. Tente novamente.', 'info');
-        }
-      }
-    }, 18000);
   }
 
   function esconderLoadingGlobal() {
     const overlay = document.getElementById('globalLoading');
     if (overlay) overlay.classList.remove('show');
-    document.body.removeAttribute('aria-busy');
-    clearTimeout(globalLoadingSlowTimer);
-    clearTimeout(globalLoadingTimer);
   }
 
-function travarAcoes(travar = true) {
+  function travarAcoes(travar = true) {
   document
     .querySelectorAll('#formEdicao button, #modalConfirmacao button')
     .forEach(btn => {
       btn.disabled = travar;
-      if (travar) {
-        btn.setAttribute('aria-busy', 'true');
-      } else {
-        btn.removeAttribute('aria-busy');
-      }
     });
-}
-
-function aplicarSkeletonFormulario(ativo) {
-  const form = document.getElementById('formEdicao');
-  if (!form) return;
-  form.classList.toggle('skeleton', !!ativo);
-}
-
-function travarBusca(travar = true) {
-  const elementos = document.querySelectorAll(
-    '.btn-search, .toggle-btn input, #inputID, #inputNome, #inputData, #inputPeriodo'
-  );
-
-  if (travar) {
-    document.body.dataset.loadingContext = 'busca';
-  } else if (document.body.dataset.loadingContext === 'busca') {
-    delete document.body.dataset.loadingContext;
-  }
-
-  elementos.forEach(el => {
-    if (travar) {
-      if (el.dataset.prevDisabled === undefined) {
-        el.dataset.prevDisabled = el.disabled ? '1' : '0';
-      }
-      el.disabled = true;
-      el.setAttribute('aria-busy', 'true');
-    } else {
-      if (el.dataset.prevDisabled === '0') {
-        el.disabled = false;
-      }
-      el.removeAttribute('aria-busy');
-      delete el.dataset.prevDisabled;
-    }
-  });
 }
 
 function bloquearEdicaoFinanceira(motivo) {
@@ -1835,27 +1729,19 @@ async function iniciarEditarEvento() {
 }
     
     // TOGGLE DE TIPO DE BUSCA
-   function trocarTipoBusca(tipo) {
-  // remove ativos
-  document.querySelectorAll('.search-field-group').forEach(g => g.classList.remove('active'));
-  document.querySelectorAll('.toggle-btn').forEach(btn => btn.classList.remove('active'));
-
-  // ativa grupo
-  const grupo = document.getElementById(
-    'searchBy' + tipo.charAt(0).toUpperCase() + tipo.slice(1)
-  );
-  if (grupo) grupo.classList.add('active');
-
-  // ativa botão corretamente (sem usar event)
-  const radio = document.querySelector(`input[name="searchType"][value="${tipo}"]`);
-  if (radio) {
-    const btn = radio.closest('.toggle-btn');
-    if (btn) btn.classList.add('active');
-  }
-
-  // limpa resultados
-  document.getElementById('resultsSection').classList.remove('show');
-}
+    function trocarTipoBusca(tipo) {
+      // Remove active de todos os grupos
+      document.querySelectorAll('.search-field-group').forEach(g => g.classList.remove('active'));
+      document.querySelectorAll('.toggle-btn').forEach(btn => btn.classList.remove('active'));
+      
+      // Ativa o selecionado
+      document.getElementById('searchBy' + tipo.charAt(0).toUpperCase() + tipo.slice(1)).classList.add('active');
+      event.target.closest('.toggle-btn').classList.add('active');
+      
+      // Limpa resultados
+      document.getElementById('resultsSection').classList.remove('show');
+    }
+    
     // BUSCAR EVENTO (dispatcher)
     function buscarEvento() {
       const tipo = document.querySelector('input[name="searchType"]:checked').value;
@@ -1886,27 +1772,20 @@ async function iniciarEditarEvento() {
         return;
       }
 
-      const execId = ++buscaExecucaoId;
-      travarBusca(true);
+      mostrarLoadingGlobal('Buscando evento...');
       mostrarLoading();
 
-      let resultado = null;
       try {
-        resultado = await Auth.apiCall('buscarEventoPorID', {
+        const resultado = await Auth.apiCall('buscarEventoPorID', {
           idEvento: id
         });
 
+        mostrarResultados(resultado);
+        esconderLoadingGlobal();
       } catch (erro) {
+        esconderLoadingGlobal();
         console.error('❌ Erro:', erro);
-        if (execId === buscaExecucaoId) {
-          mostrarAlerta('Erro ao buscar evento', 'error');
-        }
-      } finally {
-        if (execId === buscaExecucaoId) {
-        
-          travarBusca(false);
-          mostrarResultados(resultado);
-        }
+        mostrarAlerta('Erro ao buscar evento', 'error');
       }
     }
 
@@ -1931,28 +1810,21 @@ async function carregarEventoPorId(idEvento) {
         mostrarAlerta('Digite um nome para buscar', 'error');
         return;
       }
-      const execId = ++buscaExecucaoId;
-      travarBusca(true);
+      mostrarLoadingGlobal('Buscando eventos...');
       mostrarLoading();
-      let response = null;
       try {
-        response = await Auth.apiCall('buscarEventoPorContratante', {
+        const response = await Auth.apiCall('buscarEventoPorContratante', {
           nome: nome
         });
         if (response && response.error) {
           throw new Error(response.error);
         }
+        mostrarResultados(response);
+        esconderLoadingGlobal();
       } catch (erro) {
+        esconderLoadingGlobal();
         console.error('❌ Erro:', erro);
-        if (execId === buscaExecucaoId) {
-          mostrarAlerta('Erro ao buscar evento', 'error');
-        }
-      } finally {
-        if (execId === buscaExecucaoId) {
-          
-          travarBusca(false);
-          mostrarResultados(response);
-        }
+        mostrarAlerta('Erro ao buscar evento', 'error');
       }
     }
     
@@ -1964,29 +1836,21 @@ async function carregarEventoPorId(idEvento) {
         mostrarAlerta('Selecione uma data', 'error');
         return;
       }
-      const execId = ++buscaExecucaoId;
-      travarBusca(true);
-    
+      mostrarLoadingGlobal('Buscando eventos...');
       mostrarLoading();
-      let response = null;
       try {
-        response = await Auth.apiCall('buscarEventoPorData', {
+        const response = await Auth.apiCall('buscarEventoPorData', {
           data: data
         });
         if (response && response.error) {
           throw new Error(response.error);
         }
+        mostrarResultados(response);
+        esconderLoadingGlobal();
       } catch (erro) {
+        esconderLoadingGlobal();
         console.error('❌ Erro:', erro);
-        if (execId === buscaExecucaoId) {
-          mostrarAlerta('Erro ao buscar evento', 'error');
-        }
-      } finally {
-        if (execId === buscaExecucaoId) {
-         
-          travarBusca(false);
-          mostrarResultados(response);
-        }
+        mostrarAlerta('Erro ao buscar evento', 'error');
       }
     }
     
@@ -1998,29 +1862,21 @@ async function carregarEventoPorId(idEvento) {
         mostrarAlerta('Selecione um período', 'error');
         return;
       }
-      const execId = ++buscaExecucaoId;
-      travarBusca(true);
-    
+      mostrarLoadingGlobal('Buscando eventos...');
       mostrarLoading();
-      let response = null;
       try {
-        response = await Auth.apiCall('buscarEventoPorPeriodo', {
+        const response = await Auth.apiCall('buscarEventoPorPeriodo', {
           periodo: periodo
         });
         if (response && response.error) {
           throw new Error(response.error);
         }
+        mostrarResultados(response);
+        esconderLoadingGlobal();
       } catch (erro) {
+        esconderLoadingGlobal();
         console.error('❌ Erro:', erro);
-        if (execId === buscaExecucaoId) {
-          mostrarAlerta('Erro ao buscar evento', 'error');
-        }
-      } finally {
-        if (execId === buscaExecucaoId) {
-       
-          travarBusca(false);
-          mostrarResultados(response);
-        }
+        mostrarAlerta('Erro ao buscar evento', 'error');
       }
     }
     
@@ -2094,22 +1950,7 @@ function executarAutocompleteContratante(termo) {
     function mostrarLoading() {
       const section = document.getElementById('resultsSection');
       section.classList.add('show');
-      const list = document.getElementById('resultsList');
-      const count = document.getElementById('resultsCount');
-      list.innerHTML = '';
-      if (count) count.textContent = 'Carregando...';
-
-      for (let i = 0; i < 3; i++) {
-        const card = document.createElement('div');
-        card.className = 'skeleton-card';
-        card.innerHTML = `
-          <div class="skeleton-line short"></div>
-          <div class="skeleton-line long"></div>
-          <div class="skeleton-line medium"></div>
-          <div class="skeleton-line short"></div>
-        `;
-        list.appendChild(card);
-      }
+      document.getElementById('resultsList').innerHTML = '<div class="loading"><div class="spinner"></div>Buscando eventos...</div>';
     }
     
     // MOSTRAR RESULTADOS
@@ -2175,7 +2016,6 @@ function executarAutocompleteContratante(termo) {
   async function selecionarEvento(idEvento) {
     mostrarLoadingGlobal('Carregando dados do evento...');
     travarAcoes(true);
-    aplicarSkeletonFormulario(true);
     console.log('1️⃣ clicar editar', idEvento);
     mostrarAlerta('Carregando evento...', 'info');
     try {
@@ -2295,10 +2135,6 @@ travarAcoes(false);
       travarAcoes(false);
       console.error('🔥 erro backend', erro);
       mostrarAlerta('Erro: ' + (erro && erro.message ? erro.message : 'Erro desconhecido'), 'error');
-    } finally {
-      aplicarSkeletonFormulario(false);
-      esconderLoadingGlobal();
-      travarAcoes(false);
     }
   }
 // --- Validação de impacto financeiro antes de salvar ---
@@ -2475,11 +2311,14 @@ async function validarImpactoFinanceiroAntesSalvar(callback) {
 
   // 🔓 Remover skeleton e liberar formulário
   const form = document.getElementById('formEdicao');
-  if (form) form.classList.remove('skeleton');
+  
 
   // 🔓 Garantia extra: esconder loading global se ainda estiver ativo
   if (typeof esconderLoadingGlobal === 'function') {
     esconderLoadingGlobal();
+    document
+  .querySelectorAll('#formEdicao .skeleton')
+  .forEach(el => el.classList.remove('skeleton'));
   }
 }
     
@@ -2770,3 +2609,4 @@ window.addEventListener('load', async () => {
   </script>
 </body>
 </html>
+
