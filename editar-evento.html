@@ -2105,6 +2105,7 @@ function executarAutocompleteContratante(termo) {
         document.querySelector('.search-section').style.display = 'none';
         console.log('8 busca escondida');
         document.getElementById('formEdicao').classList.remove('hidden');
+        // ✅ SKELETON entra aqui, somente uma vez
         document.getElementById('formEdicao').classList.add('skeleton');
         // ===============================
         // BLOCO 2 — ATIVAR CONFLITOS APÓS LOAD
@@ -2121,8 +2122,8 @@ function executarAutocompleteContratante(termo) {
           verificarConflitosEdicao();
         }, 300);
         console.log('9 formulário exibido');
-        esconderLoadingGlobal();
-        mostrarAlerta('Evento carregado! Faça as alterações desejadas.', 'success');
+        // 🔥 Removido setTimeout ou chamada redundante de esconderLoadingGlobal aqui
+        // mostrarAlerta('Evento carregado! Faça as alterações desejadas.', 'success');
       }, 150);
     } catch (erro) {
       esconderLoadingGlobal();
@@ -2300,8 +2301,18 @@ async function validarImpactoFinanceiroAntesSalvar(callback) {
   document.getElementById('observacoes').value = evento.observacoes || '';
   
   // Calcular horário fim após carregar os dados
-  setTimeout(calcularHorarioFim, 500);
-  document.getElementById('formEdicao').classList.remove('skeleton');
+  setTimeout(calcularHorarioFim, 300);
+
+  // 🔓 Remover skeleton e liberar formulário
+  const form = document.getElementById('formEdicao');
+  if (form) {
+    form.classList.remove('skeleton');
+  }
+
+  // 🔓 Garantia extra: esconder loading global se ainda estiver ativo
+  if (typeof esconderLoadingGlobal === 'function') {
+    esconderLoadingGlobal();
+  }
 }
     
   // mostrarStatusFinanceiro REMOVIDA: nenhuma função deve mais escrever na div #statusFinanceiro, exceto lógica de permissão financeira.
