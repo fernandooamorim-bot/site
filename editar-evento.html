@@ -2175,7 +2175,6 @@ function executarAutocompleteContratante(termo) {
 
     // FASE 1 — feedback imediato
     mostrarLoadingGlobal('Carregando evento...');
-    travarAcoes(true);
 
     try {
       // ============================
@@ -2203,6 +2202,7 @@ function executarAutocompleteContratante(termo) {
       const form = document.getElementById('formEdicao');
       if (form) {
         form.classList.remove('hidden');
+        travarAcoes(true);
         aplicarSkeletonFormulario(true);
       }
 
@@ -2255,14 +2255,9 @@ function executarAutocompleteContratante(termo) {
         verificarConflitosEdicao();
       }, 200);
 
-      // ============================
-      // FASE 6 — LIBERAÇÃO FINAL
-      // ============================
-      aplicarSkeletonFormulario(false);
-      esconderLoadingGlobal();
-      travarAcoes(false);
+      // NÃO liberar ações ou esconder loading aqui!
 
-      console.log('✅ Evento pronto para edição');
+      console.log('✅ Evento pronto para edição (aguardando dropdowns)');
 
     } catch (erro) {
       console.error('🔥 Erro ao abrir edição:', erro);
@@ -2394,7 +2389,9 @@ async function validarImpactoFinanceiroAntesSalvar(callback) {
   ) return;
 
   preencherFormulario(eventoAtual);
-  
+  aplicarSkeletonFormulario(false);
+  esconderLoadingGlobal();
+  travarAcoes(false);
 }
 
     function popularDropdown(id, lista, opcional = false) {
@@ -2445,15 +2442,6 @@ async function validarImpactoFinanceiroAntesSalvar(callback) {
   
   // Calcular horário fim após carregar os dados
   setTimeout(calcularHorarioFim, 300);
-
-  // 🔓 Remover skeleton e liberar formulário
-  const form = document.getElementById('formEdicao');
-  if (form) form.classList.remove('skeleton');
-
-  // 🔓 Garantia extra: esconder loading global se ainda estiver ativo
-  if (typeof esconderLoadingGlobal === 'function') {
-    esconderLoadingGlobal();
-  }
 }
     
   // mostrarStatusFinanceiro REMOVIDA: nenhuma função deve mais escrever na div #statusFinanceiro, exceto lógica de permissão financeira.
