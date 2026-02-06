@@ -2377,8 +2377,8 @@ async function validarImpactoFinanceiroAntesSalvar(callback) {
     continue;
   }
 
-  const valorAntigo = String(eventoOriginal[campo] || '');
-  const valorNovo = String(dados[campo] || '');
+  const valorAntigo = String(eventoOriginal[campo] ?? '');
+  const valorNovo = String(dados[campo] ?? '');
 
   if (valorAntigo !== valorNovo) {
     alteracoes.push({
@@ -2421,7 +2421,7 @@ async function validarImpactoFinanceiroAntesSalvar(callback) {
         idVendedor: document.getElementById('idVendedor').value,
         valorBV: parseFloat(document.getElementById('valorBV').value) || 0,
         idBV: document.getElementById('idBV').value,
-        temNF: document.getElementById('temNF').value === 'SIM',
+        temNF: document.getElementById('temNF').value,
         look: document.getElementById('look').value,
         somResponsavel: document.getElementById('somResponsavel').value,
         observacoes: document.getElementById('observacoes').value
