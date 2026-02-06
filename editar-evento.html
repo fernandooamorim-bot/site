@@ -2171,132 +2171,107 @@ function executarAutocompleteContratante(termo) {
     
     // SELECIONAR EVENTO PARA EDIÇÃO
   async function selecionarEvento(idEvento) {
-    mostrarLoadingGlobal('Carregando dados do evento...');
+    console.log('🟦 Selecionar evento:', idEvento);
+
+    // FASE 1 — feedback imediato
+    mostrarLoadingGlobal('Carregando evento...');
     travarAcoes(true);
-    aplicarSkeletonFormulario(true);
-    console.log('1️⃣ clicar editar', idEvento);
-    mostrarAlerta('Carregando evento...', 'info');
+
     try {
+      // ============================
+      // FASE 2 — BUSCA BACKEND
+      // ============================
       const resultado = await Auth.apiCall('buscarEventoParaEdicao', {
         idEvento: idEvento
       });
-      console.log('2️⃣ retorno backend', resultado);
+
       if (!resultado || !resultado.sucesso) {
-        esconderLoadingGlobal();
-        console.log('❌ resultado inválido');
-        mostrarAlerta(resultado?.mensagem || 'Erro desconhecido', 'error');
-        return;
+        throw new Error(resultado?.mensagem || 'Erro ao carregar evento');
       }
-      console.log('3️⃣ sucesso true');
+
+      // snapshot seguro
       eventoAtual = resultado.evento;
       eventoOriginal = JSON.parse(JSON.stringify(resultado.evento));
+
+      // ============================
+      // FASE 3 — TRANSIÇÃO VISUAL
+      // ============================
+      // esconde busca, mostra formulário com skeleton
+      const search = document.querySelector('.search-section');
+      if (search) search.style.display = 'none';
+
+      const form = document.getElementById('formEdicao');
+      if (form) {
+        form.classList.remove('hidden');
+        aplicarSkeletonFormulario(true);
+      }
+
+      // ============================
+      // FASE 4 — PREPARAÇÃO DO FORM
+      // ============================
       preencherFormulario(eventoAtual);
-      console.log('4️⃣ eventoAtual setado');
-     
-        console.log('5️⃣ timeout entrou');
-        // preencherFormulario(eventoAtual);
-        console.log('6 formulário preenchido');
-        // --- Permissão financeira (Fase 3 – A) ---
-        try {
-          const permissao = await Auth.apiCall('verificarPermissaoEdicaoFinanceira', {
-            idEvento: eventoAtual.id
-          });
-          permissaoFinanceira = permissao;
-          // Limpa statusFinanceiro antes de exibir novo status
-          const statusFinanceiro = document.getElementById('statusFinanceiro');
-          if (statusFinanceiro) statusFinanceiro.innerHTML = '';
-          if (permissao) {
-            // 🔒 Bloqueio real do evento
-            if (!permissao.permitido && permissao.bloqueio === 'MOVIMENTACAO_FINANCEIRA') {
-              bloquearEdicaoFinanceira(permissao.motivo);
-              esconderLoadingGlobal();
-travarAcoes(false);
-            }
 
-            // ℹ️ Aviso de perfil SOMENTE se houver bloqueio real
-            if (
-              !permissao.permitido &&
-              permissao.bloqueio === 'PERMISSAO_USUARIO'
-            ) {
-              const algumCampoBloqueado = [
-                'valorTotal',
-                'valorBV',
-                'valorNF',
-                'idBV',
-                'idVendedor',
-                'temNF'
-              ].some(id => {
-                const el = document.getElementById(id);
-                return el && el.disabled;
-              });
+      // Permissão financeira
+      try {
+        const permissao = await Auth.apiCall('verificarPermissaoEdicaoFinanceira', {
+          idEvento: eventoAtual.id
+        });
+        permissaoFinanceira = permissao;
 
-              if (algumCampoBloqueado) {
-                const statusFinanceiro = document.getElementById('statusFinanceiro');
-                if (statusFinanceiro) {
-                  statusFinanceiro.innerHTML = `
-                    <div class="status-box warning">
-                      <span class="status-icon">ℹ️</span>
-                      <div>
-                        <strong>Permissão limitada</strong><br>
-                        ${permissao.motivo || 'Usuário sem permissão para editar financeiro.'}
-                      </div>
-                    </div>
-                  `;
-                }
-              }
-            }
+        const statusFinanceiro = document.getElementById('statusFinanceiro');
+        if (statusFinanceiro) statusFinanceiro.innerHTML = '';
 
-            // 🟢 Evento liberado
-            if (permissao.permitido) {
-              const statusFinanceiro = document.getElementById('statusFinanceiro');
-              if (statusFinanceiro) {
-                statusFinanceiro.innerHTML = `
-                  <div class="status-box safe">
-                    <span class="status-icon">🟢</span>
-                    <div>
-                      <strong>Status Financeiro:</strong> Evento liberado para edição.
-                    </div>
-                  </div>
-                `;
-              }
-            }
+        if (permissao && !permissao.permitido) {
+          if (permissao.bloqueio === 'MOVIMENTACAO_FINANCEIRA') {
+            bloquearEdicaoFinanceira(permissao.motivo);
           }
-        } catch (erroPerm) {
-          console.error('Erro permissão financeira:', erroPerm);
         }
-        // --- Fim permissão financeira ---
-        console.log('7️⃣ status financeiro ok');
-        document.querySelector('.search-section').style.display = 'none';
-        console.log('8 busca escondida');
-        document.getElementById('formEdicao').classList.remove('hidden');
-        
-        // ===============================
-        // BLOCO 2 — ATIVAR CONFLITOS APÓS LOAD
-        // ===============================
-        setTimeout(() => {
-          ['dataEvento', 'dataFim', 'horaInicio', 'duracao'].forEach(id => {
-            const el = document.getElementById(id);
-            if (el) {
-              el.removeEventListener('change', verificarConflitosEdicao);
-              el.addEventListener('change', verificarConflitosEdicao);
-            }
-          });
-          // Primeira verificação automática
-          verificarConflitosEdicao();
-        }, 300);
-        console.log('9 formulário exibido');
-        // 🔥 Removido setTimeout ou chamada redundante de esconderLoadingGlobal aqui
-        // mostrarAlerta('Evento carregado! Faça as alterações desejadas.', 'success');
-     
-    } catch (erro) {
-      esconderLoadingGlobal();
-      travarAcoes(false);
-      console.error('🔥 erro backend', erro);
-      mostrarAlerta('Erro: ' + (erro && erro.message ? erro.message : 'Erro desconhecido'), 'error');
-    } finally {
+
+        if (permissao?.permitido) {
+          if (statusFinanceiro) {
+            statusFinanceiro.innerHTML = `
+              <div class="status-box safe">
+                <span class="status-icon">🟢</span>
+                <div><strong>Status Financeiro:</strong> Evento liberado para edição.</div>
+              </div>
+            `;
+          }
+        }
+      } catch (errPerm) {
+        console.error('Erro permissão financeira:', errPerm);
+      }
+
+      // ============================
+      // FASE 5 — CONFLITOS DE AGENDA
+      // ============================
+      setTimeout(() => {
+        ['dataEvento', 'dataFim', 'horaInicio', 'duracao'].forEach(id => {
+          const el = document.getElementById(id);
+          if (el) {
+            el.removeEventListener('change', verificarConflitosEdicao);
+            el.addEventListener('change', verificarConflitosEdicao);
+          }
+        });
+        verificarConflitosEdicao();
+      }, 200);
+
+      // ============================
+      // FASE 6 — LIBERAÇÃO FINAL
+      // ============================
       aplicarSkeletonFormulario(false);
       esconderLoadingGlobal();
       travarAcoes(false);
+
+      console.log('✅ Evento pronto para edição');
+
+    } catch (erro) {
+      console.error('🔥 Erro ao abrir edição:', erro);
+      esconderLoadingGlobal();
+      travarAcoes(false);
+      mostrarAlerta(
+        'Erro ao abrir evento: ' + (erro?.message || 'Erro desconhecido'),
+        'error'
+      );
     }
   }
 // --- Validação de impacto financeiro antes de salvar ---
