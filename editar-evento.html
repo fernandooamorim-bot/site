@@ -1499,10 +1499,12 @@ function getIdEventoFromURL() {
   }
 
   function travarAcoes(travar = true) {
-    document.querySelectorAll('button').forEach(btn => {
+  document
+    .querySelectorAll('#formEdicao button, #modalConfirmacao button')
+    .forEach(btn => {
       btn.disabled = travar;
     });
-  }
+}
 
 function bloquearEdicaoFinanceira(motivo) {
   const campos = [
@@ -2013,6 +2015,7 @@ function executarAutocompleteContratante(termo) {
     // SELECIONAR EVENTO PARA EDIÇÃO
   async function selecionarEvento(idEvento) {
     mostrarLoadingGlobal('Carregando dados do evento...');
+    travarAcoes(true);
     console.log('1️⃣ clicar editar', idEvento);
     mostrarAlerta('Carregando evento...', 'info');
     try {
@@ -2029,8 +2032,9 @@ function executarAutocompleteContratante(termo) {
       console.log('3️⃣ sucesso true');
       eventoAtual = resultado.evento;
       eventoOriginal = JSON.parse(JSON.stringify(resultado.evento));
+      preencherFormulario(eventoAtual);
       console.log('4️⃣ eventoAtual setado');
-      setTimeout(async () => {
+     
         console.log('5️⃣ timeout entrou');
         // preencherFormulario(eventoAtual);
         console.log('6 formulário preenchido');
@@ -2047,6 +2051,8 @@ function executarAutocompleteContratante(termo) {
             // 🔒 Bloqueio real do evento
             if (!permissao.permitido && permissao.bloqueio === 'MOVIMENTACAO_FINANCEIRA') {
               bloquearEdicaoFinanceira(permissao.motivo);
+              esconderLoadingGlobal();
+travarAcoes(false);
             }
 
             // ℹ️ Aviso de perfil SOMENTE se houver bloqueio real
@@ -2105,8 +2111,7 @@ function executarAutocompleteContratante(termo) {
         document.querySelector('.search-section').style.display = 'none';
         console.log('8 busca escondida');
         document.getElementById('formEdicao').classList.remove('hidden');
-        // ✅ SKELETON entra aqui, somente uma vez
-        document.getElementById('formEdicao').classList.add('skeleton');
+        
         // ===============================
         // BLOCO 2 — ATIVAR CONFLITOS APÓS LOAD
         // ===============================
@@ -2124,9 +2129,10 @@ function executarAutocompleteContratante(termo) {
         console.log('9 formulário exibido');
         // 🔥 Removido setTimeout ou chamada redundante de esconderLoadingGlobal aqui
         // mostrarAlerta('Evento carregado! Faça as alterações desejadas.', 'success');
-      }, 150);
+     
     } catch (erro) {
       esconderLoadingGlobal();
+      travarAcoes(false);
       console.error('🔥 erro backend', erro);
       mostrarAlerta('Erro: ' + (erro && erro.message ? erro.message : 'Erro desconhecido'), 'error');
     }
@@ -2305,13 +2311,14 @@ async function validarImpactoFinanceiroAntesSalvar(callback) {
 
   // 🔓 Remover skeleton e liberar formulário
   const form = document.getElementById('formEdicao');
-  if (form) {
-    form.classList.remove('skeleton');
-  }
+  
 
   // 🔓 Garantia extra: esconder loading global se ainda estiver ativo
   if (typeof esconderLoadingGlobal === 'function') {
     esconderLoadingGlobal();
+    document
+  .querySelectorAll('#formEdicao .skeleton')
+  .forEach(el => el.classList.remove('skeleton'));
   }
 }
     
@@ -2494,48 +2501,28 @@ async function validarImpactoFinanceiroAntesSalvar(callback) {
     // ========================================
     // CALCULAR HORÁRIO FIM
     // ========================================
-    function calcularHorarioFim() {
-      const inputHora = document.getElementById('horaInicio');
-      const inputDuracao = document.getElementById('duracao');
-      const display = document.getElementById('horarioFimCalc');
-      
-      if (!inputHora || !inputDuracao || !display) return;
-      
-      const horaInicio = inputHora.value;
-      const duracao = inputDuracao.value;
-      
-      if (!horaInicio || !duracao) {
-        display.style.display = 'none';
-        return;
-      }
-      
-      // Converter duração para minutos (formato: 2h, 2h30, etc)
-      const match = duracao.match(/(\d+)h(?:(\d+))?/);
-      if (!match) {
-        display.style.display = 'none';
-        return;
-      }
-      
-      const horas = parseInt(match[1]) || 0;
-      const minutos = parseInt(match[2]) || 0;
-      const totalMinutos = (horas * 60) + minutos;
-      
-      // Calcular horário fim
-      const partes = horaInicio.split(':');
-      const h = parseInt(partes[0]);
-      const m = parseInt(partes[1]);
-      
-      const inicio = new Date();
-      inicio.setHours(h, m, 0);
-      
-      const fim = new Date(inicio.getTime() + totalMinutos * 60000);
-      const horaFim = String(fim.getHours()).padStart(2, '0');
-      const minFim = String(fim.getMinutes()).padStart(2, '0');
-      
-      display.textContent = '⏰ Término previsto: ' + horaFim + ':' + minFim;
-      display.style.display = 'block';
-    }
-    
+   function calcularHorarioFim() {
+  const horaInicio = document.getElementById('horaInicio')?.value;
+  const duracao = parseInt(document.getElementById('duracao')?.value, 10);
+  const box = document.getElementById('horarioFimCalc');
+
+  if (!horaInicio || !duracao || duracao <= 0) {
+    box.style.display = 'none';
+    return;
+  }
+
+  const [h, m] = horaInicio.split(':').map(Number);
+  const inicio = new Date();
+  inicio.setHours(h, m, 0, 0);
+
+  const fim = new Date(inicio.getTime() + duracao * 60000);
+
+  const hf = String(fim.getHours()).padStart(2, '0');
+  const mf = String(fim.getMinutes()).padStart(2, '0');
+
+  box.textContent = `⏰ Término previsto: ${hf}:${mf}`;
+  box.style.display = 'block';
+}
     // ========================================
     // CORRIGIR BOTÃO VOLTAR
     // ========================================
