@@ -2438,8 +2438,7 @@ async function validarImpactoFinanceiroAntesSalvar(callback) {
           const dadosFormulario = coletarDadosFormulario();
           const resultado = await Auth.apiCall('salvarEdicaoEvento', {
             idEvento: eventoOriginal.id,
-            ...dadosFormulario,
-            email: Auth.user?.email || localStorage.getItem('auth_email')
+            ...dadosFormulario
           });
           if (resultado && resultado.sucesso) {
             esconderLoadingGlobal();
