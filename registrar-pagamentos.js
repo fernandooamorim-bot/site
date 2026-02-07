@@ -8,32 +8,41 @@
 /**
  * Registra pagamento de BV
  */
-function registrarPagamentoBV(dados) {
+function registrarPagamentoBV(request) {
   try {
+    // 1. AUTENTICAÇÃO
+    const usuario = requireUser(request.token);
+    const dados = request.data;
+
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     const sheetMov = ss.getSheetByName('MOVIMENTACOES_FINANCEIRAS');
     const sheetEventos = ss.getSheetByName('EVENTOS');
-    const usuario = Session.getActiveUser().getEmail();
-    
-    // Busca evento
+
+    // 2. BUSCA EVENTO
     const evento = buscarEvento(dados.idEvento);
     if (!evento) {
       return { sucesso: false, mensagem: 'Evento não encontrado' };
     }
-    
-    // Valida se evento tem BV
+
+    // 3. VALIDA SE EVENTO TEM BV
     if (!evento.idBV || evento.valorBV <= 0) {
-      return { sucesso: false, mensagem: 'Este evento não possui BV configurado' };
+      return {
+        sucesso: false,
+        mensagem: 'Este evento não possui BV configurado'
+      };
     }
-    
-    // Valida se já foi pago
+
+    // 4. VALIDA SE JÁ FOI PAGO
     if (evento.statusBV === 'PAGO') {
-      return { sucesso: false, mensagem: 'BV já foi pago anteriormente' };
+      return {
+        sucesso: false,
+        mensagem: 'BV já foi pago anteriormente'
+      };
     }
-    
-    // 1. CRIA REGISTRO EM MOVIMENTACOES_FINANCEIRAS
+
+    // 5. CRIA REGISTRO EM MOVIMENTACOES_FINANCEIRAS
     const idMovimentacao = gerarIDMovimentacao();
-    
+
     const movimento = [
       idMovimentacao,
       'PAGAMENTO_BV',
@@ -47,42 +56,48 @@ function registrarPagamentoBV(dados) {
       evento.idBV,
       dados.linkComprovante || '',
       dados.observacoes || 'Pagamento de BV',
-      usuario,
+      usuario.email,        // 👈 AQUI ESTÁ A TROCA
       new Date(),
       '',
       'PAGO'
     ];
-    
+
     const proximaLinha = sheetMov.getLastRow() + 1;
-    sheetMov.getRange(proximaLinha, 1, 1, movimento.length).setValues([movimento]);
-    
-    // 2. ATUALIZA EVENTO
+    sheetMov
+      .getRange(proximaLinha, 1, 1, movimento.length)
+      .setValues([movimento]);
+
+    // 6. ATUALIZA EVENTO
     const dataEventos = sheetEventos.getDataRange().getValues();
     for (let i = 1; i < dataEventos.length; i++) {
       if (dataEventos[i][0] === dados.idEvento) {
+        const linhaEvento = i + 1;
+
         // Col 29: STATUS_BV
-        sheetEventos.getRange(i + 1, 29).setValue('PAGO');
-        
+        sheetEventos.getRange(linhaEvento, 29).setValue('PAGO');
+
         // Col 30: BV_DATA_PAGAMENTO
-        sheetEventos.getRange(i + 1, 30).setValue(dados.dataPagamento);
+        sheetEventos.getRange(linhaEvento, 30).setValue(dados.dataPagamento);
+
         break;
       }
     }
-    
-    // Log
+
+    // 7. LOG
     registrarLog(
       'CRIAR',
       'MOVIMENTACOES_FINANCEIRAS',
       idMovimentacao,
-      `Pagamento BV: ${evento.nomeBV} | ${formatarMoeda(dados.valor || evento.valorBV)}`
+      `Pagamento BV: ${evento.nomeBV} | ${formatarMoeda(dados.valor || evento.valorBV)}`,
+      usuario // 👈 passa o usuário validado
     );
-    
+
     return {
       sucesso: true,
-      idMovimentacao: idMovimentacao,
+      idMovimentacao,
       mensagem: 'Pagamento de BV registrado com sucesso!'
     };
-    
+
   } catch (error) {
     Logger.log('Erro ao registrar pagamento BV: ' + error.message);
     return {
@@ -95,22 +110,25 @@ function registrarPagamentoBV(dados) {
 /**
  * Registra pagamento de Folha de Custo
  */
-function registrarFolhaCusto(dados) {
+function registrarFolhaCusto(request) {
   try {
+    // 1. AUTENTICAÇÃO
+    const usuario = requireUser(request.token);
+    const dados = request.data;
+
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     const sheetMov = ss.getSheetByName('MOVIMENTACOES_FINANCEIRAS');
     const sheetEventos = ss.getSheetByName('EVENTOS');
-    const usuario = Session.getActiveUser().getEmail();
-    
-    // Busca evento
+
+    // 2. BUSCA EVENTO
     const evento = buscarEvento(dados.idEvento);
     if (!evento) {
       return { sucesso: false, mensagem: 'Evento não encontrado' };
     }
-    
-    // 1. CRIA REGISTRO EM MOVIMENTACOES_FINANCEIRAS
+
+    // 3. CRIA REGISTRO EM MOVIMENTACOES_FINANCEIRAS
     const idMovimentacao = gerarIDMovimentacao();
-    
+
     const movimento = [
       idMovimentacao,
       'FOLHA_CUSTO',
@@ -124,52 +142,60 @@ function registrarFolhaCusto(dados) {
       '',
       dados.linkComprovante || '',
       dados.descricao || 'Pagamento de folha de custo',
-      usuario,
+      usuario.email,     // 👈 AQUI
       new Date(),
       '',
       'PAGO'
     ];
-    
+
     const proximaLinha = sheetMov.getLastRow() + 1;
-    sheetMov.getRange(proximaLinha, 1, 1, movimento.length).setValues([movimento]);
-    
-    // 2. ATUALIZA EVENTO
+    sheetMov
+      .getRange(proximaLinha, 1, 1, movimento.length)
+      .setValues([movimento]);
+
+    // 4. ATUALIZA EVENTO
     const dataEventos = sheetEventos.getDataRange().getValues();
     for (let i = 1; i < dataEventos.length; i++) {
       if (dataEventos[i][0] === dados.idEvento) {
         const linhaEvento = i + 1;
-        
-        // Col 34: FOLHA_CUSTO_VALOR (acumula)
+
+        // Col 34: FOLHA_CUSTO_VALOR
         const valorAtual = dataEventos[i][33] || 0;
         const novoValor = Number(valorAtual) + Number(dados.valor);
         sheetEventos.getRange(linhaEvento, 34).setValue(novoValor);
-        
-        // Col 35: FOLHA_CUSTO_DESCRICAO (concatena)
+
+        // Col 35: FOLHA_CUSTO_DESCRICAO
         const descricaoAtual = dataEventos[i][34] || '';
-        const dataFormatada = Utilities.formatDate(new Date(dados.dataPagamento), 'GMT-3', 'dd/MM');
-        const novaDescricao = descricaoAtual 
+        const dataFormatada = Utilities.formatDate(
+          new Date(dados.dataPagamento),
+          'GMT-3',
+          'dd/MM'
+        );
+
+        const novaDescricao = descricaoAtual
           ? `${descricaoAtual}; ${dataFormatada}: ${dados.descricao}`
           : `${dataFormatada}: ${dados.descricao}`;
+
         sheetEventos.getRange(linhaEvento, 35).setValue(novaDescricao);
-        
         break;
       }
     }
-    
-    // Log
+
+    // 5. LOG
     registrarLog(
       'CRIAR',
       'MOVIMENTACOES_FINANCEIRAS',
       idMovimentacao,
-      `Folha Custo: ${dados.descricao} | ${formatarMoeda(dados.valor)}`
+      `Folha Custo: ${dados.descricao} | ${formatarMoeda(dados.valor)}`,
+      usuario // 👈 passe o usuário, não descubra
     );
-    
+
     return {
       sucesso: true,
-      idMovimentacao: idMovimentacao,
+      idMovimentacao,
       mensagem: 'Folha de custo registrada com sucesso!'
     };
-    
+
   } catch (error) {
     Logger.log('Erro ao registrar folha de custo: ' + error.message);
     return {
@@ -194,7 +220,7 @@ function listarEventosBVPendente() {
       const statusBV = dados[i][28]; // Col 29
       const valorBV = dados[i][27];  // Col 28
       
-      if (statusBV === 'A PAGAR' && valorBV > 0) {
+      if (statusBV === 'PENDENTE' && valorBV > 0) {
         eventos.push({
           idEvento: dados[i][0],
           dataEvento: dados[i][2],

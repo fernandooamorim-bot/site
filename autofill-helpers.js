@@ -128,12 +128,21 @@ function findColumnIndex(headers, possibleNames) {
   return -1;
 }
 
+function getEmailUsuarioSeguro(context) {
+  try {
+    if (context && context.user && context.user.email) {
+      return context.user.email;
+    }
+  } catch (e) {}
+  return 'SYSTEM';
+}
+
 /**
  * Garante timestamps em uma linha (inteligente)
  * - CRIADO_EM: só preenche se vazio
  * - ATUALIZADO_EM: sempre atualiza
  */
-function ensureTimestampsOnRow(sheetName, rowIndex) {
+function ensureTimestampsOnRow(sheetName, rowIndex, context) {
   try {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     const sheet = ss.getSheetByName(sheetName);
@@ -163,7 +172,7 @@ function ensureTimestampsOnRow(sheetName, rowIndex) {
     if (idxCriadoPor >= 0) {
       const valorAtual = sheet.getRange(rowIndex, idxCriadoPor + 1).getValue();
       if (!valorAtual) {
-        const usuario = Session.getActiveUser().getEmail() || 'SYSTEM';
+        const usuario = getEmailUsuarioSeguro(context);
         sheet.getRange(rowIndex, idxCriadoPor + 1).setValue(usuario);
       }
     }
@@ -171,7 +180,7 @@ function ensureTimestampsOnRow(sheetName, rowIndex) {
     // EDITADO_POR - sempre atualiza
     const idxEditadoPor = findColumnIndex(headers, ['EDITADO_POR', 'UPDATED_BY']);
     if (idxEditadoPor >= 0) {
-      const usuario = Session.getActiveUser().getEmail() || 'SYSTEM';
+      const usuario = getEmailUsuarioSeguro(context);
       sheet.getRange(rowIndex, idxEditadoPor + 1).setValue(usuario);
     }
     

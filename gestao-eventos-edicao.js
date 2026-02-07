@@ -5,11 +5,13 @@
  * =====================================================
  */
 
+
 /* =========================
    BUSCAS
 ========================= */
 
 function buscarEventoPorID(idParcial) {
+  exigirAcao('eventos:editar');
   Logger.log('🔍 buscarEventoPorID: ' + idParcial);
   const sheet = SpreadsheetApp.getActive().getSheetByName('EVENTOS');
   if (!sheet) return [];
@@ -34,6 +36,7 @@ function buscarEventoPorID(idParcial) {
 }
 
 function buscarEventoPorContratante(nomeParcial) {
+  exigirAcao('eventos:editar');
   Logger.log('🔍 buscarEventoPorContratante: ' + nomeParcial);
   const sheet = SpreadsheetApp.getActive().getSheetByName('EVENTOS');
   if (!sheet) return [];
@@ -56,6 +59,7 @@ function buscarEventoPorContratante(nomeParcial) {
 }
 
 function buscarEventoPorData(dataISO) {
+  exigirAcao('eventos:editar');
   Logger.log('🔍 buscarEventoPorData: ' + dataISO);
   if (!dataISO) return [];
 
@@ -87,6 +91,7 @@ function buscarEventoPorData(dataISO) {
 }
 
 function buscarEventoPorPeriodo(periodo) {
+  exigirAcao('eventos:editar');
   Logger.log('🔍 buscarEventoPorPeriodo: ' + periodo);
   const hoje = new Date();
   hoje.setHours(0, 0, 0, 0);
@@ -138,6 +143,7 @@ function buscarEventoPorPeriodo(periodo) {
 ========================= */
 
 function buscarEventoParaEdicao(idEvento) {
+  exigirAcao('eventos:editar');
   Logger.log('═══════════════════════════════════════════════');
   Logger.log('📝 buscarEventoParaEdicao INICIADA');
   Logger.log('ID recebido: ' + idEvento);
@@ -200,13 +206,10 @@ function buscarEventoParaEdicao(idEvento) {
 };
 
       return {
-        sucesso: true,
-        evento: evento,
-        statusFinanceiro: {
-          tipo: 'info',
-          mensagem: 'Status financeiro carregado com sucesso'
-        }
-      };
+  sucesso: true,
+  evento: evento,
+  statusFinanceiro: calcularStatusFinanceiro(l)
+};
     }
 
     return { sucesso: false, mensagem: 'Evento não encontrado' };
@@ -222,6 +225,7 @@ function buscarEventoParaEdicao(idEvento) {
 ========================= */
 
 function validarAlteracoesEvento(idEvento, dadosEditados) {
+  exigirAcao('eventos:editar');
   Logger.log('═══════════════════════════════════════════════');
   Logger.log('📊 validarAlteracoesEvento / impacto financeiro');
   Logger.log('Evento: ' + idEvento);
@@ -251,7 +255,11 @@ function validarAlteracoesEvento(idEvento, dadosEditados) {
   const financeiroNovo = calcularFinanceiroEvento({
     valorTotal: Number(dadosEditados.valorTotal) || eventoOriginal.valorTotal,
     valorBV: Number(dadosEditados.valorBV) || eventoOriginal.valorBV || 0,
-    temNF: eventoOriginal.temNF === true, // NF não pode ser alterada aqui
+    temNF:
+      dadosEditados.temNF === true ||
+      dadosEditados.temNF === 'SIM'
+        ? true
+        : false,
     comissaoTipo: dadosEditados.comissaoTipo || eventoOriginal.comissaoTipo || 'Padrão',
     comissaoValor: Number(dadosEditados.comissaoValor) || eventoOriginal.comissaoValor || 0,
     percentualNF: eventoOriginal.percentualNF || 0
@@ -307,6 +315,14 @@ function validarAlteracoesEvento(idEvento, dadosEditados) {
    SALVAR EDIÇÃO
 ========================= */
 
+// =========================
+// MAPA DE COLUNAS MOVIMENTACOES FINANCEIRAS
+// =========================
+const COL_MOV = {
+  ID_EVENTO: 3,
+  VALOR: 6
+};
+
 /**
  * =====================================================
  * CONTROLE DE PERMISSÃO – EDIÇÃO FINANCEIRA
@@ -317,113 +333,100 @@ function validarAlteracoesEvento(idEvento, dadosEditados) {
  * - Após comissão gerada ou prazo: financeiro bloqueado
  */
 function verificarPermissaoEdicaoFinanceira(idEvento) {
-  const PRAZO_HORAS_SOCIO =
-    Number(obterConfig('PRAZO_EDICAO_FINANCEIRA_SOCIO_HORAS')) || 24;
+  exigirAcao('eventos:editar');
 
   if (!idEvento) {
-    return { permitido: false, motivo: 'ID do evento não informado' };
+    return { permitido: false, bloqueio: 'ERRO_VALIDACAO', motivo: 'ID do evento não informado' };
   }
 
   const evento = buscarEvento(idEvento);
   if (!evento) {
-    return { permitido: false, motivo: 'Evento não encontrado' };
+    return { permitido: false, bloqueio: 'ERRO_VALIDACAO', motivo: 'Evento não encontrado' };
   }
 
-  const usuario = obterUsuarioLogado();
-  const perfil = usuario?.perfil || 'DESCONHECIDO';
-
-  const valorRecebido = Number(evento.valorRecebido || 0);
-
   // =====================================================
-  // 🔒 REGRA MÁXIMA — RECEBEU DINHEIRO = BLOQUEIO
+  // 🔒 REGRA ÚNICA — EXISTE MOVIMENTAÇÃO FINANCEIRA
   // =====================================================
-  if (valorRecebido > 0) {
-    // 🔑 Somente o Proprietário pode ignorar
-    if (perfil === 'Proprietário') {
-      return {
-        permitido: true,
-        override: true,
-        motivo: 'Edição permitida por override do proprietário após recebimento'
-      };
-    }
-
+  const sheetMov = SpreadsheetApp.getActive().getSheetByName('MOVIMENTACOES_FINANCEIRAS');
+  if (!sheetMov) {
     return {
-      permitido: false,
-      motivo: 'Edição financeira bloqueada: evento já possui recebimento'
+      permitido: true
     };
   }
 
-  // =====================================================
-  // 🔑 PROPRIETÁRIO (sem recebimento)
-  // =====================================================
-  if (perfil === 'Proprietário') {
-    return { permitido: true };
+  const dadosMov = sheetMov.getDataRange().getValues();
+  const possuiMovimentacao = dadosMov.some((l, i) => {
+    if (i === 0) return false;
+
+    const eventoMov = String(l[COL_MOV.ID_EVENTO] || '').trim();
+    const valor = Number(l[COL_MOV.VALOR]) || 0;
+
+    return eventoMov === String(idEvento) && valor !== 0;
+  });
+
+  if (possuiMovimentacao) {
+    return {
+      permitido: false,
+      bloqueio: 'MOVIMENTACAO_FINANCEIRA',
+      motivo: 'Evento possui movimentações financeiras registradas.'
+    };
   }
 
-  // =====================================================
-  // 👥 SÓCIO
-  // =====================================================
-  if (perfil === 'Sócio') {
-    const dataCriacao =
-      evento.dataCriacao ||
-      evento.dataCadastro ||
-      evento.dataEvento;
-
-    if (!(dataCriacao instanceof Date)) {
-      return {
-        permitido: false,
-        motivo: 'Data de criação do evento inválida'
-      };
-    }
-
-    const agora = new Date();
-    const horasDecorridas =
-      (agora.getTime() - dataCriacao.getTime()) / (1000 * 60 * 60);
-
-    if (horasDecorridas > PRAZO_HORAS_SOCIO) {
-      return {
-        permitido: false,
-        motivo: `Prazo de ${PRAZO_HORAS_SOCIO}h para edição financeira expirado`
-      };
-    }
-
-    // ❌ Comissão já gerada bloqueia
-    const stats = calcularEstatisticasComissaoEvento(idEvento);
-    if (stats.totalComissaoGerada > 0) {
-      return {
-        permitido: false,
-        motivo: 'Já existe comissão gerada para este evento'
-      };
-    }
-
-    return { permitido: true };
-  }
-
-  // =====================================================
-  // 🚫 DEMAIS PERFIS
-  // =====================================================
-  return {
-    permitido: false,
-    motivo: 'Usuário sem permissão para editar financeiro'
-  };
+  return { permitido: true };
 }
 
-function salvarEdicaoEvento(idEvento, dadosFormulario) {
+function salvarEdicaoEvento(idEvento, dadosFormulario, email) {
+  exigirAcao('eventos:editar');
   Logger.log('═══════════════════════════════════════════════');
   Logger.log('💾 salvarEdicaoEvento: ' + idEvento);
   Logger.log('═══════════════════════════════════════════════');
-  
+
+  // 🔁 NORMALIZAÇÃO DEFINITIVA — edição recebe dados achatados (igual cadastro)
+  const dados = {
+    dataEvento: dadosFormulario.dataEvento || arguments[1]?.dataEvento,
+    dataFim: dadosFormulario.dataFim || arguments[1]?.dataFim,
+    horaInicio: dadosFormulario.horaInicio || arguments[1]?.horaInicio,
+    duracao: dadosFormulario.duracao || arguments[1]?.duracao,
+    tipoEvento: dadosFormulario.tipoEvento || arguments[1]?.tipoEvento,
+    projeto: dadosFormulario.projeto || arguments[1]?.projeto,
+
+    idContratante: dadosFormulario.idContratante || arguments[1]?.idContratante,
+    idCerimonialista: dadosFormulario.idCerimonialista || arguments[1]?.idCerimonialista,
+    idEndereco: dadosFormulario.idEndereco || arguments[1]?.idEndereco,
+    idVendedor: dadosFormulario.idVendedor || arguments[1]?.idVendedor,
+    idBV: dadosFormulario.idBV || arguments[1]?.idBV,
+
+    valorTotal: Number(dadosFormulario.valorTotal ?? arguments[1]?.valorTotal) || 0,
+    valorBV: Number(dadosFormulario.valorBV ?? arguments[1]?.valorBV) || 0,
+
+    // 🔑 AQUI ESTAVA O BUG
+    temNF:
+      dadosFormulario.temNF === true ||
+      dadosFormulario.temNF === 'SIM' ||
+      dadosFormulario.temNF === 'TRUE',
+
+    look: dadosFormulario.look || arguments[1]?.look,
+    somResponsavel: dadosFormulario.somResponsavel || arguments[1]?.somResponsavel,
+    observacoes: dadosFormulario.observacoes || arguments[1]?.observacoes
+  };
+
+  // 1) Log explícito para depuração de NF
+  Logger.log('DEBUG NF — recebido:', dadosFormulario.temNF, 'normalizado:', dados.temNF);
+
+  // Normaliza o email do executor
+  const emailExecutor = email || (getUsuarioAtual()?.email) || (getUsuarioAtual()?.EMAIL) || 'SYSTEM';
+
   try {
     const sheet = SpreadsheetApp.getActive().getSheetByName('EVENTOS');
     if (!sheet) {
       return { sucesso: false, mensagem: 'Planilha EVENTOS não encontrada' };
     }
 
-    const dados = sheet.getDataRange().getValues();
+    const dadosSheet = sheet.getDataRange().getValues();
     let linhaIndex = -1;
 
-    for (let i = 1; i < dados.length; i++) {
-      if (String(dados[i][COL.ID_EVENTO]) === String(idEvento)) {
+    for (let i = 1; i < dadosSheet.length; i++) {
+      if (String(dadosSheet[i][COL.ID_EVENTO]) === String(idEvento)) {
         linhaIndex = i;
         break;
       }
@@ -436,62 +439,143 @@ function salvarEdicaoEvento(idEvento, dadosFormulario) {
 
     Logger.log('✅ Evento encontrado na linha ' + (linhaIndex + 1));
 
-    const linha = dados[linhaIndex];
-    
+    const linha = dadosSheet[linhaIndex];
+
+    // ================================
+    // DETECTAR ATIVAÇÃO DE NF / BV NA EDIÇÃO
+    // ================================
+    // Normalização explícita de NF (boolean definitivo)
+    // NF normalizada é a fonte da verdade
+    linha[COL.TEM_NF] = dados.temNF === true;
+    const querNFAgora = linha[COL.TEM_NF] === true;
+
     // DATA EVENTO
-    if (dadosFormulario.dataEvento) {
-      const [ano, mes, dia] = dadosFormulario.dataEvento.split('-').map(Number);
+    if (dados.dataEvento) {
+      const [ano, mes, dia] = dados.dataEvento.split('-').map(Number);
       linha[COL.DATA_EVENTO] = new Date(ano, mes - 1, dia);
     }
-    
+
     // DATA FIM
-    if (dadosFormulario.dataFim) {
-      const [ano, mes, dia] = dadosFormulario.dataFim.split('-').map(Number);
+    if (dados.dataFim) {
+      const [ano, mes, dia] = dados.dataFim.split('-').map(Number);
       linha[COL.DATA_FIM] = new Date(ano, mes - 1, dia);
     } else {
       linha[COL.DATA_FIM] = '';
     }
-    
-    // HORA
-    if (dadosFormulario.horaInicio) {
-      linha[COL.HORA_INICIO] = dadosFormulario.horaInicio;
-    }
-    
-    // Outros campos
-    linha[COL.DURACAO] = dadosFormulario.duracao || '';
-    linha[COL.TIPO_EVENTO] = dadosFormulario.tipoEvento || '';
-    linha[COL.PROJETO] = dadosFormulario.projeto || '';
-    
-    // IDs
-    linha[COL.ID_CONTRATANTE] = dadosFormulario.idContratante || '';
-    linha[COL.ID_CERIMONIALISTA] = dadosFormulario.idCerimonialista || '';
-    linha[COL.ID_ENDERECO] = dadosFormulario.idEndereco || '';
-    linha[COL.ID_VENDEDOR] = dadosFormulario.idVendedor || '';
-    linha[COL.ID_BV] = dadosFormulario.idBV || '';
-    
-    // ───────── CONTROLE DE EDIÇÃO FINANCEIRA ─────────
-    const permissaoFinanceira = verificarPermissaoEdicaoFinanceira(idEvento);
 
-    if (permissaoFinanceira.permitido) {
-      linha[COL.VALOR_TOTAL] = Number(dadosFormulario.valorTotal) || linha[COL.VALOR_TOTAL];
-      linha[COL.VALOR_BV] = Number(dadosFormulario.valorBV) || linha[COL.VALOR_BV];
+    // HORA
+    if (dados.horaInicio) {
+      linha[COL.HORA_INICIO] = dados.horaInicio;
+    }
+
+    // Outros campos
+    linha[COL.DURACAO] = dados.duracao || '';
+    linha[COL.TIPO_EVENTO] = dados.tipoEvento || '';
+    linha[COL.PROJETO] = dados.projeto || '';
+
+    // IDs + ESPELHAMENTO DE NOMES (OBRIGATÓRIO)
+    linha[COL.ID_CONTRATANTE] = dados.idContratante || '';
+    linha[COL.NOME_CONTRATANTE] = dados.idContratante
+      ? buscarNomePorId('CONTRATANTES', dados.idContratante)
+      : '';
+
+    linha[COL.ID_CERIMONIALISTA] = dados.idCerimonialista || '';
+    linha[COL.NOME_CERIMONIALISTA] = dados.idCerimonialista
+      ? buscarNomePorId('CERIMONIALISTAS', dados.idCerimonialista)
+      : '';
+
+    linha[COL.ID_ENDERECO] = dados.idEndereco || '';
+    linha[COL.LOCAL] = dados.idEndereco
+      ? buscarNomePorId('ENDERECOS', dados.idEndereco)
+      : '';
+
+    linha[COL.ID_VENDEDOR] = dados.idVendedor || '';
+    linha[COL.ID_BV] = dados.idBV || '';
+
+    // ───────── CONTROLE DE EDIÇÃO FINANCEIRA ─────────
+    // ACL moderna para alteração de VALOR_TOTAL ou VALOR_BV
+    let podeAlterarFinanceiro = false;
+    let permissaoFinanceira = verificarPermissaoEdicaoFinanceira(idEvento);
+    // Substituir lógica de perfil por ACL moderna:
+    const usuario = getUsuarioAtual();
+    if (usuario.PERFIL === 'Proprietário') {
+      // mantém comportamento atual
+      podeAlterarFinanceiro = permissaoFinanceira.permitido;
+    } else {
+      // exige permissão extra
+      podeAlterarFinanceiro = permissaoFinanceira.permitido;
+    }
+
+    if (podeAlterarFinanceiro) {
+      // BV agora depende da definição acima
+      const querBVAgora =
+        Number(dados.valorBV) > 0;
+
+      linha[COL.VALOR_TOTAL] =
+        Number(dados.valorTotal) || linha[COL.VALOR_TOTAL];
+
+      // BV
+      if (querBVAgora) {
+        linha[COL.VALOR_BV] = Number(dados.valorBV);
+        linha[COL.ID_BV] = dados.idBV || '';
+      } else {
+        linha[COL.VALOR_BV] = 0;
+        linha[COL.ID_BV] = '';
+      }
+
+      // Comissões e BV
+      // (O recálculo de NF será feito para todos logo abaixo)
+      linha[COL.VALOR_COMISSAO_CALCULADO] = null; // será recalculado no bloco de NF
+      linha[COL.STATUS_BV] = null;
+      linha[COL.STATUS_COMISSAO] = null;
+
+      // Resolver nome do BV no espelho EVENTOS
+      if (linha[COL.ID_BV]) {
+        linha[COL.NOME_BV] = buscarNomePorId('PARCEIROS_BV', linha[COL.ID_BV]);
+      } else {
+        linha[COL.NOME_BV] = '';
+      }
     } else {
       Logger.log('🔒 Financeiro bloqueado: ' + permissaoFinanceira.motivo);
     }
 
-    // NF não é editável via edição comum
-    linha[COL.VALOR_NF] = linha[COL.VALOR_NF];
-    linha[COL.TEM_NF] = linha[COL.TEM_NF];
-    
+    // ================================
+    // 🔁 BLOCO FINANCEIRO DEFINITIVO
+    // MESMA LÓGICA DO CADASTRO DE EVENTO
+    // ================================
+
+    // Percentual oficial de NF vem da CONFIG (fonte da verdade)
+    const percentualNFConfig = Number(obterConfig('NF_PERCENTUAL')) || 0;
+
+    const financeiro = calcularFinanceiroEvento({
+      valorTotal: Number(linha[COL.VALOR_TOTAL]) || 0,
+      valorBV: Number(linha[COL.VALOR_BV]) || 0,
+      temNF: linha[COL.TEM_NF] === true,
+      percentualNF: linha[COL.TEM_NF] === true ? percentualNFConfig : 0,
+      comissaoTipo: linha[COL.COMISSAO_TIPO],
+      comissaoValor: linha[COL.COMISSAO_VALOR]
+    });
+
+    // Grava NF
+    linha[COL.VALOR_NF] = Number(financeiro.valorNF) || 0;
+    linha[COL.STATUS_NF] = financeiro.statusNF || 'N/A';
+
+    // Comissão
+    linha[COL.VALOR_COMISSAO_CALCULADO] = financeiro.valorComissaoCalculado || 0;
+    linha[COL.STATUS_COMISSAO] = financeiro.statusComissao || 'N/A';
+
+    // BV
+    linha[COL.STATUS_BV] = financeiro.statusBV || 'N/A';
+
     // Outros
-    linha[COL.LOOK] = dadosFormulario.look || '';
-    linha[COL.SOM_RESPONSAVEL] = dadosFormulario.somResponsavel || '';
-    linha[COL.OBSERVACOES] = dadosFormulario.observacoes || '';
-    
+    linha[COL.LOOK] = dados.look || '';
+    linha[COL.SOM_RESPONSAVEL] = dados.somResponsavel || '';
+    linha[COL.OBSERVACOES] = dados.observacoes || '';
+
     // Auditoria
     linha[COL.ULTIMA_EDICAO] = new Date();
-    linha[COL.EDITADO_POR] = Session.getActiveUser().getEmail();
-    
+    linha[COL.EDITADO_POR] = emailExecutor;
+
     // Salvar
     sheet.getRange(linhaIndex + 1, 1, 1, linha.length).setValues([linha]);
 
@@ -511,20 +595,27 @@ function salvarEdicaoEvento(idEvento, dadosFormulario) {
       nomeBV: linha[COL.NOME_BV]
     };
 
-    garantirMovimentacoesNF_BV(eventoAtualizado);
-    
+    if (
+      (eventoAtualizado.temNF && eventoAtualizado.valorNF > 0) ||
+      (eventoAtualizado.valorBV > 0)
+    ) {
+      garantirMovimentacoesNF_BV(eventoAtualizado, emailExecutor);
+    }
+
     Logger.log('✅ Evento salvo com sucesso!');
-    
+
+    // Retorno padronizado de sucesso (conforme instrução)
     return {
       sucesso: true,
-      mensagem: 'Evento atualizado com sucesso!'
+      mensagem: 'Evento atualizado com sucesso',
+      eventoId: linha[COL.ID_EVENTO]
     };
-    
+
   } catch (erro) {
-    Logger.log('🔥 ERRO ao salvar: ' + erro.message);
+    Logger.log('🔥 ERRO ao salvar: ' + (erro && erro.message ? erro.message : erro));
     return {
       sucesso: false,
-      mensagem: 'Erro ao salvar: ' + erro.message
+      mensagem: erro && erro.message ? erro.message : 'Erro inesperado ao salvar evento'
     };
   }
 }
@@ -754,13 +845,13 @@ function listarTiposEvento() {
 
 function listarDuracoesPadrao() {
   const valor = obterConfig('DURACOES_PADRAO');
-  if (!valor) return ['1h', '1h30', '2h', '2h30', '3h', '3h30', '4h'];
+  if (!valor) return ['60','90','120','150','180','210','240'];
   return String(valor).split(';').map(function(d) { return d.trim(); }).filter(function(d) { return d; });
 }
 
 function listarProjetosSugeridos() {
   const valor = obterConfig('PROJETOS_SUGERIDOS');
-  if (!valor) return ['Banda Completa', 'Banda Reduzida', 'DJ', 'Trio', 'Violão e Voz'];
+  if (!valor) return ['Banda Completa', 'Banda Reduzida', 'Banda Personalizada'];
   return String(valor).split(';').map(function(p) { return p.trim(); }).filter(function(p) { return p; });
 }
 
@@ -808,21 +899,3 @@ function cadastrarContratanteRapido(dados) {
   }
 }
 
-function setValueSafe(id, valor, tentativas = 0) {
-  const el = document.getElementById(id);
-  if (!el) return;
-
-  const val = String(valor ?? '').trim();
-
-  // se já existe a opção, seta
-  const existe = [...el.options].some(o => o.value === val);
-  if (existe) {
-    el.value = val;
-    return;
-  }
-
-  // tenta novamente (dropdown ainda carregando)
-  if (tentativas < 10) {
-    setTimeout(() => setValueSafe(id, valor, tentativas + 1), 100);
-  }
-}

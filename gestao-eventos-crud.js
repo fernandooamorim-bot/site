@@ -1,3 +1,11 @@
+/**
+ * =====================================================
+ * ACL APLICADO — AUTENTICAÇÃO VIA EMAIL (FRONTEND OAUTH)
+ * Todas as funções sensíveis exigem:
+ *   const user = requireUserByEmail(email)
+ *   requirePermission(user, 'acao')
+ * =====================================================
+ */
 // Função para aplicar permissões de comissão conforme perfil do usuário
 function aplicarPermissoesComissao(perfilUsuario) {
   const selectTipo = document.getElementById('comissaoTipo');
@@ -58,13 +66,29 @@ function buscarEventosPorDataTexto(dataTexto) {
 /**
  * Cria novo evento
  * @param {Object} dados - Dados do evento
+ * @param {string} email - Email do usuário autenticado
  * @returns {Object} Resultado da operação
  */
-function criarEvento(dados) {
+
+function normalizarTemNF(valor) {
+  return (
+    valor === true ||
+    valor === 'TRUE' ||
+    valor === 'true' ||
+    valor === 'on' ||
+    valor === 1 ||
+    valor === '1'
+  );
+}
+
+function criarEvento(dados, email) {
   try {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     const sheet = ss.getSheetByName('EVENTOS');
-    const usuario = Session.getActiveUser().getEmail();
+    const user = requireUserByEmail(email);
+    requirePermission(user, 'registrar_evento');
+    const usuario = user.email;
+    const usuarioFinal = usuario || email || 'SYSTEM';
 
     const tipoRegistro = dados.tipoRegistro || 'Evento';
     const isEvento = tipoRegistro === 'Evento';
@@ -83,11 +107,10 @@ function criarEvento(dados) {
       : null;
 
     // Hora
-    let horaInicioDate = null;
-    if (dados.horaInicio) {
-      const [h, m] = dados.horaInicio.split(':');
-      horaInicioDate = new Date(1970, 0, 1, Number(h), Number(m), 0);
-    }
+   // Hora (STRING "HH:mm")
+const horaInicio = dados.horaInicio
+  ? String(dados.horaInicio).trim()
+  : '';
 
     // Duração
     let duracaoNumero = 0;
@@ -131,7 +154,7 @@ function criarEvento(dados) {
     // =====================================================
     const valorTotal = isEvento ? Number(dados.valorTotal || 0) : 0;
     const valorBV = isEvento ? Number(dados.valorBV || 0) : 0;
-    const temNF = isEvento ? !!dados.temNF : false;
+    const temNF = isEvento ? normalizarTemNF(dados.temNF) : false;
 
     const comissaoTipo = isEvento ? (dados.comissaoTipo || 'Padrão') : 'N/A';
     let comissaoValor = isEvento ? dados.comissaoValor : '';
@@ -165,7 +188,7 @@ function criarEvento(dados) {
       tipoRegistro,                      // 2 TIPO_REGISTRO
       dataEventoTexto,                   // 3 DATA_EVENTO
       dataFimTexto,                      // 4 DATA_FIM
-      horaInicioDate,                    // 5 HORA_INICIO
+      horaInicio,                    // 5 HORA_INICIO
       duracaoNumero,                     // 6 DURACAO
       isEvento ? dados.tipoEvento || '' : tipoRegistro.toUpperCase(), // 7
       dados.projeto || '',               // 8
@@ -191,7 +214,7 @@ function criarEvento(dados) {
       valorBV,                           // 28 VALOR_BV
       financeiro ? financeiro.statusBV : 'N/A', // 29
       '',                                // 30 BV_DATA_PAGAMENTO
-      isEvento ? !!dados.temNF : false, // 31 TEM_NF
+      temNF, // 31 TEM_NF
       financeiro ? financeiro.valorNF : 0,        // 32
       financeiro ? financeiro.statusNF : 'N/A',   // 33
       0,                                 // 34
@@ -199,26 +222,29 @@ function criarEvento(dados) {
       dados.look || '',                  // 36
       dados.somResponsavel || '',        // 37
       observacoes,                       // 38
-      isBloqueio ? 'BLOQUEADO' : 'ATIVO',// 39 STATUS_GERAL
+      'ATIVO',                           // 39 STATUS_GERAL
       new Date(),                        // 40 DATA_CRIACAO
-      usuario,                           // 41 CRIADO_POR
+      usuarioFinal,                           // 41 CRIADO_POR
       new Date(),                        // 42 ULTIMA_EDICAO
-      usuario                            // 43 EDITADO_POR
+      usuarioFinal                       // 43 EDITADO_POR
     ];
 
     sheet.appendRow(novaLinha);
 
     // 🔐 GARANTE MOVIMENTAÇÕES FINANCEIRAS DE NF E BV (IDEMPOTENTE)
-    garantirMovimentacoesNF_BV({
-      idEvento: idEvento,
-      tipoEvento: isEvento ? (dados.tipoEvento || '') : tipoRegistro,
-      nomeContratante: nomeContratante,
-      temNF: temNF,
-      valorNF: financeiro ? financeiro.valorNF : 0,
-      valorBV: valorBV,
-      idBV: dados.idBV || '',
-      nomeBV: nomeBV
-    });
+    garantirMovimentacoesNF_BV(
+  {
+    idEvento: idEvento,
+    tipoEvento: isEvento ? (dados.tipoEvento || '') : tipoRegistro,
+    nomeContratante: nomeContratante,
+    temNF: temNF,
+    valorNF: financeiro ? financeiro.valorNF : 0,
+    valorBV: valorBV,
+    idBV: dados.idBV || '',
+    nomeBV: nomeBV
+  },
+  email
+);
 
     const linha = sheet.getLastRow();
     sheet.getRange(linha, 3).setNumberFormat('@STRING@');
@@ -260,7 +286,9 @@ function buscarNomePorId(nomeAba, id) {
 /**
  * Registra BV de parceiro
  */
-function registrarBV(idEvento, idParceiro, tipoBV, valorBV, valorContrato) {
+function registrarBV(idEvento, idParceiro, tipoBV, valorBV, valorContrato, email) {
+  const user = requireUserByEmail(email);
+  requirePermission(user, 'registrar_bv');
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheet = ss.getSheetByName('MOVIMENTACOES_FINANCEIRAS');
   
@@ -344,12 +372,14 @@ function buscarParceiroBV(id) {
 /**
  * Edita evento existente
  */
-function editarEvento(idEvento, dadosAtualizados) {
+function editarEvento(idEvento, dadosAtualizados, email) {
   try {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     const sheet = ss.getSheetByName('EVENTOS');
     const data = sheet.getDataRange().getValues();
-    const usuario = Session.getActiveUser().getEmail();
+    const user = requireUserByEmail(email);
+    requirePermission(user, 'editar_evento');
+    const usuario = user.email;
     
     // Encontra linha do evento
     for (let i = 1; i < data.length; i++) {
@@ -1254,7 +1284,9 @@ function testarMelhorias() {
  * - BV_EVENTO entra como PENDENTE
  * - Apenas registra a existência do custo
  */
-function garantirMovimentacoesNF_BV(evento) {
+function garantirMovimentacoesNF_BV(evento, email) {
+  const user = requireUserByEmail(email);
+  requirePermission(user, 'registrar_nf');
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheetMov = ss.getSheetByName('MOVIMENTACOES_FINANCEIRAS');
   if (!sheetMov) throw new Error('Aba MOVIMENTACOES_FINANCEIRAS não encontrada');
@@ -1275,7 +1307,7 @@ function garantirMovimentacoesNF_BV(evento) {
     if (dadosMov[i][1] === 'BV_EVENTO') existeBV = true;
   }
 
-  const usuario = Session.getActiveUser().getEmail();
+  const usuario = user.email;
   const agora = new Date();
 
   // =========================

@@ -7,66 +7,9 @@
 
 
 
-function carregarPagina(nomePagina) {
-  try {
-    return HtmlService
-      .createHtmlOutputFromFile(nomePagina)
-      .getContent();
-  } catch (e) {
-    return '<div style="padding:20px;color:red;font-weight:600">Erro ao carregar página: ' + nomePagina + '</div>';
-  }
-}
 
-function obterUsuarioAtual() {
-  try {
-    const email = Session.getActiveUser().getEmail();
-    
-    if (!email) {
-      return { valido: false, mensagem: 'Você precisa estar logado' };
-    }
-    
-    const ss = SpreadsheetApp.getActiveSpreadsheet();
-    const sheet = ss.getSheetByName('USUARIOS');
-    
-    if (!sheet || sheet.getLastRow() <= 1) {
-      return {
-        valido: true,
-        id: 999,
-        email: email,
-        nome: email.split('@')[0],
-        perfil: 'Proprietário',
-        modoDev: true
-      };
-    }
-    
-    const data = sheet.getDataRange().getValues();
-    
-    for (let i = 1; i < data.length; i++) {
-      if (String(data[i][1]).toLowerCase() === email.toLowerCase()) {
-        if (data[i][4] !== 'Ativo') {
-          return { valido: false, mensagem: 'Conta inativa' };
-        }
-        
-        return {
-          valido: true,
-          id: data[i][0],
-          email: data[i][1],
-          nome: data[i][2],
-          perfil: data[i][3]
-        };
-      }
-    }
-    
-    return {
-      valido: false,
-      mensagem: 'Email não cadastrado',
-      emailDetectado: email
-    };
-    
-  } catch (erro) {
-    return { valido: false, mensagem: 'Erro: ' + erro.message };
-  }
-}
+
+
 
 
 function listarDados(nomeAba) {
@@ -94,109 +37,8 @@ function listarDados(nomeAba) {
   }
 }
 
-function listarEventosAgenda() {
-  try {
-    const ss = SpreadsheetApp.getActiveSpreadsheet();
-    const sheet = ss.getSheetByName('EVENTOS');
-    
-    if (!sheet) return [];
-    
-    const data = sheet.getDataRange().getValues();
-    const eventos = [];
-    
-    for (let i = 1; i < data.length; i++) {
-      if (!data[i][0]) continue;
-      
-      const dataEvento = data[i][2];
-      if (!dataEvento || !(dataEvento instanceof Date)) continue;
-      
-      const tipoRegistro = String(data[i][1] || 'Evento');
-      
-      let horaStr = '';
-      if (data[i][4] && data[i][4] instanceof Date) {  // Col 5: HORA_INICIO
-        horaStr = Utilities.formatDate(data[i][4], 'GMT-3', 'HH:mm');
-      } else if (data[i][4]) {
-        horaStr = String(data[i][4]);
-      }
-      
-      eventos.push({
-        id: String(data[i][0]),
-        tipoRegistro: tipoRegistro,
-        dataEvento: Utilities.formatDate(dataEvento, 'GMT-3', 'yyyy-MM-dd'),
-        horaInicio: horaStr,
-        duracao: String(data[i][5] || ''),        // Col 6: DURACAO
-        tipoEvento: String(data[i][6] || ''),     // Col 7: TIPO_EVENTO
-        nomeContratante: String(data[i][9] || 'Sem nome'),  // Col 10: NOME_CONTRATANTE
-        nomeLocal: String(data[i][13] || 'Sem local'),      // Col 14: LOCAL
-        isEvento: tipoRegistro === 'Evento',
-        isReuniao: tipoRegistro === 'Reunião',
-        isBloqueio: tipoRegistro === 'Bloqueio'
-      });
-    }
-    
-    eventos.sort((a, b) => {
-      if (a.dataEvento < b.dataEvento) return -1;
-      if (a.dataEvento > b.dataEvento) return 1;
-      return 0;
-    });
-    
-    return eventos;
-    
-  } catch (erro) {
-    return [];
-  }
-}
 
 
-
-
-
-
-
-function fecharComissao(idVendedor, dataInicio, dataFim) {
-  try {
-    const calculo = calcularComissaoVendedor(idVendedor, dataInicio, dataFim);
-    
-    if (!calculo.sucesso) return calculo;
-    
-    const ss = SpreadsheetApp.getActiveSpreadsheet();
-    let sheet = ss.getSheetByName('COMISSOES');
-    
-    if (!sheet) {
-      sheet = ss.insertSheet('COMISSOES');
-      sheet.appendRow([
-        'ID', 'ID_VENDEDOR', 'NOME_VENDEDOR', 'DATA_INICIO', 'DATA_FIM',
-        'TOTAL_EVENTOS', 'VALOR_TOTAL', 'COMISSAO', 'DATA_FECHAMENTO', 'STATUS'
-      ]);
-    }
-    
-    const id = sheet.getLastRow();
-    
-    sheet.appendRow([
-      id,
-      idVendedor,
-      calculo.vendedor,
-      new Date(dataInicio),
-      new Date(dataFim),
-      calculo.totalEventos,
-      calculo.valorTotal,
-      calculo.comissao,
-      new Date(),
-      'Fechado'
-    ]);
-    
-    return {
-      sucesso: true,
-      mensagem: 'Comissão fechada! Valor: R$ ' + calculo.comissao.toFixed(2)
-    };
-    
-  } catch (erro) {
-    return {
-      sucesso: false,
-      mensagem: 'Erro: ' + erro.message
-    };
-  }
-}
 
 function gerarAgendaTexto(semana) {
   try {

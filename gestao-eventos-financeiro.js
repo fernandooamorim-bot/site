@@ -1,4 +1,5 @@
 
+
 /**
  * =====================================================
  * CÁLCULO DE AJUSTES DE COMISSÃO POR ESTORNO (SEGURANÇA)
@@ -188,8 +189,8 @@ function calcularFinanceiroEvento(dados) {
   valorComissaoCalculado = Number(valorComissaoCalculado.toFixed(arred));
 
   // ───────── STATUS FINANCEIROS ─────────
-  const statusNF = temNF ? 'PENDENTE' : 'N/A';
-  const statusBV = valorBV > 0 ? 'A PAGAR' : 'N/A';
+  const statusNF = temNF ? 'PROCESSADO' : 'N/A';
+  const statusBV = valorBV > 0 ? 'PENDENTE' : 'N/A';
   const statusComissao =
     valorComissaoCalculado > 0 ? 'PENDENTE' : 'N/A';
 
@@ -212,6 +213,7 @@ function calcularFinanceiroEvento(dados) {
  * NÃO altera recebimentos, parcelas ou histórico
  */
 function recalcularFinanceiroEvento(idEvento) {
+  exigirAcao('eventos:editar');
   if (!idEvento) {
     throw new Error('ID do evento é obrigatório');
   }
@@ -282,7 +284,7 @@ function recalcularFinanceiroEvento(idEvento) {
 
     if (idx('EDITADO_POR') >= 0) {
       sheet.getRange(i + 1, idx('EDITADO_POR') + 1)
-        .setValue(Session.getActiveUser().getEmail());
+        .setValue(getUsuarioAtual().email);
     }
 
     registrarLog(
@@ -315,10 +317,11 @@ function recalcularFinanceiroEvento(idEvento) {
  * Registro de NF do evento (valor vem do EVENTO)
  */
 function registrarNFEvento(idEvento) {
+  exigirAcao('eventos:registrarSaida');
   const ss = SpreadsheetApp.getActive();
   const shEvt = ss.getSheetByName('EVENTOS');
   const shMov = ss.getSheetByName('MOVIMENTACOES_FINANCEIRAS');
-  const usuario = Session.getActiveUser().getEmail();
+  const usuario = getUsuarioAtual().email;
 
   const evt = shEvt.getDataRange().getValues();
   const head = evt[0];
@@ -364,10 +367,11 @@ function registrarNFEvento(idEvento) {
  * Registro de BV do evento (valor vem do EVENTO)
  */
 function registrarBVEvento(idEvento) {
+  exigirAcao('eventos:registrarSaida');
   const ss = SpreadsheetApp.getActive();
   const shEvt = ss.getSheetByName('EVENTOS');
   const shMov = ss.getSheetByName('MOVIMENTACOES_FINANCEIRAS');
-  const usuario = Session.getActiveUser().getEmail();
+  const usuario = getUsuarioAtual().email;
 
   const evt = shEvt.getDataRange().getValues();
   const head = evt[0];
@@ -414,12 +418,13 @@ function registrarBVEvento(idEvento) {
  * Pode ocorrer múltiplas vezes
  */
 function registrarFolhaEvento(idEvento, valor, descricao) {
+  exigirAcao('eventos:registrarSaida');
   if (!valor || valor <= 0) throw new Error('Valor inválido para folha');
 
   const ss = SpreadsheetApp.getActive();
   const shEvt = ss.getSheetByName('EVENTOS');
   const shMov = ss.getSheetByName('MOVIMENTACOES_FINANCEIRAS');
-  const usuario = Session.getActiveUser().getEmail();
+  const usuario = getUsuarioAtual().email;
 
   const evt = shEvt.getDataRange().getValues();
   const head = evt[0];
@@ -509,9 +514,10 @@ function apiRegistrarSaidaEvento(payload) {
  * ===================================================== */
 
 function registrarRecebimento(dados) {
+  exigirAcao('eventos:registrarRecebimento');
   const ss = SpreadsheetApp.getActive();
   const sh = ss.getSheetByName('MOVIMENTACOES_FINANCEIRAS');
-  const usuario = Session.getActiveUser().getEmail();
+  const usuario = getUsuarioAtual().email;
 
   const evento = buscarEvento(dados.idEvento);
   if (!evento) throw new Error('Evento não encontrado');
@@ -746,6 +752,7 @@ function buscarComissoesPendentes(idVendedor) {
  * Não altera planilha, apenas retorna objeto resumo.
  */
 function buscarResumoFinanceiroEvento(idEvento) {
+  exigirAcao('eventos:visualizarFinanceiro');
   const ss = SpreadsheetApp.getActive();
   const shEvt = ss.getSheetByName('EVENTOS');
   const shMov = ss.getSheetByName('MOVIMENTACOES_FINANCEIRAS');
@@ -805,6 +812,7 @@ function buscarResumoFinanceiroEvento(idEvento) {
  * Ignora estornos, comissões e movimentos cancelados
  */
 function listarRecebimentosPorEvento(idEvento) {
+  exigirAcao('eventos:visualizarFinanceiro');
   if (!idEvento) return [];
 
   // 🔒 BLINDAGEM: extrai ID_EVENTO real mesmo se vier com texto extra
@@ -874,6 +882,7 @@ function listarRecebimentosPorEvento(idEvento) {
  * PREVIEW DO FECHAMENTO (USADO PELO FRONTEND)
  * ===================================================== */
 
+/*
 function extrairIdRecebimentoDaObservacao(obs) {
   if (!obs || typeof obs !== 'string') return null;
 
@@ -882,8 +891,10 @@ function extrairIdRecebimentoDaObservacao(obs) {
   const match = texto.match(/MOV-\d{8}-\d{3}(?![\d-])/);
   return match ? match[0] : null;
 }
+*/
 
 function visualizarPreviewFechamento(idVendedor) {
+  exigirAcao('comissao:preview');
   // Buscar todas as comissões (pendentes e processadas) do vendedor
   const ss = SpreadsheetApp.getActive();
   const shMov = ss.getSheetByName('MOVIMENTACOES_FINANCEIRAS');
@@ -1133,6 +1144,7 @@ function visualizarPreviewFechamento(idVendedor) {
  * Qualquer alteração nessa regra gera DESCONTO DUPLO e PREJUÍZO.
  */
 function fecharComissaoVendedor(idVendedor, _, __, ajusteCredito, ajusteDebito) {
+  exigirAcao('comissao:fechar');
   // =====================================================
   // REGRA:
   // Estorno de recebimento SEMPRE impacta comissão.
@@ -1143,7 +1155,7 @@ function fecharComissaoVendedor(idVendedor, _, __, ajusteCredito, ajusteDebito) 
   const ss = SpreadsheetApp.getActive();
   const shMov = ss.getSheetByName('MOVIMENTACOES_FINANCEIRAS');
   const shFech = ss.getSheetByName('FECHAMENTOS_COMISSAO');
-  const usuario = Session.getActiveUser().getEmail();
+  const usuario = getUsuarioAtual().email;
 
   // Para ajustes, precisamos do preview detalhado
   const preview = visualizarPreviewFechamento(idVendedor);
@@ -1435,9 +1447,10 @@ function apiEstornarRecebimento(payload) {
 }
 
 function estornarRecebimento(idRecebimento, valorEstorno, motivo) {
+  exigirAcao('eventos:estornarRecebimento');
   const ss = SpreadsheetApp.getActive();
   const sh = ss.getSheetByName('MOVIMENTACOES_FINANCEIRAS');
-  const usuario = Session.getActiveUser().getEmail();
+  const usuario = getUsuarioAtual().email;
 
   if (!idRecebimento || valorEstorno <= 0) {
     throw new Error('Dados inválidos para estorno');
@@ -1566,6 +1579,7 @@ function buscarRecebimentoPorId_(idMov) {
 }
 
 function lerSaudeFinanceiraEvento(idEvento) {
+  exigirAcao('eventos:visualizarFinanceiro');
   if (!idEvento) throw new Error('ID do evento não informado');
 
   const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -1772,6 +1786,7 @@ function lerSaudeFinanceiraEvento(idEvento) {
 }
 
 function listarEventosFinanceiros() {
+  exigirAcao('eventos:visualizarFinanceiro');
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheetEventos = ss.getSheetByName('EVENTOS');
   const sheetMov = ss.getSheetByName('MOVIMENTACOES_FINANCEIRAS');

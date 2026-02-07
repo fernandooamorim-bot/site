@@ -141,25 +141,28 @@ function setConfig(chave, valor) {
 /**
  * Registra log de ação no sistema
  */
-function registrarLog(acao, tabela, idRegistro, detalhes) {
+function registrarLog(request, acao, tabela, idRegistro, detalhes) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheet = ss.getSheetByName('LOGS');
-  const usuario = Session.getActiveUser().getEmail();
-  
+
+  const usuario = requireUser(request.token);
+
   const proximaLinha = sheet.getLastRow() + 1;
-  const idLog = `LOG-${new Date().getTime()}`;
-  
+  const idLog = `LOG-${Date.now()}`;
+
   const novoLog = [
     idLog,
     new Date(),
-    usuario,
+    usuario.email,
     acao,
     tabela,
     idRegistro,
     detalhes
   ];
-  
-  sheet.getRange(proximaLinha, 1, 1, novoLog.length).setValues([novoLog]);
+
+  sheet
+    .getRange(proximaLinha, 1, 1, novoLog.length)
+    .setValues([novoLog]);
 }
 
 // ========================================
@@ -191,19 +194,17 @@ function validarUsuario(email) {
 /**
  * Verifica permissão do usuário
  */
-function verificarPermissao(acao) {
-  const usuario = validarUsuario(Session.getActiveUser().getEmail());
-  
-  if (!usuario.valido) return false;
-  
+function verificarPermissao(request, acao) {
+  const usuario = requireUser(request.token);
+
   const permissoes = {
     'Proprietário': ['*'], // Todas as permissões
     'Sócio': ['cadastrar_evento', 'ver_financeiro', 'ver_dashboard'],
     'Músico': ['ver_agenda']
   };
-  
+
   const perfilPermissoes = permissoes[usuario.perfil] || [];
-  
+
   return perfilPermissoes.includes('*') || perfilPermissoes.includes(acao);
 }
 
@@ -381,25 +382,29 @@ function listarEnderecos() {
   return lista;
 }
 
-/**
- * Retorna lista de parceiros BV ativos
- */
 function listarParceirosBV() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheet = ss.getSheetByName('PARCEIROS_BV');
-  const data = sheet.getDataRange().getValues();
-  
-  const lista = [];
-  for (let i = 1; i < data.length; i++) {
-    if (data[i][3] === 'Ativo') {
-      lista.push({
-        id: data[i][0],
-        nome: data[i][1]
-      });
+  Logger.log('📋 listarParceirosBV');
+  try {
+    const sheet = SpreadsheetApp.getActive().getSheetByName('PARCEIROS_BV');
+    if (!sheet) return [];
+
+    const dados = sheet.getDataRange().getValues();
+    const lista = [];
+
+    for (let i = 1; i < dados.length; i++) {
+      const id = dados[i][0];
+      const nome = dados[i][1];
+      if (id && nome) {
+        lista.push({ id: String(id), nome: String(nome) });
+      }
     }
+
+    Logger.log('✅ ' + lista.length + ' parceiros BV');
+    return lista;
+  } catch (erro) {
+    Logger.log('❌ Erro: ' + erro.message);
+    return [];
   }
-  
-  return lista;
 }
 
 // ========================================
@@ -502,3 +507,4 @@ function normalizarData(valor) {
 
   return null;
 }
+
