@@ -1355,20 +1355,10 @@
               <span>Contratante</span>
               <span class="indicator indicator-warning">⚠️ Atualiza referência</span>
             </label>
-
-            <div style="display:flex;gap:8px;align-items:center;">
-              <div class="autocomplete-wrapper" style="flex:1;">
-                <input type="text" id="contratanteNome" placeholder="Digite o nome do contratante...">
-                <input type="hidden" id="idContratante">
-                <div id="autocompleteContratanteList" class="autocomplete-list"></div>
-              </div>
-
-              <button type="button"
-                class="btn btn-secondary"
-                onclick="abrirCadastroRapidoContratante()"
-                title="Cadastrar novo contratante">
-                ➕
-              </button>
+            <div class="autocomplete-wrapper">
+              <input type="text" id="contratanteNome" placeholder="Digite o nome do contratante...">
+              <input type="hidden" id="idContratante">
+              <div id="autocompleteContratanteList" class="autocomplete-list"></div>
             </div>
           </div>
           
@@ -1390,20 +1380,10 @@
             <span>Local do Evento</span>
             <span class="indicator indicator-warning">⚠️ Atualiza referência</span>
           </label>
-
-          <div style="display:flex;gap:8px;align-items:center;">
-            <div class="autocomplete-wrapper" style="flex:1;">
-              <input type="text" id="enderecoNome" placeholder="Digite o local do evento...">
-              <input type="hidden" id="idEndereco">
-              <div id="autocompleteEnderecoList" class="autocomplete-list"></div>
-            </div>
-
-            <button type="button"
-              class="btn btn-secondary"
-              onclick="abrirCadastroRapidoEndereco()"
-              title="Cadastrar novo endereço">
-              ➕
-            </button>
+          <div class="autocomplete-wrapper">
+            <input type="text" id="enderecoNome" placeholder="Digite o local do evento...">
+            <input type="hidden" id="idEndereco">
+            <div id="autocompleteEnderecoList" class="autocomplete-list"></div>
           </div>
         </div>
       </div>
@@ -2474,33 +2454,30 @@ async function validarImpactoFinanceiroAntesSalvar(callback) {
   if (evento.dataFim) {
     document.getElementById('eventoMultiDias').checked = true;
     document.getElementById('grupoDataFim').classList.remove('hidden');
-    document.getElementById('dataFim').value = evento.dataFim || '';
+    document.getElementById('dataFim').value =
+  evento.dataFim || '';
   } else {
     document.getElementById('eventoMultiDias').checked = false;
     document.getElementById('grupoDataFim').classList.add('hidden');
     document.getElementById('dataFim').value = '';
   }
 
-  // Contratante (não buscar nome via planilha, usar backend)
-  document.getElementById('contratanteNome').value = evento.nomeContratante || '';
-  document.getElementById('idContratante').value = evento.idContratante || '';
-
-  // Cerimonialista (mantém padrão atual)
-  if (window.__CACHE.autocomplete && window.__CACHE.autocomplete.cerimonialistas) {
-    const ce = window.__CACHE.autocomplete.cerimonialistas.find(x => x.id == evento.idCerimonialista);
-    if (ce) {
-      document.getElementById('cerimonialistaNome').value = ce.nome;
-      document.getElementById('idCerimonialista').value = ce.id;
-    } else {
-      document.getElementById('cerimonialistaNome').value = evento.nomeCerimonialista || '';
-      document.getElementById('idCerimonialista').value = evento.idCerimonialista || '';
-    }
+  // AUTOCOMPLETE CAMPOS: Contratante, Cerimonialista, Endereço
+  const c = window.__CACHE.autocomplete.contratantes.find(x => x.id == evento.idContratante);
+  if (c) {
+    document.getElementById('contratanteNome').value = c.nome;
+    document.getElementById('idContratante').value = c.id;
   }
-
-  // Endereço (não buscar nome via planilha, usar backend)
-  document.getElementById('enderecoNome').value = evento.local || '';
-  document.getElementById('idEndereco').value = evento.idEndereco || '';
-
+  const ce = window.__CACHE.autocomplete.cerimonialistas.find(x => x.id == evento.idCerimonialista);
+  if (ce) {
+    document.getElementById('cerimonialistaNome').value = ce.nome;
+    document.getElementById('idCerimonialista').value = ce.id;
+  }
+  const e = window.__CACHE.autocomplete.enderecos.find(x => x.id == evento.idEndereco);
+  if (e) {
+    document.getElementById('enderecoNome').value = e.nome;
+    document.getElementById('idEndereco').value = e.id;
+  }
   // Outros selects
   setValueSafe('idVendedor', evento.idVendedor);
   setValueSafe('idBV', evento.idBV);
@@ -2519,6 +2496,74 @@ async function validarImpactoFinanceiroAntesSalvar(callback) {
   // Calcular horário fim após carregar os dados
   setTimeout(calcularHorarioFim, 300);
 }
+  // ========================================
+  // AUTOCOMPLETE - CACHE E FUNÇÕES
+  // ========================================
+  window.__CACHE.autocomplete = {
+    contratantes: [],
+    cerimonialistas: [],
+    enderecos: []
+  };
+
+  async function preloadAutocompleteData() {
+    if (!window.__CACHE.autocomplete.contratantes.length) {
+      window.__CACHE.autocomplete.contratantes =
+        await Auth.apiCall('listarContratantes', {});
+    }
+
+    if (!window.__CACHE.autocomplete.cerimonialistas.length) {
+      window.__CACHE.autocomplete.cerimonialistas =
+        await Auth.apiCall('listarCerimonialistas', {});
+    }
+
+    if (!window.__CACHE.autocomplete.enderecos.length) {
+      window.__CACHE.autocomplete.enderecos =
+        await Auth.apiCall('listarEnderecos', {});
+    }
+  }
+
+  function criarAutocomplete(inputId, hiddenId, listId, dataset) {
+    let timer = null;
+    const input = document.getElementById(inputId);
+    const hidden = document.getElementById(hiddenId);
+    const list = document.getElementById(listId);
+
+    input.addEventListener('input', () => {
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        const termo = input.value.toLowerCase().trim();
+        if (termo.length < 2) {
+          list.classList.remove('show');
+          return;
+        }
+
+        const matches = dataset
+          .filter(i => i.nome.toLowerCase().includes(termo))
+          .slice(0, 10);
+
+        list.innerHTML = '';
+        matches.forEach(item => {
+          const div = document.createElement('div');
+          div.className = 'autocomplete-item';
+          div.textContent = item.nome;
+          div.onclick = () => {
+            input.value = item.nome;
+            hidden.value = item.id;
+            list.classList.remove('show');
+          };
+          list.appendChild(div);
+        });
+
+        list.classList.toggle('show', matches.length > 0);
+      }, 250);
+    });
+    // Fecha lista ao clicar fora
+    document.addEventListener('click', function(e) {
+      if (!e.target.closest('.autocomplete-wrapper')) {
+        list.classList.remove('show');
+      }
+    });
+  }
     
   // mostrarStatusFinanceiro REMOVIDA: nenhuma função deve mais escrever na div #statusFinanceiro, exceto lógica de permissão financeira.
     
@@ -2584,24 +2629,27 @@ async function validarImpactoFinanceiroAntesSalvar(callback) {
         dataEvento: 'Verificar conflitos na agenda',
         horaInicio: 'Verificar conflitos na agenda'
       };
-      const camposForcados = ['idContratante','idEndereco'];
+      
       for (let campo in campos) {
-        const el = document.getElementById(campo);
-        // ✅ NOVO: se campo está desabilitado, ignora
-        if (el && el.disabled) {
-          continue;
-        }
-        const valorAntigo = String(eventoOriginal[campo] ?? '');
-        const valorNovo = String(dados[campo] ?? '');
-        if (valorAntigo !== valorNovo || camposForcados.includes(campo)) {
-          alteracoes.push({
-            campo: campos[campo],
-            valorAntigo: valorAntigo || '(vazio)',
-            valorNovo: valorNovo || '(vazio)',
-            impacto: impactos[campo] || null
-          });
-        }
-      }
+  const el = document.getElementById(campo);
+
+  // ✅ NOVO: se campo está desabilitado, ignora
+  if (el && el.disabled) {
+    continue;
+  }
+
+  const valorAntigo = String(eventoOriginal[campo] ?? '');
+  const valorNovo = String(dados[campo] ?? '');
+
+  if (valorAntigo !== valorNovo) {
+    alteracoes.push({
+      campo: campos[campo],
+      valorAntigo: valorAntigo || '(vazio)',
+      valorNovo: valorNovo || '(vazio)',
+      impacto: impactos[campo] || null
+    });
+  }
+}
       return alteracoes;
     }
     
@@ -2831,12 +2879,3 @@ window.addEventListener('load', async () => {
   </script>
 </body>
 </html>
-
-// ==== STUBS PARA CADASTRO RÁPIDO ====
-function abrirCadastroRapidoContratante() {
-  alert('Cadastro rápido de contratante será aberto aqui.');
-}
-
-function abrirCadastroRapidoEndereco() {
-  alert('Cadastro rápido de endereço será aberto aqui.');
-}
