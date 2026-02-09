@@ -1355,10 +1355,20 @@
               <span>Contratante</span>
               <span class="indicator indicator-warning">⚠️ Atualiza referência</span>
             </label>
-            <div class="autocomplete-wrapper">
-              <input type="text" id="contratanteNome" placeholder="Digite o nome do contratante...">
-              <input type="hidden" id="idContratante">
-              <div id="autocompleteContratanteList" class="autocomplete-list"></div>
+
+            <div style="display:flex;gap:8px;align-items:center;">
+              <div class="autocomplete-wrapper" style="flex:1;">
+                <input type="text" id="contratanteNome" placeholder="Digite o nome do contratante...">
+                <input type="hidden" id="idContratante">
+                <div id="autocompleteContratanteList" class="autocomplete-list"></div>
+              </div>
+
+              <button type="button"
+                class="btn btn-secondary"
+                onclick="abrirCadastroRapidoContratante()"
+                title="Cadastrar novo contratante">
+                ➕
+              </button>
             </div>
           </div>
           
@@ -1380,10 +1390,20 @@
             <span>Local do Evento</span>
             <span class="indicator indicator-warning">⚠️ Atualiza referência</span>
           </label>
-          <div class="autocomplete-wrapper">
-            <input type="text" id="enderecoNome" placeholder="Digite o local do evento...">
-            <input type="hidden" id="idEndereco">
-            <div id="autocompleteEnderecoList" class="autocomplete-list"></div>
+
+          <div style="display:flex;gap:8px;align-items:center;">
+            <div class="autocomplete-wrapper" style="flex:1;">
+              <input type="text" id="enderecoNome" placeholder="Digite o local do evento...">
+              <input type="hidden" id="idEndereco">
+              <div id="autocompleteEnderecoList" class="autocomplete-list"></div>
+            </div>
+
+            <button type="button"
+              class="btn btn-secondary"
+              onclick="abrirCadastroRapidoEndereco()"
+              title="Cadastrar novo endereço">
+              ➕
+            </button>
           </div>
         </div>
       </div>
@@ -2629,27 +2649,24 @@ async function validarImpactoFinanceiroAntesSalvar(callback) {
         dataEvento: 'Verificar conflitos na agenda',
         horaInicio: 'Verificar conflitos na agenda'
       };
-      
+      const camposForcados = ['idContratante','idEndereco'];
       for (let campo in campos) {
-  const el = document.getElementById(campo);
-
-  // ✅ NOVO: se campo está desabilitado, ignora
-  if (el && el.disabled) {
-    continue;
-  }
-
-  const valorAntigo = String(eventoOriginal[campo] ?? '');
-  const valorNovo = String(dados[campo] ?? '');
-
-  if (valorAntigo !== valorNovo) {
-    alteracoes.push({
-      campo: campos[campo],
-      valorAntigo: valorAntigo || '(vazio)',
-      valorNovo: valorNovo || '(vazio)',
-      impacto: impactos[campo] || null
-    });
-  }
-}
+        const el = document.getElementById(campo);
+        // ✅ NOVO: se campo está desabilitado, ignora
+        if (el && el.disabled) {
+          continue;
+        }
+        const valorAntigo = String(eventoOriginal[campo] ?? '');
+        const valorNovo = String(dados[campo] ?? '');
+        if (valorAntigo !== valorNovo || camposForcados.includes(campo)) {
+          alteracoes.push({
+            campo: campos[campo],
+            valorAntigo: valorAntigo || '(vazio)',
+            valorNovo: valorNovo || '(vazio)',
+            impacto: impactos[campo] || null
+          });
+        }
+      }
       return alteracoes;
     }
     
@@ -2879,3 +2896,12 @@ window.addEventListener('load', async () => {
   </script>
 </body>
 </html>
+
+// ==== STUBS PARA CADASTRO RÁPIDO ====
+function abrirCadastroRapidoContratante() {
+  alert('Cadastro rápido de contratante será aberto aqui.');
+}
+
+function abrirCadastroRapidoEndereco() {
+  alert('Cadastro rápido de endereço será aberto aqui.');
+}
