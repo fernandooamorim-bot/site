@@ -2432,8 +2432,26 @@ async function validarImpactoFinanceiroAntesSalvar(callback) {
 
     function popularDropdown(id, lista, opcional = false) {
       const select = document.getElementById(id);
-      if (!opcional) select.innerHTML = '';
+      if (!select || !Array.isArray(lista)) return;
+
+      // Limpa completamente antes de popular
+      select.innerHTML = '';
+
+      // Opção padrão quando opcional
+      if (opcional) {
+        const opt = document.createElement('option');
+        opt.value = '';
+        opt.textContent = '-- Selecione --';
+        select.appendChild(opt);
+      }
+
+      // Evita duplicações por ID
+      const usados = new Set();
+
       lista.forEach(item => {
+        if (!item || !item.id || usados.has(String(item.id))) return;
+        usados.add(String(item.id));
+
         const option = document.createElement('option');
         option.value = item.id;
         option.textContent = item.nome;
