@@ -1554,9 +1554,22 @@ function getIdEventoFromURL() {
 
     globalLoadingSlowTimer = setTimeout(() => {
       if (label && overlay && overlay.classList.contains('show')) {
-        label.textContent = 'Processando...';
+        label.textContent = 'Processo em andamento... só mais um momento.';
       }
     }, 4000);
+
+    globalLoadingTimer = setTimeout(() => {
+      if (overlay && overlay.classList.contains('show')) {
+        overlay.classList.remove('show');
+        document.body.removeAttribute('aria-busy');
+        if (document.body.dataset.loadingContext === 'busca') {
+          travarBusca(false);
+        }
+        if (typeof mostrarAlerta === 'function') {
+          mostrarAlerta('A operação está demorando mais que o normal. Tente novamente.', 'info');
+        }
+      }
+    }, 18000);
   }
 
   function esconderLoadingGlobal() {
@@ -2307,7 +2320,7 @@ async function validarImpactoFinanceiroAntesSalvar(callback) {
         lista = window.__CACHE.contratantes;
         if (lista && lista.error) throw new Error(lista.error);
         popularDropdown('idContratante', lista);
-      } catch (e) {console.error('Erro carregando dropdown:', e);}
+      } catch (e) {}
       try {
         let lista;
         if (!window.__CACHE.cerimonialistas) {
@@ -2316,7 +2329,7 @@ async function validarImpactoFinanceiroAntesSalvar(callback) {
         lista = window.__CACHE.cerimonialistas;
         if (lista && lista.error) throw new Error(lista.error);
         popularDropdown('idCerimonialista', lista, true);
-      } catch (e) {console.error('Erro carregando dropdown:', e);}
+      } catch (e) {}
       try {
         let lista;
         if (!window.__CACHE.enderecos) {
@@ -2325,7 +2338,7 @@ async function validarImpactoFinanceiroAntesSalvar(callback) {
         lista = window.__CACHE.enderecos;
         if (lista && lista.error) throw new Error(lista.error);
         popularDropdown('idEndereco', lista);
-      } catch (e) {console.error('Erro carregando dropdown:', e);}
+      } catch (e) {}
       try {
         let lista;
         if (!window.__CACHE.vendedores) {
@@ -2334,7 +2347,7 @@ async function validarImpactoFinanceiroAntesSalvar(callback) {
         lista = window.__CACHE.vendedores;
         if (lista && lista.error) throw new Error(lista.error);
         popularDropdown('idVendedor', lista);
-      } catch (e) {console.error('Erro carregando dropdown:', e);}
+      } catch (e) {}
       try {
         let lista;
         if (!window.__CACHE.parceirosBV) {
@@ -2343,7 +2356,7 @@ async function validarImpactoFinanceiroAntesSalvar(callback) {
         lista = window.__CACHE.parceirosBV;
         if (lista && lista.error) throw new Error(lista.error);
         popularDropdown('idBV', lista, true);
-      } catch (e) {console.error('Erro carregando dropdown:', e);}
+      } catch (e) {}
       // CONFIG - Tipo de Evento
       try {
         let tipos;
@@ -2365,7 +2378,7 @@ async function validarImpactoFinanceiroAntesSalvar(callback) {
           __dropdownsProntos.tipoEvento = true;
           tentarPreencherEventoAposDropdowns();
         }
-      } catch (e) {console.error('Erro carregando dropdown:', e);}
+      } catch (e) {}
       // CONFIG - Durações
       try {
         let duracoes;
@@ -2392,7 +2405,7 @@ async function validarImpactoFinanceiroAntesSalvar(callback) {
           __dropdownsProntos.duracao = true;
           tentarPreencherEventoAposDropdowns();
         }
-      } catch (e) {console.error('Erro carregando dropdown:', e);}
+      } catch (e) {}
       // CONFIG - Projetos
       try {
         let projetos;
@@ -2415,23 +2428,23 @@ async function validarImpactoFinanceiroAntesSalvar(callback) {
           __dropdownsProntos.projeto = true;
           tentarPreencherEventoAposDropdowns();
         }
-      } catch (e) {console.error('Erro carregando dropdown:', e);}
+      } catch (e) {}
     }
     
     function tentarPreencherEventoAposDropdowns() {
-      if (!eventoAtual) return;
+  if (!eventoAtual) return;
 
-      if (
-        !__dropdownsProntos.tipoEvento ||
-        !__dropdownsProntos.duracao ||
-        !__dropdownsProntos.projeto
-      ) return;
+  if (
+    !__dropdownsProntos.tipoEvento ||
+    !__dropdownsProntos.duracao ||
+    !__dropdownsProntos.projeto
+  ) return;
 
-      preencherFormulario(eventoAtual);
-      aplicarSkeletonFormulario(false);
-      esconderLoadingGlobal();
-      travarAcoes(false);
-    }
+  preencherFormulario(eventoAtual);
+  aplicarSkeletonFormulario(false);
+  esconderLoadingGlobal();
+  travarAcoes(false);
+}
 
     function popularDropdown(id, lista, opcional = false) {
       const select = document.getElementById(id);
