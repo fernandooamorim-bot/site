@@ -671,37 +671,62 @@
        ============================================ */
     .status-box {
       padding: 14px 16px;
-      border-radius: var(--radius-sm);
+      border-radius: var(--radius-md);
       margin-bottom: 16px;
       font-size: 13px;
       font-weight: 500;
       display: flex;
-      align-items: center;
-      gap: 10px;
+      align-items: flex-start;
+      gap: 12px;
       line-height: 1.5;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .status-box ul {
+      margin: 8px 0 0 0;
+      padding-left: 18px;
+    }
+
+    .status-box li {
+      margin-bottom: 6px;
+      font-size: 13px;
     }
 
     .status-box.safe {
       background: rgba(16,185,129,0.08);
-      border: 1px solid rgba(16,185,129,0.2);
+      border: 1px solid rgba(16,185,129,0.25);
       color: #065f46;
     }
 
     .status-box.warning {
       background: rgba(245,158,11,0.08);
-      border: 1px solid rgba(245,158,11,0.2);
+      border: 1px solid rgba(245,158,11,0.25);
       color: #92400e;
     }
 
     .status-box.danger {
-      background: rgba(239,68,68,0.06);
-      border: 1px solid rgba(239,68,68,0.15);
+      background: rgba(239,68,68,0.08);
+      border: 1px solid rgba(239,68,68,0.25);
       color: #991b1b;
     }
 
     .status-icon {
       font-size: 20px;
+      line-height: 1;
       flex-shrink: 0;
+      margin-top: 2px;
+    }
+
+    /* Mobile refinado */
+    @media (max-width: 600px) {
+      .status-box {
+        padding: 12px 14px;
+        font-size: 12.5px;
+      }
+
+      .status-icon {
+        font-size: 18px;
+      }
     }
 
     /* ============================================
