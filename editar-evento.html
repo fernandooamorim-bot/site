@@ -1557,19 +1557,6 @@ function getIdEventoFromURL() {
         label.textContent = 'Processo em andamento... só mais um momento.';
       }
     }, 4000);
-
-    globalLoadingTimer = setTimeout(() => {
-      if (overlay && overlay.classList.contains('show')) {
-        overlay.classList.remove('show');
-        document.body.removeAttribute('aria-busy');
-        if (document.body.dataset.loadingContext === 'busca') {
-          travarBusca(false);
-        }
-        if (typeof mostrarAlerta === 'function') {
-          mostrarAlerta('A operação está demorando mais que o normal. Tente novamente.', 'info');
-        }
-      }
-    }, 18000);
   }
 
   function esconderLoadingGlobal() {
@@ -2432,19 +2419,16 @@ async function validarImpactoFinanceiroAntesSalvar(callback) {
     }
     
     function tentarPreencherEventoAposDropdowns() {
-  if (!eventoAtual) return;
+      if (!eventoAtual) return;
 
-  if (
-    !__dropdownsProntos.tipoEvento ||
-    !__dropdownsProntos.duracao ||
-    !__dropdownsProntos.projeto
-  ) return;
+      // Preenche selects quando disponíveis
+      preencherFormulario(eventoAtual);
 
-  preencherFormulario(eventoAtual);
-  aplicarSkeletonFormulario(false);
-  esconderLoadingGlobal();
-  travarAcoes(false);
-}
+      // 🔑 ENCERRA loading global independente dos dropdowns
+      aplicarSkeletonFormulario(false);
+      esconderLoadingGlobal();
+      travarAcoes(false);
+    }
 
     function popularDropdown(id, lista, opcional = false) {
       const select = document.getElementById(id);
