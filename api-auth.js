@@ -39,6 +39,25 @@ function doPost(e) {
       params = e.parameter || {};
     }
 
+    // ======================================================
+    // WEBHOOK WOOVI — DETECÇÃO ANTES DE ACTION
+    // ======================================================
+    if (raw && raw.startsWith('{')) {
+      try {
+        const possibleWebhook = JSON.parse(raw);
+
+        if (
+          possibleWebhook &&
+          possibleWebhook.event &&
+          String(possibleWebhook.event).indexOf('OPENPIX') !== -1
+        ) {
+          return processarWebhookWoovi(e);
+        }
+      } catch (err) {
+        // não é webhook, segue fluxo normal
+      }
+    }
+
     const action = params.action;
     const email  = params.email;
 
