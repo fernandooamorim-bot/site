@@ -1660,10 +1660,16 @@ function submitRecebimento(){
   };
 
   Auth.apiCall('apiRegistrarRecebimento', payload)
-  .then(() => {
+  .then(resp => {
     hideLoading();
     lockSubmit = false;
     liberarBotao(btn);
+
+    if (!resp || resp.sucesso !== true) {
+      alert(resp?.mensagem || 'Erro ao registrar recebimento');
+      return;
+    }
+
     resetRecebimentoForm();
     alert('Recebimento registrado');
   })
