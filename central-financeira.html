@@ -732,6 +732,13 @@ function renderRecebimento(){
 
     <label>Link do Comprovante</label>
     <input id="comprovante">
+    <div style="margin-top:8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <input type="file" id="fileComprovanteRecebimento" accept="image/png,image/jpeg,application/pdf">
+      <button type="button" class="btn secondary"
+        onclick="uploadComprovanteParaCampo('fileComprovanteRecebimento','comprovante','RECEBIMENTO', eventoSelecionado || '')">
+        📎 Carregar Comprovante
+      </button>
+    </div>
 
     <label>Observações</label>
     <textarea id="obs"></textarea>
@@ -788,6 +795,13 @@ function renderComissao(){
 
     <label>Link Comprovante Pagamento</label>
     <input id="linkPagamento">
+    <div style="margin-top:8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <input type="file" id="fileComprovanteFechamento" accept="image/png,image/jpeg,application/pdf">
+      <button type="button" class="btn secondary"
+        onclick="uploadComprovanteParaCampo('fileComprovanteFechamento','linkPagamento','FECHAMENTO_COMISSAO', vendedorSelecionado?.id || '')">
+        📎 Carregar Comprovante
+      </button>
+    </div>
 
     <label style="margin-top:16px">
       <input type="checkbox" id="confirmarFechamento">
@@ -866,6 +880,13 @@ function renderCamposSaida() {
 
       <label>Link do Comprovante</label>
       <input id="comprovanteSaida">
+      <div style="margin-top:8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <input type="file" id="fileComprovanteSaida" accept="image/png,image/jpeg,application/pdf">
+        <button type="button" class="btn secondary"
+          onclick="uploadComprovanteParaCampo('fileComprovanteSaida','comprovanteSaida','SAIDA_EVENTO', eventoSelecionado || '')">
+          📎 Carregar Comprovante
+        </button>
+      </div>
 
       <label>Observações</label>
       <textarea id="obsSaida"></textarea>
@@ -1403,6 +1424,74 @@ function carregarResumoVendedor(){
 /* ================= VALIDACOES & UTIL ================= */
 
 let lockSubmit = false;
+
+async function uploadComprovanteParaCampo(fileInputId, targetInputId, categoria, referencia) {
+  const input = document.getElementById(fileInputId);
+  const target = document.getElementById(targetInputId);
+  if (!input || !target) return alert('Campo de comprovante não encontrado.');
+
+  const file = input.files && input.files[0];
+  if (!file) return alert('Selecione um arquivo de comprovante.');
+
+  const mimeType = (file.type || inferirMimePorNomeArquivo(file.name) || '').toLowerCase();
+  const tiposPermitidos = ['image/png', 'image/jpeg', 'application/pdf'];
+  if (!tiposPermitidos.includes(mimeType)) {
+    return alert('Formato inválido. Use PNG, JPG ou PDF.');
+  }
+
+  const maxBytes = 2 * 1024 * 1024;
+  if (file.size > maxBytes) {
+    return alert('Arquivo maior que 2MB. Reduza o comprovante e tente novamente.');
+  }
+
+  const btn = event?.target;
+  bloquearBotao(btn);
+  showLoading('Enviando comprovante...');
+
+  try {
+    const dataUrl = await lerArquivoComoDataURL(file);
+    const base64 = (dataUrl.split(',')[1] || '').trim();
+    if (!base64) throw new Error('Falha ao ler arquivo selecionado');
+
+    const resp = await Auth.apiCall('apiUploadComprovante', {
+      arquivoBase64: base64,
+      mimeType: mimeType,
+      nomeArquivo: file.name,
+      categoria: categoria || 'GERAL',
+      referencia: referencia || ''
+    });
+
+    if (!resp || resp.sucesso !== true || !resp.linkArquivo) {
+      throw new Error(resp?.mensagem || 'Falha no upload do comprovante');
+    }
+
+    target.value = resp.linkArquivo;
+    input.value = '';
+    alert('Comprovante carregado com sucesso.');
+  } catch (err) {
+    tratarErroApi(err);
+  } finally {
+    hideLoading();
+    liberarBotao(btn);
+  }
+}
+
+function lerArquivoComoDataURL(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result || '');
+    reader.onerror = () => reject(new Error('Não foi possível ler o arquivo.'));
+    reader.readAsDataURL(file);
+  });
+}
+
+function inferirMimePorNomeArquivo(nome) {
+  const n = String(nome || '').toLowerCase();
+  if (n.endsWith('.png')) return 'image/png';
+  if (n.endsWith('.jpg') || n.endsWith('.jpeg')) return 'image/jpeg';
+  if (n.endsWith('.pdf')) return 'application/pdf';
+  return '';
+}
 
 function tratarErroApi(err) {
   console.error('Erro API:', err);

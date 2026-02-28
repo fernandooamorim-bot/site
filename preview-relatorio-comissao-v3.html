@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Preview - Relatorio de Comissao V3</title>
+  <style>
+    :root {
+      --bg: #f4f6fb;
+      --surface: #ffffff;
+      --ink: #0f172a;
+      --muted: #475569;
+      --line: #d9e2f2;
+      --brand: #0a4ea3;
+      --brand-2: #0ea5e9;
+      --ok: #0f766e;
+      --accent: #7c3aed;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: radial-gradient(circle at top right, #dbeafe 0, var(--bg) 45%);
+      color: var(--ink);
+      font: 14px/1.45 "Avenir Next", "Segoe UI", sans-serif;
+      padding: 28px;
+    }
+
+    .page {
+      max-width: 920px;
+      margin: 0 auto;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      box-shadow: 0 20px 40px rgba(15, 23, 42, .10);
+      overflow: hidden;
+    }
+
+    .hero {
+      background: linear-gradient(120deg, var(--brand), var(--brand-2));
+      color: #fff;
+      padding: 26px 30px 22px;
+    }
+
+    .hero h1 {
+      margin: 0 0 6px;
+      font-size: 26px;
+      letter-spacing: .2px;
+    }
+
+    .hero p {
+      margin: 0;
+      opacity: .95;
+      font-size: 13px;
+    }
+
+    .meta {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      padding: 20px 24px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .card {
+      background: #f8fbff;
+      border: 1px solid #d7e6ff;
+      border-radius: 12px;
+      padding: 10px 12px;
+    }
+
+    .k {
+      color: var(--muted);
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: .5px;
+    }
+
+    .v {
+      margin-top: 2px;
+      font-weight: 700;
+      font-size: 15px;
+      color: var(--ink);
+    }
+
+    .content {
+      padding: 20px 24px 26px;
+    }
+
+    h2 {
+      margin: 4px 0 14px;
+      font-size: 17px;
+      color: #0b2447;
+    }
+
+    .event {
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      margin-bottom: 14px;
+      overflow: hidden;
+    }
+
+    .event-head {
+      background: #f8fafc;
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .event-title {
+      margin: 0;
+      font-size: 15px;
+      font-weight: 800;
+      color: #0b2447;
+    }
+
+    .event-sub {
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .event-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0;
+    }
+
+    .event-cell {
+      padding: 12px 14px;
+      border-right: 1px solid var(--line);
+    }
+
+    .event-cell:last-child { border-right: 0; }
+
+    .label {
+      color: var(--muted);
+      font-size: 12px;
+      margin-bottom: 4px;
+    }
+
+    .value {
+      font-size: 16px;
+      font-weight: 800;
+      color: var(--ink);
+    }
+
+    .value.ok { color: var(--ok); }
+    .value.accent { color: var(--accent); }
+
+    .summary {
+      margin-top: 20px;
+      border-radius: 16px;
+      padding: 16px 18px;
+      color: #fff;
+      background: linear-gradient(135deg, #0f172a, #1e3a8a 60%, #2563eb);
+    }
+
+    .row {
+      display: flex;
+      justify-content: space-between;
+      padding: 7px 0;
+      border-bottom: 1px solid rgba(255,255,255,.15);
+    }
+
+    .row:last-child { border-bottom: 0; }
+
+    .row strong { font-size: 15px; }
+
+    .final {
+      margin-top: 12px;
+      text-align: center;
+      font-size: 22px;
+      font-weight: 900;
+      letter-spacing: .3px;
+    }
+
+    .foot {
+      margin-top: 16px;
+      color: #dbeafe;
+      text-align: center;
+      font-size: 11px;
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <section class="hero">
+      <h1>Fechamento de Comissao</h1>
+      <p>Preview visual moderno - contraste elevado - modelo para aprovacao</p>
+    </section>
+
+    <section class="meta">
+      <div class="card">
+        <div class="k">Fechamento</div>
+        <div class="v">AC-VND-002-20260228013703</div>
+      </div>
+      <div class="card">
+        <div class="k">Vendedor</div>
+        <div class="v">Suetonio</div>
+      </div>
+      <div class="card">
+        <div class="k">Data de geracao</div>
+        <div class="v">28/02/2026 01:37</div>
+      </div>
+    </section>
+
+    <section class="content">
+      <h2>Detalhamento por Evento</h2>
+
+      <article class="event">
+        <div class="event-head">
+          <p class="event-title">ANIVERSARIO FERNANDO HENRIQUE CAVALCANTE DE AMORIM</p>
+          <div class="event-sub">Tipo: Percentual (10%) | Base de comissao: R$ 1.760,00</div>
+        </div>
+        <div class="event-grid">
+          <div class="event-cell">
+            <div class="label">Comissao neste fechamento</div>
+            <div class="value ok">R$ 176,00</div>
+          </div>
+          <div class="event-cell">
+            <div class="label">% total pago (acumulado)</div>
+            <div class="value accent">100,0%</div>
+          </div>
+          <div class="event-cell">
+            <div class="label">Comissao total ja paga (acumulado)</div>
+            <div class="value">R$ 176,00</div>
+          </div>
+        </div>
+      </article>
+
+      <section class="summary">
+        <div class="row"><span>Total Comissoes</span><strong>R$ 176,00</strong></div>
+        <div class="row"><span>Ajuste Credito</span><strong>R$ 0,00</strong></div>
+        <div class="row"><span>Ajuste Debito</span><strong>R$ 0,00</strong></div>
+        <div class="final">VALOR FINAL: R$ 176,00</div>
+        <div class="foot">Documento demonstrativo - FA Producoes</div>
+      </section>
+    </section>
+  </div>
+</body>
+</html>
