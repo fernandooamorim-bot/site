@@ -1381,12 +1381,8 @@
               <span>Contratante</span>
               <span class="indicator indicator-warning">⚠️ Atualiza referência</span>
             </label>
-            <select id="idContratante"></select>
-            <div style="margin-top:6px;">
-              <button type="button" class="btn btn-secondary" style="padding:5px 9px;font-size:12px;" onclick="habilitarTrocaReferencia('contratante')">
-                🔄 Trocar contratante
-              </button>
-            </div>
+            <input type="text" id="nomeContratante" placeholder="Nome do contratante">
+            <input type="hidden" id="idContratante">
             <div id="avisoRefContratante" class="helper-text hidden"></div>
           </div>
           
@@ -1406,12 +1402,8 @@
             <span>Local do Evento</span>
             <span class="indicator indicator-warning">⚠️ Atualiza referência</span>
           </label>
-          <select id="idEndereco"></select>
-          <div style="margin-top:6px;">
-            <button type="button" class="btn btn-secondary" style="padding:5px 9px;font-size:12px;" onclick="habilitarTrocaReferencia('endereco')">
-              🔄 Trocar local
-            </button>
-          </div>
+          <input type="text" id="nomeLocal" placeholder="Local do evento">
+          <input type="hidden" id="idEndereco">
           <div id="avisoRefEndereco" class="helper-text hidden"></div>
         </div>
       </div>
@@ -1866,27 +1858,6 @@ function escapeHtml(str) {
     .replace(/'/g, '&#39;');
 }
 
-function selectPossuiOpcao(idSelect, valor) {
-  const select = document.getElementById(idSelect);
-  if (!select) return false;
-  const alvo = String(valor || '').trim();
-  if (!alvo) return false;
-  return Array.from(select.options).some(opt => String(opt.value || '').trim() === alvo);
-}
-
-function garantirOpcaoLegadoSelect(idSelect, valor, label) {
-  const select = document.getElementById(idSelect);
-  if (!select) return;
-  const id = String(valor || '').trim();
-  if (!id || selectPossuiOpcao(idSelect, id)) return;
-
-  const opt = document.createElement('option');
-  opt.value = id;
-  opt.textContent = String(label || '[LEGADO] Registro sem cadastro');
-  opt.dataset.legado = '1';
-  select.appendChild(opt);
-}
-
 function mostrarAvisoReferencia(idContainer, html) {
   const el = document.getElementById(idContainer);
   if (!el) return;
@@ -1899,142 +1870,20 @@ function mostrarAvisoReferencia(idContainer, html) {
   el.innerHTML = html;
 }
 
-async function cadastrarReferenciaMestre(tipo) {
-  if (!eventoAtual) return;
-
-  const isContratante = tipo === 'contratante';
-  const nomeBruto = isContratante
-    ? String(eventoAtual.nomeContratanteAtual || '').trim()
-    : String(eventoAtual.nomeLocalAtual || '').trim();
-
-  if (!nomeBruto) {
-    mostrarAlerta('Não há nome legado para cadastrar.', 'error');
-    return;
-  }
-
-  const pergunta = isContratante
-    ? `Cadastrar contratante "${nomeBruto}" na base mestre?`
-    : `Cadastrar local "${nomeBruto}" na base mestre?`;
-  if (!confirm(pergunta)) return;
-
-  mostrarLoadingGlobal(isContratante ? 'Cadastrando contratante...' : 'Cadastrando local...');
-  travarAcoes(true);
-
-  try {
-    const action = isContratante ? 'cadastrarContratanteRapido' : 'cadastrarEnderecoRapido';
-    const payload = isContratante ? { nome: nomeBruto } : { nomeLocal: nomeBruto };
-    const resp = await Auth.apiCall(action, payload);
-
-    if (!resp || resp.sucesso !== true) {
-      throw new Error(resp?.mensagem || 'Falha ao cadastrar referência');
-    }
-
-    // Atualiza caches e dropdowns para refletir novo cadastro.
-    if (isContratante) window.__CACHE.contratantes = null;
-    else window.__CACHE.enderecos = null;
-    await carregarDropdowns();
-
-    const novoId = String(resp.id || resp.idExistente || '').trim();
-    if (!novoId) {
-      throw new Error('Cadastro concluído sem ID retornado');
-    }
-
-    if (isContratante) {
-      setValueSafe('idContratante', novoId);
-      eventoAtual.idContratante = novoId;
-      eventoAtual.referenciaContratanteOk = true;
-      mostrarAvisoReferencia('avisoRefContratante', '');
-    } else {
-      setValueSafe('idEndereco', novoId);
-      eventoAtual.idEndereco = novoId;
-      eventoAtual.referenciaEnderecoOk = true;
-      mostrarAvisoReferencia('avisoRefEndereco', '');
-    }
-
-    mostrarAlerta('Referência cadastrada com sucesso.', 'success');
-  } catch (err) {
-    mostrarAlerta('Erro ao cadastrar referência: ' + (err?.message || err), 'error');
-  } finally {
-    esconderLoadingGlobal();
-    travarAcoes(false);
-  }
-}
-
-function preencherSelectComReferenciaAtual(idSelect, idAtual, nomeAtual, placeholder) {
-  const select = document.getElementById(idSelect);
-  if (!select) return;
-
-  const id = String(idAtual || '').trim();
-  const nome = String(nomeAtual || '').trim();
-  select.innerHTML = '';
-
-  const optVazio = document.createElement('option');
-  optVazio.value = '';
-  optVazio.textContent = placeholder || '-- Sem referência --';
-  select.appendChild(optVazio);
-
-  if (id) {
-    const opt = document.createElement('option');
-    opt.value = id;
-    opt.textContent = nome || `[ID ${id}]`;
-    select.appendChild(opt);
-    select.value = id;
-  }
-}
-
-async function habilitarTrocaReferencia(tipo) {
-  const isContratante = tipo === 'contratante';
-  const idCampo = isContratante ? 'idContratante' : 'idEndereco';
-
-  mostrarLoadingGlobal(isContratante ? 'Carregando contratantes...' : 'Carregando locais...');
-  travarAcoes(true);
-  try {
-    if (isContratante) {
-      if (!window.__CACHE.contratantes) {
-        window.__CACHE.contratantes = await Auth.apiCall('listarContratantes', {});
-      }
-      popularDropdown('idContratante', window.__CACHE.contratantes || []);
-      if (eventoAtual?.idContratante) setValueSafe('idContratante', eventoAtual.idContratante);
-    } else {
-      if (!window.__CACHE.enderecos) {
-        window.__CACHE.enderecos = await Auth.apiCall('listarEnderecos', {});
-      }
-      popularDropdown('idEndereco', window.__CACHE.enderecos || []);
-      if (eventoAtual?.idEndereco) setValueSafe('idEndereco', eventoAtual.idEndereco);
-    }
-  } catch (err) {
-    mostrarAlerta('Falha ao carregar referências: ' + (err?.message || err), 'error');
-  } finally {
-    esconderLoadingGlobal();
-    travarAcoes(false);
-  }
-}
-
 function aplicarFallbackReferenciasMestre(evento) {
   if (!evento) return;
 
+  document.getElementById('idContratante').value = String(evento.idContratante || '').trim();
+  document.getElementById('nomeContratante').value = evento.nomeContratanteAtual || '';
+  document.getElementById('idEndereco').value = String(evento.idEndereco || '').trim();
+  document.getElementById('nomeLocal').value = evento.nomeLocalAtual || '';
+
   // Contratante
-  if (!window.__CACHE.contratantes) {
-    preencherSelectComReferenciaAtual(
-      'idContratante',
-      evento.idContratante,
-      evento.nomeContratanteAtual,
-      '-- Selecione contratante --'
-    );
-  }
-
-  if (evento.idContratante && !selectPossuiOpcao('idContratante', evento.idContratante)) {
-    const label = `[LEGADO] ${evento.nomeContratanteAtual || 'Contratante sem cadastro'}`;
-    garantirOpcaoLegadoSelect('idContratante', evento.idContratante, label);
-    setValueSafe('idContratante', evento.idContratante);
-  }
-
   if (evento.idContratante && evento.referenciaContratanteOk === false) {
     mostrarAvisoReferencia(
       'avisoRefContratante',
       `⚠️ Referência de contratante ausente no cadastro mestre. ` +
-      `Valor legado preservado: <strong>${escapeHtml(evento.nomeContratanteAtual || '-')}</strong>. ` +
-      `<button type="button" class="btn btn-secondary" style="margin-left:8px;padding:4px 8px;font-size:12px;" onclick="cadastrarReferenciaMestre('contratante')">Cadastrar no mestre</button>`
+      `Valor do evento preservado: <strong>${escapeHtml(evento.nomeContratanteAtual || '-')}</strong>.`
     );
   } else if (evento.idContratante && evento.referenciaContratanteDivergente === true) {
     mostrarAvisoReferencia(
@@ -2042,34 +1891,18 @@ function aplicarFallbackReferenciasMestre(evento) {
       `⚠️ Divergência entre EVENTOS e cadastro mestre. ` +
       `No evento: <strong>${escapeHtml(evento.nomeContratanteAtual || '-')}</strong>; ` +
       `no mestre: <strong>${escapeHtml(evento.nomeContratanteCadastro || '-')}</strong>. ` +
-      `O sistema preservará o nome do evento até você regularizar manualmente.`
+      `Ao salvar, o texto digitado será aplicado no evento e no cadastro mestre vinculado.`
     );
   } else {
     mostrarAvisoReferencia('avisoRefContratante', '');
   }
 
   // Endereço
-  if (!window.__CACHE.enderecos) {
-    preencherSelectComReferenciaAtual(
-      'idEndereco',
-      evento.idEndereco,
-      evento.nomeLocalAtual,
-      '-- Selecione local --'
-    );
-  }
-
-  if (evento.idEndereco && !selectPossuiOpcao('idEndereco', evento.idEndereco)) {
-    const label = `[LEGADO] ${evento.nomeLocalAtual || 'Local sem cadastro'}`;
-    garantirOpcaoLegadoSelect('idEndereco', evento.idEndereco, label);
-    setValueSafe('idEndereco', evento.idEndereco);
-  }
-
   if (evento.idEndereco && evento.referenciaEnderecoOk === false) {
     mostrarAvisoReferencia(
       'avisoRefEndereco',
       `⚠️ Referência de local ausente no cadastro mestre. ` +
-      `Valor legado preservado: <strong>${escapeHtml(evento.nomeLocalAtual || '-')}</strong>. ` +
-      `<button type="button" class="btn btn-secondary" style="margin-left:8px;padding:4px 8px;font-size:12px;" onclick="cadastrarReferenciaMestre('endereco')">Cadastrar no mestre</button>`
+      `Valor do evento preservado: <strong>${escapeHtml(evento.nomeLocalAtual || '-')}</strong>.`
     );
   } else if (evento.idEndereco && evento.referenciaEnderecoDivergente === true) {
     mostrarAvisoReferencia(
@@ -2077,7 +1910,7 @@ function aplicarFallbackReferenciasMestre(evento) {
       `⚠️ Divergência entre EVENTOS e cadastro mestre. ` +
       `No evento: <strong>${escapeHtml(evento.nomeLocalAtual || '-')}</strong>; ` +
       `no mestre: <strong>${escapeHtml(evento.nomeLocalCadastro || '-')}</strong>. ` +
-      `O sistema preservará o local do evento até você regularizar manualmente.`
+      `Ao salvar, o texto digitado será aplicado no evento e no cadastro mestre vinculado.`
     );
   } else {
     mostrarAvisoReferencia('avisoRefEndereco', '');
@@ -2103,7 +1936,7 @@ async function iniciarEditarEvento() {
       eventoOriginal = JSON.parse(JSON.stringify(evento));
 
       // Modo direto: carrega apenas dados essenciais; referências pesadas (contratante/local) sob demanda.
-      await carregarDropdowns({ autoFill: false, includeContratantes: false, includeEnderecos: false });
+      await carregarDropdowns({ autoFill: false });
       preencherFormulario(eventoAtual);
 
       aplicarSkeletonFormulario(false);
@@ -2589,19 +2422,6 @@ async function validarImpactoFinanceiroAntesSalvar(callback) {
     // Resto das funções (igual à versão anterior)
     async function carregarDropdowns(opts = {}) {
       const autoFill = opts.autoFill !== false;
-      const includeContratantes = opts.includeContratantes !== false;
-      const includeEnderecos = opts.includeEnderecos !== false;
-      try {
-        if (includeContratantes) {
-          let lista;
-          if (!window.__CACHE.contratantes) {
-            window.__CACHE.contratantes = await Auth.apiCall('listarContratantes', {});
-          }
-          lista = window.__CACHE.contratantes;
-          if (lista && lista.error) throw new Error(lista.error);
-          popularDropdown('idContratante', lista);
-        }
-      } catch (e) {}
       try {
         let lista;
         if (!window.__CACHE.cerimonialistas) {
@@ -2610,17 +2430,6 @@ async function validarImpactoFinanceiroAntesSalvar(callback) {
         lista = window.__CACHE.cerimonialistas;
         if (lista && lista.error) throw new Error(lista.error);
         popularDropdown('idCerimonialista', lista, true);
-      } catch (e) {}
-      try {
-        if (includeEnderecos) {
-          let lista;
-          if (!window.__CACHE.enderecos) {
-            window.__CACHE.enderecos = await Auth.apiCall('listarEnderecos', {});
-          }
-          lista = window.__CACHE.enderecos;
-          if (lista && lista.error) throw new Error(lista.error);
-          popularDropdown('idEndereco', lista);
-        }
       } catch (e) {}
       try {
         let lista;
@@ -2773,9 +2582,7 @@ async function validarImpactoFinanceiroAntesSalvar(callback) {
   }
 
   // SELECTS — usar setValueSafe para todos os selects que são populados assincronamente
-  setValueSafe('idContratante', evento.idContratante);
   setValueSafe('idCerimonialista', evento.idCerimonialista);
-  setValueSafe('idEndereco', evento.idEndereco);
   setValueSafe('idVendedor', evento.idVendedor);
   setValueSafe('idBV', evento.idBV);
   setValueSafe('tipoEvento', evento.tipoEvento);
@@ -2848,7 +2655,7 @@ async function validarImpactoFinanceiroAntesSalvar(callback) {
       const campos = {
         dataEvento: 'Data do Evento', horaInicio: 'Hora de Início',
         duracao: 'Duração', tipoEvento: 'Tipo de Evento', projeto: 'Formato/Projeto',
-        idContratante: 'Contratante', idCerimonialista: 'Cerimonialista', idEndereco: 'Local',
+        nomeContratante: 'Contratante', idCerimonialista: 'Cerimonialista', nomeLocal: 'Local',
         valorTotal: 'Valor Total', idVendedor: 'Vendedor', valorBV: 'Valor BV',
         idBV: 'Parceiro BV', temNF: 'Tem NF',
         look: 'Look', somResponsavel: 'Responsável Som', observacoes: 'Observações'
@@ -2869,7 +2676,13 @@ async function validarImpactoFinanceiroAntesSalvar(callback) {
     continue;
   }
 
-  const valorAntigo = String(eventoOriginal[campo] ?? '');
+  const valorAntigo = String(
+    campo === 'nomeContratante'
+      ? (eventoOriginal.nomeContratanteAtual ?? '')
+      : campo === 'nomeLocal'
+        ? (eventoOriginal.nomeLocalAtual ?? '')
+        : (eventoOriginal[campo] ?? '')
+  );
   const valorNovo = String(dados[campo] ?? '');
 
   if (valorAntigo !== valorNovo) {
@@ -2907,8 +2720,12 @@ async function validarImpactoFinanceiroAntesSalvar(callback) {
         tipoEvento: document.getElementById('tipoEvento').value,
         projeto: document.getElementById('projeto').value,
         idContratante: document.getElementById('idContratante').value,
+        nomeContratante: document.getElementById('nomeContratante').value,
+        nomeContratanteEditado: document.getElementById('nomeContratante').value,
         idCerimonialista: document.getElementById('idCerimonialista').value,
         idEndereco: document.getElementById('idEndereco').value,
+        nomeLocal: document.getElementById('nomeLocal').value,
+        nomeLocalEditado: document.getElementById('nomeLocal').value,
         nomeContratanteFallback: eventoOriginal?.nomeContratanteAtual || '',
         nomeLocalFallback: eventoOriginal?.nomeLocalAtual || '',
         valorTotal: parseFloat(document.getElementById('valorTotal').value) || 0,
@@ -3037,11 +2854,14 @@ window.addEventListener('load', async () => {
     if (!window.Auth) throw new Error('AUTH_NOT_LOADED');
     const email = localStorage.getItem('auth_email');
     if (!email) throw new Error('NOT_AUTH');
-    // Pré-carregar caches de contratantes e dropdowns
-    Promise.all([
-      carregarContratantesParaAutocomplete(),
-      carregarDropdowns()
-    ]);
+    const modoDireto = !!getIdEventoFromURL();
+    if (!modoDireto) {
+      // Pré-carregar caches apenas no modo busca.
+      Promise.all([
+        carregarContratantesParaAutocomplete(),
+        carregarDropdowns()
+      ]);
+    }
     await iniciarEditarEvento();
   } catch (err) {
     console.error('Erro de autenticação:', err);
