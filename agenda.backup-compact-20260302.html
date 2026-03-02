@@ -350,7 +350,7 @@
     .eventos-list {
       display: flex;
       flex-direction: column;
-      gap: 8px;
+      gap: 12px;
     }
 
     /* ============================================
@@ -358,138 +358,65 @@
        ============================================ */
     .evento-card {
       background: var(--bg-card);
-      border-radius: 12px;
-      padding: 10px;
-      border: 1px solid var(--gray-200);
-      box-shadow: var(--shadow-sm);
+      border-radius: var(--radius-lg);
+      padding: 18px;
+      box-shadow: var(--shadow);
+      border-left: 4px solid var(--navy-500);
       transition: var(--transition);
       cursor: pointer;
       position: relative;
       overflow: hidden;
-      display: grid;
-      grid-template-columns: 42px 1fr 24px;
-      gap: 10px;
-      align-items: start;
     }
 
     .evento-card:hover {
-      border-color: var(--gray-300);
-      box-shadow: var(--shadow);
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-md);
     }
 
+    .evento-card:active {
+      transform: translateY(0);
+    }
+
+    /* Card type variants */
     .evento-card.bloqueio {
-      border-color: rgba(239, 68, 68, 0.25);
+      border-left-color: var(--danger-color);
+      background: linear-gradient(to right, rgba(239,68,68,0.03), var(--bg-card));
     }
 
     .evento-card.reuniao {
-      border-color: rgba(59, 130, 246, 0.25);
+      border-left-color: var(--info-color);
+      background: linear-gradient(to right, rgba(59,130,246,0.03), var(--bg-card));
     }
 
     .evento-card.passado {
-      opacity: 0.62;
-      background: var(--gray-100);
+      opacity: 0.6;
+      border-left-color: var(--gray-400);
     }
 
-    .evento-icon {
-      width: 34px;
-      height: 34px;
-      border-radius: var(--radius-full);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 15px;
-      font-weight: 700;
-      margin-top: 1px;
-      background: rgba(30,58,95,0.08);
-      color: var(--navy-700);
+    .evento-card.hoje {
+      border-left-color: var(--success-color);
+      background: linear-gradient(to right, rgba(16,185,129,0.04), var(--bg-card));
     }
 
-    .evento-card.bloqueio .evento-icon {
-      background: rgba(239,68,68,0.12);
-      color: var(--danger-color);
+    .evento-card.proximo {
+      border-left-color: var(--gold-500);
     }
 
-    .evento-card.reuniao .evento-icon {
-      background: rgba(59,130,246,0.12);
-      color: var(--info-color);
+    .evento-card.evento-intervalo {
+      background: linear-gradient(to right, rgba(30,58,95,0.04), var(--bg-card));
     }
 
-    .evento-main {
-      min-width: 0;
-    }
-
-    .evento-topline {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      font-size: 12px;
-      color: var(--gray-500);
-      margin-bottom: 2px;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    .evento-titulo-row {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      min-width: 0;
-      margin-bottom: 3px;
-    }
-
-    .evento-titulo {
-      font-size: 14px;
-      font-weight: 700;
-      color: var(--gray-800);
-      line-height: 1.25;
-      flex: 1;
-      min-width: 0;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      margin: 0;
-    }
-
-    .evento-projeto-chip {
-      flex-shrink: 0;
-      font-size: 10px;
-      font-weight: 700;
-      padding: 2px 8px;
-      border-radius: var(--radius-full);
-      border: 1px solid var(--gray-300);
-      background: var(--gray-100);
-      color: var(--gray-700);
-      max-width: 48%;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    .evento-bottomline {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 8px;
-      font-size: 12px;
-      color: var(--gray-600);
-    }
-
-    .evento-local {
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      max-width: 70%;
-    }
-
+    /* Status badge */
     .status-badge {
-      padding: 2px 8px;
+      position: absolute;
+      top: 14px;
+      right: 14px;
+      padding: 4px 10px;
       border-radius: var(--radius-full);
       font-size: 10px;
       font-weight: 700;
       text-transform: uppercase;
       letter-spacing: 0.5px;
-      white-space: nowrap;
     }
 
     .status-pendente {
@@ -507,96 +434,177 @@
       color: #1d4ed8;
     }
 
+    /* Conflict badge */
     .conflict-badge {
+      margin-top: 8px;
       display: inline-flex;
       align-items: center;
       gap: 6px;
       background: rgba(245,158,11,0.1);
       color: #b45309;
       border: 1px solid rgba(245,158,11,0.3);
-      padding: 2px 8px;
+      padding: 6px 12px;
+      border-radius: var(--radius-full);
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: var(--transition);
+    }
+
+    .conflict-badge:hover {
+      background: rgba(245,158,11,0.18);
+    }
+
+    /* Card header */
+    .evento-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 12px;
+      padding-right: 80px;
+    }
+
+    .evento-data-info {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .evento-data {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--navy-600);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .evento-hora {
+      font-size: 13px;
+      color: var(--gray-500);
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .evento-periodo {
+      font-size: 12px;
+      color: var(--gray-500);
+      margin-top: 4px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .evento-tipo-badge {
+      background: var(--navy-600);
+      color: white;
+      padding: 5px 12px;
       border-radius: var(--radius-full);
       font-size: 10px;
       font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
       white-space: nowrap;
     }
 
-    .evento-expand-toggle {
-      border: 0;
-      background: transparent;
-      color: var(--gray-500);
-      font-size: 13px;
-      cursor: pointer;
-      margin-top: 2px;
-      transition: transform 0.2s ease;
+    .evento-tipo-badge.bloqueio {
+      background: var(--danger-color);
     }
 
-    .evento-card.open .evento-expand-toggle {
-      transform: rotate(180deg);
+    .evento-tipo-badge.reuniao {
+      background: var(--info-color);
     }
 
-    .evento-details {
-      display: none;
-      grid-column: 1 / -1;
-      margin-top: 8px;
-      padding-top: 8px;
-      border-top: 1px solid var(--gray-200);
+    /* Card content */
+    .evento-titulo {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--gray-800);
+      margin-bottom: 10px;
+      line-height: 1.3;
     }
 
-    .evento-card.open .evento-details {
+    .evento-info {
       display: flex;
       flex-direction: column;
+      gap: 6px;
+      font-size: 13px;
+      color: var(--gray-600);
+    }
+
+    .evento-info-line {
+      display: flex;
+      align-items: flex-start;
       gap: 8px;
     }
 
-    .evento-detail-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-      gap: 6px 12px;
+    .evento-info-icon {
+      color: var(--gray-400);
+      font-size: 14px;
+      margin-top: 2px;
+      flex-shrink: 0;
     }
 
-    .evento-detail-item {
-      font-size: 12px;
-      color: var(--gray-700);
-      line-height: 1.35;
-    }
-
-    .evento-detail-label {
+    .evento-info-label {
       font-weight: 600;
-      color: var(--gray-500);
+      color: var(--gray-600);
+      min-width: 80px;
+      flex-shrink: 0;
     }
 
-    .evento-conflitos-lista {
+    .evento-info-value {
+      color: var(--gray-800);
+    }
+
+    /* Nested events (inside interval) */
+    .evento-dentro {
+      margin-left: 16px;
+      margin-top: 8px;
+      padding: 10px;
       background: var(--gray-50);
+      border-left: 2px solid var(--gray-300);
       border-radius: var(--radius-sm);
-      border: 1px solid var(--gray-200);
-      padding: 8px;
+    }
+
+    .evento-dentro-header {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--gray-600);
+      margin-bottom: 6px;
     }
 
     .evento-dentro-item {
-      margin-bottom: 4px;
+      padding: 10px;
+      margin-bottom: 6px;
+      background: var(--bg-card);
+      border-radius: var(--radius-sm);
       font-size: 12px;
-      color: var(--gray-700);
+      border: 1px solid var(--gray-200);
     }
 
     .evento-dentro-item:last-child {
       margin-bottom: 0;
     }
 
+    /* Card actions */
     .evento-actions {
       display: flex;
       gap: 8px;
-      margin-top: 2px;
+      margin-top: 14px;
+      padding-top: 14px;
+      border-top: 1px solid var(--gray-200);
     }
 
     .btn-action {
-      padding: 7px 10px;
+      flex: 1;
+      padding: 9px 12px;
       border: 1.5px solid var(--gray-300);
       background: var(--bg-card);
       color: var(--gray-700);
       border-radius: var(--radius-sm);
       font-family: var(--font);
-      font-size: 12px;
+      font-size: 13px;
       font-weight: 600;
       cursor: pointer;
       transition: var(--transition);
@@ -604,6 +612,11 @@
       align-items: center;
       justify-content: center;
       gap: 6px;
+    }
+
+    .btn-action:hover {
+      background: var(--gray-50);
+      border-color: var(--gray-400);
     }
 
     .btn-action.primary {
@@ -1171,7 +1184,7 @@ if (!AUTH.email) {
   virtualizacao: {
   enabled: true,
   threshold: 100,     // ← ADICIONAR
-  itemHeight: 140,
+  itemHeight: 200,
   buffer: 50,         // ← MUDAR de 30 para 50
   debug: false,       // ← ADICIONAR
   viewport: { start: 0, end: 0 }
@@ -1585,15 +1598,6 @@ calcularDiasIntervalo(dataInicio, dataFim) {
     document.getElementById('eventoCount').textContent = `${eventos.length} eventos`;
   },
 
-      toggleDetalhesCard(cardEl) {
-        if (!cardEl) return;
-        const estavaAberto = cardEl.classList.contains('open');
-        document.querySelectorAll('.evento-card.open').forEach(c => c.classList.remove('open'));
-        if (!estavaAberto) {
-          cardEl.classList.add('open');
-        }
-      },
-
       /**
  * ========================================
  * MODIFICAÇÃO 5: FUNÇÃO criarCardEvento()
@@ -1608,120 +1612,179 @@ calcularDiasIntervalo(dataInicio, dataFim) {
 
 criarCardEvento(evento) {
   const classificacao = Utils.classificarEvento(evento.data);
+  const dataFormatada = Utils.formatarData(evento.data);
+
+  // Verifica permissões
   const podeVerValor = AppState.usuario &&
     (AppState.usuario.perfil === 'Proprietário' || AppState.usuario.perfil === 'Sócio');
+
   const podeEditar = AppState.usuario &&
     (AppState.usuario.perfil === 'Proprietário' || AppState.usuario.perfil === 'Sócio');
 
+  // Define classe e ícone por tipo
   let classeExtra = '';
   let icone = '🎵';
+  let badgeLabel = evento.projeto || evento.tipoEvento;
+
   if (evento.tipo === 'Bloqueio') {
     classeExtra = 'bloqueio';
     icone = '🚫';
+    badgeLabel = 'BLOQUEIO';
   } else if (evento.tipo === 'Reunião') {
     classeExtra = 'reuniao';
     icone = '📅';
+    badgeLabel = 'REUNIÃO';
   }
 
-  const dataResumo = evento.dataFim
-    ? `${Utils.formatarData(evento.data)} → ${Utils.formatarData(evento.dataFim)}`
-    : Utils.formatarData(evento.data);
+  // Badge de status (só para Eventos com valor financeiro)
+  let statusBadge = '';
+  if (evento.tipo === 'Evento' && podeVerValor && evento.status) {
+    const statusClass = Utils.getStatusBadge(evento.status);
+    const statusLabel = Utils.getStatusLabel(evento.status);
+    statusBadge = `<span class="status-badge ${statusClass}">${statusLabel}</span>`;
+  }
 
-  let horarioResumo = 'Sem horário';
-  if (evento.hora && evento.horaFim && evento.duracao) {
-    horarioResumo = `${evento.hora} → ${evento.horaFim} • ${evento.duracao}`;
-  } else if (evento.hora && evento.duracao) {
-    horarioResumo = `${evento.hora} • ${evento.duracao}`;
-  } else if (evento.hora) {
-    horarioResumo = evento.hora;
-  } else if (evento.dataFim) {
+  // Badge de conflito
+  let conflictBadge = '';
+if (evento.eventosDentro && evento.eventosDentro.length > 0) {
+  conflictBadge = `
+    <div class="conflict-badge" onclick="UI.mostrarConflitos('${evento.id}'); event.stopPropagation();">
+      ⚠️ ${evento.eventosDentro.length} conflito${evento.eventosDentro.length > 1 ? 's' : ''}
+    </div>
+  `;
+}
+
+  // Monta HTML baseado no tipo
+  let cardHTML = '';
+
+  // ========================================
+  // EVENTO COM INTERVALO (tem dataFim)
+  // ========================================
+  if (evento.dataFim) {
+    const dataFimFormatada = Utils.formatarData(evento.dataFim);
     const diasIntervalo = Utils.calcularDiasIntervalo(evento.data, evento.dataFim);
-    horarioResumo = `${diasIntervalo} ${diasIntervalo === 1 ? 'dia' : 'dias'}`;
-  }
 
-  const tituloEvento = `${evento.tipoEvento || evento.tipo || '-'}${evento.contratante ? ' - ' + evento.contratante : ''}`;
-  const statusLabel = evento.status ? Utils.getStatusLabel(evento.status) : '';
-  const statusClass = evento.status ? Utils.getStatusBadge(evento.status) : '';
-  const temConflitos = Array.isArray(evento.eventosDentro) && evento.eventosDentro.length > 0;
-
-  const detalhes = [];
-  const addDetalhe = (label, valor) => {
-    if (valor === null || typeof valor === 'undefined' || String(valor).trim() === '') return;
-    detalhes.push(`
-      <div class="evento-detail-item">
-        <span class="evento-detail-label">${label}:</span> ${valor}
-      </div>
-    `);
-  };
-
-  addDetalhe('Tipo de Evento', evento.tipoEvento || evento.tipo || '-');
-  addDetalhe('Projeto / Formação', evento.projeto);
-  addDetalhe('Data', dataResumo);
-  addDetalhe('Horário', horarioResumo);
-  addDetalhe('Contratante', evento.contratante);
-  addDetalhe('Local', evento.local);
-  addDetalhe('Cerimonialista', evento.cerimonialista);
-  addDetalhe('Look', evento.look);
-  addDetalhe('Som Responsável', evento.somResponsavel);
-  addDetalhe('Observações', evento.observacoes);
-
-  if (podeVerValor && evento.tipo === 'Evento') {
-    addDetalhe('Valor Total', evento.valor ? Utils.formatarMoeda(evento.valor) : '-');
-    addDetalhe('Status Financeiro', evento.status || '-');
-  }
-
-  const conflitosHtml = temConflitos
-    ? `
-      <div class="evento-conflitos-lista">
-        ${evento.eventosDentro.map(e => `
-          <div class="evento-dentro-item">
-            📅 ${Utils.formatarData(e.data)} ${e.hora || ''} — ${e.tipoEvento}${e.contratante ? ' ' + e.contratante : ''}
+    cardHTML = `
+      <div class="evento-card ${classificacao} ${classeExtra} evento-intervalo" data-evento-id="${evento.id}">
+        ${statusBadge}
+        <div class="evento-header">
+          <div class="evento-data-info">
+            <div class="evento-data">
+              ${icone} ${Utils.formatarData(evento.data)} → ${Utils.formatarData(evento.dataFim)}
+            </div>
+            <div class="evento-periodo">
+  ${evento.inicioIntervalo ? `🕐 A partir de ${evento.inicioIntervalo} • ` : ''}
+  ${diasIntervalo} ${diasIntervalo === 1 ? 'dia' : 'dias'}
+</div>
           </div>
-        `).join('')}
-      </div>
-    `
-    : '';
-
-  return `
-    <article class="evento-card ${classificacao} ${classeExtra}" data-evento-id="${evento.id}" onclick="UI.toggleDetalhesCard(this)">
-      <div class="evento-icon">${icone}</div>
-
-      <div class="evento-main">
-        <div class="evento-topline">
-          <span>${dataResumo}</span>
-          <span>•</span>
-          <span>${horarioResumo}</span>
+          <div class="evento-tipo-badge ${classeExtra}">
+            ${badgeLabel}
+          </div>
         </div>
 
-        <div class="evento-titulo-row">
-          <div class="evento-titulo">${tituloEvento}</div>
-          ${evento.projeto ? `<span class="evento-projeto-chip">${evento.projeto}</span>` : ''}
+        <div class="evento-titulo">
+
+          ${evento.tipoEvento}${evento.contratante ? ' ' + evento.contratante : ''}
+
+        </div>
+        ${conflictBadge}
+        <div class="evento-info">
+          ${evento.observacoes ? `
+            <div class="evento-info-line">
+              <span class="evento-info-icon">📝</span>
+              <span class="evento-info-value">${evento.observacoes}</span>
+            </div>
+          ` : ''}
         </div>
 
-        <div class="evento-bottomline">
-          <span class="evento-local">${evento.local || 'Local não informado'}</span>
-          <span>
-            ${statusLabel ? `<span class="status-badge ${statusClass}">${statusLabel}</span>` : ''}
-            ${temConflitos ? `<span class="conflict-badge">⚠ ${evento.eventosDentro.length} conflito${evento.eventosDentro.length > 1 ? 's' : ''}</span>` : ''}
-          </span>
-        </div>
-      </div>
+        ${UI.renderizarEventosDentro(evento)}
 
-      <button class="evento-expand-toggle" type="button" onclick="event.stopPropagation(); UI.toggleDetalhesCard(this.closest('.evento-card'))">▼</button>
-
-      <div class="evento-details">
-        ${detalhes.length ? `<div class="evento-detail-grid">${detalhes.join('')}</div>` : ''}
-        ${conflitosHtml}
         ${podeEditar ? `
           <div class="evento-actions">
+            <button class="btn-action" onclick="verDetalhesEvento('${evento.id}'); event.stopPropagation();">
+              👁️ Ver Detalhes
+            </button>
             <button class="btn-action primary" onclick="editarEvento('${evento.id}'); event.stopPropagation();">
-              ✏️ Editar Evento
+              ✏️ Editar
             </button>
           </div>
         ` : ''}
       </div>
-    </article>
-  `;
+    `;
+
+  }
+  // ========================================
+  // EVENTO PONTUAL (sem dataFim)
+  // ========================================
+  else {
+    let horaInfo = '';
+    if (evento.hora) {
+      if (evento.horaFim && evento.duracao) {
+        horaInfo = `
+          <div class="evento-hora">
+            🕐 ${evento.hora} → ${evento.horaFim} (${evento.duracao})
+          </div>
+        `;
+      } else {
+        horaInfo = `
+          <div class="evento-hora">
+            🕐 ${evento.hora}
+          </div>
+        `;
+      }
+    }
+
+    cardHTML = `
+      <div class="evento-card ${classificacao} ${classeExtra}" data-evento-id="${evento.id}">
+        ${statusBadge}
+        ${conflictBadge}
+        <div class="evento-header">
+          <div class="evento-data-info">
+            <div class="evento-data">
+              ${icone} ${dataFormatada}
+            </div>
+            ${horaInfo}
+          </div>
+          <div class="evento-tipo-badge ${classeExtra}">
+            ${badgeLabel}
+          </div>
+        </div>
+
+        <div class="evento-titulo">
+          ${evento.tipoEvento}${evento.contratante ? ' ' + evento.contratante : ''}
+        </div>
+
+        <div class="evento-info">
+          ${evento.local ? `
+            <div class="evento-info-line">
+              <span class="evento-info-icon">📍</span>
+              <span class="evento-info-value">${evento.local}</span>
+            </div>
+          ` : ''}
+
+          ${podeVerValor && evento.valor && evento.tipo === 'Evento' ? `
+            <div class="evento-info-line">
+              <span class="evento-info-icon">💰</span>
+              <span class="evento-info-value">${Utils.formatarMoeda(evento.valor)}</span>
+            </div>
+          ` : ''}
+        </div>
+
+        ${podeEditar ? `
+          <div class="evento-actions">
+            <button class="btn-action" onclick="verDetalhesEvento('${evento.id}'); event.stopPropagation();">
+              👁️ Ver Detalhes
+            </button>
+            <button class="btn-action primary" onclick="editarEvento('${evento.id}'); event.stopPropagation();">
+              ✏️ Editar
+            </button>
+          </div>
+        ` : ''}
+      </div>
+    `;
+  }
+
+  return cardHTML;
 },
   /**
    * Renderiza eventos com virtualização

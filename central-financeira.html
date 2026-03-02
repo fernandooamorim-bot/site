@@ -680,7 +680,8 @@ function submitEstorno(){
   const payload = {
     idRecebimento: idRecebimento,
     valor: valor,
-    motivo: motivo
+    motivo: motivo,
+    operationKey: obterOuCriarOperationKey('estorno')
   };
 
   Auth.apiCall('apiEstornarRecebimento', payload)
@@ -694,6 +695,7 @@ function submitEstorno(){
       return;
     }
 
+    consumirOperationKey('estorno');
     resumo.innerHTML = '<span class="muted">Estorno registrado com sucesso</span>';
     alert('Estorno realizado com sucesso');
   })
@@ -954,7 +956,8 @@ function submitSaidaEvento() {
     idEvento: eventoSelecionado,
     valor: valor,
     observacoes: observacoes,
-    linkComprovante: comprovante
+    linkComprovante: comprovante,
+    operationKey: obterOuCriarOperationKey('saida')
   };
 
   Auth.apiCall('apiRegistrarSaidaEvento', payload)
@@ -968,6 +971,7 @@ function submitSaidaEvento() {
       return;
     }
 
+    consumirOperationKey('saida');
     alert('Saída registrada com sucesso');
     resetObrigacaoForm();
   })
@@ -1424,6 +1428,29 @@ function carregarResumoVendedor(){
 /* ================= VALIDACOES & UTIL ================= */
 
 let lockSubmit = false;
+const operationKeys = {
+  recebimento: '',
+  estorno: '',
+  saida: '',
+  fechamento: ''
+};
+
+function gerarOperationKey(tipo) {
+  const rnd = Math.random().toString(36).slice(2, 10).toUpperCase();
+  return [String(tipo || 'OP').toUpperCase(), Date.now(), rnd].join('-');
+}
+
+function obterOuCriarOperationKey(tipo) {
+  const chave = String(tipo || '');
+  if (!operationKeys[chave]) {
+    operationKeys[chave] = gerarOperationKey(chave);
+  }
+  return operationKeys[chave];
+}
+
+function consumirOperationKey(tipo) {
+  operationKeys[String(tipo || '')] = '';
+}
 
 async function uploadComprovanteParaCampo(fileInputId, targetInputId, categoria, referencia) {
   const input = document.getElementById(fileInputId);
@@ -1608,6 +1635,7 @@ function liberarBotao(btn) {
 }
 
 function resetRecebimentoForm() {
+  consumirOperationKey('recebimento');
   eventoSelecionado = null;
   document.getElementById('valor').value = '';
   document.getElementById('obs').value = '';
@@ -1617,6 +1645,7 @@ function resetRecebimentoForm() {
 }
 
 function resetObrigacaoForm() {
+  consumirOperationKey('saida');
   eventoSelecionado = null;
 
   const inp = document.getElementById('inputEvento');
@@ -1635,6 +1664,7 @@ function resetObrigacaoForm() {
 }
 
 function resetFechamentoForm() {
+  consumirOperationKey('fechamento');
   document.getElementById('ajCredito').value = '0';
   document.getElementById('ajDebito').value = '0';
   document.getElementById('linkPagamento').value = '';
@@ -1664,7 +1694,8 @@ function submitRecebimento(){
     dataRecebimento:document.getElementById('data').value,
     formaPagamento:document.getElementById('forma').value,
     linkComprovante:document.getElementById('comprovante').value,
-    observacoes:document.getElementById('obs').value
+    observacoes:document.getElementById('obs').value,
+    operationKey: obterOuCriarOperationKey('recebimento')
   };
 
   Auth.apiCall('apiRegistrarRecebimento', payload)
@@ -1678,6 +1709,7 @@ function submitRecebimento(){
       return;
     }
 
+    consumirOperationKey('recebimento');
     resetRecebimentoForm();
     alert('Recebimento registrado');
   })
@@ -1708,7 +1740,8 @@ function executarFechamentoV2(){
     idVendedor: vendedorSelecionado.id,
     ajusteCredito: parseValorSeguro(document.getElementById('ajCredito').value) || 0,
     ajusteDebito: parseValorSeguro(document.getElementById('ajDebito').value) || 0,
-    linkComprovante: document.getElementById('linkPagamento').value
+    linkComprovante: document.getElementById('linkPagamento').value,
+    operationKey: obterOuCriarOperationKey('fechamento')
   };
 
   if(!confirm(
@@ -1726,7 +1759,8 @@ function executarFechamentoV2(){
     idVendedor: payload.idVendedor,
     ajusteCredito: payload.ajusteCredito,
     ajusteDebito: payload.ajusteDebito,
-    linkComprovante: payload.linkComprovante
+    linkComprovante: payload.linkComprovante,
+    operationKey: payload.operationKey
   })
   .then(resp => {
     hideLoading();
@@ -1738,6 +1772,7 @@ function executarFechamentoV2(){
       return;
     }
 
+    consumirOperationKey('fechamento');
     resetFechamentoForm();
     alert(resp.mensagem || 'Fechamento realizado com sucesso');
     if (resp.linkPdf) window.open(resp.linkPdf, '_blank');
