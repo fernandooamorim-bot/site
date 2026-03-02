@@ -721,7 +721,7 @@ function renderRecebimento(){
     <input type="number" id="valor" oninput="avaliarValorRecebimento(this.value)">
 
     <label>Data do Registro</label>
-    <input type="date" id="data" readonly value="${new Date().toISOString().slice(0,10)}">
+    <input type="date" id="data" readonly value="${hojeLocalISO()}">
 
     <label>Forma de Pagamento</label>
     <select id="forma">
@@ -876,7 +876,7 @@ function renderCamposSaida() {
       <input type="number" id="valorSaida" readonly>
 
       <label>Data</label>
-      <input type="date" id="dataSaida" value="${new Date().toISOString().slice(0,10)}">
+      <input type="date" id="dataSaida" value="${hojeLocalISO()}">
 
       <label>Link do Comprovante</label>
       <input id="comprovanteSaida">
@@ -1517,6 +1517,14 @@ function tratarErroApi(err) {
   }
 
   alert('Erro ao processar a operação.');
+}
+
+function hojeLocalISO() {
+  const d = new Date();
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
 }
 
 function parseValorSeguro(raw) {

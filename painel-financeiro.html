@@ -354,7 +354,8 @@
       font-size: 12px;
     }
 
-    .comissao-status.OK { color: var(--success); }
+    .comissao-status.OK,
+    .comissao-status.QUITADO { color: var(--success); }
     .comissao-status.PARCIAL,
     .comissao-status.PENDENTE,
     .comissao-status.AGUARDANDO { color: var(--warning); }
@@ -582,7 +583,7 @@
     if (tipo === 'OK') {
       lista = lista.filter(e =>
         e.status === 'ok' &&
-        (!e.comissao || e.comissao.status === 'OK' || e.comissao.status === 'NA')
+        (!e.comissao || e.comissao.status === 'OK' || e.comissao.status === 'QUITADO' || e.comissao.status === 'NA')
       );
     }
 
@@ -661,6 +662,7 @@
             comissaoText = '⚠️ Pendente';
             break;
           case 'OK':
+          case 'QUITADO':
             comissaoText = 'Quitada';
             break;
           case 'ERRO':
@@ -801,7 +803,8 @@
                 case 'AGUARDANDO': return 'ℹ️ Comissão será gerada conforme os recebimentos';
                 case 'PARCIAL': return 'ℹ️ Comissão parcialmente gerada';
                 case 'PENDENTE': return '⚠️ Comissão pendente de pagamento';
-                case 'OK': return '✅ Comissão quitada';
+                case 'OK':
+                case 'QUITADO': return '✅ Comissão quitada';
                 case 'ERRO': return '🚨 Problema grave na comissão';
                 default: return 'Status de comissão desconhecido';
               }
