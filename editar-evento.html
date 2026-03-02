@@ -1382,6 +1382,7 @@
               <span class="indicator indicator-warning">⚠️ Atualiza referência</span>
             </label>
             <select id="idContratante"></select>
+            <div id="avisoRefContratante" class="helper-text hidden"></div>
           </div>
           
           <div class="form-group">
@@ -1401,6 +1402,7 @@
             <span class="indicator indicator-warning">⚠️ Atualiza referência</span>
           </label>
           <select id="idEndereco"></select>
+          <div id="avisoRefEndereco" class="helper-text hidden"></div>
         </div>
       </div>
       
@@ -1842,6 +1844,149 @@ function setValueSafe(id, valor, tentativas = 0) {
 
   if (tentativas < 20) {
     setTimeout(() => setValueSafe(id, valor, tentativas + 1), 100);
+  }
+}
+
+function escapeHtml(str) {
+  return String(str || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function selectPossuiOpcao(idSelect, valor) {
+  const select = document.getElementById(idSelect);
+  if (!select) return false;
+  const alvo = String(valor || '').trim();
+  if (!alvo) return false;
+  return Array.from(select.options).some(opt => String(opt.value || '').trim() === alvo);
+}
+
+function garantirOpcaoLegadoSelect(idSelect, valor, label) {
+  const select = document.getElementById(idSelect);
+  if (!select) return;
+  const id = String(valor || '').trim();
+  if (!id || selectPossuiOpcao(idSelect, id)) return;
+
+  const opt = document.createElement('option');
+  opt.value = id;
+  opt.textContent = String(label || '[LEGADO] Registro sem cadastro');
+  opt.dataset.legado = '1';
+  select.appendChild(opt);
+}
+
+function mostrarAvisoReferencia(idContainer, html) {
+  const el = document.getElementById(idContainer);
+  if (!el) return;
+  if (!html) {
+    el.classList.add('hidden');
+    el.innerHTML = '';
+    return;
+  }
+  el.classList.remove('hidden');
+  el.innerHTML = html;
+}
+
+async function cadastrarReferenciaMestre(tipo) {
+  if (!eventoAtual) return;
+
+  const isContratante = tipo === 'contratante';
+  const nomeBruto = isContratante
+    ? String(eventoAtual.nomeContratanteAtual || '').trim()
+    : String(eventoAtual.nomeLocalAtual || '').trim();
+
+  if (!nomeBruto) {
+    mostrarAlerta('Não há nome legado para cadastrar.', 'error');
+    return;
+  }
+
+  const pergunta = isContratante
+    ? `Cadastrar contratante "${nomeBruto}" na base mestre?`
+    : `Cadastrar local "${nomeBruto}" na base mestre?`;
+  if (!confirm(pergunta)) return;
+
+  mostrarLoadingGlobal(isContratante ? 'Cadastrando contratante...' : 'Cadastrando local...');
+  travarAcoes(true);
+
+  try {
+    const action = isContratante ? 'cadastrarContratanteRapido' : 'cadastrarEnderecoRapido';
+    const payload = isContratante ? { nome: nomeBruto } : { nomeLocal: nomeBruto };
+    const resp = await Auth.apiCall(action, payload);
+
+    if (!resp || resp.sucesso !== true) {
+      throw new Error(resp?.mensagem || 'Falha ao cadastrar referência');
+    }
+
+    // Atualiza caches e dropdowns para refletir novo cadastro.
+    if (isContratante) window.__CACHE.contratantes = null;
+    else window.__CACHE.enderecos = null;
+    await carregarDropdowns();
+
+    const novoId = String(resp.id || resp.idExistente || '').trim();
+    if (!novoId) {
+      throw new Error('Cadastro concluído sem ID retornado');
+    }
+
+    if (isContratante) {
+      setValueSafe('idContratante', novoId);
+      eventoAtual.idContratante = novoId;
+      eventoAtual.referenciaContratanteOk = true;
+      mostrarAvisoReferencia('avisoRefContratante', '');
+    } else {
+      setValueSafe('idEndereco', novoId);
+      eventoAtual.idEndereco = novoId;
+      eventoAtual.referenciaEnderecoOk = true;
+      mostrarAvisoReferencia('avisoRefEndereco', '');
+    }
+
+    mostrarAlerta('Referência cadastrada com sucesso.', 'success');
+  } catch (err) {
+    mostrarAlerta('Erro ao cadastrar referência: ' + (err?.message || err), 'error');
+  } finally {
+    esconderLoadingGlobal();
+    travarAcoes(false);
+  }
+}
+
+function aplicarFallbackReferenciasMestre(evento) {
+  if (!evento) return;
+
+  // Contratante
+  if (evento.idContratante && !selectPossuiOpcao('idContratante', evento.idContratante)) {
+    const label = `[LEGADO] ${evento.nomeContratanteAtual || 'Contratante sem cadastro'}`;
+    garantirOpcaoLegadoSelect('idContratante', evento.idContratante, label);
+    setValueSafe('idContratante', evento.idContratante);
+  }
+
+  if (evento.idContratante && evento.referenciaContratanteOk === false) {
+    mostrarAvisoReferencia(
+      'avisoRefContratante',
+      `⚠️ Referência de contratante ausente no cadastro mestre. ` +
+      `Valor legado preservado: <strong>${escapeHtml(evento.nomeContratanteAtual || '-')}</strong>. ` +
+      `<button type="button" class="btn btn-secondary" style="margin-left:8px;padding:4px 8px;font-size:12px;" onclick="cadastrarReferenciaMestre('contratante')">Cadastrar no mestre</button>`
+    );
+  } else {
+    mostrarAvisoReferencia('avisoRefContratante', '');
+  }
+
+  // Endereço
+  if (evento.idEndereco && !selectPossuiOpcao('idEndereco', evento.idEndereco)) {
+    const label = `[LEGADO] ${evento.nomeLocalAtual || 'Local sem cadastro'}`;
+    garantirOpcaoLegadoSelect('idEndereco', evento.idEndereco, label);
+    setValueSafe('idEndereco', evento.idEndereco);
+  }
+
+  if (evento.idEndereco && evento.referenciaEnderecoOk === false) {
+    mostrarAvisoReferencia(
+      'avisoRefEndereco',
+      `⚠️ Referência de local ausente no cadastro mestre. ` +
+      `Valor legado preservado: <strong>${escapeHtml(evento.nomeLocalAtual || '-')}</strong>. ` +
+      `<button type="button" class="btn btn-secondary" style="margin-left:8px;padding:4px 8px;font-size:12px;" onclick="cadastrarReferenciaMestre('endereco')">Cadastrar no mestre</button>`
+    );
+  } else {
+    mostrarAvisoReferencia('avisoRefEndereco', '');
   }
 }
     
@@ -2526,6 +2671,8 @@ async function validarImpactoFinanceiroAntesSalvar(callback) {
   document.getElementById('look').value = evento.look || '';
   document.getElementById('somResponsavel').value = evento.somResponsavel || '';
   document.getElementById('observacoes').value = evento.observacoes || '';
+
+  aplicarFallbackReferenciasMestre(evento);
   
   // Calcular horário fim após carregar os dados
   setTimeout(calcularHorarioFim, 300);
@@ -2644,6 +2791,8 @@ async function validarImpactoFinanceiroAntesSalvar(callback) {
         idContratante: document.getElementById('idContratante').value,
         idCerimonialista: document.getElementById('idCerimonialista').value,
         idEndereco: document.getElementById('idEndereco').value,
+        nomeContratanteFallback: eventoOriginal?.nomeContratanteAtual || '',
+        nomeLocalFallback: eventoOriginal?.nomeLocalAtual || '',
         valorTotal: parseFloat(document.getElementById('valorTotal').value) || 0,
         idVendedor: document.getElementById('idVendedor').value,
         valorBV: parseFloat(document.getElementById('valorBV').value) || 0,
