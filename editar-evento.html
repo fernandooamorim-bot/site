@@ -1537,7 +1537,14 @@ let EVENTO_ID_URL = null;
 
 function getIdEventoFromURL() {
   const params = new URLSearchParams(window.location.search);
-  return params.get('id');
+  const idUrl = String(params.get('id') || '').trim();
+  if (idUrl) {
+    localStorage.removeItem('editar_evento_id_ref');
+    return idUrl;
+  }
+
+  const idRef = String(localStorage.getItem('editar_evento_id_ref') || '').trim();
+  return idRef || null;
 }
 
 

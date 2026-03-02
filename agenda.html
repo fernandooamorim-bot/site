@@ -1097,22 +1097,6 @@
     </div>
   </div>
 
-  <!-- Modal de detalhes -->
-  <div class="modal-overlay" id="modalDetalhes">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h2 class="modal-title">Detalhes do Evento</h2>
-        <button class="modal-close" id="btnFecharModal">&times;</button>
-      </div>
-      <div class="modal-body" id="modalBody">
-        <!-- Conteúdo dinâmico -->
-      </div>
-      <div class="modal-actions" id="modalActions">
-        <!-- Ações dinâmicas baseadas no perfil -->
-      </div>
-    </div>
-  </div>
-
   <!-- Bottom Navigation -->
   <div class="footer-nav">
     <button class="footer-btn" onclick="irParaHome()">
@@ -1882,134 +1866,6 @@ if (AppState.virtualizacao.debug) {  // ✅ CORRETO
 renderizarEventosDentro(evento) {
   return '';
 },
-mostrarConflitos(eventoId) {
-  const evento = AppState.eventos.find(e => e.id === eventoId);
-  if (!evento || !evento.eventosDentro) return;
-
-  const modal = document.getElementById('modalDetalhes');
-  const modalBody = document.getElementById('modalBody');
-  const modalActions = document.getElementById('modalActions');
-
-  let html = `
-    <div class="detail-section">
-      <div class="detail-section-title">⚠️ Eventos em Conflito</div>
-      ${evento.eventosDentro.map(e => `
-        <div class="evento-dentro-item">
-          📅 ${Utils.formatarData(e.data)} ${e.hora || ''} — ${e.tipoEvento}${e.contratante ? ' ' + e.contratante : ''}
-        </div>
-      `).join('')}
-    </div>
-  `;
-
-  modalBody.innerHTML = html;
-  modalActions.innerHTML = `
-    <button class="btn-modal secondary" onclick="fecharModal()">Fechar</button>
-  `;
-  modal.classList.add('show');
-},
-
-      mostrarDetalhes(evento) {
-        Utils.log('Mostrando detalhes do evento:', evento.id);
-
-        const modal = document.getElementById('modalDetalhes');
-        const modalBody = document.getElementById('modalBody');
-        const modalActions = document.getElementById('modalActions');
-
-        if (!modal || !modalBody || !modalActions) {
-          Utils.error('Elementos do modal não encontrados!');
-          return;
-        }
-
-        // Verifica permissões
-        const podeVerValor = AppState.usuario &&
-          (AppState.usuario.perfil === 'Proprietário' || AppState.usuario.perfil === 'Sócio');
-
-        const podeEditar = AppState.usuario &&
-          (AppState.usuario.perfil === 'Proprietário' || AppState.usuario.perfil === 'Sócio');
-
-        // Monta o HTML dos detalhes
-        let html = `
-          <div class="detail-section">
-            <div class="detail-section-title">📋 Informações Básicas</div>
-            <div class="detail-grid">
-              <div class="detail-item">
-                <div class="detail-label">Tipo de Evento</div>
-                <div class="detail-value">${evento.tipoEvento || '-'}</div>
-              </div>
-              <div class="detail-item">
-                <div class="detail-label">Projeto</div>
-                <div class="detail-value">${evento.projeto || '-'}</div>
-              </div>
-              <div class="detail-item">
-                <div class="detail-label">Data</div>
-                <div class="detail-value">${Utils.formatarData(evento.data)}</div>
-              </div>
-              <div class="detail-item">
-                <div class="detail-label">Horário</div>
-                <div class="detail-value">${Utils.formatarHora(evento.hora) || '-'}</div>
-              </div>
-            </div>
-          </div>
-
-          <div class="detail-section">
-            <div class="detail-section-title">👥 Contratante e Local</div>
-            <div class="detail-grid">
-              <div class="detail-item">
-                <div class="detail-label">Contratante</div>
-                <div class="detail-value">${evento.contratante || '-'}</div>
-              </div>
-              <div class="detail-item">
-                <div class="detail-label">Local</div>
-                <div class="detail-value">${evento.local || '-'}</div>
-              </div>
-            </div>
-          </div>
-        `;
-
-        // Seção financeira (apenas para Proprietário e Sócio)
-        if (podeVerValor) {
-          html += `
-            <div class="detail-section">
-              <div class="detail-section-title">💰 Informações Financeiras</div>
-              <div class="detail-grid">
-                <div class="detail-item">
-                  <div class="detail-label">Valor Total</div>
-                  <div class="detail-value money">${Utils.formatarMoeda(evento.valor)}</div>
-                </div>
-                <div class="detail-item">
-                  <div class="detail-label">Status</div>
-                  <div class="detail-value">${evento.status || '-'}</div>
-                </div>
-              </div>
-            </div>
-          `;
-        }
-
-        modalBody.innerHTML = html;
-
-        // Botões de ação
-        let actionsHtml = `
-          <button class="btn-modal secondary" onclick="fecharModal()">
-            Fechar
-          </button>
-        `;
-
-        if (podeEditar) {
-          actionsHtml = `
-            <button class="btn-modal secondary" onclick="fecharModal()">
-              Fechar
-            </button>
-            <button class="btn-modal primary" onclick="editarEvento('${evento.id}')">
-              ✏️ Editar Evento
-            </button>
-          `;
-        }
-
-        modalActions.innerHTML = actionsHtml;
-
-        // Mostra o modal
-        modal.classList.add('show');
-      },
 
       popularFiltrosAvancados() {
         Utils.log('Populando filtros avançados...');
@@ -2646,29 +2502,6 @@ mostrarConflitos(eventoId) {
             });
           }
 
-          // Fechar modal
-          const btnFecharModal = document.getElementById('btnFecharModal');
-          if (btnFecharModal) {
-            btnFecharModal.addEventListener('click', () => {
-              Utils.log('Fechar modal');
-              const modal = document.getElementById('modalDetalhes');
-              if (modal) {
-                modal.classList.remove('show');
-              }
-            });
-          }
-
-          // Fechar modal clicando fora
-          const modal = document.getElementById('modalDetalhes');
-          if (modal) {
-            modal.addEventListener('click', (e) => {
-              if (e.target.id === 'modalDetalhes') {
-                Utils.log('Fechar modal (click fora)');
-                e.target.classList.remove('show');
-              }
-            });
-          }
-
           // Busca em tempo real
           const inputBusca = document.getElementById('filterBusca');
           if (inputBusca) {
@@ -2694,26 +2527,12 @@ mostrarConflitos(eventoId) {
     // ========================================
     // FUNÇÕES GLOBAIS (chamadas do HTML)
     // ========================================
-    function verDetalhesEvento(eventoId) {
-      Utils.log('Ver detalhes:', eventoId);
-      const evento = AppState.eventos.find(e => e.id === eventoId);
-      if (evento) {
-        UI.mostrarDetalhes(evento);
-      }
-    }
-
     function editarEvento(eventoId) {
       Utils.log('Editar evento:', eventoId);
-      const url = `?page=editarEvento&id=${eventoId}`;
-      window.location.href = url;
-    }
-
-    function fecharModal() {
-      Utils.log('Fechar modal');
-      const modal = document.getElementById('modalDetalhes');
-      if (modal) {
-        modal.classList.remove('show');
-      }
+      const id = String(eventoId || '').trim();
+      if (!id) return;
+      localStorage.setItem('editar_evento_id_ref', id);
+      window.location.href = `editar-evento.html?id=${encodeURIComponent(id)}`;
     }
 
     function irParaHome() {
