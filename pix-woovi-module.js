@@ -1,5 +1,3 @@
-
-
 /**
  * ======================================================
  * WOOVI WEBHOOK MODULE — SUPER AGENDA
@@ -17,14 +15,22 @@ function processarWebhookWoovi(e) {
     const rawBody = e.postData.contents;
     const payload = JSON.parse(rawBody);
 
+    const headers = e.headers || {};
     const signatureHeader =
-      e.parameter['x-openpix-signature'] ||
-      e.parameter['X-OpenPix-Signature'] ||
+      headers['x-openpix-signature'] ||
+      headers['X-OpenPix-Signature'] ||
+      headers['X-OPENPIX-SIGNATURE'] ||
       '';
 
     const secret = obterConfigSeguro('WOOVI_WEBHOOK_SECRET_TEST');
 
-    if (!validarAssinaturaWoovi(rawBody, signatureHeader, secret)) {
+    // DEBUG: registrar headers recebidos para identificar qual assinatura está chegando
+    registrarLogWebhook('DEBUG_HEADERS', {
+      headers: e.headers,
+      signatureHeaderCapturado: signatureHeader
+    });
+
+    if (!validarAssinaturaWooviHMAC(rawBody, signatureHeader, secret)) {
       registrarLogWebhook('INVALID_SIGNATURE', payload);
       return respostaWebhook({ error: 'INVALID_SIGNATURE' }, 401);
     }
@@ -33,10 +39,21 @@ function processarWebhookWoovi(e) {
       return respostaWebhook({ ok: true });
     }
 
-    const transaction = payload.data.transaction;
-    const transactionId = transaction.id;
-    const correlationID = transaction.correlationID;
-    const valor = transaction.value / 100;
+    // Estrutura real do webhook Woovi (sem payload.data.transaction)
+    const transactionId =
+      payload?.pix?.transactionID ||
+      payload?.charge?.transactionID ||
+      payload?.charge?.identifier ||
+      '';
+
+    const correlationID =
+      payload?.charge?.correlationID ||
+      payload?.pix?.charge?.correlationID ||
+      payload?.charge?.comment || // fallback opcional
+      '';
+
+    const valor =
+      (payload?.pix?.value || payload?.charge?.value || 0) / 100;
 
     if (isTransactionProcessed(transactionId)) {
       return respostaWebhook({ ok: true });
@@ -59,11 +76,11 @@ function processarWebhookWoovi(e) {
   }
 }
 
-function validarAssinaturaWoovi(rawBody, signatureHeader, secret) {
+function validarAssinaturaWooviHMAC(rawBody, signatureHeader, secret) {
   if (!signatureHeader || !secret) return false;
 
   const calculated = Utilities.base64Encode(
-    Utilities.computeHmacSha256Signature(rawBody, secret)
+    Utilities.computeHmacSha1Signature(rawBody, secret)
   );
 
   return calculated === signatureHeader;
@@ -168,8 +185,14 @@ function registrarLogWebhook(status, payload) {
     Utilities.getUuid(),
     'WOOVI',
     payload.event || '',
-    payload?.data?.transaction?.id || '',
-    payload?.data?.transaction?.correlationID || '',
+    payload?.pix?.transactionID ||
+    payload?.charge?.transactionID ||
+    payload?.charge?.identifier ||
+    '',
+    payload?.charge?.correlationID ||
+    payload?.pix?.charge?.correlationID ||
+    payload?.charge?.comment ||
+    '',
     status,
     new Date(),
     JSON.stringify(payload),

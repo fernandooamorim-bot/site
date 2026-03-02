@@ -375,7 +375,10 @@ function criarAbaFechamentosComissao(ss) {
     'VALOR_FINAL',
     'STATUS',
     'DATA_GERACAO',
-    'GERADO_POR'
+    'GERADO_POR',
+    'LINK_COMPROVANTE_PAGAMENTO',
+    'LINK_PDF_FECHAMENTO',
+    'SNAPSHOT_FECHAMENTO'
   ];
   
   sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
@@ -492,6 +495,7 @@ function inserirDadosIniciais(ss) {
     ['PREFIXO_ID_EVENTO', 'AG', 'Prefixo para ID de eventos'],
     ['PREFIXO_ID_MOVIMENTACAO', 'MOV', 'Prefixo para ID de movimentações'],
     ['PREFIXO_ID_FECHAMENTO', 'AC-VND', 'Prefixo para ID de fechamentos'],
+    ['PASTA_COMPROVANTES_FINANCEIRO_ID', '', 'ID da pasta no Drive para upload automático de comprovantes'],
     ['EMAIL_NOTIFICACOES', 'fernando@exemplo.com', 'Email para notificações do sistema'],
     ['NOME_EMPRESA', 'Banda XYZ', 'Nome da banda/empresa']
   ];

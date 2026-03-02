@@ -22,6 +22,68 @@ function extrairIdRecebimentoDaObservacao(obs) {
   return match ? match[0] : null;
 }
 
+function executarComLockFinanceiro_(nomeOperacao, fn) {
+  const lock = LockService.getDocumentLock();
+  if (!lock.tryLock(30000)) {
+    throw new Error('Não foi possível obter lock financeiro para: ' + String(nomeOperacao || 'OPERACAO'));
+  }
+  try {
+    return fn();
+  } finally {
+    try { lock.releaseLock(); } catch (_) {}
+  }
+}
+
+function appendRowComVerificacao_(sheet, linha, contexto) {
+  const before = sheet.getLastRow();
+  sheet.appendRow(linha);
+  SpreadsheetApp.flush();
+
+  const after = sheet.getLastRow();
+  if (after !== before + 1) {
+    throw new Error('Falha de persistência ao inserir linha em ' + String(contexto || sheet.getName()));
+  }
+
+  const gravada = sheet.getRange(after, 1, 1, linha.length).getValues()[0];
+  if (!valoresEquivalentes_(gravada[0], linha[0])) {
+    throw new Error('Falha de verificação do ID gravado em ' + String(contexto || sheet.getName()));
+  }
+
+  return after;
+}
+
+function setValueComVerificacao_(sheet, row, col, value, contexto) {
+  sheet.getRange(row, col).setValue(value);
+  SpreadsheetApp.flush();
+  const lido = sheet.getRange(row, col).getValue();
+  if (!valoresEquivalentes_(lido, value)) {
+    throw new Error(
+      'Falha de persistência ao atualizar célula em ' +
+      String(contexto || sheet.getName()) +
+      ' [r=' + row + ', c=' + col + ']'
+    );
+  }
+}
+
+function valoresEquivalentes_(a, b) {
+  const na = Number(a);
+  const nb = Number(b);
+  if (!isNaN(na) && !isNaN(nb)) {
+    return Math.abs(na - nb) < 0.000001;
+  }
+  return String(a) === String(b);
+}
+
+function determinarStatusComissao_(esperado, gerado, pago, pendente) {
+  if (esperado === 0) return 'NA';
+  if (gerado === 0) return 'AGUARDANDO';
+  if (gerado < esperado) return 'PARCIAL';
+  if (gerado === esperado && pendente > 0) return 'PENDENTE';
+  if (pago === esperado) return 'QUITADO';
+  if (pago > esperado || gerado > esperado) return 'ERRO';
+  return 'PENDENTE';
+}
+
 function calcularAjustesComissaoPorEstorno(idVendedor) {
   const ss = SpreadsheetApp.getActive();
   const shMov = ss.getSheetByName('MOVIMENTACOES_FINANCEIRAS');
@@ -316,101 +378,113 @@ function recalcularFinanceiroEvento(idEvento) {
 /**
  * Registro de NF do evento (valor vem do EVENTO)
  */
-function registrarNFEvento(idEvento) {
+function registrarNFEvento(idEvento, meta) {
   exigirAcao('eventos:registrarSaida');
-  const ss = SpreadsheetApp.getActive();
-  const shEvt = ss.getSheetByName('EVENTOS');
-  const shMov = ss.getSheetByName('MOVIMENTACOES_FINANCEIRAS');
-  const usuario = getUsuarioAtual().email;
+  return executarComLockFinanceiro_('NF_EVENTO', function () {
+    const ss = SpreadsheetApp.getActive();
+    const shEvt = ss.getSheetByName('EVENTOS');
+    const shMov = ss.getSheetByName('MOVIMENTACOES_FINANCEIRAS');
+    const usuario = getUsuarioAtual().email;
+    const linkComprovante = String((meta && meta.linkComprovante) || '').trim();
+    const observacoesExtra = String((meta && meta.observacoes) || '').trim();
 
-  const evt = shEvt.getDataRange().getValues();
-  const head = evt[0];
-  const e = c => head.indexOf(c);
+    const evt = shEvt.getDataRange().getValues();
+    const head = evt[0];
+    const e = c => head.indexOf(c);
 
-  for (let i = 1; i < evt.length; i++) {
-    if (evt[i][e('ID_EVENTO')] !== idEvento) continue;
+    for (let i = 1; i < evt.length; i++) {
+      if (evt[i][e('ID_EVENTO')] !== idEvento) continue;
 
-    if (evt[i][e('STATUS_NF')] === 'PROCESSADO') {
-      throw new Error('NF já processada para este evento');
+      if (evt[i][e('STATUS_NF')] === 'PROCESSADO') {
+        throw new Error('NF já processada para este evento');
+      }
+
+      const valorNF = Number(evt[i][e('VALOR_NF')]) || 0;
+      if (valorNF <= 0) throw new Error('Evento não possui NF válida');
+
+      const idMovimentacao = gerarIDMovimentacao();
+      const linhaMov = [
+        idMovimentacao,
+        'NF_EVENTO',
+        'SAÍDA',
+        idEvento,
+        evt[i][e('NOME_EVENTO')],
+        normalizarData(new Date()),
+        valorNF,
+        '',
+        'Nota Fiscal',
+        '',
+        linkComprovante,
+        observacoesExtra || 'NF gerada automaticamente pelo sistema',
+        usuario,
+        new Date(),
+        '',
+        'PROCESSADO'
+      ];
+
+      appendRowComVerificacao_(shMov, linhaMov, 'MOVIMENTACOES_FINANCEIRAS/NF_EVENTO');
+      setValueComVerificacao_(shEvt, i + 1, e('STATUS_NF') + 1, 'PROCESSADO', 'EVENTOS/STATUS_NF');
+      return { sucesso: true, idMovimentacao: idMovimentacao };
     }
 
-    const valorNF = Number(evt[i][e('VALOR_NF')]) || 0;
-    if (valorNF <= 0) throw new Error('Evento não possui NF válida');
-
-    shMov.appendRow([
-      gerarIDMovimentacao(),
-      'NF_EVENTO',
-      'SAÍDA',
-      idEvento,
-      evt[i][e('NOME_EVENTO')],
-      normalizarData(new Date()),
-      valorNF,
-      '',
-      'Nota Fiscal',
-      '',
-      '',
-      'NF gerada automaticamente pelo sistema',
-      usuario,
-      new Date(),
-      '',
-      'PROCESSADO'
-    ]);
-
-    shEvt.getRange(i + 1, e('STATUS_NF') + 1).setValue('PROCESSADO');
-    return { sucesso: true };
-  }
-
-  throw new Error('Evento não encontrado');
+    throw new Error('Evento não encontrado');
+  });
 }
 
 /**
  * Registro de BV do evento (valor vem do EVENTO)
  */
-function registrarBVEvento(idEvento) {
+function registrarBVEvento(idEvento, meta) {
   exigirAcao('eventos:registrarSaida');
-  const ss = SpreadsheetApp.getActive();
-  const shEvt = ss.getSheetByName('EVENTOS');
-  const shMov = ss.getSheetByName('MOVIMENTACOES_FINANCEIRAS');
-  const usuario = getUsuarioAtual().email;
+  return executarComLockFinanceiro_('BV_EVENTO', function () {
+    const ss = SpreadsheetApp.getActive();
+    const shEvt = ss.getSheetByName('EVENTOS');
+    const shMov = ss.getSheetByName('MOVIMENTACOES_FINANCEIRAS');
+    const usuario = getUsuarioAtual().email;
+    const linkComprovante = String((meta && meta.linkComprovante) || '').trim();
+    const observacoesExtra = String((meta && meta.observacoes) || '').trim();
 
-  const evt = shEvt.getDataRange().getValues();
-  const head = evt[0];
-  const e = c => head.indexOf(c);
+    const evt = shEvt.getDataRange().getValues();
+    const head = evt[0];
+    const e = c => head.indexOf(c);
 
-  for (let i = 1; i < evt.length; i++) {
-    if (evt[i][e('ID_EVENTO')] !== idEvento) continue;
+    for (let i = 1; i < evt.length; i++) {
+      if (evt[i][e('ID_EVENTO')] !== idEvento) continue;
 
-    if (evt[i][e('STATUS_BV')] === 'PROCESSADO') {
-      throw new Error('BV já processado para este evento');
+      if (evt[i][e('STATUS_BV')] === 'PROCESSADO') {
+        throw new Error('BV já processado para este evento');
+      }
+
+      const valorBV = Number(evt[i][e('VALOR_BV')]) || 0;
+      if (valorBV <= 0) throw new Error('Evento não possui BV válido');
+
+      const idMovimentacao = gerarIDMovimentacao();
+      const linhaMov = [
+        idMovimentacao,
+        'BV_EVENTO',
+        'SAÍDA',
+        idEvento,
+        evt[i][e('NOME_EVENTO')],
+        normalizarData(new Date()),
+        valorBV,
+        '',
+        'BV',
+        '',
+        linkComprovante,
+        observacoesExtra || 'BV registrada automaticamente pelo sistema',
+        usuario,
+        new Date(),
+        '',
+        'PROCESSADO'
+      ];
+
+      appendRowComVerificacao_(shMov, linhaMov, 'MOVIMENTACOES_FINANCEIRAS/BV_EVENTO');
+      setValueComVerificacao_(shEvt, i + 1, e('STATUS_BV') + 1, 'PROCESSADO', 'EVENTOS/STATUS_BV');
+      return { sucesso: true, idMovimentacao: idMovimentacao };
     }
 
-    const valorBV = Number(evt[i][e('VALOR_BV')]) || 0;
-    if (valorBV <= 0) throw new Error('Evento não possui BV válido');
-
-    shMov.appendRow([
-      gerarIDMovimentacao(),
-      'BV_EVENTO',
-      'SAÍDA',
-      idEvento,
-      evt[i][e('NOME_EVENTO')],
-      normalizarData(new Date()),
-      valorBV,
-      '',
-      'BV',
-      '',
-      '',
-      'BV registrada automaticamente pelo sistema',
-      usuario,
-      new Date(),
-      '',
-      'PROCESSADO'
-    ]);
-
-    shEvt.getRange(i + 1, e('STATUS_BV') + 1).setValue('PROCESSADO');
-    return { sucesso: true };
-  }
-
-  throw new Error('Evento não encontrado');
+    throw new Error('Evento não encontrado');
+  });
 }
 
 /**
@@ -421,59 +495,71 @@ function registrarFolhaEvento(idEvento, valor, descricao) {
   exigirAcao('eventos:registrarSaida');
   if (!valor || valor <= 0) throw new Error('Valor inválido para folha');
 
-  const ss = SpreadsheetApp.getActive();
-  const shEvt = ss.getSheetByName('EVENTOS');
-  const shMov = ss.getSheetByName('MOVIMENTACOES_FINANCEIRAS');
-  const usuario = getUsuarioAtual().email;
+  return executarComLockFinanceiro_('FOLHA_EVENTO', function () {
+    const ss = SpreadsheetApp.getActive();
+    const shEvt = ss.getSheetByName('EVENTOS');
+    const shMov = ss.getSheetByName('MOVIMENTACOES_FINANCEIRAS');
+    const usuario = getUsuarioAtual().email;
 
-  const evt = shEvt.getDataRange().getValues();
-  const head = evt[0];
-  const e = c => head.indexOf(c);
+    const evt = shEvt.getDataRange().getValues();
+    const head = evt[0];
+    const e = c => head.indexOf(c);
 
-  for (let i = 1; i < evt.length; i++) {
-    if (evt[i][e('ID_EVENTO')] !== idEvento) continue;
+    for (let i = 1; i < evt.length; i++) {
+      if (evt[i][e('ID_EVENTO')] !== idEvento) continue;
 
-    // Monta nome padrão do evento: TIPO_EVENTO + ' ' + NOME_CONTRATANTE
-    const tipoEvento = evt[i][e('TIPO_EVENTO')] || '';
-    const nomeContratante = evt[i][e('NOME_CONTRATANTE')] || '';
-    const nomePadraoEvento = (tipoEvento + ' ' + nomeContratante).trim();
+      // Monta nome padrão do evento: TIPO_EVENTO + ' ' + NOME_CONTRATANTE
+      const tipoEvento = evt[i][e('TIPO_EVENTO')] || '';
+      const nomeContratante = evt[i][e('NOME_CONTRATANTE')] || '';
+      const nomePadraoEvento = (tipoEvento + ' ' + nomeContratante).trim();
 
-    // BLOQUEIO DEFINITIVO: folha é lançamento ÚNICO
-    const atual = Number(evt[i][e('FOLHA_CUSTO_VALOR')]) || 0;
-    // 🔒 BLOQUEIO DEFINITIVO: folha é lançamento ÚNICO
-    if (atual > 0) {
-      throw new Error('Folha de custos já registrada para este evento');
+      // BLOQUEIO DEFINITIVO: folha é lançamento ÚNICO
+      const atual = Number(evt[i][e('FOLHA_CUSTO_VALOR')]) || 0;
+      if (atual > 0) {
+        throw new Error('Folha de custos já registrada para este evento');
+      }
+
+      const idMovimentacao = gerarIDMovimentacao();
+      const linhaMov = [
+        idMovimentacao,
+        'FOLHA_EVENTO',
+        'SAÍDA',
+        idEvento,
+        nomePadraoEvento,
+        normalizarData(new Date()),
+        Number(valor),
+        '',
+        'Folha',
+        '',
+        '',
+        descricao || 'Custo operacional do evento',
+        usuario,
+        new Date(),
+        '',
+        'PROCESSADO'
+      ];
+
+      appendRowComVerificacao_(shMov, linhaMov, 'MOVIMENTACOES_FINANCEIRAS/FOLHA_EVENTO');
+      setValueComVerificacao_(
+        shEvt,
+        i + 1,
+        e('FOLHA_CUSTO_VALOR') + 1,
+        Number(Number(valor).toFixed(2)),
+        'EVENTOS/FOLHA_CUSTO_VALOR'
+      );
+      setValueComVerificacao_(
+        shEvt,
+        i + 1,
+        e('FOLHA_CUSTO_DESCRICAO') + 1,
+        descricao || '',
+        'EVENTOS/FOLHA_CUSTO_DESCRICAO'
+      );
+
+      return { sucesso: true, idMovimentacao: idMovimentacao };
     }
 
-    shMov.appendRow([
-      gerarIDMovimentacao(),
-      'FOLHA_EVENTO',
-      'SAÍDA',
-      idEvento,
-      nomePadraoEvento,
-      normalizarData(new Date()),
-      Number(valor),
-      '',
-      'Folha',
-      '',
-      '',
-      descricao || 'Custo operacional do evento',
-      usuario,
-      new Date(),
-      '',
-      'PROCESSADO'
-    ]);
-
-    shEvt.getRange(i + 1, e('FOLHA_CUSTO_VALOR') + 1)
-      .setValue(Number(Number(valor).toFixed(2)));
-
-    shEvt.getRange(i + 1, e('FOLHA_CUSTO_DESCRICAO') + 1)
-      .setValue(descricao || '');
-
-    return { sucesso: true };
-  }
-
-  throw new Error('Evento não encontrado');
+    throw new Error('Evento não encontrado');
+  });
 }
 
 function apiRegistrarSaidaEvento(payload) {
@@ -485,11 +571,11 @@ function apiRegistrarSaidaEvento(payload) {
   }
 
   if (payload.tipoSaida === 'NF_EVENTO') {
-    return registrarNFEvento(payload.idEvento);
+    return registrarNFEvento(payload.idEvento, payload);
   }
 
   if (payload.tipoSaida === 'BV_EVENTO') {
-    return registrarBVEvento(payload.idEvento);
+    return registrarBVEvento(payload.idEvento, payload);
   }
 
   if (payload.tipoSaida === 'FOLHA_EVENTO') {
@@ -498,7 +584,7 @@ function apiRegistrarSaidaEvento(payload) {
     }
     return registrarFolhaEvento(
       payload.idEvento,
-      payload.valor,
+      Number(payload.valor),
       payload.observacoes
     );
   }
@@ -515,45 +601,53 @@ function apiRegistrarSaidaEvento(payload) {
 
 function registrarRecebimento(dados) {
   exigirAcao('eventos:registrarRecebimento');
-  const ss = SpreadsheetApp.getActive();
-  const sh = ss.getSheetByName('MOVIMENTACOES_FINANCEIRAS');
-  const usuario = getUsuarioAtual().email;
+  return executarComLockFinanceiro_('RECEBIMENTO_CLIENTE', function () {
+    const ss = SpreadsheetApp.getActive();
+    const sh = ss.getSheetByName('MOVIMENTACOES_FINANCEIRAS');
+    const usuario = getUsuarioAtual().email;
 
-  const evento = buscarEvento(dados.idEvento);
-  if (!evento) throw new Error('Evento não encontrado');
+    const evento = buscarEvento(dados.idEvento);
+    if (!evento) throw new Error('Evento não encontrado');
 
-  const idRecebimento = gerarIDMovimentacao();
+    const idRecebimento = gerarIDMovimentacao();
 
-  const linha = [
-    idRecebimento,
-    'RECEBIMENTO_CLIENTE',
-    'ENTRADA',
-    dados.idEvento,
-    buscarNomeEventoPorID(dados.idEvento),
-    normalizarData(dados.dataRecebimento),
-    Number(dados.valor),
-    dados.formaPagamento || '',
-    buscarContratantePorEvento(dados.idEvento),
-    evento.idContratante,
-    dados.linkComprovante || '',
-    dados.observacoes || '',
-    usuario,
-    new Date(),
-    '',
-    'PROCESSADO'
-  ];
+    const linha = [
+      idRecebimento,
+      'RECEBIMENTO_CLIENTE',
+      'ENTRADA',
+      dados.idEvento,
+      buscarNomeEventoPorID(dados.idEvento),
+      normalizarData(dados.dataRecebimento),
+      Number(dados.valor),
+      dados.formaPagamento || '',
+      buscarContratantePorEvento(dados.idEvento),
+      evento.idContratante,
+      dados.linkComprovante || '',
+      dados.observacoes || '',
+      usuario,
+      new Date(),
+      '',
+      'PROCESSADO'
+    ];
 
-  sh.appendRow(linha);
+    appendRowComVerificacao_(sh, linha, 'MOVIMENTACOES_FINANCEIRAS/RECEBIMENTO_CLIENTE');
 
-  // comissão automática
-  gerarComissaoAutomatica(
-    dados.idEvento,
-    idRecebimento,
-    Number(dados.valor),
-    dados.dataRecebimento
-  );
+    // comissão automática
+    const resultadoComissao = gerarComissaoAutomatica(
+      dados.idEvento,
+      idRecebimento,
+      Number(dados.valor),
+      dados.dataRecebimento
+    );
 
-  return { sucesso: true };
+    atualizarResumoFinanceiroEvento(dados.idEvento);
+
+    return {
+      sucesso: true,
+      idRecebimento: idRecebimento,
+      idComissaoGerada: resultadoComissao && resultadoComissao.idMovimentacao ? resultadoComissao.idMovimentacao : ''
+    };
+  });
 }
 
 /* =====================================================
@@ -613,7 +707,8 @@ valorComissao = Math.round(valorComissao * 100) / 100;
     'PENDENTE'
   ];
 
-  sh.appendRow(linha);
+  appendRowComVerificacao_(sh, linha, 'MOVIMENTACOES_FINANCEIRAS/COMISSAO_GERADA');
+  return { sucesso: true, idMovimentacao: linha[0] };
 }
 
 /**
@@ -894,7 +989,8 @@ function extrairIdRecebimentoDaObservacao(obs) {
 */
 
 function visualizarPreviewFechamento(idVendedor) {
-  exigirAcao('comissao:preview');
+  // Mantém alinhamento com a ACL e com o roteador da API.
+  exigirAcao('comissao:fechar');
   // Buscar todas as comissões (pendentes e processadas) do vendedor
   const ss = SpreadsheetApp.getActive();
   const shMov = ss.getSheetByName('MOVIMENTACOES_FINANCEIRAS');
@@ -1143,8 +1239,18 @@ function visualizarPreviewFechamento(idVendedor) {
  * O fechamento NUNCA recalcula ou reaplica ajustes.
  * Qualquer alteração nessa regra gera DESCONTO DUPLO e PREJUÍZO.
  */
-function fecharComissaoVendedor(idVendedor, _, __, ajusteCredito, ajusteDebito) {
+function fecharComissaoVendedor(idVendedor, _, __, ajusteCredito, ajusteDebito, linkComprovante) {
   exigirAcao('comissao:fechar');
+  let etapa = 'inicio';
+  const logPrefix = '[FECHAMENTO_COMISSAO][idVendedor=' + String(idVendedor) + '] ';
+  const log = texto => Logger.log(logPrefix + texto);
+  let lock = null;
+  try {
+  log('Iniciando fechamento');
+  lock = LockService.getDocumentLock();
+  if (!lock.tryLock(30000)) {
+    throw new Error('Não foi possível obter lock para fechamento de comissão');
+  }
   // =====================================================
   // REGRA:
   // Estorno de recebimento SEMPRE impacta comissão.
@@ -1152,17 +1258,24 @@ function fecharComissaoVendedor(idVendedor, _, __, ajusteCredito, ajusteDebito) 
   // Se comissão já foi paga → desconto ocorre no próximo fechamento.
   // Nenhum valor é apagado. Tudo é registrado como novo movimento.
   // =====================================================
+  etapa = 'abrir_planilhas';
   const ss = SpreadsheetApp.getActive();
   const shMov = ss.getSheetByName('MOVIMENTACOES_FINANCEIRAS');
   const shFech = ss.getSheetByName('FECHAMENTOS_COMISSAO');
   const usuario = getUsuarioAtual().email;
+  if (!shMov || !shFech) {
+    throw new Error('Abas MOVIMENTACOES_FINANCEIRAS ou FECHAMENTOS_COMISSAO não encontradas');
+  }
 
   // Para ajustes, precisamos do preview detalhado
+  etapa = 'gerar_preview';
   const preview = visualizarPreviewFechamento(idVendedor);
   if (!preview.sucesso || !preview.eventos.length) throw new Error('Nada a fechar');
   const eventos = preview.eventos;
+  log('Preview OK: eventos=' + eventos.length);
 
   // Buscar todas as comissões GERADAS (pendentes e processadas) do vendedor
+  etapa = 'carregar_movimentacoes';
   const movData = shMov.getDataRange().getValues();
   const movHead = movData[0];
   const m = c => movHead.indexOf(c);
@@ -1174,6 +1287,7 @@ function fecharComissaoVendedor(idVendedor, _, __, ajusteCredito, ajusteDebito) 
   const colIdVendedor = m('ID_CONTRAPARTE');
   const colIncluidoEmFechamento = m('INCLUIDO_EM_FECHAMENTO');
   const colIdMovimentacao = m('ID_MOVIMENTACAO');
+  etapa = 'filtrar_comissoes';
   const comissoes = [];
   for (let i = 1; i < movData.length; i++) {
     const linha = movData[i];
@@ -1195,24 +1309,34 @@ function fecharComissaoVendedor(idVendedor, _, __, ajusteCredito, ajusteDebito) 
     }
   }
 
+  log('Comissões elegíveis para snapshot=' + comissoes.length);
+
   // 🔒 REGRA FINAL:
   // O ajuste por estorno JÁ está aplicado em `ajusteComissao` vindo do preview.
   // NUNCA recalcular ou subtrair ajuste novamente aqui.
 
+  etapa = 'calcular_ajustes';
   const ajustesEstorno = calcularAjustesComissaoPorEstorno(idVendedor);
+  log('Ajustes por estorno=' + ajustesEstorno.length);
 
   const total = eventos.reduce(
     (s, e) => s + (e.valorComissao + (e.ajusteComissao || 0)),
     0
   );
 
+  const ajusteCreditoNum = Number(ajusteCredito) || 0;
+  const ajusteDebitoNum = Number(ajusteDebito) || 0;
   const valorFinal =
     total +
-    (ajusteCredito || 0) -
-    (ajusteDebito || 0);
+    ajusteCreditoNum -
+    ajusteDebitoNum;
 
+  etapa = 'validar_vendedor';
   const idFechamento = gerarIDFechamento(idVendedor);
   const vendedor = buscarVendedor(idVendedor);
+  if (!vendedor || !vendedor.nome) {
+    throw new Error('Vendedor não encontrado para fechamento. Verifique o ID_VENDEDOR selecionado.');
+  }
 
   // ===============================
   // SNAPSHOT IMUTÁVEL DO FECHAMENTO
@@ -1231,13 +1355,21 @@ function fecharComissaoVendedor(idVendedor, _, __, ajusteCredito, ajusteDebito) 
     vendedor: vendedor.nome,
     dataFechamento: new Date(),
     comissoes: snapshotComissoes,
+    ajustesEstorno: ajustesEstorno.map(a => ({
+      idEvento: a.idEvento,
+      nomeEvento: a.nomeEvento,
+      valorAjuste: Number(a.valorAjuste || 0),
+      observacoes: String(a.observacoes || '')
+    })),
     totalComissoes: total,
-    ajusteCredito: ajusteCredito || 0,
-    ajusteDebito: ajusteDebito || 0,
+    ajusteCredito: ajusteCreditoNum,
+    ajusteDebito: ajusteDebitoNum,
+    linkComprovante: String(linkComprovante || '').trim(),
     valorFinal: valorFinal
   });
 
-  shFech.appendRow([
+  etapa = 'registrar_fechamento';
+  const linhaFechamento = [
     idFechamento,
     idVendedor,
     vendedor.nome,
@@ -1245,36 +1377,52 @@ function fecharComissaoVendedor(idVendedor, _, __, ajusteCredito, ajusteDebito) 
     null,
     total,
     total,
-    ajusteCredito || 0,
-    (ajusteDebito || 0),
+    ajusteCreditoNum,
+    ajusteDebitoNum,
     '',
     valorFinal,
-    'FECHADO',
+    'CONFIRMADO',
     new Date(),
     usuario,
+    String(linkComprovante || '').trim(),
+    '',
     snapshotJson
-  ]);
+  ];
+  appendRowComVerificacao_(shFech, linhaFechamento, 'FECHAMENTOS_COMISSAO/FECHAMENTO');
+  log('Fechamento registrado. ID=' + idFechamento);
 
   // Atualiza status das comissões (SOMENTE snapshot atual do fechamento)
+  etapa = 'atualizar_status_comissoes';
   const dados = shMov.getDataRange().getValues();
   const colIdMovimentacao2 = m('ID_MOVIMENTACAO');
   // ids do snapshot do fechamento
   const idsSnapshot = comissoes.map(c => c.idMovimentacao);
+  let totalComissoesAtualizadas = 0;
   for (let i = 1; i < dados.length; i++) {
     const linha = dados[i];
     if (idsSnapshot.includes(linha[colIdMovimentacao2])) {
-      shMov.getRange(i + 1, colIncluidoEmFechamento + 1).setValue(idFechamento);
-      shMov.getRange(i + 1, colStatus + 1).setValue('PROCESSADO');
+      setValueComVerificacao_(shMov, i + 1, colIncluidoEmFechamento + 1, idFechamento, 'MOVIMENTACOES_FINANCEIRAS/INCLUIDO_EM_FECHAMENTO');
+      setValueComVerificacao_(shMov, i + 1, colStatus + 1, 'PROCESSADO', 'MOVIMENTACOES_FINANCEIRAS/STATUS');
+      totalComissoesAtualizadas++;
     }
+  }
+  if (totalComissoesAtualizadas !== idsSnapshot.length) {
+    throw new Error(
+      'Falha de consistência ao atualizar comissões no fechamento. Esperado=' +
+      idsSnapshot.length +
+      ', atualizado=' +
+      totalComissoesAtualizadas
+    );
   }
 
   // Criar movimentos AJUSTE_COMISSAO_ESTORNO APENAS para ajustes ainda não existentes
   // (Blindagem já feita em calcularAjustesComissaoPorEstorno)
+  etapa = 'registrar_ajustes';
   for (let i = 0; i < ajustesEstorno.length; i++) {
     const a = ajustesEstorno[i];
     // Usar timestamp real para auditoria
     const dataMov = new Date(); // timestamp real para auditoria
-    shMov.appendRow([
+    const linhaAjuste = [
       gerarIDMovimentacao(),
       'AJUSTE_COMISSAO_ESTORNO',
       'SAÍDA',
@@ -1291,43 +1439,102 @@ function fecharComissaoVendedor(idVendedor, _, __, ajusteCredito, ajusteDebito) 
       new Date(), // TIMESTAMP real do registro
       '',
       'PROCESSADO'
-    ]);
+    ];
+    appendRowComVerificacao_(shMov, linhaAjuste, 'MOVIMENTACOES_FINANCEIRAS/AJUSTE_COMISSAO_ESTORNO');
   }
 
+  etapa = 'gerar_pdf';
   const linkPdf = gerarPdfFechamentoComissao(idFechamento);
+  atualizarLinkPdfNoFechamento_(shFech, idFechamento, linkPdf);
+  log('PDF gerado com sucesso');
 
   // =====================================================
   // ESPELHO FINANCEIRO — VALOR_COMISSAO_PAGO (PÓS-FECHAMENTO)
   // =====================================================
+  etapa = 'atualizar_espelho_eventos';
   const shEvtEspelho = ss.getSheetByName('EVENTOS');
+  if (!shEvtEspelho) {
+    throw new Error('Aba EVENTOS não encontrada');
+  }
   const evtDataEspelho = shEvtEspelho.getDataRange().getValues();
   const evtHeadEspelho = evtDataEspelho[0];
   const eEsp = c => evtHeadEspelho.indexOf(c);
+  if (
+    eEsp('ID_EVENTO') === -1 ||
+    eEsp('VALOR_COMISSAO_PAGO') === -1 ||
+    eEsp('VALOR_COMISSAO_CALCULADO') === -1 ||
+    eEsp('STATUS_COMISSAO') === -1
+  ) {
+    throw new Error('Colunas obrigatórias de espelho de comissão não encontradas na aba EVENTOS');
+  }
+
+  // Releitura após persistência para evitar espelho defasado.
+  const movDataAtual = shMov.getDataRange().getValues();
+  const movHeadAtual = movDataAtual[0];
+  const mAtual = c => movHeadAtual.indexOf(c);
+  if (
+    mAtual('TIPO_MOVIMENTACAO') === -1 ||
+    mAtual('STATUS') === -1 ||
+    mAtual('ID_EVENTO') === -1 ||
+    mAtual('ID_CONTRAPARTE') === -1 ||
+    mAtual('VALOR') === -1
+  ) {
+    throw new Error('Colunas obrigatórias não encontradas na aba MOVIMENTACOES_FINANCEIRAS');
+  }
 
   // Identifica eventos únicos envolvidos neste fechamento
   const eventosFechados = [...new Set(eventos.map(e => e.idEvento))];
 
   eventosFechados.forEach(idEvento => {
     let totalPagoEvento = 0;
+    let totalGeradoEvento = 0;
 
-    // Soma TODAS as comissões PROCESSADAS do vendedor para este evento
-    for (let i = 1; i < movData.length; i++) {
+    // Soma TODAS as comissões do vendedor para este evento (geradas e processadas)
+    for (let i = 1; i < movDataAtual.length; i++) {
       if (
-        movData[i][m('TIPO_MOVIMENTACAO')] === 'COMISSAO_GERADA' &&
-        movData[i][m('STATUS')] === 'PROCESSADO' &&
-        String(movData[i][m('ID_EVENTO')]) === String(idEvento) &&
-        String(movData[i][m('ID_CONTRAPARTE')]) === String(idVendedor)
+        movDataAtual[i][mAtual('TIPO_MOVIMENTACAO')] === 'COMISSAO_GERADA' &&
+        String(movDataAtual[i][mAtual('ID_EVENTO')]) === String(idEvento) &&
+        String(movDataAtual[i][mAtual('ID_CONTRAPARTE')]) === String(idVendedor) &&
+        movDataAtual[i][mAtual('STATUS')] !== 'CANCELADO'
       ) {
-        totalPagoEvento += Number(movData[i][m('VALOR')]) || 0;
+        const valorMov = Number(movDataAtual[i][mAtual('VALOR')]) || 0;
+        totalGeradoEvento += valorMov;
+        if (movDataAtual[i][mAtual('STATUS')] === 'PROCESSADO') {
+          totalPagoEvento += valorMov;
+        }
       }
     }
+
+    totalGeradoEvento = Number(totalGeradoEvento.toFixed(2));
+    totalPagoEvento = Number(totalPagoEvento.toFixed(2));
+    const totalEsperadoEvento = Number(
+      evtDataEspelho.find(r => String(r[eEsp('ID_EVENTO')]) === String(idEvento))?.[eEsp('VALOR_COMISSAO_CALCULADO')] || 0
+    );
+    const totalPendenteEvento = Number(Math.max(totalGeradoEvento - totalPagoEvento, 0).toFixed(2));
+    const statusComissaoEvento = determinarStatusComissao_(
+      totalEsperadoEvento,
+      totalGeradoEvento,
+      totalPagoEvento,
+      totalPendenteEvento
+    );
 
     // Atualiza EVENTOS.VALOR_COMISSAO_PAGO
     for (let r = 1; r < evtDataEspelho.length; r++) {
       if (String(evtDataEspelho[r][eEsp('ID_EVENTO')]) === String(idEvento)) {
-        shEvtEspelho
-          .getRange(r + 1, eEsp('VALOR_COMISSAO_PAGO') + 1)
-          .setValue(Number(totalPagoEvento.toFixed(2)));
+        setValueComVerificacao_(
+          shEvtEspelho,
+          r + 1,
+          eEsp('VALOR_COMISSAO_PAGO') + 1,
+          totalPagoEvento,
+          'EVENTOS/VALOR_COMISSAO_PAGO'
+        );
+        setValueComVerificacao_(
+          shEvtEspelho,
+          r + 1,
+          eEsp('STATUS_COMISSAO') + 1,
+          statusComissaoEvento,
+          'EVENTOS/STATUS_COMISSAO'
+        );
         break;
       }
     }
@@ -1340,6 +1547,16 @@ function fecharComissaoVendedor(idVendedor, _, __, ajusteCredito, ajusteDebito) 
     linkPdf,
     mensagem: 'Fechamento realizado com sucesso'
   };
+  } catch (err) {
+    const detalhe = String(err && err.message ? err.message : err);
+    const stack = err && err.stack ? String(err.stack) : '';
+    Logger.log(logPrefix + 'ERRO etapa=' + etapa + ' detalhe=' + detalhe + (stack ? ' stack=' + stack : ''));
+    throw new Error('Falha no fechamento (etapa: ' + etapa + '): ' + detalhe);
+  } finally {
+    if (lock) {
+      try { lock.releaseLock(); } catch (_) {}
+    }
+  }
 }
 
 /**
@@ -1348,7 +1565,7 @@ function fecharComissaoVendedor(idVendedor, _, __, ajusteCredito, ajusteDebito) 
  * =====================================================
  */
 
-function gerarPdfFechamentoComissao(idFechamento) {
+function gerarPdfFechamentoComissaoSnapshot_legacy(idFechamento) {
   // Carrega dados do fechamento e vendedor
   const ss = SpreadsheetApp.getActive();
   const shFech = ss.getSheetByName('FECHAMENTOS_COMISSAO');
@@ -1417,12 +1634,148 @@ function apiRegistrarRecebimento(payload) {
   }
 
   payload.idMovimentacao = 'MOV-REC-' + Utilities.getUuid();
+  const resultado = registrarRecebimento(payload);
+  return {
+    sucesso: true,
+    status: 'OK',
+    idRecebimento: resultado && resultado.idRecebimento ? resultado.idRecebimento : '',
+    idComissaoGerada: resultado && resultado.idComissaoGerada ? resultado.idComissaoGerada : ''
+  };
+}
 
-  registrarRecebimento(payload);
-  atualizarResumoFinanceiroEvento(payload.idEvento);
-  /*gerarComissaoDoRecebimento(payload);*/
+function apiUploadComprovante(payload) {
+  if (!payload || typeof payload !== 'object') {
+    throw new Error('Payload inválido para upload de comprovante');
+  }
 
-  return { status: 'OK' };
+  const base64Raw = String(payload.arquivoBase64 || '').trim();
+  const mimeType = String(payload.mimeType || '').toLowerCase().trim();
+  const nomeOriginal = String(payload.nomeArquivo || 'comprovante').trim();
+  const categoria = String(payload.categoria || 'GERAL').toUpperCase().trim();
+  const referencia = String(payload.referencia || '').trim();
+
+  if (!base64Raw) {
+    throw new Error('Arquivo do comprovante não informado');
+  }
+
+  const tiposPermitidos = ['image/png', 'image/jpeg', 'image/jpg', 'application/pdf'];
+  if (!tiposPermitidos.includes(mimeType)) {
+    throw new Error('Tipo de arquivo não suportado. Use PNG, JPG ou PDF.');
+  }
+
+  const base64Normalizada = base64Raw.replace(/\s/g, '+');
+  let bytes = null;
+  try {
+    bytes = Utilities.base64Decode(base64Normalizada);
+  } catch (_) {
+    throw new Error('Arquivo inválido (base64 corrompido)');
+  }
+
+  if (!bytes || !bytes.length) {
+    throw new Error('Arquivo vazio');
+  }
+
+  const maxBytes = 2 * 1024 * 1024; // 2 MB
+  if (bytes.length > maxBytes) {
+    throw new Error('Arquivo maior que 2MB. Reduza o comprovante e tente novamente.');
+  }
+
+  const pasta = obterPastaComprovantesFinanceiros_();
+  const usuario = getUsuarioAtual().email;
+  const ts = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyyMMdd-HHmmss');
+  const ext = mimeType === 'application/pdf' ? 'pdf' : (mimeType.indexOf('png') !== -1 ? 'png' : 'jpg');
+  const nomeBase = obterNomeBaseComprovante_(categoria, referencia, nomeOriginal);
+  const sufixoUnico = Utilities.getUuid().slice(0, 8).toUpperCase();
+  const nomeArquivoFinal = `COMP-${categoria}-${nomeBase}-${ts}-${sufixoUnico}.${ext}`;
+
+  const blob = Utilities.newBlob(bytes, mimeType === 'image/jpg' ? 'image/jpeg' : mimeType, nomeArquivoFinal);
+  const file = pasta.createFile(blob);
+  file.setDescription(`Comprovante financeiro | categoria=${categoria} | usuario=${usuario}`);
+
+  return {
+    sucesso: true,
+    idArquivo: file.getId(),
+    nomeArquivo: file.getName(),
+    linkArquivo: file.getUrl(),
+    pastaId: pasta.getId()
+  };
+}
+
+function obterPastaComprovantesFinanceiros_() {
+  const chaveConfig = 'PASTA_COMPROVANTES_FINANCEIRO_ID';
+  const folderId = (typeof obterConfig === 'function'
+    ? String(obterConfig(chaveConfig) || '').trim()
+    : '');
+
+  if (folderId) {
+    try {
+      return DriveApp.getFolderById(folderId);
+    } catch (_) {
+      throw new Error('ID de pasta de comprovantes inválido em CONFIG.PASTA_COMPROVANTES_FINANCEIRO_ID');
+    }
+  }
+
+  // Fallback seguro sem configuração prévia.
+  const root = DriveApp.getRootFolder();
+  const pastaCentral = getOrCreateFolderFinanceiro_(root, 'Central Financeira');
+  return getOrCreateFolderFinanceiro_(pastaCentral, 'Comprovantes');
+}
+
+function getOrCreateFolderFinanceiro_(parent, name) {
+  const it = parent.getFoldersByName(name);
+  return it.hasNext() ? it.next() : parent.createFolder(name);
+}
+
+function atualizarLinkPdfNoFechamento_(shFech, idFechamento, linkPdf) {
+  const valores = shFech.getDataRange().getValues();
+  if (!valores.length) return;
+
+  const head = valores[0];
+  const c = nome => head.indexOf(nome);
+  const idxId = c('ID_FECHAMENTO');
+  const idxLinkPdf = c('LINK_PDF_FECHAMENTO');
+  if (idxId === -1 || idxLinkPdf === -1) return;
+
+  for (let i = 1; i < valores.length; i++) {
+    if (String(valores[i][idxId]) === String(idFechamento)) {
+      shFech.getRange(i + 1, idxLinkPdf + 1).setValue(String(linkPdf || '').trim());
+      return;
+    }
+  }
+}
+
+function obterNomeBaseComprovante_(categoria, referencia, nomeOriginal) {
+  let label = '';
+
+  try {
+    if ((categoria === 'RECEBIMENTO' || categoria === 'SAIDA_EVENTO') && referencia) {
+      label = String(buscarNomeEventoPorID(referencia) || '');
+    }
+
+    if (categoria === 'FECHAMENTO_COMISSAO' && referencia) {
+      const v = buscarVendedor(referencia);
+      if (v && v.nome) label = 'VEND-' + String(v.nome);
+    }
+  } catch (_) {}
+
+  if (!label) {
+    label = String(nomeOriginal || 'comprovante').replace(/\.[a-zA-Z0-9]+$/, '');
+  }
+
+  return slugArquivoSeguro_(label, 40) || 'COMPROVANTE';
+}
+
+function slugArquivoSeguro_(texto, maxLen) {
+  const raw = String(texto || '');
+  const ascii = raw
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-zA-Z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .toUpperCase();
+
+  const limite = Number(maxLen || 40);
+  return ascii.slice(0, limite);
 }
 
 /**
@@ -1448,63 +1801,65 @@ function apiEstornarRecebimento(payload) {
 
 function estornarRecebimento(idRecebimento, valorEstorno, motivo) {
   exigirAcao('eventos:estornarRecebimento');
-  const ss = SpreadsheetApp.getActive();
-  const sh = ss.getSheetByName('MOVIMENTACOES_FINANCEIRAS');
-  const usuario = getUsuarioAtual().email;
+  return executarComLockFinanceiro_('ESTORNO_RECEBIMENTO', function () {
+    const ss = SpreadsheetApp.getActive();
+    const sh = ss.getSheetByName('MOVIMENTACOES_FINANCEIRAS');
+    const usuario = getUsuarioAtual().email;
 
-  if (!idRecebimento || valorEstorno <= 0) {
-    throw new Error('Dados inválidos para estorno');
-  }
+    if (!idRecebimento || valorEstorno <= 0) {
+      throw new Error('Dados inválidos para estorno');
+    }
 
-  const data = sh.getDataRange().getValues();
-  const head = data.shift();
-  const c = name => head.indexOf(name);
+    const data = sh.getDataRange().getValues();
+    const head = data.shift();
+    const c = name => head.indexOf(name);
 
-  const receb = data.find(r =>
-    String(r[c('ID_MOVIMENTACAO')]) === String(idRecebimento) &&
-    r[c('NATUREZA')] === 'ENTRADA'
-  );
+    const receb = data.find(r =>
+      String(r[c('ID_MOVIMENTACAO')]) === String(idRecebimento) &&
+      r[c('NATUREZA')] === 'ENTRADA'
+    );
 
-  if (!receb) {
-    throw new Error('Recebimento não encontrado ou inválido');
-  }
+    if (!receb) {
+      throw new Error('Recebimento não encontrado ou inválido');
+    }
 
-  const idEvento = receb[c('ID_EVENTO')];
-  const valorOriginal = Number(receb[c('VALOR')]) || 0;
+    const idEvento = receb[c('ID_EVENTO')];
+    const valorOriginal = Number(receb[c('VALOR')]) || 0;
 
-  if (valorEstorno > valorOriginal) {
-    throw new Error('Valor de estorno maior que o valor recebido');
-  }
+    if (valorEstorno > valorOriginal) {
+      throw new Error('Valor de estorno maior que o valor recebido');
+    }
 
-  const linhaEstorno = [
-    gerarIDMovimentacao(),
-    'ESTORNO_RECEBIMENTO',
-    'SAÍDA',
-    idEvento,
-    receb[c('NOME_EVENTO')],
-    normalizarData(new Date()),
-    valorEstorno,
-    '',
-    receb[c('CONTRAPARTE')],
-    receb[c('ID_CONTRAPARTE')],
-    '',
-    `Estorno de ${idRecebimento} | Motivo: ${motivo}`,
-    usuario,
-    new Date(),
-    '',
-    'PROCESSADO'
-  ];
+    const linhaEstorno = [
+      gerarIDMovimentacao(),
+      'ESTORNO_RECEBIMENTO',
+      'SAÍDA',
+      idEvento,
+      receb[c('NOME_EVENTO')],
+      normalizarData(new Date()),
+      valorEstorno,
+      '',
+      receb[c('CONTRAPARTE')],
+      receb[c('ID_CONTRAPARTE')],
+      '',
+      `Estorno de ${idRecebimento} | Motivo: ${motivo}`,
+      usuario,
+      new Date(),
+      '',
+      'PROCESSADO'
+    ];
 
-  sh.appendRow(linhaEstorno);
+    appendRowComVerificacao_(sh, linhaEstorno, 'MOVIMENTACOES_FINANCEIRAS/ESTORNO_RECEBIMENTO');
 
-  // Atualiza resumo financeiro do evento
-  atualizarResumoFinanceiroEvento(idEvento);
+    // Atualiza resumo financeiro do evento
+    atualizarResumoFinanceiroEvento(idEvento);
 
-  return {
-    sucesso: true,
-    mensagem: 'Estorno registrado com sucesso',
-    idEstorno: linhaEstorno[0]
-  };
+    return {
+      sucesso: true,
+      mensagem: 'Estorno registrado com sucesso',
+      idEstorno: linhaEstorno[0]
+    };
+  });
 }
 
 function atualizarResumoFinanceiroEvento(idEvento) {
@@ -2012,11 +2367,7 @@ function lerComissaoEvento_(idEvento, eventosData, movData) {
 
   const pendente = Math.max(gerado - pago, 0);
 
-  let status = 'OK';
-  if (esperado === 0) status = 'NA';
-  else if (gerado === 0) status = 'AGUARDANDO';
-  else if (gerado < esperado) status = 'PARCIAL';
-  else if (pendente > 0) status = 'PENDENTE';
+  const status = determinarStatusComissao_(esperado, gerado, pago, pendente);
 
   return {
     existe: esperado > 0,
@@ -2095,21 +2446,7 @@ function lerComissaoEvento(idEvento) {
   // =====================================================
   // STATUS DA COMISSÃO
   // =====================================================
-  let status = 'OK';
-
-  if (esperado === 0) {
-    status = 'NA';
-  } else if (gerado === 0) {
-    status = 'AGUARDANDO';
-  } else if (gerado < esperado) {
-    status = 'PARCIAL';
-  } else if (gerado === esperado && pendente > 0) {
-    status = 'PENDENTE';
-  } else if (pago === esperado) {
-    status = 'OK';
-  } else if (pago > esperado || gerado > esperado) {
-    status = 'ERRO';
-  }
+  const status = determinarStatusComissao_(esperado, gerado, pago, pendente);
 
   // =====================================================
   // ALERTAS
@@ -2155,10 +2492,195 @@ function lerComissaoEvento(idEvento) {
       pendente
     },
 
-    status, // NA | AGUARDANDO | PARCIAL | PENDENTE | OK | ERRO
+    status, // NA | AGUARDANDO | PARCIAL | PENDENTE | QUITADO | ERRO
 
     alertas,
 
     acoes
+  };
+}
+
+/**
+ * =====================================================
+ * DIAGNÓSTICO DE INTEGRIDADE FINANCEIRA (SOMENTE LEITURA)
+ * Não altera dados; apenas aponta divergências para reconciliação manual.
+ * =====================================================
+ */
+function diagnosticarIntegridadeFinanceira(params) {
+  exigirAcao('eventos:visualizarFinanceiro');
+
+  const limite = Math.max(1, Math.min(Number((params && params.limit) || 200), 2000));
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const shEvt = ss.getSheetByName('EVENTOS');
+  const shMov = ss.getSheetByName('MOVIMENTACOES_FINANCEIRAS');
+
+  if (!shEvt || !shMov) {
+    throw new Error('Planilhas EVENTOS ou MOVIMENTACOES_FINANCEIRAS não encontradas');
+  }
+
+  const evtData = shEvt.getDataRange().getValues();
+  const movData = shMov.getDataRange().getValues();
+  if (evtData.length < 2) {
+    return {
+      sucesso: true,
+      resumo: { eventosAnalisados: 0, divergencias: 0 },
+      divergencias: []
+    };
+  }
+
+  const evtHead = evtData[0];
+  const movHead = movData[0];
+  const e = function (c) { return evtHead.indexOf(c); };
+  const m = function (c) { return movHead.indexOf(c); };
+
+  const colunasObrigatoriasEventos = [
+    'ID_EVENTO',
+    'VALOR_RECEBIDO',
+    'VALOR_PENDENTE',
+    'VALOR_TOTAL',
+    'VALOR_COMISSAO_PAGO',
+    'VALOR_COMISSAO_CALCULADO',
+    'STATUS_COMISSAO'
+  ];
+  const colunasObrigatoriasMov = [
+    'TIPO_MOVIMENTACAO',
+    'STATUS',
+    'ID_EVENTO',
+    'ID_CONTRAPARTE',
+    'VALOR'
+  ];
+
+  for (let i = 0; i < colunasObrigatoriasEventos.length; i++) {
+    if (e(colunasObrigatoriasEventos[i]) === -1) {
+      throw new Error('Coluna obrigatória não encontrada em EVENTOS: ' + colunasObrigatoriasEventos[i]);
+    }
+  }
+  for (let j = 0; j < colunasObrigatoriasMov.length; j++) {
+    if (m(colunasObrigatoriasMov[j]) === -1) {
+      throw new Error('Coluna obrigatória não encontrada em MOVIMENTACOES_FINANCEIRAS: ' + colunasObrigatoriasMov[j]);
+    }
+  }
+
+  const mapaMov = {};
+  for (let i = 1; i < movData.length; i++) {
+    const row = movData[i];
+    const idEvento = String(row[m('ID_EVENTO')] || '').trim();
+    if (!idEvento) continue;
+
+    if (!mapaMov[idEvento]) {
+      mapaMov[idEvento] = {
+        recebidoLiquido: 0,
+        comissaoGeradaPorVendedor: {},
+        comissaoPagaPorVendedor: {}
+      };
+    }
+
+    const tipo = String(row[m('TIPO_MOVIMENTACAO')] || '');
+    const status = String(row[m('STATUS')] || '');
+    const valor = Number(row[m('VALOR')]) || 0;
+    const idVendedor = String(row[m('ID_CONTRAPARTE')] || '').trim();
+
+    if (status === 'CANCELADO') continue;
+
+    if (tipo === 'RECEBIMENTO_CLIENTE' && status === 'PROCESSADO') {
+      mapaMov[idEvento].recebidoLiquido += valor;
+    } else if (tipo === 'ESTORNO_RECEBIMENTO' && status === 'PROCESSADO') {
+      mapaMov[idEvento].recebidoLiquido -= valor;
+    } else if (tipo === 'COMISSAO_GERADA') {
+      if (!mapaMov[idEvento].comissaoGeradaPorVendedor[idVendedor]) {
+        mapaMov[idEvento].comissaoGeradaPorVendedor[idVendedor] = 0;
+      }
+      mapaMov[idEvento].comissaoGeradaPorVendedor[idVendedor] += valor;
+
+      if (status === 'PROCESSADO') {
+        if (!mapaMov[idEvento].comissaoPagaPorVendedor[idVendedor]) {
+          mapaMov[idEvento].comissaoPagaPorVendedor[idVendedor] = 0;
+        }
+        mapaMov[idEvento].comissaoPagaPorVendedor[idVendedor] += valor;
+      }
+    }
+  }
+
+  const divergencias = [];
+  const tolerancia = 0.01;
+
+  for (let i = 1; i < evtData.length; i++) {
+    const row = evtData[i];
+    const idEvento = String(row[e('ID_EVENTO')] || '').trim();
+    if (!idEvento) continue;
+
+    const idVendedor = String(row[e('ID_VENDEDOR')] || '').trim();
+    const valorTotal = Number(row[e('VALOR_TOTAL')]) || 0;
+    const valorRecebidoEspelho = Number(row[e('VALOR_RECEBIDO')]) || 0;
+    const valorPendenteEspelho = Number(row[e('VALOR_PENDENTE')]) || 0;
+    const valorComissaoPagaEspelho = Number(row[e('VALOR_COMISSAO_PAGO')]) || 0;
+    const valorComissaoEsperada = Number(row[e('VALOR_COMISSAO_CALCULADO')]) || 0;
+    const statusComissaoEspelho = String(row[e('STATUS_COMISSAO')] || '');
+
+    const mov = mapaMov[idEvento] || {
+      recebidoLiquido: 0,
+      comissaoGeradaPorVendedor: {},
+      comissaoPagaPorVendedor: {}
+    };
+
+    const recebidoCalculado = Number((mov.recebidoLiquido || 0).toFixed(2));
+    const pendenteCalculado = Number(Math.max(valorTotal - recebidoCalculado, 0).toFixed(2));
+    const comissaoGerada = Number((mov.comissaoGeradaPorVendedor[idVendedor] || 0).toFixed(2));
+    const comissaoPaga = Number((mov.comissaoPagaPorVendedor[idVendedor] || 0).toFixed(2));
+    const comissaoPendente = Number(Math.max(comissaoGerada - comissaoPaga, 0).toFixed(2));
+    const statusEsperado = determinarStatusComissao_(
+      Number(valorComissaoEsperada.toFixed(2)),
+      comissaoGerada,
+      comissaoPaga,
+      comissaoPendente
+    );
+
+    if (Math.abs(valorRecebidoEspelho - recebidoCalculado) > tolerancia) {
+      divergencias.push({
+        idEvento: idEvento,
+        tipo: 'VALOR_RECEBIDO_DIVERGENTE',
+        esperado: recebidoCalculado,
+        atual: Number(valorRecebidoEspelho.toFixed(2))
+      });
+    }
+
+    if (Math.abs(valorPendenteEspelho - pendenteCalculado) > tolerancia) {
+      divergencias.push({
+        idEvento: idEvento,
+        tipo: 'VALOR_PENDENTE_DIVERGENTE',
+        esperado: pendenteCalculado,
+        atual: Number(valorPendenteEspelho.toFixed(2))
+      });
+    }
+
+    if (Math.abs(valorComissaoPagaEspelho - comissaoPaga) > tolerancia) {
+      divergencias.push({
+        idEvento: idEvento,
+        tipo: 'VALOR_COMISSAO_PAGO_DIVERGENTE',
+        esperado: comissaoPaga,
+        atual: Number(valorComissaoPagaEspelho.toFixed(2))
+      });
+    }
+
+    if (statusComissaoEspelho !== statusEsperado) {
+      divergencias.push({
+        idEvento: idEvento,
+        tipo: 'STATUS_COMISSAO_DIVERGENTE',
+        esperado: statusEsperado,
+        atual: statusComissaoEspelho || 'N/A'
+      });
+    }
+
+    if (divergencias.length >= limite) break;
+  }
+
+  return {
+    sucesso: true,
+    resumo: {
+      eventosAnalisados: evtData.length - 1,
+      divergencias: divergencias.length,
+      truncadoNoLimite: divergencias.length >= limite
+    },
+    divergencias: divergencias
   };
 }

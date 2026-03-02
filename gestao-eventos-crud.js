@@ -534,7 +534,10 @@ function listarEventos(filtros = {}) {
         tipoEvento: data[i][COL.TIPO_EVENTO],   // "Casamento", "BLOQUEIO", "REUNIÃO"
         projeto: data[i][COL.PROJETO],          // "Banda Completa"
         contratante: data[i][COL.NOME_CONTRATANTE], // "Fernando Amorim"
+        cerimonialista: data[i][COL.NOME_CERIMONIALISTA], // Cerimonialista
         local: data[i][COL.LOCAL],              // "PALLATIUM"
+        look: data[i][COL.LOOK],                // Look
+        somResponsavel: data[i][COL.SOM_RESPONSAVEL], // Som responsável
         valor: data[i][COL.VALOR_TOTAL],        // 20000
         status: data[i][COL.STATUS_RECEBIMENTO], // "Pendente"
         observacoes: data[i][COL.OBSERVACOES]   // Observações do evento

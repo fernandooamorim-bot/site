@@ -28,6 +28,10 @@ function gerarPdfFechamentoComissao(idFechamento) {
   const fechData = shFech.getDataRange().getValues();
   const fechHead = fechData.shift();
   const f = c => fechHead.indexOf(c);
+  const dataGeracaoPorFechamento = {};
+  fechData.forEach(r => {
+    dataGeracaoPorFechamento[String(r[f('ID_FECHAMENTO')])] = new Date(r[f('DATA_GERACAO')]).getTime();
+  });
 
   const fechamento = fechData.find(r => r[f('ID_FECHAMENTO')] === idFechamento);
   if (!fechamento) throw new Error('Fechamento não encontrado.');
@@ -38,21 +42,69 @@ function gerarPdfFechamentoComissao(idFechamento) {
   };
 
   const dataGeracao = fechamento[f('DATA_GERACAO')];
+  const tsFechamentoAtual = new Date(dataGeracao).getTime();
   const totalComissao = Number(fechamento[f('TOTAL_COMISSAO')]) || 0;
   const ajusteCredito = Number(fechamento[f('AJUSTE_CREDITO')]) || 0;
   const ajusteDebito  = Number(fechamento[f('AJUSTE_DEBITO')]) || 0;
   const valorFinal    = Number(fechamento[f('VALOR_FINAL')]) || 0;
+  const snapshotRaw = f('SNAPSHOT_FECHAMENTO') >= 0 ? fechamento[f('SNAPSHOT_FECHAMENTO')] : '';
+  let snapshot = null;
+  try {
+    snapshot = snapshotRaw ? JSON.parse(String(snapshotRaw)) : null;
+  } catch (_) {
+    snapshot = null;
+  }
+
+  const ajustePorEventoSnapshot = {};
+  const ajusteObsPorEventoSnapshot = {};
+  if (snapshot && Array.isArray(snapshot.comissoes)) {
+    snapshot.comissoes.forEach(item => {
+      const idEvento = String(item.idEvento || '');
+      if (!idEvento) return;
+      const valorAjuste = Number(item.ajusteComissao || 0);
+      ajustePorEventoSnapshot[idEvento] = (ajustePorEventoSnapshot[idEvento] || 0) + valorAjuste;
+    });
+  }
+  if (snapshot && Array.isArray(snapshot.ajustesEstorno)) {
+    snapshot.ajustesEstorno.forEach(item => {
+      const idEvento = String(item.idEvento || '');
+      if (!idEvento) return;
+      const obs = String(item.observacoes || '').trim();
+      if (obs && !ajusteObsPorEventoSnapshot[idEvento]) {
+        ajusteObsPorEventoSnapshot[idEvento] = obs;
+      }
+    });
+  }
 
   /* ================= COMISSÕES DO FECHAMENTO ================= */
 
   const movData = shMov.getDataRange().getValues();
   const movHead = movData.shift();
   const m = c => movHead.indexOf(c);
+  const idVendedorFechamento = String(vendedor.id);
+
+  // Total já pago por evento (inclui fechamento atual + anteriores) para o vendedor
+  const totalPagoPorEvento = {};
+  movData.forEach(r => {
+    const idFechMov = String(r[m('INCLUIDO_EM_FECHAMENTO')] || '');
+    const tsFechMov = idFechMov ? dataGeracaoPorFechamento[idFechMov] : null;
+    if (
+      r[m('TIPO_MOVIMENTACAO')] === 'COMISSAO_GERADA' &&
+      r[m('STATUS')] === 'PROCESSADO' &&
+      String(r[m('ID_CONTRAPARTE')]) === idVendedorFechamento &&
+      tsFechMov &&
+      tsFechMov <= tsFechamentoAtual
+    ) {
+      const idEvento = String(r[m('ID_EVENTO')]);
+      const valor = Number(r[m('VALOR')]) || 0;
+      totalPagoPorEvento[idEvento] = (totalPagoPorEvento[idEvento] || 0) + valor;
+    }
+  });
 
   const comissoes = movData
     .filter(r =>
       r[m('TIPO_MOVIMENTACAO')] === 'COMISSAO_GERADA' &&
-      r[m('INCLUIDO_EM_FECHAMENTO')] === idFechamento
+      String(r[m('INCLUIDO_EM_FECHAMENTO')]) === String(idFechamento)
     )
     .map(r => ({
       idEvento: r[m('ID_EVENTO')],
@@ -71,7 +123,7 @@ function gerarPdfFechamentoComissao(idFechamento) {
 
   comissoes.forEach(c => {
     if (!eventosMap[c.idEvento]) {
-      const evt = evtData.find(r => r[e('ID_EVENTO')] === c.idEvento);
+      const evt = evtData.find(r => String(r[e('ID_EVENTO')]) === String(c.idEvento));
       if (!evt) return;
 
       const dataEventoRaw = evt[e('DATA_EVENTO')];
@@ -100,7 +152,7 @@ function gerarPdfFechamentoComissao(idFechamento) {
 
       // Valores já gravados
       let valorComissaoTotalEvento = Number(evt[e('VALOR_COMISSAO_CALCULADO')]) || 0;
-      const valorComissaoPagoEvento = Number(evt[e('VALOR_COMISSAO_PAGO')]) || 0;
+      const valorComissaoPagoEvento = Number(totalPagoPorEvento[String(c.idEvento)]) || 0;
 
       let descricaoBase = '';
       let percentualTotalPago = null;
@@ -112,7 +164,10 @@ function gerarPdfFechamentoComissao(idFechamento) {
       // Comissão FIXA → sem percentual
       if (comissaoTipo === 'Fixo') {
         descricaoBase = 'Comissão fixa — não possui base percentual';
-        percentualTotalPago = null;
+        percentualTotalPago =
+          valorComissaoTotalEvento > 0
+            ? (valorComissaoPagoEvento / valorComissaoTotalEvento) * 100
+            : null;
 
         tipoComissaoLabel = 'Fixa';
         infoComissaoAplicada = `Valor fixo aplicado: ${formatarMoeda(valorComissaoTotalEvento || valorComissaoPagoEvento)}`;
@@ -221,7 +276,9 @@ function gerarPdfFechamentoComissao(idFechamento) {
           evt[e('VALOR_NF')] > 0 ? `NF: ${formatarMoeda(evt[e('VALOR_NF')])}` : null
         ].filter(Boolean).join(' | '),
         tipoComissao: tipoComissaoLabel,
-        infoComissaoAplicada: infoComissaoAplicada
+        infoComissaoAplicada: infoComissaoAplicada,
+        ajusteEstornoFechamento: Number(ajustePorEventoSnapshot[String(c.idEvento)] || 0),
+        ajusteEstornoObs: String(ajusteObsPorEventoSnapshot[String(c.idEvento)] || '')
       };
     }
 
@@ -296,105 +353,344 @@ function gerarRelatorioComissaoHTML_V2(
   ajusteDebito,
   valorFinal
 ) {
+  const logoUrl = (typeof obterConfig === 'function')
+    ? String(obterConfig('LOGO_RELATORIO_PDF_URL') || '').trim()
+    : '';
+  const logoDataUri = montarLogoDataUriParaPdf_(logoUrl);
+  const dataFmt = Utilities.formatDate(
+    new Date(dataGeracao),
+    Session.getScriptTimeZone(),
+    'dd/MM/yyyy HH:mm'
+  );
 
-  const dataFmt = Utilities.formatDate(new Date(dataGeracao), Session.getScriptTimeZone(), 'dd/MM/yyyy HH:mm');
+  let blocosEventos = '';
+  eventos.forEach(ev => {
+    const pctPago = ev.percentualTotalPago !== null && isFinite(ev.percentualTotalPago)
+      ? ev.percentualTotalPago.toFixed(1) + '%'
+      : '-';
 
-  let html = `
+    blocosEventos += `
+      <article class="event">
+        <div class="event-head">
+          <p class="event-title">${ev.nomeEvento} (${ev.idEvento})</p>
+          <div class="event-sub">
+            Data: ${ev.dataEvento || '-'} | Tipo: ${ev.tipoComissao || '-'} | ${ev.infoComissaoAplicada || ''}
+          </div>
+        </div>
+
+        <table class="event-grid">
+          <tr>
+            <td class="event-cell">
+              <div class="label">Comissão neste fechamento</div>
+              <div class="value ok">${formatarMoeda(ev.totalComissaoEvento)}</div>
+            </td>
+
+            <td class="event-cell">
+              <div class="label">% total pago (acumulado)</div>
+              <div class="value accent">${pctPago}</div>
+            </td>
+
+            <td class="event-cell">
+              <div class="label">Comissão total já paga (acumulado)</div>
+              <div class="value">${formatarMoeda(ev.totalPago)}</div>
+            </td>
+          </tr>
+        </table>
+
+        ${ev.ajusteEstornoFechamento < 0 ? `
+          <div class="event-alert">
+            Ajuste por estorno aplicado neste fechamento: ${formatarMoeda(ev.ajusteEstornoFechamento)}
+            ${ev.ajusteEstornoObs ? ` | ${ev.ajusteEstornoObs}` : ''}
+          </div>
+        ` : ''}
+
+        <div class="base-desc">${ev.descricaoBase || ''}</div>
+      </article>
+    `;
+  });
+
+  return `
 <!DOCTYPE html>
 <html>
 <head>
-<meta charset="UTF-8">
-<style>
-  /* === CSS PROFISSIONAL MANTIDO === */
-  body { font-family:'Helvetica Neue', Arial; color:#333; padding:40px; }
-  h1 { font-size:24px; margin-bottom:20px; }
-  .header { text-align:center; border-bottom:3px solid #667eea; padding-bottom:20px; }
-  .logo { font-size:28px; font-weight:bold; color:#667eea; }
-  .subtitle { color:#666; }
-  .info-box { background:#f8f9fa; padding:20px; border-radius:8px; margin:30px 0; }
-  .info-row { display:flex; justify-content:space-between; padding:6px 0; }
-  .evento-card { border:1px solid #dee2e6; border-radius:8px; padding:15px; margin-bottom:15px; }
-  .evento-header { font-weight:600; font-size:16px; margin-bottom:8px; }
-  .recebimento-item { display:flex; justify-content:space-between; padding:6px 0; }
-  .recebimento-comissao { color:#28a745; font-weight:600; }
-  .evento-total { border-top:2px solid #dee2e6; margin-top:10px; padding-top:10px; text-align:right; font-weight:600; }
-  .resumo-box { background:linear-gradient(135deg,#667eea,#764ba2); color:#fff; padding:25px; border-radius:12px; margin-top:30px; }
-  .resumo-item { display:flex; justify-content:space-between; padding:8px 0; }
-  .valor-final { margin-top:15px; font-size:20px; font-weight:bold; text-align:center; }
-  .footer { margin-top:40px; font-size:12px; text-align:center; color:#666; }
-</style>
+  <meta charset="UTF-8">
+  <style>
+    @page { size: A4; margin: 12mm; }
+    html, body {
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    * {
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: #f4f6fb !important;
+      color: #0f172a;
+      font: 13px/1.4 "Avenir Next", "Segoe UI", sans-serif;
+      padding: 20px;
+    }
+
+    .page {
+      background: #ffffff !important;
+      border: 1px solid #d9e2f2;
+      border-radius: 16px;
+      overflow: hidden;
+    }
+
+    .hero {
+      background-color: #0a4ea3 !important;
+      color: #fff;
+      padding: 16px 20px;
+    }
+
+    .hero-table {
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: fixed;
+    }
+
+    .hero-left {
+      width: 78%;
+      vertical-align: top;
+    }
+
+    .hero-right {
+      width: 22%;
+      text-align: right;
+      vertical-align: middle;
+    }
+
+    .hero-logo {
+      max-width: 130px;
+      max-height: 44px;
+      height: auto;
+      width: auto;
+    }
+
+    .hero h1 {
+      margin: 0 0 4px;
+      font-size: 22px;
+      letter-spacing: .2px;
+    }
+
+    .hero p {
+      margin: 0;
+      opacity: .95;
+      font-size: 12px;
+    }
+
+    .meta {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 10px;
+      margin: 10px 12px 4px;
+    }
+
+    .card {
+      background-color: #f8fbff !important;
+      border: 1px solid #d7e6ff;
+      border-radius: 10px;
+      padding: 8px 10px;
+      vertical-align: top;
+      width: 33.33%;
+    }
+
+    .k {
+      color: #475569;
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: .4px;
+    }
+
+    .v {
+      margin-top: 2px;
+      font-weight: 700;
+      font-size: 14px;
+      color: #0f172a;
+      word-break: break-word;
+    }
+
+    .content { padding: 6px 16px 18px; }
+    h2 { margin: 6px 0 10px; font-size: 16px; color: #0b2447; }
+
+    .event {
+      border: 1px solid #d9e2f2;
+      border-radius: 12px;
+      margin-bottom: 10px;
+      overflow: hidden;
+      page-break-inside: avoid;
+      break-inside: avoid;
+    }
+
+    .event-head {
+      background-color: #f8fafc !important;
+      padding: 9px 11px;
+      border-bottom: 1px solid #d9e2f2;
+    }
+
+    .event-title {
+      margin: 0;
+      font-size: 13px;
+      font-weight: 800;
+      color: #0b2447;
+    }
+
+    .event-sub {
+      margin-top: 3px;
+      color: #475569;
+      font-size: 11px;
+    }
+
+    .event-grid {
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: fixed;
+    }
+
+    .event-cell {
+      width: 33.33%;
+      padding: 9px 11px;
+      border-right: 1px solid #d9e2f2;
+      vertical-align: top;
+    }
+
+    .event-cell:last-child { border-right: 0; }
+
+    .label {
+      color: #475569;
+      font-size: 11px;
+      margin-bottom: 4px;
+    }
+
+    .value {
+      font-size: 15px;
+      font-weight: 800;
+      color: #0f172a;
+    }
+
+    .value.ok { color: #0f766e; }
+    .value.accent { color: #7c3aed; }
+
+    .event-alert {
+      margin: 8px 10px 0;
+      padding: 7px 10px;
+      border-radius: 8px;
+      background-color: #fff7ed !important;
+      border: 1px solid #fed7aa;
+      color: #9a3412;
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    .base-desc {
+      border-top: 1px solid #d9e2f2;
+      padding: 8px 11px;
+      color: #475569;
+      font-size: 11px;
+    }
+
+    .summary {
+      margin-top: 12px;
+      border-radius: 14px;
+      padding: 12px 14px;
+      color: #fff;
+      background-color: #1e3a8a !important;
+      page-break-inside: avoid;
+      break-inside: avoid;
+    }
+
+    .summary-grid {
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: fixed;
+    }
+
+    .summary-grid td {
+      padding: 5px 0;
+      border-bottom: 1px solid rgba(255,255,255,.20);
+      font-size: 13px;
+      color: #ffffff;
+    }
+
+    .summary-grid tr:last-child td {
+      border-bottom: 0;
+    }
+
+    .summary-grid td:last-child {
+      text-align: right;
+      font-weight: 700;
+    }
+
+    .final {
+      margin-top: 8px;
+      text-align: center;
+      font-size: 20px;
+      font-weight: 900;
+      letter-spacing: .2px;
+    }
+
+    .foot {
+      margin-top: 10px;
+      color: #dbeafe;
+      text-align: center;
+      font-size: 10px;
+    }
+  </style>
 </head>
 <body>
+  <div class="page">
+    <div class="hero">
+      <table class="hero-table">
+        <tr>
+          <td class="hero-left">
+            <h1>Fechamento de Comissão</h1>
+            <p>Demonstrativo profissional de comissões - Banda Fernando Amorim</p>
+          </td>
+          <td class="hero-right">
+            ${logoDataUri ? `<img class="hero-logo" src="${logoDataUri}" alt="Logo">` : ''}
+          </td>
+        </tr>
+      </table>
+    </div>
 
-<div class="header">
-  <div class="logo">🎵 BANDA FERNANDO AMORIM</div>
-  <div class="subtitle">Demonstrativo de Comissão</div>
-</div>
+    <table class="meta">
+      <tr>
+        <td class="card">
+          <div class="k">Fechamento</div>
+          <div class="v">${idFechamento}</div>
+        </td>
+        <td class="card">
+          <div class="k">Vendedor</div>
+          <div class="v">${vendedor.nome}</div>
+        </td>
+        <td class="card">
+          <div class="k">Data de geracao</div>
+          <div class="v">${dataFmt}</div>
+        </td>
+      </tr>
+    </table>
 
-<div class="info-box">
-  <div class="info-row"><strong>Fechamento:</strong> ${idFechamento}</div>
-  <div class="info-row"><strong>Vendedor:</strong> ${vendedor.nome}</div>
-  <div class="info-row"><strong>Data:</strong> ${dataFmt}</div>
-</div>
+    <div class="content">
+      <h2>Detalhamento por Evento</h2>
+      ${blocosEventos || '<div>Nenhum evento encontrado para este fechamento.</div>'}
 
-<h1>Detalhamento por Evento</h1>
-`;
-
-  eventos.forEach(ev => {
-    html += `
-<div class="evento-card">
-  <div class="evento-header">
-    ${ev.dataEvento} — ${ev.nomeEvento} (${ev.idEvento})
+      <div class="summary">
+        <table class="summary-grid">
+          <tr><td>Total Comissões</td><td>${formatarMoeda(totalComissao)}</td></tr>
+          <tr><td>Ajuste Crédito</td><td>${formatarMoeda(ajusteCredito)}</td></tr>
+          <tr><td>Ajuste Débito</td><td>${formatarMoeda(ajusteDebito)}</td></tr>
+        </table>
+        <div class="final">VALOR FINAL: ${formatarMoeda(valorFinal)}</div>
+        <div class="foot">Documento gerado automaticamente pelo sistema | ${dataFmt}</div>
+      </div>
+    </div>
   </div>
-  <div style="font-size:12px;color:#555;margin-bottom:6px">
-    <strong>Tipo de comissão:</strong> ${ev.tipoComissao}<br>
-    ${ev.infoComissaoAplicada}
-  </div>
-
-  <div class="info-row">
-    <span>Comissão neste fechamento</span>
-    <span class="recebimento-comissao">${formatarMoeda(ev.totalComissaoEvento)}</span>
-  </div>
-
-  <div class="info-row">
-    <span>% total pago</span>
-    <span>
-      ${ev.percentualTotalPago !== null
-  ? ev.percentualTotalPago.toFixed(1) + '%'
-  : '—'}
-    </span>
-  </div>
-
-  <div class="info-row">
-    <span>Comissão total já paga</span>
-    <span>${formatarMoeda(ev.totalPago)}</span>
-  </div>
-
-  <div style="margin-top:8px;font-size:12px;color:#666">
-    ${ev.descricaoBase}
-  </div>
-</div>
-`;
-  });
-
-  html += `
-<div class="resumo-box">
-  <div class="resumo-item"><span>Total Comissões</span><span>${formatarMoeda(totalComissao)}</span></div>
-  <div class="resumo-item"><span>Ajuste Crédito</span><span>${formatarMoeda(ajusteCredito)}</span></div>
-  <div class="resumo-item"><span>Ajuste Débito</span><span>${formatarMoeda(ajusteDebito)}</span></div>
-  <div class="valor-final">VALOR FINAL: ${formatarMoeda(valorFinal)}</div>
-</div>
-
-<div class="footer">
-  Documento gerado automaticamente pelo sistema<br>
-  ${dataFmt}
-</div>
-
 </body>
 </html>
 `;
-
-  return html;
 }
 
 /* ================= UTIL ================= */
@@ -409,6 +705,124 @@ function formatarMoeda(valor) {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2
   });
+}
+
+/**
+ * Converte URL de logo em data URI para render consistente no PDF do Apps Script.
+ * Se falhar, retorna string vazia e o template segue sem logo (sem quebrar layout).
+ */
+function montarLogoDataUriParaPdf_(logoUrl) {
+  if (!logoUrl) return '';
+
+  try {
+    const ref = String(logoUrl || '').trim();
+
+    // 1) Já é data URI
+    if (ref.indexOf('data:image/') === 0) {
+      return ref;
+    }
+
+    // 2) Google Drive (ID direto ou URL)
+    const driveId = extrairDriveFileId_(ref);
+    if (driveId) {
+      try {
+        const file = DriveApp.getFileById(driveId);
+        return blobParaDataUriImagem_(file.getBlob(), ref);
+      } catch (driveErr) {
+        registrarFalhaLogoPdf_('DRIVE_FALHA', {
+          ref: ref,
+          detalhe: String(driveErr && driveErr.message ? driveErr.message : driveErr)
+        });
+        return '';
+      }
+    }
+
+    // 3) URL externa (tentativa dupla para reduzir bloqueio por host)
+    const tentativas = [
+      {
+        muteHttpExceptions: true,
+        followRedirects: true,
+        headers: { 'User-Agent': 'Mozilla/5.0 (AppsScript PDF Renderer)' }
+      },
+      {
+        muteHttpExceptions: true,
+        followRedirects: true
+      }
+    ];
+
+    for (let i = 0; i < tentativas.length; i++) {
+      const resp = UrlFetchApp.fetch(ref, tentativas[i]);
+      const code = resp.getResponseCode();
+      if (code < 200 || code >= 300) continue;
+
+      try {
+        return blobParaDataUriImagem_(resp.getBlob(), ref);
+      } catch (tipoErr) {
+        registrarFalhaLogoPdf_('TIPO_INVALIDO', {
+          ref: ref,
+          detalhe: String(tipoErr && tipoErr.message ? tipoErr.message : tipoErr)
+        });
+        return '';
+      }
+    }
+
+    registrarFalhaLogoPdf_('HTTP_FALHA', { ref: ref });
+    return '';
+  } catch (err) {
+    registrarFalhaLogoPdf_('EXCECAO', {
+      ref: String(logoUrl || ''),
+      detalhe: String(err && err.message ? err.message : err)
+    });
+    return '';
+  }
+}
+
+function extrairDriveFileId_(ref) {
+  const raw = String(ref || '').trim();
+  if (!raw) return '';
+
+  if (/^[a-zA-Z0-9_-]{20,}$/.test(raw)) return raw;
+
+  const m = raw.match(/\/d\/([a-zA-Z0-9_-]{20,})/) || raw.match(/[?&]id=([a-zA-Z0-9_-]{20,})/);
+  return m ? m[1] : '';
+}
+
+function blobParaDataUriImagem_(blob, origem) {
+  const ctRaw = String(blob.getContentType() || '').toLowerCase().trim();
+  const ct = ctRaw === 'image/jpg' ? 'image/jpeg' : ctRaw;
+  const permitidos = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'];
+
+  if (!permitidos.includes(ct)) {
+    throw new Error('Tipo não suportado para logo: ' + ct + ' origem=' + String(origem || ''));
+  }
+
+  const base64 = Utilities.base64Encode(blob.getBytes());
+  return 'data:' + ct + ';base64,' + base64;
+}
+
+function registrarFalhaLogoPdf_(codigo, detalhesObj) {
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    let sh = ss.getSheetByName('LOGS');
+    if (!sh) return;
+
+    const idLog = 'LOGO-' + Date.now();
+    const detalhes = JSON.stringify({
+      tipo: 'PDF_LOGO',
+      codigo: String(codigo || ''),
+      ...detalhesObj
+    });
+
+    sh.appendRow([
+      idLog,
+      new Date(),
+      'SISTEMA',
+      'GERAR_PDF_COMISSAO',
+      'RELATORIO_PDF',
+      '',
+      detalhes
+    ]);
+  } catch (_) {}
 }
 
 /**

@@ -241,9 +241,10 @@ function buscarVendedor(id) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheet = ss.getSheetByName('VENDEDORES');
   const data = sheet.getDataRange().getValues();
+  const alvo = String(id).trim();
   
   for (let i = 1; i < data.length; i++) {
-    if (data[i][0] === id) {
+    if (String(data[i][0]).trim() === alvo) {
       return {
         id: data[i][0],
         nome: data[i][1],
@@ -507,4 +508,3 @@ function normalizarData(valor) {
 
   return null;
 }
-
