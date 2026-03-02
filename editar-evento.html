@@ -1382,6 +1382,11 @@
               <span class="indicator indicator-warning">⚠️ Atualiza referência</span>
             </label>
             <select id="idContratante"></select>
+            <div style="margin-top:6px;">
+              <button type="button" class="btn btn-secondary" style="padding:5px 9px;font-size:12px;" onclick="habilitarTrocaReferencia('contratante')">
+                🔄 Trocar contratante
+              </button>
+            </div>
             <div id="avisoRefContratante" class="helper-text hidden"></div>
           </div>
           
@@ -1402,6 +1407,11 @@
             <span class="indicator indicator-warning">⚠️ Atualiza referência</span>
           </label>
           <select id="idEndereco"></select>
+          <div style="margin-top:6px;">
+            <button type="button" class="btn btn-secondary" style="padding:5px 9px;font-size:12px;" onclick="habilitarTrocaReferencia('endereco')">
+              🔄 Trocar local
+            </button>
+          </div>
           <div id="avisoRefEndereco" class="helper-text hidden"></div>
         </div>
       </div>
@@ -1950,10 +1960,69 @@ async function cadastrarReferenciaMestre(tipo) {
   }
 }
 
+function preencherSelectComReferenciaAtual(idSelect, idAtual, nomeAtual, placeholder) {
+  const select = document.getElementById(idSelect);
+  if (!select) return;
+
+  const id = String(idAtual || '').trim();
+  const nome = String(nomeAtual || '').trim();
+  select.innerHTML = '';
+
+  const optVazio = document.createElement('option');
+  optVazio.value = '';
+  optVazio.textContent = placeholder || '-- Sem referência --';
+  select.appendChild(optVazio);
+
+  if (id) {
+    const opt = document.createElement('option');
+    opt.value = id;
+    opt.textContent = nome || `[ID ${id}]`;
+    select.appendChild(opt);
+    select.value = id;
+  }
+}
+
+async function habilitarTrocaReferencia(tipo) {
+  const isContratante = tipo === 'contratante';
+  const idCampo = isContratante ? 'idContratante' : 'idEndereco';
+
+  mostrarLoadingGlobal(isContratante ? 'Carregando contratantes...' : 'Carregando locais...');
+  travarAcoes(true);
+  try {
+    if (isContratante) {
+      if (!window.__CACHE.contratantes) {
+        window.__CACHE.contratantes = await Auth.apiCall('listarContratantes', {});
+      }
+      popularDropdown('idContratante', window.__CACHE.contratantes || []);
+      if (eventoAtual?.idContratante) setValueSafe('idContratante', eventoAtual.idContratante);
+    } else {
+      if (!window.__CACHE.enderecos) {
+        window.__CACHE.enderecos = await Auth.apiCall('listarEnderecos', {});
+      }
+      popularDropdown('idEndereco', window.__CACHE.enderecos || []);
+      if (eventoAtual?.idEndereco) setValueSafe('idEndereco', eventoAtual.idEndereco);
+    }
+  } catch (err) {
+    mostrarAlerta('Falha ao carregar referências: ' + (err?.message || err), 'error');
+  } finally {
+    esconderLoadingGlobal();
+    travarAcoes(false);
+  }
+}
+
 function aplicarFallbackReferenciasMestre(evento) {
   if (!evento) return;
 
   // Contratante
+  if (!window.__CACHE.contratantes) {
+    preencherSelectComReferenciaAtual(
+      'idContratante',
+      evento.idContratante,
+      evento.nomeContratanteAtual,
+      '-- Selecione contratante --'
+    );
+  }
+
   if (evento.idContratante && !selectPossuiOpcao('idContratante', evento.idContratante)) {
     const label = `[LEGADO] ${evento.nomeContratanteAtual || 'Contratante sem cadastro'}`;
     garantirOpcaoLegadoSelect('idContratante', evento.idContratante, label);
@@ -1967,11 +2036,28 @@ function aplicarFallbackReferenciasMestre(evento) {
       `Valor legado preservado: <strong>${escapeHtml(evento.nomeContratanteAtual || '-')}</strong>. ` +
       `<button type="button" class="btn btn-secondary" style="margin-left:8px;padding:4px 8px;font-size:12px;" onclick="cadastrarReferenciaMestre('contratante')">Cadastrar no mestre</button>`
     );
+  } else if (evento.idContratante && evento.referenciaContratanteDivergente === true) {
+    mostrarAvisoReferencia(
+      'avisoRefContratante',
+      `⚠️ Divergência entre EVENTOS e cadastro mestre. ` +
+      `No evento: <strong>${escapeHtml(evento.nomeContratanteAtual || '-')}</strong>; ` +
+      `no mestre: <strong>${escapeHtml(evento.nomeContratanteCadastro || '-')}</strong>. ` +
+      `O sistema preservará o nome do evento até você regularizar manualmente.`
+    );
   } else {
     mostrarAvisoReferencia('avisoRefContratante', '');
   }
 
   // Endereço
+  if (!window.__CACHE.enderecos) {
+    preencherSelectComReferenciaAtual(
+      'idEndereco',
+      evento.idEndereco,
+      evento.nomeLocalAtual,
+      '-- Selecione local --'
+    );
+  }
+
   if (evento.idEndereco && !selectPossuiOpcao('idEndereco', evento.idEndereco)) {
     const label = `[LEGADO] ${evento.nomeLocalAtual || 'Local sem cadastro'}`;
     garantirOpcaoLegadoSelect('idEndereco', evento.idEndereco, label);
@@ -1985,6 +2071,14 @@ function aplicarFallbackReferenciasMestre(evento) {
       `Valor legado preservado: <strong>${escapeHtml(evento.nomeLocalAtual || '-')}</strong>. ` +
       `<button type="button" class="btn btn-secondary" style="margin-left:8px;padding:4px 8px;font-size:12px;" onclick="cadastrarReferenciaMestre('endereco')">Cadastrar no mestre</button>`
     );
+  } else if (evento.idEndereco && evento.referenciaEnderecoDivergente === true) {
+    mostrarAvisoReferencia(
+      'avisoRefEndereco',
+      `⚠️ Divergência entre EVENTOS e cadastro mestre. ` +
+      `No evento: <strong>${escapeHtml(evento.nomeLocalAtual || '-')}</strong>; ` +
+      `no mestre: <strong>${escapeHtml(evento.nomeLocalCadastro || '-')}</strong>. ` +
+      `O sistema preservará o local do evento até você regularizar manualmente.`
+    );
   } else {
     mostrarAvisoReferencia('avisoRefEndereco', '');
   }
@@ -1993,23 +2087,40 @@ function aplicarFallbackReferenciasMestre(evento) {
 async function iniciarEditarEvento() {
   try {
     fecharModal();
-    await carregarContratantesParaAutocomplete();
-    // carregar dados base após auth OK
-    carregarDropdowns();
-
     EVENTO_ID_URL = getIdEventoFromURL();
 
     if (EVENTO_ID_URL) {
-      mostrarAlerta('Carregando evento...', 'info');
+      mostrarLoadingGlobal('Carregando edição do evento...');
+      travarAcoes(true);
+      aplicarSkeletonFormulario(true);
+
+      const search = document.querySelector('.search-section');
+      if (search) search.style.display = 'none';
+      document.getElementById('formEdicao').classList.remove('hidden');
+
       const evento = await carregarEventoPorId(EVENTO_ID_URL);
       eventoAtual = evento;
       eventoOriginal = JSON.parse(JSON.stringify(evento));
-      document.querySelector('.search-section').style.display = 'none';
-      document.getElementById('formEdicao').classList.remove('hidden');
+
+      // Modo direto: carrega apenas dados essenciais; referências pesadas (contratante/local) sob demanda.
+      await carregarDropdowns({ autoFill: false, includeContratantes: false, includeEnderecos: false });
+      preencherFormulario(eventoAtual);
+
+      aplicarSkeletonFormulario(false);
+      esconderLoadingGlobal();
+      travarAcoes(false);
       mostrarAlerta('Evento carregado pela URL.', 'success');
+      return;
     }
+
+    await carregarContratantesParaAutocomplete();
+    // Fluxo de busca mantém carregamento padrão completo
+    carregarDropdowns();
   } catch (err) {
     console.error('AUTH ERROR:', err);
+    esconderLoadingGlobal();
+    aplicarSkeletonFormulario(false);
+    travarAcoes(false);
     alert('Sessão expirada. Volte ao menu.');
     window.location.href = 'index.html';
   }
@@ -2476,15 +2587,20 @@ async function validarImpactoFinanceiroAntesSalvar(callback) {
 }
     
     // Resto das funções (igual à versão anterior)
-    async function carregarDropdowns() {
+    async function carregarDropdowns(opts = {}) {
+      const autoFill = opts.autoFill !== false;
+      const includeContratantes = opts.includeContratantes !== false;
+      const includeEnderecos = opts.includeEnderecos !== false;
       try {
-        let lista;
-        if (!window.__CACHE.contratantes) {
-          window.__CACHE.contratantes = await Auth.apiCall('listarContratantes', {});
+        if (includeContratantes) {
+          let lista;
+          if (!window.__CACHE.contratantes) {
+            window.__CACHE.contratantes = await Auth.apiCall('listarContratantes', {});
+          }
+          lista = window.__CACHE.contratantes;
+          if (lista && lista.error) throw new Error(lista.error);
+          popularDropdown('idContratante', lista);
         }
-        lista = window.__CACHE.contratantes;
-        if (lista && lista.error) throw new Error(lista.error);
-        popularDropdown('idContratante', lista);
       } catch (e) {}
       try {
         let lista;
@@ -2496,13 +2612,15 @@ async function validarImpactoFinanceiroAntesSalvar(callback) {
         popularDropdown('idCerimonialista', lista, true);
       } catch (e) {}
       try {
-        let lista;
-        if (!window.__CACHE.enderecos) {
-          window.__CACHE.enderecos = await Auth.apiCall('listarEnderecos', {});
+        if (includeEnderecos) {
+          let lista;
+          if (!window.__CACHE.enderecos) {
+            window.__CACHE.enderecos = await Auth.apiCall('listarEnderecos', {});
+          }
+          lista = window.__CACHE.enderecos;
+          if (lista && lista.error) throw new Error(lista.error);
+          popularDropdown('idEndereco', lista);
         }
-        lista = window.__CACHE.enderecos;
-        if (lista && lista.error) throw new Error(lista.error);
-        popularDropdown('idEndereco', lista);
       } catch (e) {}
       try {
         let lista;
@@ -2541,7 +2659,7 @@ async function validarImpactoFinanceiroAntesSalvar(callback) {
             sel.appendChild(opt);
           });
           __dropdownsProntos.tipoEvento = true;
-          tentarPreencherEventoAposDropdowns();
+          if (autoFill) tentarPreencherEventoAposDropdowns();
         }
       } catch (e) {}
       // CONFIG - Durações
@@ -2568,7 +2686,7 @@ async function validarImpactoFinanceiroAntesSalvar(callback) {
             sel.appendChild(opt);
           });
           __dropdownsProntos.duracao = true;
-          tentarPreencherEventoAposDropdowns();
+          if (autoFill) tentarPreencherEventoAposDropdowns();
         }
       } catch (e) {}
       // CONFIG - Projetos
@@ -2591,7 +2709,7 @@ async function validarImpactoFinanceiroAntesSalvar(callback) {
             sel.appendChild(opt);
           });
           __dropdownsProntos.projeto = true;
-          tentarPreencherEventoAposDropdowns();
+          if (autoFill) tentarPreencherEventoAposDropdowns();
         }
       } catch (e) {}
     }
