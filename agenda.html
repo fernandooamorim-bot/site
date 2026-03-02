@@ -1171,7 +1171,8 @@ if (!AUTH.email) {
   // Cache de eventos
   cache: {
     timestamp: 0,
-    dados: null
+    dados: null,
+    syncVersion: ''
   },
       eventos: [],
       eventosFiltrados: [],
@@ -1181,6 +1182,8 @@ if (!AUTH.email) {
       loading: false
 
     };
+
+    const AGENDA_CACHE_KEY_PREFIX = 'agenda_cache_v2:';
 
     function isMusico() {
       return AppState.usuario && AppState.usuario.perfil === 'Músico';
@@ -2287,11 +2290,67 @@ renderizarEventosDentro(evento) {
     const agora = Date.now();
     const idade = agora - AppState.cache.timestamp;
 
-    const valido = AppState.cache.dados && idade < timeout;
+    const valido = Array.isArray(AppState.cache.dados) && idade < timeout;
 
     Utils.log(`Cache: ${valido ? '✅ VÁLIDO' : '❌ EXPIRADO'} (${Math.round(idade/1000)}s)`);
 
     return valido;
+  },
+
+  getCacheKeyPersistente() {
+    const email = (AUTH.email || '').trim().toLowerCase();
+    const perfil = (AUTH.perfil || '').trim();
+    return AGENDA_CACHE_KEY_PREFIX + email + '|' + perfil;
+  },
+
+  carregarCachePersistente() {
+    try {
+      const raw = localStorage.getItem(this.getCacheKeyPersistente());
+      if (!raw) return false;
+
+      const parsed = JSON.parse(raw);
+      if (!parsed || typeof parsed !== 'object') return false;
+      if (!Array.isArray(parsed.dados)) return false;
+
+      AppState.cache = {
+        timestamp: Number(parsed.timestamp) || 0,
+        dados: parsed.dados,
+        syncVersion: String(parsed.syncVersion || '')
+      };
+      return true;
+    } catch (e) {
+      Utils.error('Falha ao ler cache persistente:', e);
+      return false;
+    }
+  },
+
+  salvarCachePersistente() {
+    try {
+      const payload = {
+        timestamp: AppState.cache.timestamp,
+        dados: AppState.cache.dados,
+        syncVersion: AppState.cache.syncVersion || ''
+      };
+      localStorage.setItem(this.getCacheKeyPersistente(), JSON.stringify(payload));
+    } catch (e) {
+      Utils.error('Falha ao salvar cache persistente:', e);
+    }
+  },
+
+  limparCachePersistente() {
+    try {
+      localStorage.removeItem(this.getCacheKeyPersistente());
+    } catch (e) {
+      Utils.error('Falha ao limpar cache persistente:', e);
+    }
+  },
+
+  async obterAgendaSyncInfo() {
+    const info = await Auth.apiCall('obterAgendaSyncInfo');
+    if (!info || info.ok === false || !info.version) {
+      throw new Error(info?.mensagem || 'Sync info inválido');
+    }
+    return info;
   },
 
   /**
@@ -2299,22 +2358,43 @@ renderizarEventosDentro(evento) {
    */
   async carregarEventosComCache() {
     Utils.log('Carregando eventos (com cache)...');
+    this.carregarCachePersistente();
 
-    // Verifica cache
+    // Verifica cache + versão no backend (fail-safe)
     if (this.cacheValido()) {
-      Utils.log('📦 Usando cache');
-      return AppState.cache.dados;
+      try {
+        const syncInfo = await this.obterAgendaSyncInfo();
+        if (String(syncInfo.version) === String(AppState.cache.syncVersion || '')) {
+          Utils.log('📦 Usando cache validado por versão');
+          AppState.eventos = AppState.cache.dados;
+          AppState.ultimaAtualizacao = AppState.cache.timestamp || Date.now();
+          return AppState.cache.dados;
+        }
+        Utils.log('♻️ Cache desatualizado. Recarregando agenda completa...');
+      } catch (e) {
+        Utils.error('Falha ao validar versão da agenda. Forçando carga completa:', e);
+      }
     }
 
     // Carrega do backend
     Utils.log('🌐 Carregando do backend');
     const eventos = await this.carregarEventos();
 
+    let syncVersion = '';
+    try {
+      const syncInfo = await this.obterAgendaSyncInfo();
+      syncVersion = String(syncInfo.version || '');
+    } catch (e) {
+      Utils.error('Não foi possível obter versão de sync após carga completa:', e);
+    }
+
     // Atualiza cache
     AppState.cache = {
       timestamp: Date.now(),
-      dados: eventos
+      dados: eventos,
+      syncVersion: syncVersion
     };
+    this.salvarCachePersistente();
 
     return eventos;
   },
@@ -2511,8 +2591,10 @@ renderizarEventosDentro(evento) {
               // Limpa cache
               AppState.cache = {
                 timestamp: 0,
-                dados: null
+                dados: null,
+                syncVersion: ''
               };
+              AgendaController.limparCachePersistente();
 
               // Mostra loading
               document.getElementById('eventosContainer').innerHTML = `
