@@ -542,8 +542,15 @@ window.addEventListener('load', async () => {
 
     const auth = await Auth.apiCall('verificarUsuario');
     if (!auth || !auth.ok) throw new Error('NOT_AUTH');
+    perfilAtual = String(auth.user?.perfil || '');
+    if (perfilAtual !== 'Proprietário' && perfilAtual !== 'Sócio') {
+      alert('Você não tem permissão para acessar a Central Financeira.');
+      window.location.href = 'index.html';
+      return;
+    }
 
     console.log('🔐 Usuário autenticado:', auth.user?.email);
+    aplicarPermissoesTelaFinanceira();
 
     iniciarCentralFinanceira();
 
@@ -567,6 +574,7 @@ let eventoSelecionado = null;
 let vendedorSelecionado = null;
 let vendedoresCache = [];
 let comissoesPendentes = [];
+let perfilAtual = '';
 
 let ultimoPreview = null;
 let ultimoResumoFinanceiro = null;
@@ -574,6 +582,18 @@ let ultimoResumoFinanceiro = null;
 const buttons = document.querySelectorAll('.intent button');
 const form = document.getElementById('form');
 const resumo = document.getElementById('resumo');
+
+function aplicarPermissoesTelaFinanceira() {
+  if (perfilAtual !== 'Sócio') return;
+
+  const btnRecebimento = document.querySelector('.intent button[data-mode=\"recebimento\"]');
+  const btnEstorno = document.querySelector('.intent button[data-mode=\"estorno\"]');
+  const btnComissao = document.querySelector('.intent button[data-mode=\"comissao\"]');
+
+  if (btnRecebimento) btnRecebimento.style.display = 'none';
+  if (btnEstorno) btnEstorno.style.display = 'none';
+  if (btnComissao) btnComissao.style.display = 'none';
+}
 
 /* ================= INIT ================= */
 
@@ -836,6 +856,7 @@ function renderComissao(){
 
 function renderObrigacao(){
   resumo.innerHTML = '<span class="muted">Selecione um evento</span>';
+  const podeRegistrarFolha = perfilAtual === 'Proprietário';
 
   form.innerHTML = `
 <h3>🟠 Saídas do Evento</h3>
@@ -850,7 +871,7 @@ function renderObrigacao(){
 <select id="tipoSaida" onchange="renderCamposSaida()">
   <option value="">Selecione...</option>
   <option value="BV_EVENTO">Bônus de Venda (BV)</option>
-  <option value="FOLHA_EVENTO">Folha / Custos do Evento</option>
+  ${podeRegistrarFolha ? '<option value="FOLHA_EVENTO">Folha / Custos do Evento</option>' : ''}
 </select>
 <div class="muted" style="margin-top:12px">
   📄 <strong>Nota Fiscal (NF)</strong><br>
@@ -925,6 +946,9 @@ function submitSaidaEvento() {
 
   const tipo = document.getElementById('tipoSaida').value;
   if (!tipo) return alert('Selecione o tipo de saída');
+  if (perfilAtual === 'Sócio' && tipo !== 'BV_EVENTO') {
+    return alert('Perfil Sócio autorizado apenas para saída do tipo BV.');
+  }
 
   let valor = 0;
   let observacoes = '';

@@ -1182,6 +1182,10 @@ if (!AUTH.email) {
 
     };
 
+    function isMusico() {
+      return AppState.usuario && AppState.usuario.perfil === 'Músico';
+    }
+
     // ========================================
     // UTILITÁRIOS
     // ========================================
@@ -1945,6 +1949,10 @@ renderizarEventosDentro(evento) {
       aplicarFiltroRapido(tipo) {
         Utils.log('Aplicando filtro rápido:', tipo);
 
+        if (isMusico() && tipo === 'todos') {
+          tipo = 'proximos';
+        }
+
         AppState.filtroAtivo = tipo;
 
         const hoje = new Date();
@@ -2036,6 +2044,19 @@ renderizarEventosDentro(evento) {
               return data >= hoje;
             });
             break;
+        }
+
+        if (isMusico()) {
+          const limiteMusico = new Date(hoje);
+          limiteMusico.setMonth(limiteMusico.getMonth() + 1);
+          limiteMusico.setHours(23, 59, 59, 999);
+
+          eventosFiltrados = eventosFiltrados.filter(e => {
+            const data = Utils.parseData(e.data);
+            if (!data) return false;
+            data.setHours(0, 0, 0, 0);
+            return data >= hoje && data <= limiteMusico;
+          });
         }
 
         Utils.log('Eventos filtrados:', eventosFiltrados.length);
@@ -2171,6 +2192,7 @@ renderizarEventosDentro(evento) {
 
           // 4. Carrega usuário
           await AgendaController.carregarUsuario();
+          AgendaController.aplicarRestricoesPerfil();
 
           // 5. Carrega eventos (com cache)
           await AgendaController.carregarEventosComCache();
@@ -2179,7 +2201,9 @@ renderizarEventosDentro(evento) {
           AgendaController.setupEventListeners();
 
           // 7. Aplica filtro padrão da CONFIG
-          const filtroPadrao = AppState.config.AGENDA_FILTRO_PADRAO || 'todos';
+          const filtroPadrao = isMusico()
+            ? 'proximos'
+            : (AppState.config.AGENDA_FILTRO_PADRAO || 'todos');
           Utils.log('Aplicando filtro padrão:', filtroPadrao);
           FiltroManager.aplicarFiltroRapido(filtroPadrao);
 
@@ -2206,6 +2230,22 @@ renderizarEventosDentro(evento) {
         };
 
         return AppState.usuario;
+      },
+
+      aplicarRestricoesPerfil() {
+        if (!isMusico()) return;
+
+        const botaoTodos = document.querySelector('[data-filter="todos"]');
+        if (botaoTodos) botaoTodos.style.display = 'none';
+
+        const toggleAdvanced = document.getElementById('toggleAdvanced');
+        if (toggleAdvanced) toggleAdvanced.style.display = 'none';
+
+        const filtrosAdvanced = document.getElementById('filtersAdvanced');
+        if (filtrosAdvanced) filtrosAdvanced.style.display = 'none';
+
+        const btnToggleFilters = document.getElementById('btnToggleFilters');
+        if (btnToggleFilters) btnToggleFilters.style.display = 'none';
       },
 
       async carregarEventos() {
@@ -2484,7 +2524,9 @@ renderizarEventosDentro(evento) {
 
               // Recarrega
               await AgendaController.carregarEventosComCache();
-              const filtroPadrao = AppState.config.AGENDA_FILTRO_PADRAO || 'todos';
+              const filtroPadrao = isMusico()
+                ? 'proximos'
+                : (AppState.config.AGENDA_FILTRO_PADRAO || 'todos');
               FiltroManager.aplicarFiltroRapido(filtroPadrao);
 
               Utils.log('✅ Atualização concluída');

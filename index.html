@@ -1070,6 +1070,28 @@
           </div>
         </div>
 
+        <!-- Card: Agenda Semanal (WhatsApp) -->
+        <div class="nav-card anim-in anim-d5" id="cardGerarAgenda" onclick="abrir('gerarAgenda')">
+          <div class="nav-card-top">
+            <div class="nav-card-icon green">
+              <i data-lucide="message-square-share"></i>
+            </div>
+            <div class="nav-card-arrow">
+              <i data-lucide="arrow-right"></i>
+            </div>
+          </div>
+          <div class="nav-card-body">
+            <div class="nav-card-title">Agenda Semanal</div>
+            <div class="nav-card-desc">Gere o resumo semanal para WhatsApp com revisão antes de copiar.</div>
+          </div>
+          <div class="nav-card-footer">
+            <span class="access-badge restricted">
+              <i data-lucide="shield"></i>
+              Proprietário e Sócio
+            </span>
+          </div>
+        </div>
+
       </div>
     </main>
 
@@ -1253,6 +1275,7 @@
     ocultar('cardEditarEvento');
     ocultar('cardCentralFinanceira');
     ocultar('cardPainelFinanceiro');
+    ocultar('cardGerarAgenda');
     
 
     ocultar('bnavNovoEvento');
@@ -1280,7 +1303,8 @@
       novoEvento: './cadastro-evento.html',
       editarEvento: './editar-evento.html',
       centralFinanceira: './central-financeira.html',
-      painelFinanceiro: './painel-financeiro.html'
+      painelFinanceiro: './painel-financeiro.html',
+      gerarAgenda: './GerarAgenda.html'
     };
 
     var destino = rotas[pagina];
