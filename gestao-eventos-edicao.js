@@ -177,6 +177,18 @@ function buscarEventoParaEdicao(idEvento) {
         horaFormatada = l[COL.HORA_INICIO];
       }
 
+      const idContratanteAtual = String(l[COL.ID_CONTRATANTE] || '').trim();
+      const idEnderecoAtual = String(l[COL.ID_ENDERECO] || '').trim();
+      const nomeContratanteAtual = String(l[COL.NOME_CONTRATANTE] || '').trim();
+      const nomeLocalAtual = String(l[COL.LOCAL] || '').trim();
+
+      const refContratanteExiste = idContratanteAtual
+        ? referenciaExisteNaAbaPorId_('CONTRATANTES', idContratanteAtual)
+        : false;
+      const refEnderecoExiste = idEnderecoAtual
+        ? referenciaExisteNaAbaPorId_('ENDERECOS', idEnderecoAtual)
+        : false;
+
       const evento = {
   id: l[COL.ID_EVENTO],
 
@@ -189,11 +201,15 @@ function buscarEventoParaEdicao(idEvento) {
   tipoEvento: l[COL.TIPO_EVENTO] || '',
   projeto: l[COL.PROJETO] || '',
 
-  idContratante: String(l[COL.ID_CONTRATANTE] || '').trim(),
+  idContratante: idContratanteAtual,
   idCerimonialista: String(l[COL.ID_CERIMONIALISTA] || '').trim(),
-  idEndereco: String(l[COL.ID_ENDERECO] || '').trim(),
+  idEndereco: idEnderecoAtual,
   idVendedor: String(l[COL.ID_VENDEDOR] || '').trim(),
   idBV: String(l[COL.ID_BV] || '').trim(),
+  nomeContratanteAtual: nomeContratanteAtual,
+  nomeLocalAtual: nomeLocalAtual,
+  referenciaContratanteOk: !idContratanteAtual || refContratanteExiste,
+  referenciaEnderecoOk: !idEnderecoAtual || refEnderecoExiste,
 
   valorTotal: Number(l[COL.VALOR_TOTAL]) || 0,
   valorBV: Number(l[COL.VALOR_BV]) || 0,
@@ -395,6 +411,8 @@ function salvarEdicaoEvento(idEvento, dadosFormulario, email) {
     idEndereco: dadosFormulario.idEndereco || arguments[1]?.idEndereco,
     idVendedor: dadosFormulario.idVendedor || arguments[1]?.idVendedor,
     idBV: dadosFormulario.idBV || arguments[1]?.idBV,
+    nomeContratanteFallback: dadosFormulario.nomeContratanteFallback || arguments[1]?.nomeContratanteFallback,
+    nomeLocalFallback: dadosFormulario.nomeLocalFallback || arguments[1]?.nomeLocalFallback,
 
     valorTotal: Number(dadosFormulario.valorTotal ?? arguments[1]?.valorTotal) || 0,
     valorBV: Number(dadosFormulario.valorBV ?? arguments[1]?.valorBV) || 0,
@@ -473,21 +491,31 @@ function salvarEdicaoEvento(idEvento, dadosFormulario, email) {
     linha[COL.TIPO_EVENTO] = dados.tipoEvento || '';
     linha[COL.PROJETO] = dados.projeto || '';
 
-    // IDs + ESPELHAMENTO DE NOMES (OBRIGATÓRIO)
-    linha[COL.ID_CONTRATANTE] = dados.idContratante || '';
-    linha[COL.NOME_CONTRATANTE] = dados.idContratante
-      ? buscarNomePorId('CONTRATANTES', dados.idContratante)
-      : '';
+    // IDs + ESPELHAMENTO DE NOMES (resiliente: nunca apagar por referência ausente)
+    const refContratante = resolverReferenciaMestreEdicao_({
+      aba: 'CONTRATANTES',
+      idNovo: dados.idContratante,
+      idAtual: linha[COL.ID_CONTRATANTE],
+      nomeAtual: linha[COL.NOME_CONTRATANTE],
+      nomeFallback: dados.nomeContratanteFallback
+    });
+    linha[COL.ID_CONTRATANTE] = refContratante.id;
+    linha[COL.NOME_CONTRATANTE] = refContratante.nome;
 
     linha[COL.ID_CERIMONIALISTA] = dados.idCerimonialista || '';
     linha[COL.NOME_CERIMONIALISTA] = dados.idCerimonialista
       ? buscarNomePorId('CERIMONIALISTAS', dados.idCerimonialista)
       : '';
 
-    linha[COL.ID_ENDERECO] = dados.idEndereco || '';
-    linha[COL.LOCAL] = dados.idEndereco
-      ? buscarNomePorId('ENDERECOS', dados.idEndereco)
-      : '';
+    const refEndereco = resolverReferenciaMestreEdicao_({
+      aba: 'ENDERECOS',
+      idNovo: dados.idEndereco,
+      idAtual: linha[COL.ID_ENDERECO],
+      nomeAtual: linha[COL.LOCAL],
+      nomeFallback: dados.nomeLocalFallback
+    });
+    linha[COL.ID_ENDERECO] = refEndereco.id;
+    linha[COL.LOCAL] = refEndereco.nome;
 
     linha[COL.ID_VENDEDOR] = dados.idVendedor || '';
     linha[COL.ID_BV] = dados.idBV || '';
@@ -618,6 +646,42 @@ function salvarEdicaoEvento(idEvento, dadosFormulario, email) {
       mensagem: erro && erro.message ? erro.message : 'Erro inesperado ao salvar evento'
     };
   }
+}
+
+function referenciaExisteNaAbaPorId_(nomeAba, id) {
+  const alvo = String(id || '').trim();
+  if (!alvo) return false;
+  try {
+    const sh = SpreadsheetApp.getActive().getSheetByName(nomeAba);
+    if (!sh) return false;
+    const dados = sh.getDataRange().getValues();
+    for (let i = 1; i < dados.length; i++) {
+      if (String(dados[i][0] || '').trim() === alvo) return true;
+    }
+    return false;
+  } catch (_) {
+    return false;
+  }
+}
+
+function resolverReferenciaMestreEdicao_(ctx) {
+  const aba = String((ctx && ctx.aba) || '').trim();
+  const idNovo = String((ctx && ctx.idNovo) || '').trim();
+  const idAtual = String((ctx && ctx.idAtual) || '').trim();
+  const nomeAtual = String((ctx && ctx.nomeAtual) || '').trim();
+  const nomeFallback = String((ctx && ctx.nomeFallback) || '').trim();
+
+  if (idNovo) {
+    const nomeLookup = String(buscarNomePorId(aba, idNovo) || '').trim();
+    if (nomeLookup) {
+      return { id: idNovo, nome: nomeLookup };
+    }
+    // Referência fora do mestre: preserva texto para evitar zerar espelho.
+    return { id: idNovo, nome: nomeFallback || nomeAtual };
+  }
+
+  // Sem seleção nova: mantém referência atual para evitar falso positivo de limpeza.
+  return { id: idAtual, nome: nomeFallback || nomeAtual };
 }
 
 /* =========================
@@ -898,4 +962,3 @@ function cadastrarContratanteRapido(dados) {
     };
   }
 }
-
