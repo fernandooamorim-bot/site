@@ -3073,8 +3073,10 @@ renderizarEventosDentro(evento) {
 
             scrollTimeout = setTimeout(() => {
               const threshold = AppState.virtualizacao.threshold || 50;
+              const modoCardsAtivo = AppState.modoVisualizacao !== 'planilha';
 
-              if (AppState.virtualizacao.enabled &&
+              if (modoCardsAtivo &&
+                  AppState.virtualizacao.enabled &&
                   AppState.eventosFiltrados &&
                   AppState.eventosFiltrados.length >= threshold) {
 
