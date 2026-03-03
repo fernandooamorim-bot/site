@@ -1769,18 +1769,10 @@ criarCardEvento(evento) {
 
     container.innerHTML = html;
 
-    // Debug info
-    const info = document.createElement('div');
-    info.style.cssText = 'position: fixed; bottom: 80px; right: 20px; background: rgba(0,0,0,0.8); color: white; padding: 8px 12px; border-radius: 8px; font-size: 11px; z-index: 999;';
-    info.innerHTML = `📊 ${startIndex}-${endIndex}/${eventos.length}`;
-    document.body.appendChild(info);
-
-    setTimeout(() => info.remove(), 2000);
-
-// Debug info (se ativado na CONFIG)
-if (AppState.virtualizacao.debug) {  // ✅ CORRETO
-  this.mostrarDebugVirtualizacao(startIndex, endIndex, eventos.length);
-}
+    // Debug info (apenas se habilitado).
+    if (AppState.virtualizacao.debug) {
+      this.mostrarDebugVirtualizacao(startIndex, endIndex, eventos.length);
+    }
   },
 
   /**
@@ -2353,6 +2345,29 @@ renderizarEventosDentro(evento) {
     return info;
   },
 
+  async revalidarCacheEmSegundoPlano() {
+    try {
+      const syncInfo = await this.obterAgendaSyncInfo();
+      const versaoAtual = String(syncInfo.version || '');
+      const versaoCache = String(AppState.cache.syncVersion || '');
+      if (versaoAtual === versaoCache) return;
+
+      Utils.log('♻️ Mudança detectada no backend. Atualizando agenda em segundo plano...');
+      const eventosAtualizados = await this.carregarEventos();
+      AppState.cache = {
+        timestamp: Date.now(),
+        dados: eventosAtualizados,
+        syncVersion: versaoAtual
+      };
+      this.salvarCachePersistente();
+
+      const filtro = AppState.filtroAtivo || (isMusico() ? 'proximos' : 'todos');
+      FiltroManager.aplicarFiltroRapido(filtro);
+    } catch (e) {
+      Utils.error('Revalidação em segundo plano falhou:', e);
+    }
+  },
+
   /**
    * Carrega eventos com cache
    */
@@ -2360,20 +2375,13 @@ renderizarEventosDentro(evento) {
     Utils.log('Carregando eventos (com cache)...');
     this.carregarCachePersistente();
 
-    // Verifica cache + versão no backend (fail-safe)
+    // Fast path: cache válido abre instantâneo.
     if (this.cacheValido()) {
-      try {
-        const syncInfo = await this.obterAgendaSyncInfo();
-        if (String(syncInfo.version) === String(AppState.cache.syncVersion || '')) {
-          Utils.log('📦 Usando cache validado por versão');
-          AppState.eventos = AppState.cache.dados;
-          AppState.ultimaAtualizacao = AppState.cache.timestamp || Date.now();
-          return AppState.cache.dados;
-        }
-        Utils.log('♻️ Cache desatualizado. Recarregando agenda completa...');
-      } catch (e) {
-        Utils.error('Falha ao validar versão da agenda. Forçando carga completa:', e);
-      }
+      Utils.log('📦 Usando cache local (abertura instantânea)');
+      AppState.eventos = AppState.cache.dados;
+      AppState.ultimaAtualizacao = AppState.cache.timestamp || Date.now();
+      this.revalidarCacheEmSegundoPlano();
+      return AppState.cache.dados;
     }
 
     // Carrega do backend
