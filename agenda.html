@@ -2668,12 +2668,15 @@ renderizarEventosDentro(evento) {
         Utils.log('🚀 Inicializando Agenda Visual...');
 
         try {
-          // Mostra loading
-          UI.showLoading();
-
           // 1. Carrega usuário
           await AgendaController.carregarUsuario();
           AgendaController.aplicarRestricoesPerfil();
+
+          // 1.1 Renderização instantânea com cache (se existir)
+          const renderizouCacheInstantaneo = AgendaController.bootstrapInstantaneoComCache();
+          if (!renderizouCacheInstantaneo) {
+            UI.showLoading();
+          }
 
           // 2. Carrega config e eventos em paralelo para reduzir tempo de boot.
           await Promise.all([
@@ -2708,6 +2711,33 @@ renderizarEventosDentro(evento) {
         } catch (error) {
           Utils.error('❌ Erro ao inicializar:', error);
           UI.showError('Erro ao carregar a agenda: ' + error.message);
+        }
+      },
+      bootstrapInstantaneoComCache() {
+        try {
+          if (!this.configBool('AGENDA_CACHE_INSTANT_BOOT', true)) {
+            return false;
+          }
+
+          this.carregarCachePersistente();
+          const temCache = Array.isArray(AppState.cache.dados) && AppState.cache.dados.length > 0;
+          if (!temCache) return false;
+
+          AppState.eventos = AppState.cache.dados;
+          AppState.ultimaAtualizacao = AppState.cache.timestamp || Date.now();
+          this.atualizarFiltrosAnuaisRapidos();
+
+          const filtroPadrao = isMusico()
+            ? 'proximos'
+            : (AppState.config.AGENDA_FILTRO_PADRAO || 'proximos');
+          FiltroManager.aplicarFiltroRapido(filtroPadrao);
+          this.ativarBotaoFiltro(filtroPadrao);
+
+          Utils.log('⚡ Cache renderizado instantaneamente no boot');
+          return true;
+        } catch (e) {
+          Utils.error('Falha no bootstrap instantâneo de cache:', e);
+          return false;
         }
       },
       async carregarUsuario() {
