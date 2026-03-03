@@ -543,7 +543,9 @@ window.addEventListener('load', async () => {
     const auth = await Auth.apiCall('verificarUsuario');
     if (!auth || !auth.ok) throw new Error('NOT_AUTH');
     perfilAtual = String(auth.user?.perfil || '');
-    if (perfilAtual !== 'Proprietário' && perfilAtual !== 'Sócio') {
+    perfilAtualNorm = normalizarPerfil_(perfilAtual);
+    console.log('🔐 Perfil (raw):', JSON.stringify(perfilAtual), '| norm:', perfilAtualNorm);
+    if (!ehProprietario_() && !ehSocio_()) {
       alert('Você não tem permissão para acessar a Central Financeira.');
       window.location.href = 'index.html';
       return;
@@ -575,6 +577,7 @@ let vendedorSelecionado = null;
 let vendedoresCache = [];
 let comissoesPendentes = [];
 let perfilAtual = '';
+let perfilAtualNorm = '';
 
 let ultimoPreview = null;
 let ultimoResumoFinanceiro = null;
@@ -584,7 +587,7 @@ const form = document.getElementById('form');
 const resumo = document.getElementById('resumo');
 
 function aplicarPermissoesTelaFinanceira() {
-  if (perfilAtual !== 'Sócio') return;
+  if (!ehSocio_()) return;
 
   const btnRecebimento = document.querySelector('.intent button[data-mode=\"recebimento\"]');
   const btnEstorno = document.querySelector('.intent button[data-mode=\"estorno\"]');
@@ -593,6 +596,23 @@ function aplicarPermissoesTelaFinanceira() {
   if (btnRecebimento) btnRecebimento.style.display = 'none';
   if (btnEstorno) btnEstorno.style.display = 'none';
   if (btnComissao) btnComissao.style.display = 'none';
+}
+
+function normalizarPerfil_(perfil) {
+  return String(perfil || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase();
+}
+
+function ehProprietario_() {
+  return perfilAtualNorm === 'proprietario';
+}
+
+function ehSocio_() {
+  return perfilAtualNorm === 'socio';
 }
 
 /* ================= INIT ================= */
@@ -856,7 +876,7 @@ function renderComissao(){
 
 function renderObrigacao(){
   resumo.innerHTML = '<span class="muted">Selecione um evento</span>';
-  const podeRegistrarFolha = perfilAtual === 'Proprietário';
+  const podeRegistrarFolha = ehProprietario_();
 
   form.innerHTML = `
 <h3>🟠 Saídas do Evento</h3>
@@ -946,7 +966,7 @@ function submitSaidaEvento() {
 
   const tipo = document.getElementById('tipoSaida').value;
   if (!tipo) return alert('Selecione o tipo de saída');
-  if (perfilAtual === 'Sócio' && tipo !== 'BV_EVENTO') {
+  if (ehSocio_() && tipo !== 'BV_EVENTO') {
     return alert('Perfil Sócio autorizado apenas para saída do tipo BV.');
   }
 
