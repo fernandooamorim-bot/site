@@ -1272,6 +1272,9 @@
     setTimeout(function() {
       document.getElementById('app').classList.add('visible');
     }, 50);
+
+    // Warmup de navegação da Agenda para reduzir sensação de carregamento no clique do card.
+    prefetchAgendaPage();
   }
 
   /**
@@ -1315,6 +1318,18 @@
   function ocultar(id) {
     var el = document.getElementById(id);
     if (el) el.classList.add('hidden');
+  }
+
+  function prefetchAgendaPage() {
+    try {
+      if (document.getElementById('prefetch-agenda-link')) return;
+      var link = document.createElement('link');
+      link.id = 'prefetch-agenda-link';
+      link.rel = 'prefetch';
+      link.href = './agenda.html';
+      link.as = 'document';
+      document.head.appendChild(link);
+    } catch (_) {}
   }
 
   /**
