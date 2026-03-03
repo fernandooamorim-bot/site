@@ -1428,6 +1428,8 @@ if (!AUTH.email) {
   config: {
     AGENDA_FILTRO_PADRAO: 'proximos',
     AGENDA_CACHE_TIMEOUT: 300000,
+    AGENDA_CACHE_INSTANT_BOOT: true,
+    AGENDA_CACHE_NOTIFY_UPDATE: true,
     AGENDA_CORES_PERSONALIZADAS: true,
     AGENDA_LIMITE_TODOS: 200
   },
@@ -1788,6 +1790,47 @@ calcularDiasIntervalo(dataInicio, dataFim) {
             </div>
           `;
         }
+      },
+
+      showToast(mensagem, tipo = 'info', duracaoMs = 3200) {
+        try {
+          const antigo = document.getElementById('agenda-toast-sync');
+          if (antigo) antigo.remove();
+
+          const cores = {
+            info: { bg: '#1e3a8a', fg: '#ffffff' },
+            success: { bg: '#065f46', fg: '#ffffff' },
+            warning: { bg: '#92400e', fg: '#ffffff' }
+          };
+          const paleta = cores[tipo] || cores.info;
+
+          const el = document.createElement('div');
+          el.id = 'agenda-toast-sync';
+          el.textContent = String(mensagem || '');
+          el.style.cssText = `
+            position: fixed;
+            top: 78px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 9999;
+            background: ${paleta.bg};
+            color: ${paleta.fg};
+            border-radius: 10px;
+            padding: 10px 14px;
+            box-shadow: 0 6px 20px rgba(0,0,0,0.2);
+            font-size: 13px;
+            font-weight: 600;
+            max-width: 92vw;
+            text-align: center;
+          `;
+          document.body.appendChild(el);
+
+          setTimeout(() => {
+            el.style.transition = 'opacity 0.25s ease';
+            el.style.opacity = '0';
+            setTimeout(() => el.remove(), 260);
+          }, Math.max(900, Number(duracaoMs) || 3200));
+        } catch (_) {}
       },
 
       atualizarHeader() {
@@ -2843,6 +2886,13 @@ renderizarEventosDentro(evento) {
     return valido;
   },
 
+  configBool(chave, padrao) {
+    const v = AppState.config ? AppState.config[chave] : undefined;
+    if (v === undefined || v === null || String(v).trim() === '') return !!padrao;
+    const s = String(v).trim().toLowerCase();
+    return ['true', '1', 'sim', 'yes', 'on'].includes(s);
+  },
+
   getCacheKeyPersistente() {
     const email = (AUTH.email || '').trim().toLowerCase();
     const perfil = (AUTH.perfil || '').trim();
@@ -2907,6 +2957,9 @@ renderizarEventosDentro(evento) {
       if (versaoAtual === versaoCache) return;
 
       Utils.log('♻️ Mudança detectada no backend. Atualizando agenda em segundo plano...');
+      if (this.configBool('AGENDA_CACHE_NOTIFY_UPDATE', true)) {
+        UI.showToast('Planilha atualizada. Sincronizando agenda...', 'info', 2200);
+      }
       const eventosAtualizados = await this.carregarEventos();
       AppState.cache = {
         timestamp: Date.now(),
@@ -2918,6 +2971,9 @@ renderizarEventosDentro(evento) {
 
       const filtro = AppState.filtroAtivo || (isMusico() ? 'proximos' : 'todos');
       FiltroManager.aplicarFiltroRapido(filtro);
+      if (this.configBool('AGENDA_CACHE_NOTIFY_UPDATE', true)) {
+        UI.showToast('Agenda atualizada com sucesso.', 'success', 1800);
+      }
     } catch (e) {
       Utils.error('Revalidação em segundo plano falhou:', e);
     }
@@ -2929,10 +2985,21 @@ renderizarEventosDentro(evento) {
   async carregarEventosComCache() {
     Utils.log('Carregando eventos (com cache)...');
     this.carregarCachePersistente();
+    const temCache = Array.isArray(AppState.cache.dados) && AppState.cache.dados.length >= 0;
+    const instantBoot = this.configBool('AGENDA_CACHE_INSTANT_BOOT', true);
 
     // Fast path: cache válido abre instantâneo.
     if (this.cacheValido()) {
       Utils.log('📦 Usando cache local (abertura instantânea)');
+      AppState.eventos = AppState.cache.dados;
+      AppState.ultimaAtualizacao = AppState.cache.timestamp || Date.now();
+      this.revalidarCacheEmSegundoPlano();
+      return AppState.cache.dados;
+    }
+
+    // Modo opcional: abre instantâneo mesmo com cache expirado e revalida em segundo plano.
+    if (instantBoot && temCache) {
+      Utils.log('⚡ Instant boot ativo: exibindo cache expirado e revalidando em segundo plano');
       AppState.eventos = AppState.cache.dados;
       AppState.ultimaAtualizacao = AppState.cache.timestamp || Date.now();
       this.revalidarCacheEmSegundoPlano();
