@@ -2028,7 +2028,7 @@ renderizarEventosDentro(evento) {
             break;
 
           default:
-            if (typeof tipo === 'string' && /^ano_\\d{4}$/.test(tipo)) {
+            if (typeof tipo === 'string' && /^ano_\d{4}$/.test(tipo)) {
               const anoAlvo = Number(tipo.replace('ano_', ''));
               eventosFiltrados = eventosFiltrados.filter(e => {
                 const data = Utils.parseData(e.data);
@@ -2491,7 +2491,7 @@ renderizarEventosDentro(evento) {
   }
 
   // Tentativa 4: filtro dinâmico anual (ano_2026 -> botão "2026")
-  if (!btnFiltro && typeof filtro === 'string' && /^ano_\\d{4}$/.test(filtro)) {
+  if (!btnFiltro && typeof filtro === 'string' && /^ano_\d{4}$/.test(filtro)) {
     btnFiltro = document.querySelector(`[data-filter="${filtro}"]`);
   }
 
@@ -2512,10 +2512,14 @@ renderizarEventosDentro(evento) {
         container.querySelectorAll('.filter-btn.year-filter').forEach(btn => btn.remove());
 
         const anosSet = new Set();
+        const anoAtual = new Date().getFullYear();
         (AppState.eventos || []).forEach(e => {
           const d = Utils.parseData(e.data);
           if (!d) return;
-          anosSet.add(d.getFullYear());
+          const ano = d.getFullYear();
+          if (ano >= anoAtual) {
+            anosSet.add(ano);
+          }
         });
 
         const anos = Array.from(anosSet).sort((a, b) => a - b);
