@@ -1453,12 +1453,32 @@ if (!AUTH.email) {
     const AGENDA_CACHE_KEY_PREFIX = 'agenda_cache_v2:';
 
     function isMusico() {
-      return AppState.usuario && AppState.usuario.perfil === 'Músico';
+      if (!AppState.usuario) return false;
+      return normalizarPerfilAgenda_(AppState.usuario.perfil) === 'musico';
     }
 
     function isGestorAgenda() {
       if (!AppState.usuario || !AppState.usuario.perfil) return false;
-      return AppState.usuario.perfil === 'Proprietário' || AppState.usuario.perfil === 'Sócio';
+      return ehPerfilGestorAgenda_(AppState.usuario.perfil);
+    }
+
+    function normalizarPerfilAgenda_(perfil) {
+      return String(perfil || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .trim()
+        .toLowerCase();
+    }
+
+    function ehPerfilGestorAgenda_(perfil) {
+      const p = normalizarPerfilAgenda_(perfil);
+      return p === 'proprietario' || p === 'socio' || p === 'administrador' || p === 'admin';
+    }
+
+    function perfilExibicaoAgenda_(perfil) {
+      const p = normalizarPerfilAgenda_(perfil);
+      if (p === 'socio' || p === 'administrador' || p === 'admin') return 'Administrador';
+      return perfil || 'Usuário';
     }
 
     // ========================================
@@ -1780,7 +1800,7 @@ calcularDiasIntervalo(dataInicio, dataFim) {
         if (AppState.usuario) {
           const profileEl = document.getElementById('userProfile');
           if (profileEl) {
-            profileEl.textContent = AppState.usuario.perfil || 'Usuário';
+            profileEl.textContent = perfilExibicaoAgenda_(AppState.usuario.perfil);
           }
         }
 
@@ -1966,10 +1986,8 @@ calcularDiasIntervalo(dataInicio, dataFim) {
 
 criarCardEvento(evento) {
   const classificacao = Utils.classificarEvento(evento.data);
-  const podeVerValor = AppState.usuario &&
-    (AppState.usuario.perfil === 'Proprietário' || AppState.usuario.perfil === 'Sócio');
-  const podeEditar = AppState.usuario &&
-    (AppState.usuario.perfil === 'Proprietário' || AppState.usuario.perfil === 'Sócio');
+  const podeVerValor = AppState.usuario && ehPerfilGestorAgenda_(AppState.usuario.perfil);
+  const podeEditar = AppState.usuario && ehPerfilGestorAgenda_(AppState.usuario.perfil);
 
   let classeExtra = '';
   let icone = '🎵';
@@ -2303,9 +2321,9 @@ renderizarEventosDentro(evento) {
     const perfil = AppState.usuario.perfil;
     Utils.log('Perfil do usuário:', perfil);
 
-    // Proprietário e Sócio veem TUDO
-    if (perfil === 'Proprietário' || perfil === 'Sócio') {
-      Utils.log('Proprietário/Sócio: mostrando todos os eventos');
+    // Proprietário e Administrador veem TUDO
+    if (ehPerfilGestorAgenda_(perfil)) {
+      Utils.log('Gestor: mostrando todos os eventos');
 
       // Mostra filtro de tipo de registro
       const filterGroup = document.getElementById('filterTipoRegistroGroup');

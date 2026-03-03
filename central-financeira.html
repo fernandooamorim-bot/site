@@ -640,7 +640,7 @@ function ehProprietario_() {
 }
 
 function ehSocio_() {
-  return perfilAtualNorm === 'socio';
+  return perfilAtualNorm === 'socio' || perfilAtualNorm === 'administrador' || perfilAtualNorm === 'admin';
 }
 
 /* ================= INIT ================= */
@@ -999,7 +999,7 @@ function submitSaidaEvento() {
   const tipo = document.getElementById('tipoSaida').value;
   if (!tipo) return alert('Selecione o tipo de saída');
   if (ehSocio_() && tipo !== 'BV_EVENTO') {
-    return alert('Perfil Sócio autorizado apenas para saída do tipo BV.');
+    return alert('Perfil Administrador autorizado apenas para saída do tipo BV.');
   }
 
   let valor = 0;

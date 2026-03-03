@@ -1723,9 +1723,14 @@
     function aplicarPermissoesComissao(perfil) {
       const select = document.getElementById('comissaoTipo');
       if (!select) return;
+      const perfilNorm = String(perfil || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .trim()
+        .toLowerCase();
 
       // Proprietário vê tudo
-      if (perfil === 'Proprietário') {
+      if (perfilNorm === 'proprietario') {
         Array.from(select.options).forEach(o => o.disabled = false);
         return;
       }

@@ -386,7 +386,7 @@
         }
 
         const perfil = String(auth.user.perfil || '');
-        if (perfil !== 'Proprietário' && perfil !== 'Sócio') {
+        if (!ehPerfilGestorGerador_(perfil)) {
           alert('Você não tem permissão para acessar esta área.');
           window.location.href = 'index.html';
           return;
@@ -402,6 +402,19 @@
         window.location.href = 'index.html';
       }
     });
+
+    function normalizarPerfilGerador_(perfil) {
+      return String(perfil || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .trim()
+        .toLowerCase();
+    }
+
+    function ehPerfilGestorGerador_(perfil) {
+      const p = normalizarPerfilGerador_(perfil);
+      return p === 'proprietario' || p === 'socio' || p === 'administrador' || p === 'admin';
+    }
 
     function configurarAcoes() {
       document.getElementById('btnSemanaAtual').addEventListener('click', () => carregarPreset('semana_atual'));

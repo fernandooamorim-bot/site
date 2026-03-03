@@ -1097,7 +1097,7 @@
           <div class="nav-card-footer">
             <span class="access-badge restricted">
               <i data-lucide="shield"></i>
-              Proprietário e Sócio
+              Proprietário e Administrador
             </span>
           </div>
         </div>
@@ -1253,7 +1253,7 @@
       }
 
       if (nameEl) nameEl.textContent = nome;
-      if (roleEl) roleEl.textContent = perfil;
+      if (roleEl) roleEl.textContent = mapPerfilDisplay(perfil);
     }
 
     // Saudação dinâmica
@@ -1292,9 +1292,26 @@
     ocultar('bnavEditarEvento');
     }
 
-    if (user.perfil === 'Sócio') {
+    if (isPerfilSocioOuAdmin(user.perfil)) {
       ocultar('cardCentralFinanceira');
     }
+  }
+
+  function normalizarPerfil(perfil) {
+    return String(perfil || '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .trim()
+      .toLowerCase();
+  }
+
+  function isPerfilSocioOuAdmin(perfil) {
+    const p = normalizarPerfil(perfil);
+    return p === 'socio' || p === 'administrador' || p === 'admin';
+  }
+
+  function mapPerfilDisplay(perfil) {
+    return isPerfilSocioOuAdmin(perfil) ? 'Administrador' : (perfil || '');
   }
 
   function ocultar(id) {
