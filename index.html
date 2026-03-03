@@ -1007,7 +1007,7 @@
           <div class="nav-card-footer">
             <span class="access-badge restricted">
               <i data-lucide="shield"></i>
-              Restrito
+              Proprietário e Administrador
             </span>
           </div>
         </div>
@@ -1029,7 +1029,7 @@
           <div class="nav-card-footer">
             <span class="access-badge restricted">
               <i data-lucide="shield"></i>
-              Restrito
+              Proprietário e Administrador
             </span>
           </div>
         </div>
@@ -1046,12 +1046,12 @@
           </div>
           <div class="nav-card-body">
             <div class="nav-card-title">Central Financeira</div>
-            <div class="nav-card-desc">Gestão completa de pagamentos, recebimentos e comissões.</div>
+            <div class="nav-card-desc">Gestão financeira do evento (Administrador: lançamento de BV).</div>
           </div>
           <div class="nav-card-footer">
-            <span class="access-badge owner">
-              <i data-lucide="crown"></i>
-              Proprietário
+            <span class="access-badge restricted">
+              <i data-lucide="shield"></i>
+              Proprietário e Administrador
             </span>
           </div>
         </div>
@@ -1073,9 +1073,9 @@
             </div>
           </div>
           <div class="nav-card-footer">
-            <span class="access-badge owner">
-              <i data-lucide="crown"></i>
-              Proprietário
+            <span class="access-badge restricted">
+              <i data-lucide="shield"></i>
+              Proprietário e Administrador
             </span>
           </div>
         </div>
@@ -1292,9 +1292,7 @@
     ocultar('bnavEditarEvento');
     }
 
-    if (isPerfilSocioOuAdmin(user.perfil)) {
-      ocultar('cardCentralFinanceira');
-    }
+    // Administrador mantém acesso à Central Financeira com regras internas da tela.
   }
 
   function normalizarPerfil(perfil) {
