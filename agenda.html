@@ -543,6 +543,11 @@
       border-color: rgba(59, 130, 246, 0.25);
     }
 
+    .evento-card.reserva {
+      border-color: rgba(245, 158, 11, 0.32);
+      background: linear-gradient(180deg, #fffdf8 0%, #ffffff 100%);
+    }
+
     .evento-card.passado {
       opacity: 0.62;
       background: var(--gray-100);
@@ -570,6 +575,11 @@
     .evento-card.reuniao .evento-icon {
       background: rgba(59,130,246,0.12);
       color: var(--info-color);
+    }
+
+    .evento-card.reserva .evento-icon {
+      background: rgba(245,158,11,0.14);
+      color: #b45309;
     }
 
     .evento-main {
@@ -663,6 +673,11 @@
     .status-parcial {
       background: rgba(59,130,246,0.12);
       color: #1d4ed8;
+    }
+
+    .status-reserva {
+      background: rgba(245,158,11,0.14);
+      color: #9a3412;
     }
 
     .conflict-badge {
@@ -1303,6 +1318,7 @@
           <select class="filter-select" id="filterTipoRegistro">
             <option value="">Todos os tipos</option>
             <option value="Evento">Eventos</option>
+            <option value="Reserva">Reservas</option>
             <option value="Bloqueio">Bloqueios</option>
             <option value="Reunião">Reuniões</option>
           </select>
@@ -1853,6 +1869,9 @@ calcularDiasIntervalo(dataInicio, dataFim) {
             <td>
               <div class="planilha-acoes">
                 <button class="btn-action primary" onclick="editarEvento('${evento.id}');">Editar</button>
+                ${evento.tipo === 'Reserva'
+                  ? `<button class="btn-action btn-secondary" onclick="converterReserva('${evento.id}');">Converter</button>`
+                  : ''}
               </div>
             </td>
           </tr>
@@ -1947,6 +1966,9 @@ criarCardEvento(evento) {
   } else if (evento.tipo === 'Reunião') {
     classeExtra = 'reuniao';
     icone = '📅';
+  } else if (evento.tipo === 'Reserva') {
+    classeExtra = 'reserva';
+    icone = '📌';
   }
 
   const dataResumo = evento.dataFim
@@ -1966,8 +1988,12 @@ criarCardEvento(evento) {
   }
 
   const tituloEvento = `${evento.tipoEvento || evento.tipo || '-'}${evento.contratante ? ' - ' + evento.contratante : ''}`;
-  const statusLabel = evento.status ? Utils.getStatusLabel(evento.status) : '';
-  const statusClass = evento.status ? Utils.getStatusBadge(evento.status) : '';
+  const statusLabel = evento.tipo === 'Reserva'
+    ? 'Reserva'
+    : (evento.status ? Utils.getStatusLabel(evento.status) : '');
+  const statusClass = evento.tipo === 'Reserva'
+    ? 'status-reserva'
+    : (evento.status ? Utils.getStatusBadge(evento.status) : '');
   const temConflitos = Array.isArray(evento.eventosDentro) && evento.eventosDentro.length > 0;
 
   const detalhes = [];
@@ -2043,6 +2069,11 @@ criarCardEvento(evento) {
             <button class="btn-action primary" onclick="editarEvento('${evento.id}'); event.stopPropagation();">
               ✏️ Editar Evento
             </button>
+            ${evento.tipo === 'Reserva' ? `
+              <button class="btn-action btn-secondary" onclick="converterReserva('${evento.id}'); event.stopPropagation();">
+                🔄 Converter em Evento
+              </button>
+            ` : ''}
           </div>
         ` : ''}
       </div>
@@ -2414,6 +2445,7 @@ renderizarEventosDentro(evento) {
           const dataInicio = document.getElementById('filterDataInicio')?.value || '';
           const dataFim = document.getElementById('filterDataFim')?.value || '';
           const tipoEvento = document.getElementById('filterTipoEvento')?.value || '';
+          const tipoRegistro = document.getElementById('filterTipoRegistro')?.value || '';
           const status = document.getElementById('filterStatus')?.value || '';
           const local = document.getElementById('filterLocal')?.value || '';
           const busca = (document.getElementById('filterBusca')?.value || '').toLowerCase();
@@ -2441,6 +2473,11 @@ renderizarEventosDentro(evento) {
           // Filtro de tipo
           if (tipoEvento) {
             eventosFiltrados = eventosFiltrados.filter(e => e.tipoEvento === tipoEvento);
+          }
+
+          // Filtro de tipo de registro
+          if (tipoRegistro) {
+            eventosFiltrados = eventosFiltrados.filter(e => e.tipo === tipoRegistro);
           }
 
           // Filtro de status
@@ -2493,6 +2530,7 @@ renderizarEventosDentro(evento) {
           'filterDataInicio',
           'filterDataFim',
           'filterTipoEvento',
+          'filterTipoRegistro',
           'filterStatus',
           'filterLocal',
           'filterBusca'
@@ -3181,6 +3219,14 @@ renderizarEventosDentro(evento) {
       if (!id) return;
       localStorage.setItem('editar_evento_id_ref', id);
       window.location.href = `editar-evento.html?id=${encodeURIComponent(id)}`;
+    }
+
+    function converterReserva(eventoId) {
+      Utils.log('Converter reserva:', eventoId);
+      const id = String(eventoId || '').trim();
+      if (!id) return;
+      localStorage.setItem('editar_evento_id_ref', id);
+      window.location.href = `editar-evento.html?id=${encodeURIComponent(id)}&converter=1`;
     }
 
     function irParaHome() {

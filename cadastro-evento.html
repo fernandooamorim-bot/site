@@ -745,6 +745,11 @@
       background: rgba(239,68,68,0.08);
       color: #991b1b;
     }
+
+    .tipo-reserva {
+      background: rgba(245,158,11,0.12);
+      color: #9a3412;
+    }
     /* ============================================
    TOGGLE SWITCH
    ============================================ */
@@ -841,6 +846,7 @@
             <label for="tipoRegistro" class="required">O que deseja cadastrar?</label>
             <select id="tipoRegistro" required onchange="alterarTipoRegistro()">
               <option value="Evento">Evento (com dados financeiros)</option>
+              <option value="Reserva">Reserva (pré-agendamento sem financeiro)</option>
               <option value="Reunião">Reunião (sem cobrança)</option>
               <option value="Bloqueio">Bloqueio de Data (férias, etc)</option>
             </select>
@@ -852,6 +858,10 @@
           
           <div id="infoReuniao" class="info-badge" style="display: none;">
             ℹ️ Reuniões não geram comissões nem valores - são apenas compromissos
+          </div>
+
+          <div id="infoReserva" class="info-badge" style="display: none;">
+            ℹ️ Reservas são pré-agendamentos sem financeiro até conversão para Evento
           </div>
         </div>
         
@@ -1354,22 +1364,25 @@
       
       // Atualiza indicador
       indicator.textContent = tipo.toUpperCase();
-      indicator.className = 'tipo-indicator tipo-' + tipo.toLowerCase();
+      const tipoClasse = tipo.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      indicator.className = 'tipo-indicator tipo-' + tipoClasse;
       
       // Mostra/oculta info
       document.getElementById('infoBloqueio').style.display = tipo === 'Bloqueio' ? 'block' : 'none';
       document.getElementById('infoReuniao').style.display = tipo === 'Reunião' ? 'block' : 'none';
+      document.getElementById('infoReserva').style.display = tipo === 'Reserva' ? 'block' : 'none';
       
       // Campos específicos
       const isEvento = tipo === 'Evento';
       const isBloqueio = tipo === 'Bloqueio';
       const isReuniao = tipo === 'Reunião';
+      const isReserva = tipo === 'Reserva';
 
       const campoEventoMultiDias = document.getElementById('campoEventoMultiDias');
       
       // Tipo de Evento vs Motivo
-      document.getElementById('campoTipoEvento').style.display = isEvento ? 'block' : 'none';
-      document.getElementById('campoMotivo').style.display = (isBloqueio || isReuniao) ? 'block' : 'none';
+      document.getElementById('campoTipoEvento').style.display = (isEvento || isReserva) ? 'block' : 'none';
+      document.getElementById('campoMotivo').style.display = (isBloqueio || isReuniao || isReserva) ? 'block' : 'none';
       
       // Altera placeholder do motivo baseado no tipo
       const campoMotivo = document.getElementById('motivo');
@@ -1377,6 +1390,8 @@
         campoMotivo.placeholder = 'Ex: Reunião de Repertório, Reunião Geral, Reunião de Planejamento...';
       } else if (isBloqueio) {
         campoMotivo.placeholder = 'Ex: Férias, Viagem, Manutenção, Folga...';
+      } else if (isReserva) {
+        campoMotivo.placeholder = 'Ex: Aguardando confirmação, proposta enviada, data em negociação...';
       }
       
       // Campo Data Fim (só para bloqueios)
@@ -1400,7 +1415,7 @@
       }
       
       // Projeto
-      document.getElementById('campoProjeto').style.display = isEvento ? 'block' : 'none';
+      document.getElementById('campoProjeto').style.display = (isEvento || isReserva) ? 'block' : 'none';
       
       // Cerimonialista
       document.getElementById('campoCerimonialista').style.display = isEvento ? 'block' : 'none';
@@ -1417,7 +1432,7 @@
       // Altera label do contratante e controle required
       const labelContratante = document.getElementById('labelContratante');
 
-      if (isEvento) {
+      if (isEvento || isReserva) {
         labelContratante.innerHTML = 'Contratante';
         labelContratante.classList.add('required');
       } else if (isReuniao) {
@@ -1430,7 +1445,7 @@
 
       // Controle visual do label do local
       const labelLocal = document.getElementById('labelLocal');
-      if (isEvento) {
+      if (isEvento || isReserva) {
         labelLocal.classList.add('required');
         labelLocal.textContent = 'Local';
       } else {
@@ -1451,7 +1466,7 @@
         document.getElementById('temDuracaoEspecifica').checked = false;
         selectDuracao.value = '';
         labelDuracao.textContent = 'Duração (opcional)';
-      } else if (isReuniao) {
+      } else if (isReuniao || isReserva) {
         // Reunião: mostra select, sem required
         checkboxDuracao.style.display = 'none';
         selectDuracao.style.display = 'block';
@@ -1471,9 +1486,9 @@
       document.getElementById('valorTotal').required = isEvento;
       document.getElementById('idVendedor').required = isEvento;
 
-      // Contratante e Local obrigatórios SOMENTE para EVENTO
-      document.getElementById('contratanteNome').required = isEvento;
-      document.getElementById('localNome').required = isEvento;
+      // Contratante e Local obrigatórios para EVENTO e RESERVA
+      document.getElementById('contratanteNome').required = (isEvento || isReserva);
+      document.getElementById('localNome').required = (isEvento || isReserva);
     }
     
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -1652,6 +1667,7 @@
       eventos.forEach(ev => {
         const badge =
           ev.tipoRegistro === 'Evento' ? 'background:#d4edda;color:#155724' :
+          ev.tipoRegistro === 'Reserva' ? 'background:#fff3cd;color:#7c2d12' :
           ev.tipoRegistro === 'Reunião' ? 'background:#d1ecf1;color:#0c5460' :
           'background:#f8d7da;color:#721c24';
 
@@ -2047,8 +2063,8 @@
       };
       /* ───── Resolução automática de IDs por nome digitado ───── */
 
-// CONTRATANTE (Evento ou Reunião)
-if ((tipoRegistro === 'Evento' || tipoRegistro === 'Reunião') &&
+// CONTRATANTE (Evento, Reunião ou Reserva)
+if ((tipoRegistro === 'Evento' || tipoRegistro === 'Reunião' || tipoRegistro === 'Reserva') &&
     !dados.idContratante &&
     document.getElementById('contratanteNome').value) {
 
@@ -2079,8 +2095,8 @@ if (tipoRegistro === 'Evento' &&
   }
 }
 
-// LOCAL (Evento ou Reunião)
-if ((tipoRegistro === 'Evento' || tipoRegistro === 'Reunião') &&
+// LOCAL (Evento, Reunião ou Reserva)
+if ((tipoRegistro === 'Evento' || tipoRegistro === 'Reunião' || tipoRegistro === 'Reserva') &&
     !dados.idEndereco &&
     document.getElementById('localNome').value) {
 
@@ -2110,13 +2126,20 @@ if ((tipoRegistro === 'Evento' || tipoRegistro === 'Reunião') &&
         dados.somResponsavel = document.getElementById('somResponsavel').value;
         dados.observacoes = document.getElementById('observacoes').value;
       } 
+      // RESERVA (pré-evento sem financeiro)
+      else if (tipoRegistro === 'Reserva') {
+        dados.tipoEvento = document.getElementById('tipoEvento').value || 'Reserva';
+        dados.projeto = document.getElementById('projeto').value || '';
+        dados.motivo = document.getElementById('motivo').value;
+        dados.observacoes = document.getElementById('observacoes').value;
+      }
       // REUNIÃO ou BLOQUEIO
       else {
         dados.motivo = document.getElementById('motivo').value;
         dados.observacoes = document.getElementById('observacoes').value;
       }
       // ───── Validação profissional: CONTRATANTE ─────
-      if ((tipoRegistro === 'Evento' || tipoRegistro === 'Reunião') &&
+      if ((tipoRegistro === 'Evento' || tipoRegistro === 'Reunião' || tipoRegistro === 'Reserva') &&
           campoDigitadoSemId('contratanteNome', 'idContratante')) {
 
         // EVENTO → cria automaticamente
@@ -2175,7 +2198,7 @@ if ((tipoRegistro === 'Evento' || tipoRegistro === 'Reunião') &&
         return;
       }
       // LOCAL – confirmação, mas fixa o loop setando o hidden antes
-      if ((tipoRegistro === 'Evento' || tipoRegistro === 'Reunião') &&
+      if ((tipoRegistro === 'Evento' || tipoRegistro === 'Reunião' || tipoRegistro === 'Reserva') &&
           campoDigitadoSemId('localNome', 'idEndereco')) {
         abrirConfirmacao(
   'Local',
