@@ -554,7 +554,10 @@ window.addEventListener('load', async () => {
     console.log('🔐 Usuário autenticado:', auth.user?.email);
     aplicarPermissoesTelaFinanceira();
 
-    iniciarCentralFinanceira();
+    await iniciarCentralFinanceira();
+    appReady = true;
+    setIntentButtonsEnabled_(true);
+    if (mode) render();
 
   } catch (err) {
     console.error('Erro de autenticação:', err);
@@ -578,6 +581,7 @@ let vendedoresCache = [];
 let comissoesPendentes = [];
 let perfilAtual = '';
 let perfilAtualNorm = '';
+let appReady = false;
 
 let ultimoPreview = null;
 let ultimoResumoFinanceiro = null;
@@ -585,6 +589,16 @@ let ultimoResumoFinanceiro = null;
 const buttons = document.querySelectorAll('.intent button');
 const form = document.getElementById('form');
 const resumo = document.getElementById('resumo');
+
+function setIntentButtonsEnabled_(enabled) {
+  buttons.forEach(btn => {
+    btn.disabled = !enabled;
+    btn.style.opacity = enabled ? '1' : '0.55';
+    btn.style.cursor = enabled ? 'pointer' : 'not-allowed';
+  });
+}
+
+setIntentButtonsEnabled_(false);
 
 function aplicarPermissoesTelaFinanceira() {
   if (!ehSocio_()) return;
@@ -625,6 +639,10 @@ function ehSocio_() {
 
 buttons.forEach(b=>{
   b.onclick = ()=>{
+    if (!appReady) {
+      alert('Aguarde o carregamento completo da Central Financeira.');
+      return;
+    }
     if(mode && mode !== b.dataset.mode &&
        !confirm('Trocar operação limpa os dados atuais. Continuar?')) return;
 
