@@ -2310,6 +2310,43 @@ renderizarEventosDentro(evento) {
     // GERENCIADOR DE FILTROS
     // ========================================
     const FiltroManager = {
+      obterHoraViradaMadrugada() {
+        const bruto = Number(String(AppState.config?.AGENDA_HORA_VIRADA_MADRUGADA || '').trim());
+        if (!isNaN(bruto) && bruto >= 0 && bruto <= 12) return Math.floor(bruto);
+        return 6;
+      },
+
+      horaParaOrdemAgenda(horaStr) {
+        const str = String(horaStr || '').trim();
+        const match = str.match(/^(\d{1,2}):(\d{2})$/);
+        if (!match) return 99 * 60;
+        const h = Number(match[1]);
+        const m = Number(match[2]);
+        if (isNaN(h) || isNaN(m) || h < 0 || h > 23 || m < 0 || m > 59) return 99 * 60;
+
+        let total = (h * 60) + m;
+        if (h < this.obterHoraViradaMadrugada()) total += 24 * 60;
+        return total;
+      },
+
+      ordenarEventosAgenda(eventos) {
+        return [...(eventos || [])].sort((a, b) => {
+          const da = Utils.parseData(a?.data);
+          const db = Utils.parseData(b?.data);
+
+          if (da && db) {
+            da.setHours(0, 0, 0, 0);
+            db.setHours(0, 0, 0, 0);
+            if (da.getTime() !== db.getTime()) return da - db;
+            return this.horaParaOrdemAgenda(a?.hora) - this.horaParaOrdemAgenda(b?.hora);
+          }
+
+          if (da && !db) return -1;
+          if (!da && db) return 1;
+          return this.horaParaOrdemAgenda(a?.hora) - this.horaParaOrdemAgenda(b?.hora);
+        });
+      },
+
       filtrarPorPerfil(eventos) {
     Utils.log('Filtrando eventos por perfil...');
 
@@ -2464,8 +2501,9 @@ renderizarEventosDentro(evento) {
 
         Utils.log('Eventos filtrados:', eventosFiltrados.length);
 
-        AppState.eventosFiltrados = eventosFiltrados;
-        UI.renderizarEventos(eventosFiltrados);
+        const eventosOrdenados = this.ordenarEventosAgenda(eventosFiltrados);
+        AppState.eventosFiltrados = eventosOrdenados;
+        UI.renderizarEventos(eventosOrdenados);
         UI.atualizarHeader();
       },
 
@@ -2531,9 +2569,10 @@ renderizarEventosDentro(evento) {
 
           Utils.log('Eventos filtrados (avançado):', eventosFiltrados.length);
 
+          const eventosOrdenados = this.ordenarEventosAgenda(eventosFiltrados);
           AppState.filtroAtivo = 'personalizado';
-          AppState.eventosFiltrados = eventosFiltrados;
-          UI.renderizarEventos(eventosFiltrados);
+          AppState.eventosFiltrados = eventosOrdenados;
+          UI.renderizarEventos(eventosOrdenados);
           UI.atualizarHeader();
 
           // Fecha filtros avançados
