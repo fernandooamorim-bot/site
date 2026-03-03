@@ -2026,6 +2026,17 @@ renderizarEventosDentro(evento) {
               return data >= hoje;
             });
             break;
+
+          default:
+            if (typeof tipo === 'string' && /^ano_\\d{4}$/.test(tipo)) {
+              const anoAlvo = Number(tipo.replace('ano_', ''));
+              eventosFiltrados = eventosFiltrados.filter(e => {
+                const data = Utils.parseData(e.data);
+                if (!data) return false;
+                return data.getFullYear() === anoAlvo;
+              });
+            }
+            break;
         }
 
         if (isMusico()) {
@@ -2187,6 +2198,9 @@ renderizarEventosDentro(evento) {
           Utils.log('Aplicando filtro padrão:', filtroPadrao);
           FiltroManager.aplicarFiltroRapido(filtroPadrao);
 
+          // 5.1 Monta filtros anuais dinâmicos conforme base atual
+          AgendaController.atualizarFiltrosAnuaisRapidos();
+
           // 6. Ativa botão do filtro padrão
           AgendaController.ativarBotaoFiltro(filtroPadrao);
 
@@ -2343,6 +2357,7 @@ renderizarEventosDentro(evento) {
         syncVersion: versaoAtual
       };
       this.salvarCachePersistente();
+      this.atualizarFiltrosAnuaisRapidos();
 
       const filtro = AppState.filtroAtivo || (isMusico() ? 'proximos' : 'todos');
       FiltroManager.aplicarFiltroRapido(filtro);
@@ -2475,6 +2490,11 @@ renderizarEventosDentro(evento) {
     }
   }
 
+  // Tentativa 4: filtro dinâmico anual (ano_2026 -> botão "2026")
+  if (!btnFiltro && typeof filtro === 'string' && /^ano_\\d{4}$/.test(filtro)) {
+    btnFiltro = document.querySelector(`[data-filter="${filtro}"]`);
+  }
+
   // Ativa o botão se encontrou
   if (btnFiltro) {
     btnFiltro.classList.add('active');
@@ -2485,6 +2505,29 @@ renderizarEventosDentro(evento) {
   }
 },
 
+      atualizarFiltrosAnuaisRapidos() {
+        const container = document.getElementById('filtersQuick');
+        if (!container) return;
+
+        container.querySelectorAll('.filter-btn.year-filter').forEach(btn => btn.remove());
+
+        const anosSet = new Set();
+        (AppState.eventos || []).forEach(e => {
+          const d = Utils.parseData(e.data);
+          if (!d) return;
+          anosSet.add(d.getFullYear());
+        });
+
+        const anos = Array.from(anosSet).sort((a, b) => a - b);
+        anos.forEach(ano => {
+          const btn = document.createElement('button');
+          btn.className = 'filter-btn year-filter';
+          btn.dataset.filter = `ano_${ano}`;
+          btn.textContent = String(ano);
+          container.appendChild(btn);
+        });
+      },
+
       async recarregar() {
         Utils.log('🔄 Recarregando agenda...');
         await AgendaController.init();
@@ -2494,19 +2537,20 @@ renderizarEventosDentro(evento) {
         Utils.log('Configurando event listeners...');
 
         try {
-          // Filtros rápidos
-          document.querySelectorAll('.filter-btn').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-              Utils.log('Click em filtro rápido:', e.target.dataset.filter);
-              // Remove active de todos
+          // Filtros rápidos (delegação para suportar botões anuais dinâmicos)
+          const filtersQuick = document.getElementById('filtersQuick');
+          if (filtersQuick) {
+            filtersQuick.addEventListener('click', (e) => {
+              const btn = e.target.closest('.filter-btn');
+              if (!btn) return;
+              const filtro = btn.dataset.filter;
+              if (!filtro) return;
+              Utils.log('Click em filtro rápido:', filtro);
               document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
-              // Adiciona active no clicado
-              e.target.classList.add('active');
-              // Aplica filtro
-              const filtro = e.target.dataset.filter;
+              btn.classList.add('active');
               FiltroManager.aplicarFiltroRapido(filtro);
             });
-          });
+          }
 
           // Toggle filtros avançados
           const toggleBtn = document.getElementById('toggleAdvanced');
@@ -2601,6 +2645,7 @@ renderizarEventosDentro(evento) {
 
               // Recarrega
               await AgendaController.carregarEventosComCache();
+              AgendaController.atualizarFiltrosAnuaisRapidos();
               const filtroPadrao = isMusico()
                 ? 'proximos'
                 : (AppState.config.AGENDA_FILTRO_PADRAO || 'todos');
