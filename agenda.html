@@ -1165,7 +1165,8 @@ if (!AUTH.email) {
   config: {
     AGENDA_FILTRO_PADRAO: 'proximos',
     AGENDA_CACHE_TIMEOUT: 300000,
-    AGENDA_CORES_PERSONALIZADAS: true
+    AGENDA_CORES_PERSONALIZADAS: true,
+    AGENDA_LIMITE_TODOS: 200
   },
 
   // Cache de eventos
@@ -1174,6 +1175,8 @@ if (!AUTH.email) {
     dados: null,
     syncVersion: ''
   },
+      parseDataCache: {},
+      filtrosAvancadosPopulados: false,
       eventos: [],
       eventosFiltrados: [],
       usuario: null,
@@ -1275,94 +1278,78 @@ if (!AUTH.email) {
        * Valida formato, componentes e data real
        */
       parseData(dataStr) {
-        if (!dataStr) {
-          Utils.log('⚠️ parseData: data vazia');
-          return null;
-        }
+        if (!dataStr) return null;
 
         try {
-          let dataObj;
-
-          // Se já é Date, valida e retorna
+          let cacheKey = '';
           if (dataStr instanceof Date) {
-            if (isNaN(dataStr.getTime())) {
-              Utils.error('Data inválida (Date object):', dataStr);
-              return null;
-            }
-            return dataStr;
+            if (isNaN(dataStr.getTime())) return null;
+            cacheKey = 'date:' + dataStr.getTime();
+          } else {
+            cacheKey = 'str:' + String(dataStr).trim();
           }
 
-          // Converte para string
-          const str = String(dataStr).trim();
-
-          // Formato DD/MM/YYYY
-          if (str.includes('/')) {
-            const regex = /^(\d{2})\/(\d{2})\/(\d{4})$/;
-            const match = str.match(regex);
-
-            if (!match) {
-              Utils.error('Formato inválido (esperado DD/MM/YYYY):', str);
-              return null;
-            }
-
-            const dia = parseInt(match[1], 10);
-            const mes = parseInt(match[2], 10) - 1; // 0-based
-            const ano = parseInt(match[3], 10);
-
-            // Validações básicas
-            if (ano < 1900 || ano > 2100) {
-              Utils.error('Ano inválido:', ano);
-              return null;
-            }
-
-            if (mes < 0 || mes > 11) {
-              Utils.error('Mês inválido:', mes + 1);
-              return null;
-            }
-
-            if (dia < 1 || dia > 31) {
-              Utils.error('Dia inválido:', dia);
-              return null;
-            }
-
-            // Cria data (meio-dia para evitar problemas de fuso)
-            dataObj = new Date(ano, mes, dia, 12, 0, 0, 0);
-
-            // Valida se data é válida (31/02 vira 03/03)
-            if (isNaN(dataObj.getTime())) {
-              Utils.error('Data inválida:', str);
-              return null;
-            }
-
-            // Valida se componentes batem
-            if (dataObj.getDate() !== dia ||
-                dataObj.getMonth() !== mes ||
-                dataObj.getFullYear() !== ano) {
-              Utils.error('Data inexistente (ex: 31/02):', str);
-              return null;
-            }
-
-            return dataObj;
+          const cache = AppState.parseDataCache || {};
+          if (Object.prototype.hasOwnProperty.call(cache, cacheKey)) {
+            const msCached = cache[cacheKey];
+            return msCached ? new Date(msCached) : null;
           }
 
-          // Formato ISO (YYYY-MM-DD)
-          if (str.includes('-')) {
-            dataObj = new Date(str + 'T12:00:00');
+          let dataObj = null;
 
-            if (isNaN(dataObj.getTime())) {
-              Utils.error('Data inválida (ISO):', str);
+          if (dataStr instanceof Date) {
+            dataObj = new Date(dataStr.getTime());
+          } else {
+            const str = String(dataStr).trim();
+
+            if (str.includes('/')) {
+              const regex = /^(\d{2})\/(\d{2})\/(\d{4})$/;
+              const match = str.match(regex);
+              if (!match) {
+                cache[cacheKey] = 0;
+                return null;
+              }
+
+              const dia = parseInt(match[1], 10);
+              const mes = parseInt(match[2], 10) - 1;
+              const ano = parseInt(match[3], 10);
+
+              if (ano < 1900 || ano > 2100 || mes < 0 || mes > 11 || dia < 1 || dia > 31) {
+                cache[cacheKey] = 0;
+                return null;
+              }
+
+              dataObj = new Date(ano, mes, dia, 12, 0, 0, 0);
+              if (isNaN(dataObj.getTime())) {
+                cache[cacheKey] = 0;
+                return null;
+              }
+              if (dataObj.getDate() !== dia || dataObj.getMonth() !== mes || dataObj.getFullYear() !== ano) {
+                cache[cacheKey] = 0;
+                return null;
+              }
+            } else if (str.includes('-')) {
+              dataObj = new Date(str + 'T12:00:00');
+              if (isNaN(dataObj.getTime())) {
+                cache[cacheKey] = 0;
+                return null;
+              }
+            } else {
+              cache[cacheKey] = 0;
               return null;
             }
-
-            return dataObj;
           }
 
-          // Formato desconhecido
-          Utils.error('Formato desconhecido:', str);
-          return null;
+          const ms = dataObj && !isNaN(dataObj.getTime()) ? dataObj.getTime() : 0;
+          cache[cacheKey] = ms;
+          AppState.parseDataCache = cache;
 
+          if (Object.keys(cache).length > 5000) {
+            AppState.parseDataCache = {};
+          }
+
+          return ms ? new Date(ms) : null;
         } catch (e) {
-          Utils.error('Erro ao fazer parse de data:', e.message, dataStr);
           return null;
         }
       },
@@ -1958,7 +1945,7 @@ renderizarEventosDentro(evento) {
         switch (tipo) {
           case 'todos':
             // LIMITE PARA FILTRO "TODOS"
-            const LIMITE_TODOS = 200;
+            const LIMITE_TODOS = Number(AppState.config.AGENDA_LIMITE_TODOS) || 200;
 
             if (eventosFiltrados.length > LIMITE_TODOS) {
               Utils.log(`⚠️ Muitos eventos (${eventosFiltrados.length}), limitando a ${LIMITE_TODOS}`);
@@ -2174,38 +2161,33 @@ renderizarEventosDentro(evento) {
           // Mostra loading
           UI.showLoading();
 
-          // 1. Carrega configurações globais
-          await AgendaController.carregarConfiguracoes();
+          // 1. Carrega usuário
+          await AgendaController.carregarUsuario();
+          AgendaController.aplicarRestricoesPerfil();
 
-          // 2. Aplica configurações de virtualização
+          // 2. Carrega config e eventos em paralelo para reduzir tempo de boot.
+          await Promise.all([
+            AgendaController.carregarConfiguracoes(),
+            AgendaController.carregarEventosComCache()
+          ]);
+
+          // 3. Aplica configurações visuais
           AgendaController.aplicarConfigVirtualizacao();
-
-          // 3. Aplica cores personalizadas
           if (AppState.config.AGENDA_CORES_PERSONALIZADAS) {
             AgendaController.aplicarCoresPersonalizadas();
           }
 
-          // 4. Carrega usuário
-          await AgendaController.carregarUsuario();
-          AgendaController.aplicarRestricoesPerfil();
-
-          // 5. Carrega eventos (com cache)
-          await AgendaController.carregarEventosComCache();
-
-          // 6. Configura event listeners
+          // 4. Configura event listeners
           AgendaController.setupEventListeners();
 
-          // 7. Aplica filtro padrão da CONFIG
+          // 5. Aplica filtro padrão da CONFIG
           const filtroPadrao = isMusico()
             ? 'proximos'
             : (AppState.config.AGENDA_FILTRO_PADRAO || 'todos');
           Utils.log('Aplicando filtro padrão:', filtroPadrao);
           FiltroManager.aplicarFiltroRapido(filtroPadrao);
 
-          // 8. Popula filtros avançados
-          UI.popularFiltrosAvancados();
-
-          // 9. Ativa botão do filtro padrão
+          // 6. Ativa botão do filtro padrão
           AgendaController.ativarBotaoFiltro(filtroPadrao);
 
           Utils.log('✅ Agenda Visual inicializada com sucesso!');
@@ -2257,6 +2239,7 @@ renderizarEventosDentro(evento) {
         const eventosFiltrados = FiltroManager.filtrarPorPerfil(eventos);
 
         AppState.eventos = eventosFiltrados;
+        AppState.filtrosAvancadosPopulados = false;
         AppState.ultimaAtualizacao = Date.now();
 
         return eventosFiltrados;
@@ -2540,6 +2523,10 @@ renderizarEventosDentro(evento) {
                   icon.textContent = '▼';
                   text.textContent = 'Filtros Avançados';
                 } else {
+                  if (!AppState.filtrosAvancadosPopulados) {
+                    UI.popularFiltrosAvancados();
+                    AppState.filtrosAvancadosPopulados = true;
+                  }
                   advanced.classList.add('show');
                   icon.textContent = '▲';
                   text.textContent = 'Ocultar Filtros';
