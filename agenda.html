@@ -194,6 +194,78 @@
       display: none;
     }
 
+    .view-toolbar {
+      display: none;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 10px 16px 12px;
+      border-top: 1px solid var(--gray-200);
+      background: var(--gray-50);
+    }
+
+    .view-toolbar.show {
+      display: flex;
+    }
+
+    .view-mode {
+      display: inline-flex;
+      background: var(--bg-card);
+      border: 1.5px solid var(--gray-300);
+      border-radius: var(--radius-full);
+      padding: 2px;
+      gap: 2px;
+    }
+
+    .view-mode-btn {
+      border: none;
+      background: transparent;
+      color: var(--gray-600);
+      border-radius: var(--radius-full);
+      padding: 7px 12px;
+      font-size: 12px;
+      font-weight: 700;
+      font-family: var(--font);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+      transition: var(--transition);
+    }
+
+    .view-mode-btn.active {
+      background: var(--navy-600);
+      color: #fff;
+      box-shadow: 0 2px 8px rgba(30,58,95,0.2);
+    }
+
+    .view-actions {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn-export {
+      border: 1.5px solid var(--gray-300);
+      background: var(--bg-card);
+      color: var(--gray-700);
+      border-radius: var(--radius-full);
+      padding: 7px 11px;
+      font-size: 12px;
+      font-weight: 700;
+      font-family: var(--font);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+      transition: var(--transition);
+    }
+
+    .btn-export:hover {
+      border-color: var(--navy-500);
+      color: var(--navy-600);
+    }
+
     .filter-btn {
       padding: 8px 16px;
       border: 1.5px solid var(--gray-300);
@@ -351,6 +423,92 @@
       display: flex;
       flex-direction: column;
       gap: 8px;
+    }
+
+    .agenda-planilha {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .planilha-mes-card {
+      background: var(--bg-card);
+      border: 1px solid var(--gray-200);
+      border-radius: var(--radius-md);
+      box-shadow: var(--shadow-sm);
+      overflow: hidden;
+    }
+
+    .planilha-mes-titulo {
+      background: linear-gradient(90deg, #eef3ff 0%, #f7f9fe 100%);
+      color: var(--navy-700);
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0.6px;
+      text-transform: uppercase;
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--gray-200);
+    }
+
+    .planilha-scroll {
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .planilha-table {
+      width: 100%;
+      min-width: 980px;
+      border-collapse: collapse;
+      background: var(--bg-card);
+    }
+
+    .planilha-table th,
+    .planilha-table td {
+      padding: 8px 10px;
+      border-bottom: 1px solid var(--gray-200);
+      font-size: 12px;
+      vertical-align: top;
+      text-align: left;
+    }
+
+    .planilha-table thead th {
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      color: var(--gray-600);
+      background: #fafbff;
+      position: sticky;
+      top: 0;
+      z-index: 1;
+    }
+
+    .planilha-table tbody tr:hover {
+      background: #f9fbff;
+    }
+
+    .planilha-past {
+      opacity: 0.75;
+    }
+
+    .planilha-tipo-chip {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 700;
+      border-radius: 999px;
+      padding: 3px 8px;
+      background: #eaf0ff;
+      color: #1f3a72;
+    }
+
+    .planilha-acoes {
+      display: inline-flex;
+      gap: 6px;
+    }
+
+    .planilha-acoes .btn-action {
+      padding: 6px 10px;
+      font-size: 11px;
     }
 
     /* ============================================
@@ -933,6 +1091,29 @@
        RESPONSIVE
        ============================================ */
     @media (max-width: 640px) {
+      .view-toolbar {
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      .view-mode {
+        width: 100%;
+      }
+
+      .view-mode-btn {
+        flex: 1;
+        justify-content: center;
+      }
+
+      .view-actions {
+        width: 100%;
+      }
+
+      .btn-export {
+        flex: 1;
+        justify-content: center;
+      }
+
       .header h1 {
         font-size: 16px;
       }
@@ -975,6 +1156,35 @@
 
       .header {
         padding: 18px 24px;
+      }
+    }
+
+    @media print {
+      .header,
+      .filters-container,
+      .footer-nav,
+      .view-toolbar,
+      .evento-actions,
+      .planilha-acoes {
+        display: none !important;
+      }
+
+      body {
+        background: #fff;
+        color: #111;
+        padding: 0;
+      }
+
+      .eventos-container {
+        max-width: none;
+        margin: 0;
+        padding: 0;
+      }
+
+      .planilha-mes-card {
+        border: none;
+        box-shadow: none;
+        page-break-inside: avoid;
       }
     }
 
@@ -1024,6 +1234,30 @@
       <button class="filter-btn" data-filter="proximos7">Próximos 7 dias</button>
       <button class="filter-btn" data-filter="mesAtual">Mês Atual</button>
       <button class="filter-btn" data-filter="todos">Todos</button>
+    </div>
+
+    <div class="view-toolbar" id="viewToolbar">
+      <div class="view-mode">
+        <button class="view-mode-btn active" id="btnModoCards" data-view-mode="cards">
+          <i data-lucide="cards" style="width:14px;height:14px"></i>
+          Cards
+        </button>
+        <button class="view-mode-btn" id="btnModoPlanilha" data-view-mode="planilha">
+          <i data-lucide="sheet" style="width:14px;height:14px"></i>
+          Planilha
+        </button>
+      </div>
+
+      <div class="view-actions">
+        <button class="btn-export" id="btnExportarCsv" title="Exportar visão atual para CSV">
+          <i data-lucide="file-spreadsheet" style="width:14px;height:14px"></i>
+          CSV
+        </button>
+        <button class="btn-export" id="btnExportarPdf" title="Exportar visão atual para PDF">
+          <i data-lucide="file-text" style="width:14px;height:14px"></i>
+          PDF
+        </button>
+      </div>
     </div>
 
     <!-- Toggle filtros avançados -->
@@ -1180,6 +1414,7 @@ if (!AUTH.email) {
       eventos: [],
       eventosFiltrados: [],
       usuario: null,
+      modoVisualizacao: 'cards',
       filtroAtivo: 'todos',
       ultimaAtualizacao: null,
       loading: false
@@ -1190,6 +1425,11 @@ if (!AUTH.email) {
 
     function isMusico() {
       return AppState.usuario && AppState.usuario.perfil === 'Músico';
+    }
+
+    function isGestorAgenda() {
+      if (!AppState.usuario || !AppState.usuario.perfil) return false;
+      return AppState.usuario.perfil === 'Proprietário' || AppState.usuario.perfil === 'Sócio';
     }
 
     // ========================================
@@ -1530,6 +1770,10 @@ calcularDiasIntervalo(dataInicio, dataFim) {
           info.push(`Filtro: ${AppState.filtroAtivo}`);
         }
 
+        if (isGestorAgenda()) {
+          info.push(`Modo: ${AppState.modoVisualizacao === 'planilha' ? 'Planilha' : 'Cards'}`);
+        }
+
         const infoEl = document.getElementById('headerInfo');
         if (infoEl) {
           infoEl.innerHTML = info.join(' • ');
@@ -1552,6 +1796,12 @@ calcularDiasIntervalo(dataInicio, dataFim) {
       return;
     }
 
+    if (AppState.modoVisualizacao === 'planilha' && isGestorAgenda()) {
+      this.renderizarEventosPlanilha(eventos);
+      document.getElementById('eventoCount').textContent = `${eventos.length} eventos`;
+      return;
+    }
+
     // NOVA LÓGICA: Usa virtualização ou renderização normal
     if (AppState.virtualizacao.enabled && eventos.length >= AppState.virtualizacao.threshold) {
       this.renderizarEventosVirtualizados(eventos);
@@ -1562,6 +1812,104 @@ calcularDiasIntervalo(dataInicio, dataFim) {
     // Atualiza contador
     document.getElementById('eventoCount').textContent = `${eventos.length} eventos`;
   },
+
+      obterChaveMesAno(dataEvento) {
+        const data = Utils.parseData(dataEvento);
+        if (!data) return null;
+        return `${data.getFullYear()}-${String(data.getMonth() + 1).padStart(2, '0')}`;
+      },
+
+      obterLabelMesAno(chaveMesAno) {
+        if (!chaveMesAno || !chaveMesAno.includes('-')) return 'Sem mês';
+        const [anoStr, mesStr] = chaveMesAno.split('-');
+        const ano = Number(anoStr);
+        const mes = Number(mesStr) - 1;
+        const data = new Date(ano, mes, 1);
+        return data.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+      },
+
+      criarLinhaPlanilha(evento) {
+        const classe = Utils.classificarEvento(evento.data) === 'passado' ? 'planilha-past' : '';
+        const tipo = evento.tipo || 'Evento';
+        const tipoEvento = evento.tipoEvento || '-';
+        const intervaloData = evento.dataFim ? `${evento.data} a ${evento.dataFim}` : (evento.data || '-');
+        const horario = evento.horaFim
+          ? `${evento.hora || '-'} → ${evento.horaFim}${evento.duracao ? ` (${evento.duracao})` : ''}`
+          : `${evento.hora || '-'}${evento.duracao ? ` (${evento.duracao})` : ''}`;
+        const valor = evento.valor || evento.valor === 0 ? Utils.formatarMoeda(Number(evento.valor) || 0) : '-';
+        const status = evento.status || '-';
+
+        return `
+          <tr class="${classe}">
+            <td>${intervaloData}</td>
+            <td>${horario}</td>
+            <td><span class="planilha-tipo-chip">${tipo}</span></td>
+            <td>${tipoEvento}</td>
+            <td>${evento.contratante || '-'}</td>
+            <td>${evento.local || '-'}</td>
+            <td>${evento.projeto || '-'}</td>
+            <td>${status}</td>
+            <td>${valor}</td>
+            <td>
+              <div class="planilha-acoes">
+                <button class="btn-action primary" onclick="editarEvento('${evento.id}');">Editar</button>
+              </div>
+            </td>
+          </tr>
+        `;
+      },
+
+      renderizarEventosPlanilha(eventos) {
+        const container = document.getElementById('eventosContainer');
+        const grupos = {};
+
+        eventos.forEach(evento => {
+          const chave = this.obterChaveMesAno(evento.data) || 'sem-data';
+          if (!grupos[chave]) grupos[chave] = [];
+          grupos[chave].push(evento);
+        });
+
+        const chavesOrdenadas = Object.keys(grupos).sort((a, b) => {
+          if (a === 'sem-data') return 1;
+          if (b === 'sem-data') return -1;
+          return a.localeCompare(b);
+        });
+
+        let html = '<div class="agenda-planilha">';
+
+        chavesOrdenadas.forEach(chave => {
+          const labelMes = chave === 'sem-data' ? 'Sem data definida' : this.obterLabelMesAno(chave);
+          const linhas = grupos[chave].map(evento => this.criarLinhaPlanilha(evento)).join('');
+
+          html += `
+            <section class="planilha-mes-card">
+              <div class="planilha-mes-titulo">${labelMes}</div>
+              <div class="planilha-scroll">
+                <table class="planilha-table">
+                  <thead>
+                    <tr>
+                      <th>Data</th>
+                      <th>Horário</th>
+                      <th>Registro</th>
+                      <th>Tipo Evento</th>
+                      <th>Contratante</th>
+                      <th>Local</th>
+                      <th>Formação</th>
+                      <th>Status</th>
+                      <th>Valor</th>
+                      <th>Ações</th>
+                    </tr>
+                  </thead>
+                  <tbody>${linhas}</tbody>
+                </table>
+              </div>
+            </section>
+          `;
+        });
+
+        html += '</div>';
+        container.innerHTML = html;
+      },
 
       toggleDetalhesCard(cardEl) {
         if (!cardEl) return;
@@ -2224,6 +2572,14 @@ renderizarEventosDentro(evento) {
       },
 
       aplicarRestricoesPerfil() {
+        const viewToolbar = document.getElementById('viewToolbar');
+        if (isGestorAgenda()) {
+          if (viewToolbar) viewToolbar.classList.add('show');
+          return;
+        }
+
+        AppState.modoVisualizacao = 'cards';
+        if (viewToolbar) viewToolbar.classList.remove('show');
         if (!isMusico()) return;
 
         const botaoTodos = document.querySelector('[data-filter="todos"]');
@@ -2237,6 +2593,99 @@ renderizarEventosDentro(evento) {
 
         const btnToggleFilters = document.getElementById('btnToggleFilters');
         if (btnToggleFilters) btnToggleFilters.style.display = 'none';
+      },
+
+      alternarModoVisualizacao(modo) {
+        if (!isGestorAgenda()) return;
+        AppState.modoVisualizacao = modo === 'planilha' ? 'planilha' : 'cards';
+
+        const btnCards = document.getElementById('btnModoCards');
+        const btnPlanilha = document.getElementById('btnModoPlanilha');
+        if (btnCards) btnCards.classList.toggle('active', AppState.modoVisualizacao === 'cards');
+        if (btnPlanilha) btnPlanilha.classList.toggle('active', AppState.modoVisualizacao === 'planilha');
+
+        UI.renderizarEventos(AppState.eventosFiltrados || []);
+        UI.atualizarHeader();
+      },
+
+      exportarCsvAtual() {
+        try {
+          const eventos = AppState.eventosFiltrados || [];
+          if (!eventos.length) {
+            alert('Não há eventos para exportar no filtro atual.');
+            return;
+          }
+
+          const cabecalho = [
+            'ID_EVENTO',
+            'TIPO_REGISTRO',
+            'DATA',
+            'DATA_FIM',
+            'HORA_INICIO',
+            'HORA_FIM',
+            'DURACAO',
+            'TIPO_EVENTO',
+            'CONTRATANTE',
+            'LOCAL',
+            'PROJETO',
+            'CERIMONIALISTA',
+            'LOOK',
+            'SOM_RESPONSAVEL',
+            'STATUS_RECEBIMENTO',
+            'VALOR_TOTAL',
+            'OBSERVACOES'
+          ];
+
+          const linhas = eventos.map(e => [
+            e.id || '',
+            e.tipo || '',
+            e.data || '',
+            e.dataFim || '',
+            e.hora || '',
+            e.horaFim || '',
+            e.duracao || '',
+            e.tipoEvento || '',
+            e.contratante || '',
+            e.local || '',
+            e.projeto || '',
+            e.cerimonialista || '',
+            e.look || '',
+            e.somResponsavel || '',
+            e.status || '',
+            e.valor || 0,
+            e.observacoes || ''
+          ]);
+
+          const escapeCsv = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+          const csvBody = [cabecalho, ...linhas].map(cols => cols.map(escapeCsv).join(';')).join('\n');
+          const csv = '\uFEFF' + csvBody;
+
+          const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          const dataNome = new Date().toISOString().slice(0, 10);
+          const filtro = AppState.filtroAtivo || 'agenda';
+          link.href = url;
+          link.download = `agenda-${filtro}-${dataNome}.csv`;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          URL.revokeObjectURL(url);
+        } catch (e) {
+          Utils.error('Erro ao exportar CSV:', e);
+          alert('Falha ao exportar CSV. Verifique o console.');
+        }
+      },
+
+      exportarPdfAtual() {
+        if (!isGestorAgenda()) return;
+        const modoAnterior = AppState.modoVisualizacao;
+        if (modoAnterior !== 'planilha') {
+          this.alternarModoVisualizacao('planilha');
+          setTimeout(() => window.print(), 120);
+          return;
+        }
+        window.print();
       },
 
       async carregarEventos() {
@@ -2541,6 +2990,35 @@ renderizarEventosDentro(evento) {
         Utils.log('Configurando event listeners...');
 
         try {
+          const btnModoCards = document.getElementById('btnModoCards');
+          const btnModoPlanilha = document.getElementById('btnModoPlanilha');
+          const btnExportarCsv = document.getElementById('btnExportarCsv');
+          const btnExportarPdf = document.getElementById('btnExportarPdf');
+
+          if (btnModoCards) {
+            btnModoCards.addEventListener('click', () => {
+              AgendaController.alternarModoVisualizacao('cards');
+            });
+          }
+
+          if (btnModoPlanilha) {
+            btnModoPlanilha.addEventListener('click', () => {
+              AgendaController.alternarModoVisualizacao('planilha');
+            });
+          }
+
+          if (btnExportarCsv) {
+            btnExportarCsv.addEventListener('click', () => {
+              AgendaController.exportarCsvAtual();
+            });
+          }
+
+          if (btnExportarPdf) {
+            btnExportarPdf.addEventListener('click', () => {
+              AgendaController.exportarPdfAtual();
+            });
+          }
+
           // Filtros rápidos (delegação para suportar botões anuais dinâmicos)
           const filtersQuick = document.getElementById('filtersQuick');
           if (filtersQuick) {
