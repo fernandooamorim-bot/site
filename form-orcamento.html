@@ -161,18 +161,139 @@
       min-height: calc(100vh - var(--nav-height));
     }
 
-    .toolbar {
+    .card {
+      background: #fff;
+      border: 1px solid var(--gray-200);
+      border-radius: 14px;
+      box-shadow: 0 6px 18px rgba(10,22,40,0.08);
+      overflow: hidden;
+    }
+
+    .card-head {
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--gray-100);
       display: flex;
       align-items: center;
       justify-content: space-between;
       gap: 10px;
-      margin-bottom: 10px;
     }
 
-    .toolbar-note {
-      color: var(--gray-700);
+    .card-title {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 800;
+      color: #0f172a;
+      font-size: 14px;
+    }
+
+    .card-title i { width: 16px; height: 16px; color: #1e3a5f; }
+
+    .card-body {
+      padding: 14px;
+      display: grid;
+      gap: 12px;
+    }
+
+    .status {
+      border-radius: 10px;
+      padding: 10px 12px;
       font-size: 13px;
+      font-weight: 600;
+      display: none;
+    }
+
+    .status.show { display: block; }
+    .status.info { background: #eff6ff; color: #1e3a8a; border: 1px solid #bfdbfe; }
+    .status.ok { background: #ecfdf5; color: #065f46; border: 1px solid #a7f3d0; }
+    .status.err { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .field {
+      display: grid;
+      gap: 6px;
+    }
+
+    .field.span-2 { grid-column: span 2; }
+
+    .field label {
+      font-size: 12px;
+      color: #334155;
+      font-weight: 700;
+    }
+
+    .field input,
+    .field textarea {
+      width: 100%;
+      border: 1px solid #d6deea;
+      border-radius: 10px;
+      background: #fff;
+      padding: 10px 11px;
+      font-size: 14px;
+      outline: none;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .field input:focus,
+    .field textarea:focus {
+      border-color: #1e3a5f;
+      box-shadow: 0 0 0 3px rgba(30,58,95,0.12);
+    }
+
+    .field textarea {
+      min-height: 86px;
+      resize: vertical;
+    }
+
+    .options {
+      border: 1px solid #d6deea;
+      border-radius: 10px;
+      background: #fbfcff;
+      padding: 10px 11px;
+      display: grid;
+      gap: 8px;
+    }
+
+    .opt-line {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .opt-line input[type="checkbox"] {
+      width: 16px;
+      height: 16px;
       margin: 0;
+      accent-color: #1e3a5f;
+    }
+
+    .opt-line span {
+      font-size: 13px;
+      font-weight: 700;
+      color: #111827;
+      min-width: 80px;
+    }
+
+    .opt-line input[type="text"] {
+      width: 170px;
+      padding: 7px 9px;
+      font-size: 13px;
+      border-radius: 8px;
+      border: 1px solid #d6deea;
+      background: #fff;
+    }
+
+    .actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
     }
 
     .btn {
@@ -180,9 +301,9 @@
       background: #fff;
       color: #0f172a;
       border-radius: 10px;
-      padding: 8px 12px;
+      padding: 9px 12px;
       font-size: 13px;
-      font-weight: 600;
+      font-weight: 700;
       cursor: pointer;
       display: inline-flex;
       align-items: center;
@@ -190,55 +311,47 @@
       text-decoration: none;
     }
 
-    .form-wrap {
-      position: relative;
-      border: 1px solid var(--gray-200);
-      border-radius: 14px;
-      overflow: hidden;
-      background: #fff;
-      box-shadow: 0 6px 18px rgba(10,22,40,0.08);
-      height: calc(100vh - 170px);
-      min-height: 620px;
+    .btn.primary {
+      background: #1e3a5f;
+      color: #fff;
+      border-color: #1e3a5f;
     }
 
-    .form-iframe {
-      width: 100%;
-      height: 100%;
-      border: 0;
-      background: #fff;
+    .btn[disabled] {
+      opacity: 0.6;
+      cursor: wait;
     }
 
-    .form-loading {
-      position: absolute;
-      inset: 0;
-      background: rgba(248,249,252,0.92);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex-direction: column;
+    .result-box {
+      border: 1px solid #d6deea;
+      border-radius: 10px;
+      background: #f8fafc;
+      padding: 10px;
+      display: none;
       gap: 8px;
-      z-index: 2;
-      color: #334155;
+    }
+
+    .result-box.show {
+      display: grid;
+    }
+
+    .result-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
       font-size: 13px;
-      font-weight: 600;
-      transition: opacity 0.2s ease;
     }
 
-    .form-loading.hidden {
-      opacity: 0;
-      pointer-events: none;
+    .result-row strong {
+      color: #0f172a;
+      min-width: 140px;
     }
 
-    .form-loading i {
-      width: 20px;
-      height: 20px;
-      color: #1e3a5f;
-      animation: spin 1s linear infinite;
-    }
-
-    @keyframes spin {
-      from { transform: rotate(0deg); }
-      to { transform: rotate(360deg); }
+    .result-row a {
+      color: #1d4ed8;
+      text-decoration: none;
+      word-break: break-all;
     }
 
     .bottom-nav {
@@ -290,16 +403,16 @@
         padding: 10px;
         min-height: auto;
       }
-      .form-wrap {
-        height: calc(100vh - 210px);
-        min-height: 520px;
-      }
       .global-header-title span {
         max-width: 145px;
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
       }
+      .form-grid { grid-template-columns: 1fr; }
+      .field.span-2 { grid-column: span 1; }
+      .result-row strong { min-width: auto; }
+      .opt-line input[type="text"] { width: 100%; }
     }
   </style>
 </head>
@@ -327,26 +440,72 @@
   </div>
 
   <main class="page">
-    <div class="toolbar">
-      <p class="toolbar-note">Formulário interno para geração de orçamento automático.</p>
-      <a class="btn" href="https://docs.google.com/forms/d/e/1FAIpQLSdlK8DKjejpttx0F-jMR2uDLCJ28COrzo0XzA6LGHWdR4B5Gg/viewform" target="_blank" rel="noopener noreferrer">
-        <i data-lucide="external-link"></i>
-        Abrir em nova aba
-      </a>
-    </div>
-
-    <section class="form-wrap">
-      <div class="form-loading" id="formLoading">
-        <i data-lucide="loader-2"></i>
-        <span>Carregando formulário...</span>
+    <section class="card">
+      <div class="card-head">
+        <div class="card-title">
+          <i data-lucide="file-text"></i>
+          Formulário Interno de Orçamento
+        </div>
       </div>
-      <iframe
-        id="orcamentoFrame"
-        class="form-iframe"
-        title="Formulário de orçamento"
-        loading="eager"
-        src="https://docs.google.com/forms/d/e/1FAIpQLSdlK8DKjejpttx0F-jMR2uDLCJ28COrzo0XzA6LGHWdR4B5Gg/viewform?embedded=true">
-      </iframe>
+      <div class="card-body">
+        <div class="status show info" id="statusMsg">Preencha os dados e clique em "Gerar orçamento".</div>
+
+        <div class="form-grid">
+          <div class="field">
+            <label for="nome">Nome do contratante</label>
+            <input id="nome" type="text" placeholder="Ex.: Maria Fernanda">
+          </div>
+          <div class="field">
+            <label for="telefone">Telefone (WhatsApp)</label>
+            <input id="telefone" type="text" placeholder="Ex.: 85 99999-9999">
+          </div>
+          <div class="field">
+            <label for="dataEvento">Data do evento</label>
+            <input id="dataEvento" type="date">
+          </div>
+          <div class="field span-2">
+            <label>Propostas e valores</label>
+            <div class="options">
+              <div class="opt-line">
+                <input id="propPocket" type="checkbox">
+                <span>Pocket</span>
+                <input id="valorPocket" type="text" placeholder="Valor (opcional)">
+              </div>
+              <div class="opt-line">
+                <input id="propGold" type="checkbox">
+                <span>Gold</span>
+                <input id="valorGold" type="text" placeholder="Valor (opcional)">
+              </div>
+              <div class="opt-line">
+                <input id="propPremium" type="checkbox">
+                <span>Premium</span>
+                <input id="valorPremium" type="text" placeholder="Valor (opcional)">
+              </div>
+            </div>
+          </div>
+          <div class="field span-2">
+            <label for="observacoes">Observações (opcional)</label>
+            <textarea id="observacoes" placeholder="Detalhes adicionais para contexto interno."></textarea>
+          </div>
+        </div>
+
+        <div class="actions">
+          <button class="btn primary" id="btnGerar">
+            <i data-lucide="sparkles"></i>
+            Gerar orçamento
+          </button>
+          <button class="btn" id="btnLimpar">
+            <i data-lucide="eraser"></i>
+            Limpar
+          </button>
+        </div>
+
+        <div class="result-box" id="resultBox">
+          <div class="result-row"><strong>Número:</strong><span id="resNumero">-</span></div>
+          <div class="result-row"><strong>PDF:</strong><a id="resPdf" href="#" target="_blank" rel="noopener noreferrer">Abrir PDF</a></div>
+          <div class="result-row"><strong>WhatsApp:</strong><a id="resWhats" href="#" target="_blank" rel="noopener noreferrer">Abrir mensagem</a></div>
+        </div>
+      </div>
     </section>
   </main>
 
@@ -401,25 +560,117 @@
       if (ghName) ghName.textContent = first;
     }
 
-    function initFrameLoading_() {
-      const frame = document.getElementById('orcamentoFrame');
-      const loading = document.getElementById('formLoading');
-      if (!frame || !loading) return;
+    function setStatus_(msg, tipo) {
+      const el = document.getElementById('statusMsg');
+      if (!el) return;
+      el.textContent = String(msg || '');
+      el.className = 'status show ' + (tipo || 'info');
+    }
 
-      let done = false;
-      const hide = () => {
-        if (done) return;
-        done = true;
-        loading.classList.add('hidden');
+    function normalizarNumero_(raw) {
+      const str = String(raw || '').trim();
+      if (!str) return '';
+      return str
+        .replace(/\s+/g, '')
+        .replace(/[Rr]\$/g, '')
+        .replace(/\./g, '')
+        .replace(',', '.');
+    }
+
+    function coletarPayload_() {
+      const propostas = [];
+      if (document.getElementById('propPocket').checked) propostas.push('pocket');
+      if (document.getElementById('propGold').checked) propostas.push('gold');
+      if (document.getElementById('propPremium').checked) propostas.push('premium');
+
+      return {
+        nome: document.getElementById('nome').value.trim(),
+        telefone: document.getElementById('telefone').value.trim(),
+        dataEvento: document.getElementById('dataEvento').value,
+        propostas: propostas.join(','),
+        valorPocket: normalizarNumero_(document.getElementById('valorPocket').value),
+        valorGold: normalizarNumero_(document.getElementById('valorGold').value),
+        valorPremium: normalizarNumero_(document.getElementById('valorPremium').value),
+        observacoes: document.getElementById('observacoes').value.trim()
       };
+    }
 
-      frame.addEventListener('load', hide);
-      setTimeout(hide, 4000);
+    function validarPayload_(p) {
+      if (!p.nome) return 'Informe o nome do contratante.';
+      if (!p.telefone) return 'Informe o telefone.';
+      if (!p.dataEvento) return 'Informe a data do evento.';
+      if (!p.propostas) return 'Selecione ao menos uma proposta.';
+      return '';
+    }
+
+    function limparFormulario_() {
+      ['nome', 'telefone', 'dataEvento', 'valorPocket', 'valorGold', 'valorPremium', 'observacoes']
+        .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+      ['propPocket', 'propGold', 'propPremium']
+        .forEach(id => { const el = document.getElementById(id); if (el) el.checked = false; });
+      const result = document.getElementById('resultBox');
+      if (result) result.classList.remove('show');
+      setStatus_('Formulário limpo.', 'info');
+    }
+
+    function renderResultado_(resp) {
+      const box = document.getElementById('resultBox');
+      if (!box) return;
+      document.getElementById('resNumero').textContent = resp.numeroOrcamento || '-';
+      const pdf = document.getElementById('resPdf');
+      const whats = document.getElementById('resWhats');
+
+      if (resp.linkPdf) {
+        pdf.href = resp.linkPdf;
+        pdf.textContent = resp.linkPdf;
+      } else {
+        pdf.removeAttribute('href');
+        pdf.textContent = 'Não informado';
+      }
+
+      if (resp.linkWhats) {
+        whats.href = resp.linkWhats;
+        whats.textContent = resp.linkWhats;
+      } else {
+        whats.removeAttribute('href');
+        whats.textContent = 'Não informado';
+      }
+
+      box.classList.add('show');
+    }
+
+    async function enviarOrcamento_() {
+      const btn = document.getElementById('btnGerar');
+      const payload = coletarPayload_();
+      const erro = validarPayload_(payload);
+      if (erro) {
+        setStatus_(erro, 'err');
+        return;
+      }
+
+      try {
+        btn.disabled = true;
+        setStatus_('Gerando orçamento...', 'info');
+        const resp = await Auth.apiCall('gerarOrcamentoInterno', payload);
+        if (!resp || resp.sucesso !== true) {
+          throw new Error(resp && (resp.mensagem || resp.error) ? (resp.mensagem || resp.error) : 'Falha ao gerar orçamento');
+        }
+        renderResultado_(resp);
+        setStatus_(resp.mensagem || 'Orçamento gerado com sucesso.', 'ok');
+      } catch (err) {
+        console.error(err);
+        setStatus_('Falha ao gerar orçamento: ' + (err.message || err), 'err');
+      } finally {
+        btn.disabled = false;
+      }
     }
 
     document.addEventListener('DOMContentLoaded', () => {
       preencherHeaderLocal_();
-      initFrameLoading_();
+      const btnGerar = document.getElementById('btnGerar');
+      const btnLimpar = document.getElementById('btnLimpar');
+      if (btnGerar) btnGerar.addEventListener('click', enviarOrcamento_);
+      if (btnLimpar) btnLimpar.addEventListener('click', limparFormulario_);
       if (window.lucide) window.lucide.createIcons();
     });
 
