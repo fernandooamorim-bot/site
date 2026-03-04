@@ -354,6 +354,33 @@
       word-break: break-all;
     }
 
+    .result-actions {
+      display: inline-flex;
+      gap: 6px;
+      margin-left: auto;
+    }
+
+    .icon-btn {
+      border: 1px solid #d6deea;
+      background: #fff;
+      border-radius: 8px;
+      width: 30px;
+      height: 30px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      color: #334155;
+    }
+
+    .icon-btn i,
+    .icon-btn svg {
+      width: 15px;
+      height: 15px;
+      color: currentColor;
+      stroke: currentColor;
+    }
+
     .proc-overlay {
       position: fixed;
       inset: 0;
@@ -555,8 +582,30 @@
 
         <div class="result-box" id="resultBox">
           <div class="result-row"><strong>Número:</strong><span id="resNumero">-</span></div>
-          <div class="result-row"><strong>PDF:</strong><a id="resPdf" href="#" target="_blank" rel="noopener noreferrer">Abrir PDF</a></div>
-          <div class="result-row"><strong>WhatsApp:</strong><a id="resWhats" href="#" target="_blank" rel="noopener noreferrer">Abrir mensagem</a></div>
+          <div class="result-row">
+            <strong>PDF:</strong>
+            <a id="resPdf" href="#" target="_blank" rel="noopener noreferrer">Abrir PDF</a>
+            <div class="result-actions">
+              <button class="icon-btn" id="btnOpenPdf" title="Abrir">
+                <i data-lucide="external-link"></i>
+              </button>
+              <button class="icon-btn" id="btnCopyPdf" title="Copiar link PDF">
+                <i data-lucide="copy"></i>
+              </button>
+            </div>
+          </div>
+          <div class="result-row">
+            <strong>WhatsApp:</strong>
+            <a id="resWhats" href="#" target="_blank" rel="noopener noreferrer">Abrir mensagem</a>
+            <div class="result-actions">
+              <button class="icon-btn" id="btnOpenWhats" title="Abrir">
+                <i data-lucide="external-link"></i>
+              </button>
+              <button class="icon-btn" id="btnCopyWhats" title="Copiar link WhatsApp">
+                <i data-lucide="copy"></i>
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </section>
@@ -594,6 +643,8 @@
   </div>
 
   <script>
+    let processingInterval_ = null;
+
     function normalizarPerfil(perfil) {
       return String(perfil || '')
         .normalize('NFD')
@@ -637,6 +688,7 @@
         .replace(/[^0-9.,]/g, '')
         .replace(/\./g, '')
         .replace(',', '.');
+      if (!somente) return '';
       const n = Number(somente);
       return isNaN(n) ? '' : String(n);
     }
@@ -658,6 +710,7 @@
         .replace(/[^\d.,]/g, '')
         .replace(/\./g, '')
         .replace(',', '.');
+      if (!limpo) return '';
       const n = Number(limpo);
       if (isNaN(n)) return '';
       return n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -699,6 +752,61 @@
       if (overlay) overlay.classList.toggle('show', !!on);
       if (btnGerar) btnGerar.disabled = !!on;
       if (btnLimpar) btnLimpar.disabled = !!on;
+      if (!on && processingInterval_) {
+        clearInterval(processingInterval_);
+        processingInterval_ = null;
+      }
+    }
+
+    function iniciarFasesProcessing_() {
+      const sub = document.getElementById('procSub');
+      if (!sub) return;
+      const fases = [
+        'Validando dados do orçamento...',
+        'Processando proposta e valores...',
+        'Gerando PDF no Drive...',
+        'Montando link do WhatsApp...',
+        'Finalizando envio...'
+      ];
+      let idx = 0;
+      sub.textContent = fases[0];
+      if (processingInterval_) clearInterval(processingInterval_);
+      processingInterval_ = setInterval(function() {
+        idx = (idx + 1) % fases.length;
+        sub.textContent = fases[idx];
+      }, 1200);
+    }
+
+    function estaStandaloneIOS_() {
+      return typeof navigator !== 'undefined' && navigator.standalone === true;
+    }
+
+    function abrirLinkExterno_(url) {
+      const target = String(url || '').trim();
+      if (!target) return;
+      try {
+        if (estaStandaloneIOS_()) {
+          window.open(target, '_blank', 'noopener,noreferrer');
+          return;
+        }
+        window.open(target, '_blank', 'noopener,noreferrer');
+      } catch (_) {
+        window.location.href = target;
+      }
+    }
+
+    async function copiarTexto_(texto, okMsg) {
+      const t = String(texto || '').trim();
+      if (!t) {
+        setStatus_('Link indisponível para copiar.', 'err');
+        return;
+      }
+      try {
+        await navigator.clipboard.writeText(t);
+        setStatus_(okMsg || 'Link copiado.', 'ok');
+      } catch (_) {
+        setStatus_('Não foi possível copiar automaticamente.', 'err');
+      }
     }
 
     function limparFormulario_() {
@@ -747,14 +855,13 @@
       }
 
       try {
-        setProcessing_(true, 'Validando dados...');
+        setProcessing_(true, 'Iniciando processamento...');
+        iniciarFasesProcessing_();
         setStatus_('Gerando orçamento...', 'info');
-        setTimeout(function() { setProcessing_(true, 'Gerando PDF e preparando links...'); }, 700);
         const resp = await Auth.apiCall('gerarOrcamentoInterno', payload);
         if (!resp || resp.sucesso !== true) {
           throw new Error(resp && (resp.mensagem || resp.error) ? (resp.mensagem || resp.error) : 'Falha ao gerar orçamento');
         }
-        setProcessing_(true, 'Finalizando...');
         renderResultado_(resp);
         setStatus_(resp.mensagem || 'Orçamento gerado com sucesso.', 'ok');
       } catch (err) {
@@ -769,6 +876,10 @@
       preencherHeaderLocal_();
       const btnGerar = document.getElementById('btnGerar');
       const btnLimpar = document.getElementById('btnLimpar');
+      const btnOpenPdf = document.getElementById('btnOpenPdf');
+      const btnOpenWhats = document.getElementById('btnOpenWhats');
+      const btnCopyPdf = document.getElementById('btnCopyPdf');
+      const btnCopyWhats = document.getElementById('btnCopyWhats');
       const tel = document.getElementById('telefone');
       const valores = ['valorPocket', 'valorGold', 'valorPremium']
         .map(id => document.getElementById(id))
@@ -794,6 +905,22 @@
 
       if (btnGerar) btnGerar.addEventListener('click', enviarOrcamento_);
       if (btnLimpar) btnLimpar.addEventListener('click', limparFormulario_);
+      if (btnOpenPdf) btnOpenPdf.addEventListener('click', function() {
+        const url = (document.getElementById('resPdf') || {}).href || '';
+        abrirLinkExterno_(url);
+      });
+      if (btnOpenWhats) btnOpenWhats.addEventListener('click', function() {
+        const url = (document.getElementById('resWhats') || {}).href || '';
+        abrirLinkExterno_(url);
+      });
+      if (btnCopyPdf) btnCopyPdf.addEventListener('click', function() {
+        const url = (document.getElementById('resPdf') || {}).href || '';
+        copiarTexto_(url, 'Link do PDF copiado.');
+      });
+      if (btnCopyWhats) btnCopyWhats.addEventListener('click', function() {
+        const url = (document.getElementById('resWhats') || {}).href || '';
+        copiarTexto_(url, 'Link do WhatsApp copiado.');
+      });
       if (window.lucide) window.lucide.createIcons();
     });
 
