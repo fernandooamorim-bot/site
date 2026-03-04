@@ -176,6 +176,49 @@
       gap: 8px;
     }
 
+    .header-user {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 4px 10px 4px 4px;
+      background: rgba(255,255,255,0.06);
+      border-radius: var(--radius-full);
+      border: 1px solid rgba(255,255,255,0.12);
+      min-width: 0;
+    }
+
+    .header-user-avatar {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--navy-600), var(--navy-500));
+      color: var(--gold-400);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      flex-shrink: 0;
+    }
+
+    .header-user-meta {
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      line-height: 1.15;
+    }
+
+    .header-user-name {
+      color: rgba(255,255,255,0.9);
+      font-size: 12px;
+      font-weight: 600;
+      max-width: 100px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
     .header h1 {
       font-size: 18px;
       font-weight: 700;
@@ -208,7 +251,8 @@
       flex-shrink: 0;
     }
 
-    .header-logout i {
+    .header-logout i,
+    .header-logout svg {
       width: 16px;
       height: 16px;
       color: rgba(255,255,255,0.85);
@@ -1211,6 +1255,10 @@
         font-size: 11px;
       }
 
+      .header-user-name {
+        max-width: 74px;
+      }
+
       .filters-grid {
         grid-template-columns: 1fr;
       }
@@ -1314,7 +1362,13 @@
       <div class="header-right">
         <div class="header-stats">
           <div id="eventoCount">-</div>
-          <div id="userProfile" class="user-badge">Carregando...</div>
+        </div>
+        <div class="header-user">
+          <div class="header-user-avatar" id="headerUserAvatar">--</div>
+          <div class="header-user-meta">
+            <div class="header-user-name" id="headerUserName">Carregando...</div>
+            <div id="userProfile" class="user-badge">Carregando...</div>
+          </div>
         </div>
         <button class="header-logout" onclick="Auth.logout()" title="Sair">
           <i data-lucide="log-out"></i>
@@ -1915,6 +1969,23 @@ calcularDiasIntervalo(dataInicio, dataFim) {
           const profileEl = document.getElementById('userProfile');
           if (profileEl) {
             profileEl.textContent = perfilExibicaoAgenda_(AppState.usuario.perfil);
+          }
+
+          const nome = String(AppState.usuario.nome || '').trim();
+          const nomeExibicao = nome ? nome.split(' ')[0] : 'Usuário';
+          const nomeEl = document.getElementById('headerUserName');
+          if (nomeEl) nomeEl.textContent = nomeExibicao;
+
+          const avatarEl = document.getElementById('headerUserAvatar');
+          if (avatarEl) {
+            const partes = nome ? nome.split(' ') : [];
+            if (partes.length >= 2) {
+              avatarEl.textContent = (partes[0][0] + partes[partes.length - 1][0]).toUpperCase();
+            } else if (partes.length === 1) {
+              avatarEl.textContent = partes[0].slice(0, 2).toUpperCase();
+            } else {
+              avatarEl.textContent = 'US';
+            }
           }
         }
 

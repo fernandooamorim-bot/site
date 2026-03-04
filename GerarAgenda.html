@@ -86,10 +86,50 @@
       background: rgba(255,255,255,0.08);
       border: 1px solid rgba(255,255,255,0.12);
       border-radius: 999px;
-      padding: 6px 10px;
+      padding: 4px 10px 4px 4px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+    }
+
+    .user-avatar {
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--navy-600), rgba(58,96,152,0.8));
+      color: var(--gold-400);
+      font-size: 11px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-transform: uppercase;
+      flex-shrink: 0;
+    }
+
+    .user-meta {
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      line-height: 1.15;
+    }
+
+    .user-name {
       font-size: 12px;
-      color: rgba(255,255,255,0.82);
-      max-width: 160px;
+      color: rgba(255,255,255,0.9);
+      font-weight: 600;
+      max-width: 120px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .user-role {
+      font-size: 10px;
+      color: var(--gold-400);
+      font-weight: 600;
+      max-width: 120px;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
@@ -114,7 +154,8 @@
       transition: all 0.2s;
     }
 
-    .header-logout i {
+    .header-logout i,
+    .header-logout svg {
       width: 16px;
       height: 16px;
       color: rgba(255,255,255,0.85);
@@ -348,7 +389,13 @@
       <span class="header-title">Agenda Semanal (WhatsApp)</span>
     </div>
     <div class="header-right">
-      <div class="user-chip" id="userChip">...</div>
+      <div class="user-chip">
+        <div class="user-avatar" id="userAvatar">--</div>
+        <div class="user-meta">
+          <div class="user-name" id="userName">...</div>
+          <div class="user-role" id="userRole">...</div>
+        </div>
+      </div>
       <button class="header-logout" onclick="Auth.logout()" title="Sair">
         <i data-lucide="log-out"></i>
       </button>
@@ -427,7 +474,16 @@
           return;
         }
 
-        document.getElementById('userChip').textContent = auth.user.nome || auth.user.email || '';
+        const nomeCompleto = String(auth.user.nome || auth.user.email || '');
+        const perfilExibicao = perfilExibicaoGerador_(auth.user.perfil || '');
+        const partes = nomeCompleto.split(' ').filter(Boolean);
+        const iniciais = partes.length >= 2
+          ? (partes[0][0] + partes[partes.length - 1][0]).toUpperCase()
+          : (nomeCompleto.slice(0, 2).toUpperCase() || 'US');
+
+        document.getElementById('userAvatar').textContent = iniciais;
+        document.getElementById('userName').textContent = partes[0] || nomeCompleto;
+        document.getElementById('userRole').textContent = perfilExibicao;
         configurarAcoes();
         await carregarPreset('semana_atual');
         if (window.lucide) window.lucide.createIcons();
@@ -449,6 +505,15 @@
     function ehPerfilGestorGerador_(perfil) {
       const p = normalizarPerfilGerador_(perfil);
       return p === 'proprietario' || p === 'socio' || p === 'administrador' || p === 'admin';
+    }
+
+    function perfilExibicaoGerador_(perfil) {
+      const p = normalizarPerfilGerador_(perfil);
+      if (p === 'proprietario') return 'Proprietário';
+      if (p === 'administrador' || p === 'admin') return 'Administrador';
+      if (p === 'socio') return 'Administrador';
+      if (p === 'musico') return 'Músico';
+      return perfil || 'Usuário';
     }
 
     function configurarAcoes() {
