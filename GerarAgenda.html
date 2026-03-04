@@ -110,24 +110,12 @@
 
     .user-meta {
       display: flex;
-      flex-direction: column;
       min-width: 0;
-      line-height: 1.15;
     }
 
     .user-name {
       font-size: 12px;
       color: rgba(255,255,255,0.9);
-      font-weight: 600;
-      max-width: 120px;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-
-    .user-role {
-      font-size: 10px;
-      color: var(--gold-400);
       font-weight: 600;
       max-width: 120px;
       overflow: hidden;
@@ -393,7 +381,6 @@
         <div class="user-avatar" id="userAvatar">--</div>
         <div class="user-meta">
           <div class="user-name" id="userName">...</div>
-          <div class="user-role" id="userRole">...</div>
         </div>
       </div>
       <button class="header-logout" onclick="Auth.logout()" title="Sair">
@@ -458,12 +445,15 @@
       }
     };
 
+    document.addEventListener('DOMContentLoaded', () => {
+      // Render imediato do header sem depender de API.
+      preencherHeaderUsuarioLocal_();
+      if (window.lucide) window.lucide.createIcons();
+    });
+
     window.addEventListener('load', async () => {
       try {
         if (!window.Auth) throw new Error('AUTH_NOT_LOADED');
-
-        // Preenche cabeçalho imediatamente com cache local (evita atraso visual).
-        preencherHeaderUsuarioLocal_();
 
         const auth = await Auth.apiCall('verificarUsuario');
         if (!auth || !auth.ok || !auth.user) {
@@ -478,7 +468,6 @@
         }
 
         const nomeCompleto = String(auth.user.nome || auth.user.email || '');
-        const perfilExibicao = perfilExibicaoGerador_(auth.user.perfil || '');
         const partes = nomeCompleto.split(' ').filter(Boolean);
         const iniciais = partes.length >= 2
           ? (partes[0][0] + partes[partes.length - 1][0]).toUpperCase()
@@ -486,7 +475,6 @@
 
         document.getElementById('userAvatar').textContent = iniciais;
         document.getElementById('userName').textContent = partes[0] || nomeCompleto;
-        document.getElementById('userRole').textContent = perfilExibicao;
         configurarAcoes();
         aplicarPeriodoInicial_();
         mostrarStatus('Escolha o período e clique em "Carregar Eventos".', 'info');
@@ -511,20 +499,10 @@
       return p === 'proprietario' || p === 'socio' || p === 'administrador' || p === 'admin';
     }
 
-    function perfilExibicaoGerador_(perfil) {
-      const p = normalizarPerfilGerador_(perfil);
-      if (p === 'proprietario') return 'Proprietário';
-      if (p === 'administrador' || p === 'admin') return 'Administrador';
-      if (p === 'socio') return 'Administrador';
-      if (p === 'musico') return 'Músico';
-      return perfil || 'Usuário';
-    }
-
     function preencherHeaderUsuarioLocal_() {
       try {
         const nomeCache = String(localStorage.getItem('auth_nome') || '').trim();
-        const perfilCache = String(localStorage.getItem('auth_perfil') || '').trim();
-        if (!nomeCache && !perfilCache) return;
+        if (!nomeCache) return;
 
         const partes = nomeCache.split(' ').filter(Boolean);
         const iniciais = partes.length >= 2
@@ -533,11 +511,9 @@
 
         const avatarEl = document.getElementById('userAvatar');
         const nomeEl = document.getElementById('userName');
-        const perfilEl = document.getElementById('userRole');
 
         if (avatarEl) avatarEl.textContent = iniciais;
         if (nomeEl) nomeEl.textContent = partes[0] || nomeCache || 'Usuário';
-        if (perfilEl) perfilEl.textContent = perfilExibicaoGerador_(perfilCache);
       } catch (_) {}
     }
 
