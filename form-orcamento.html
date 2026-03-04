@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#0f1a2e"/>
+  <meta name="application-name" content="Sistema Super Agenda"/>
+  <meta name="apple-mobile-web-app-title" content="Super Agenda"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+  <meta name="mobile-web-app-capable" content="yes"/>
+  <meta name="msapplication-TileColor" content="#0f1a2e"/>
+  <link rel="manifest" href="site.webmanifest"/>
+  <link rel="icon" type="image/x-icon" href="img/favicon.ico"/>
+  <link rel="icon" type="image/png" sizes="16x16" href="img/favicon-16.png"/>
+  <link rel="icon" type="image/png" sizes="32x32" href="img/favicon-32.png"/>
+  <link rel="icon" type="image/png" sizes="48x48" href="img/favicon-48.png"/>
+  <link rel="icon" type="image/png" sizes="96x96" href="img/favicon-96x96.png"/>
+  <link rel="apple-touch-icon" sizes="180x180" href="img/apple-touch-icon.png"/>
+  <title>Solicitação de Orçamento</title>
+
+  <script src="auth.js"></script>
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js" defer></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+
+  <style>
+    :root {
+      --navy-800: #0f1a2e;
+      --navy-600: #1e3a5f;
+      --gold-400: #e0bc6a;
+      --gray-50: #f8f9fc;
+      --gray-100: #eef2f8;
+      --gray-200: #d9e0ed;
+      --gray-700: #374151;
+      --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      --nav-height: 68px;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: var(--font);
+      background: var(--gray-50);
+      color: #111827;
+      padding-bottom: 0;
+    }
+
+    .global-header {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: var(--navy-800);
+      color: #fff;
+      padding: 12px 16px;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      min-height: var(--nav-height);
+    }
+
+    .global-header-brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      text-decoration: none;
+      color: inherit;
+      cursor: pointer;
+    }
+
+    .global-header-back {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(212,168,83,0.10);
+    }
+
+    .global-header-back i { width: 18px; height: 18px; color: var(--gold-400); }
+
+    .global-header-title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 19px;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      color: #ffffff;
+    }
+
+    .global-header-title i { width: 20px; height: 20px; color: var(--gold-400); }
+
+    .global-header-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .global-header-user {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 4px 8px 4px 4px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,0.08);
+      background: rgba(255,255,255,0.06);
+    }
+
+    .global-header-avatar {
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--navy-600), rgba(58,96,152,0.8));
+      color: var(--gold-400);
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .global-header-name {
+      font-size: 12px;
+      font-weight: 600;
+      color: rgba(255,255,255,0.92);
+      max-width: 110px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .global-header-logout {
+      width: 34px;
+      height: 34px;
+      border: 1px solid rgba(255,255,255,0.10);
+      border-radius: 8px;
+      background: rgba(255,255,255,0.06);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+    }
+
+    .global-header-logout i,
+    .global-header-logout svg {
+      width: 18px;
+      height: 18px;
+      color: rgba(255,255,255,0.95);
+      stroke: currentColor;
+    }
+
+    .page {
+      padding: 14px;
+      max-width: 1280px;
+      margin: 0 auto;
+      min-height: calc(100vh - var(--nav-height));
+    }
+
+    .toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+
+    .toolbar-note {
+      color: var(--gray-700);
+      font-size: 13px;
+      margin: 0;
+    }
+
+    .btn {
+      border: 1px solid var(--gray-200);
+      background: #fff;
+      color: #0f172a;
+      border-radius: 10px;
+      padding: 8px 12px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      text-decoration: none;
+    }
+
+    .form-wrap {
+      position: relative;
+      border: 1px solid var(--gray-200);
+      border-radius: 14px;
+      overflow: hidden;
+      background: #fff;
+      box-shadow: 0 6px 18px rgba(10,22,40,0.08);
+      height: calc(100vh - 170px);
+      min-height: 620px;
+    }
+
+    .form-iframe {
+      width: 100%;
+      height: 100%;
+      border: 0;
+      background: #fff;
+    }
+
+    .form-loading {
+      position: absolute;
+      inset: 0;
+      background: rgba(248,249,252,0.92);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      gap: 8px;
+      z-index: 2;
+      color: #334155;
+      font-size: 13px;
+      font-weight: 600;
+      transition: opacity 0.2s ease;
+    }
+
+    .form-loading.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .form-loading i {
+      width: 20px;
+      height: 20px;
+      color: #1e3a5f;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+
+    .bottom-nav {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: var(--nav-height);
+      background: var(--navy-800);
+      border-top: 1px solid rgba(255,255,255,0.08);
+      z-index: 200;
+      display: none;
+      align-items: center;
+      justify-content: space-around;
+      padding-bottom: env(safe-area-inset-bottom);
+    }
+
+    .bnav-item {
+      border: 0;
+      background: transparent;
+      color: rgba(255,255,255,0.6);
+      display: inline-flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 2px;
+      padding: 8px 12px;
+      border-radius: 10px;
+      font-size: 10px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .bnav-item i {
+      width: 20px;
+      height: 20px;
+      color: currentColor;
+    }
+
+    .bnav-item.active {
+      color: var(--gold-400);
+      background: rgba(212,168,83,0.08);
+    }
+
+    @media (max-width: 767px) {
+      body { padding-bottom: calc(var(--nav-height) + 16px); }
+      .bottom-nav { display: flex; }
+      .page {
+        padding: 10px;
+        min-height: auto;
+      }
+      .form-wrap {
+        height: calc(100vh - 210px);
+        min-height: 520px;
+      }
+      .global-header-title span {
+        max-width: 145px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="global-header">
+    <a class="global-header-brand" onclick="window.location.href='index.html'" title="Voltar ao Início">
+      <div class="global-header-back">
+        <i data-lucide="arrow-left"></i>
+      </div>
+      <div class="global-header-title">
+        <i data-lucide="file-text"></i>
+        <span>Solicitação de Orçamento</span>
+      </div>
+    </a>
+
+    <div class="global-header-actions">
+      <div class="global-header-user">
+        <div class="global-header-avatar" id="ghAvatar">--</div>
+        <div class="global-header-name" id="ghName"></div>
+      </div>
+      <button class="global-header-logout" onclick="Auth.logout()" title="Sair">
+        <i data-lucide="log-out"></i>
+      </button>
+    </div>
+  </div>
+
+  <main class="page">
+    <div class="toolbar">
+      <p class="toolbar-note">Formulário interno para geração de orçamento automático.</p>
+      <a class="btn" href="https://docs.google.com/forms/d/e/1FAIpQLSdlK8DKjejpttx0F-jMR2uDLCJ28COrzo0XzA6LGHWdR4B5Gg/viewform" target="_blank" rel="noopener noreferrer">
+        <i data-lucide="external-link"></i>
+        Abrir em nova aba
+      </a>
+    </div>
+
+    <section class="form-wrap">
+      <div class="form-loading" id="formLoading">
+        <i data-lucide="loader-2"></i>
+        <span>Carregando formulário...</span>
+      </div>
+      <iframe
+        id="orcamentoFrame"
+        class="form-iframe"
+        title="Formulário de orçamento"
+        loading="eager"
+        src="https://docs.google.com/forms/d/e/1FAIpQLSdlK8DKjejpttx0F-jMR2uDLCJ28COrzo0XzA6LGHWdR4B5Gg/viewform?embedded=true">
+      </iframe>
+    </section>
+  </main>
+
+  <nav class="bottom-nav">
+    <button class="bnav-item" onclick="window.location.href='index.html'">
+      <i data-lucide="layout-grid"></i>
+      <span>Início</span>
+    </button>
+    <button class="bnav-item" onclick="window.location.href='agenda.html'">
+      <i data-lucide="calendar-days"></i>
+      <span>Agenda</span>
+    </button>
+    <button class="bnav-item" onclick="window.location.href='cadastro-evento.html'">
+      <i data-lucide="plus-circle"></i>
+      <span>Novo</span>
+    </button>
+    <button class="bnav-item" onclick="window.location.href='central-financeira.html'">
+      <i data-lucide="landmark"></i>
+      <span>Financeiro</span>
+    </button>
+    <button class="bnav-item active">
+      <i data-lucide="file-text"></i>
+      <span>Orçamento</span>
+    </button>
+  </nav>
+
+  <script>
+    function normalizarPerfil(perfil) {
+      return String(perfil || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .trim()
+        .toLowerCase();
+    }
+
+    function isPerfilLiberado(perfil) {
+      const p = normalizarPerfil(perfil);
+      return p === 'proprietario' || p === 'administrador' || p === 'admin' || p === 'socio';
+    }
+
+    function preencherHeaderLocal_() {
+      const nome = String(localStorage.getItem('auth_nome') || '').trim();
+      if (!nome) return;
+      const partes = nome.split(' ').filter(Boolean);
+      const first = partes[0] || nome;
+      const iniciais = partes.length >= 2
+        ? (partes[0][0] + partes[partes.length - 1][0]).toUpperCase()
+        : (nome.slice(0, 2).toUpperCase() || 'US');
+      const avatar = document.getElementById('ghAvatar');
+      const ghName = document.getElementById('ghName');
+      if (avatar) avatar.textContent = iniciais;
+      if (ghName) ghName.textContent = first;
+    }
+
+    function initFrameLoading_() {
+      const frame = document.getElementById('orcamentoFrame');
+      const loading = document.getElementById('formLoading');
+      if (!frame || !loading) return;
+
+      let done = false;
+      const hide = () => {
+        if (done) return;
+        done = true;
+        loading.classList.add('hidden');
+      };
+
+      frame.addEventListener('load', hide);
+      setTimeout(hide, 4000);
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      preencherHeaderLocal_();
+      initFrameLoading_();
+      if (window.lucide) window.lucide.createIcons();
+    });
+
+    window.addEventListener('load', async () => {
+      try {
+        if (!window.Auth) throw new Error('AUTH_NOT_LOADED');
+        const auth = await Auth.apiCall('verificarUsuario');
+        if (!auth || !auth.ok || !auth.user) throw new Error('NOT_AUTH');
+        if (!isPerfilLiberado(auth.user.perfil)) {
+          alert('Você não tem permissão para acessar esta área.');
+          window.location.href = 'index.html';
+          return;
+        }
+        const nome = String(auth.user.nome || auth.user.email || '').trim();
+        if (nome) {
+          localStorage.setItem('auth_nome', nome);
+          preencherHeaderLocal_();
+        }
+      } catch (err) {
+        console.error('Falha de autenticação:', err);
+        alert('Sessão inválida. Faça login novamente.');
+        window.location.href = 'index.html';
+      } finally {
+        if (window.lucide) window.lucide.createIcons();
+      }
+    });
+  </script>
+</body>
+</html>

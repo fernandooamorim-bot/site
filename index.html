@@ -1103,6 +1103,28 @@
           </div>
         </div>
 
+        <!-- Card: Solicitação de Orçamento -->
+        <div class="nav-card anim-in anim-d5" id="cardOrcamento" onclick="abrir('orcamentoForm')">
+          <div class="nav-card-top">
+            <div class="nav-card-icon purple">
+              <i data-lucide="file-text"></i>
+            </div>
+            <div class="nav-card-arrow">
+              <i data-lucide="arrow-right"></i>
+            </div>
+          </div>
+          <div class="nav-card-body">
+            <div class="nav-card-title">Solicitação de Orçamento</div>
+            <div class="nav-card-desc">Acesse o formulário de orçamento com navegação integrada no app.</div>
+          </div>
+          <div class="nav-card-footer">
+            <span class="access-badge restricted">
+              <i data-lucide="shield"></i>
+              Proprietário e Administrador
+            </span>
+          </div>
+        </div>
+
       </div>
     </main>
 
@@ -1290,6 +1312,7 @@
     ocultar('cardCentralFinanceira');
     ocultar('cardPainelFinanceiro');
     ocultar('cardGerarAgenda');
+    ocultar('cardOrcamento');
     
 
     ocultar('bnavNovoEvento');
@@ -1345,7 +1368,8 @@
       editarEvento: './editar-evento.html',
       centralFinanceira: './central-financeira.html',
       painelFinanceiro: './painel-financeiro.html',
-      gerarAgenda: './GerarAgenda.html'
+      gerarAgenda: './GerarAgenda.html',
+      orcamentoForm: './form-orcamento.html'
     };
 
     var destino = rotas[pagina];
