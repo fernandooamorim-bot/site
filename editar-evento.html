@@ -1735,6 +1735,63 @@ function bloquearEdicaoFinanceira(motivo) {
   }
 }
 
+function resetarEstadoEdicaoFinanceiraUI() {
+  const campos = ['valorTotal', 'valorBV', 'idBV', 'idVendedor', 'temNF'];
+  campos.forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.disabled = false;
+    el.classList.remove('campo-bloqueado');
+  });
+
+  const aviso = document.getElementById('avisoFinanceiroBloqueado');
+  if (aviso) aviso.remove();
+
+  const statusFinanceiro = document.getElementById('statusFinanceiro');
+  if (statusFinanceiro) statusFinanceiro.innerHTML = '';
+}
+
+async function aplicarPermissaoFinanceiraEdicao() {
+  resetarEstadoEdicaoFinanceiraUI();
+
+  if (!registroEhEvento()) {
+    permissaoFinanceira = { permitido: true };
+    return;
+  }
+
+  try {
+    const permissao = await Auth.apiCall('verificarPermissaoEdicaoFinanceira', {
+      idEvento: eventoAtual.id
+    });
+    permissaoFinanceira = permissao;
+
+    if (permissao && !permissao.permitido) {
+      if (permissao.bloqueio === 'MOVIMENTACAO_FINANCEIRA') {
+        bloquearEdicaoFinanceira(permissao.motivo);
+      }
+      return;
+    }
+
+    const statusFinanceiro = document.getElementById('statusFinanceiro');
+    if (statusFinanceiro) {
+      statusFinanceiro.innerHTML = `
+        <div class="status-box safe">
+          <span class="status-icon">🟢</span>
+          <div><strong>Status Financeiro:</strong> Evento liberado para edição.</div>
+        </div>
+      `;
+    }
+  } catch (errPerm) {
+    console.error('Erro permissão financeira:', errPerm);
+    permissaoFinanceira = {
+      permitido: false,
+      bloqueio: 'ERRO_PERMISSAO',
+      motivo: 'Não foi possível validar permissões financeiras neste momento.'
+    };
+    bloquearEdicaoFinanceira(permissaoFinanceira.motivo);
+  }
+}
+
 // ============================
 // BLOCO 2 — DATAS E CONFLITOS
 // ============================
@@ -2085,6 +2142,7 @@ async function iniciarEditarEvento() {
       await promessaReferencias;
       preencherFormulario(eventoAtual);
       renderizarStatusTipoRegistro(eventoAtual);
+      await aplicarPermissaoFinanceiraEdicao();
 
       aplicarSkeletonFormulario(false);
       esconderLoadingGlobal();
@@ -2485,37 +2543,7 @@ function executarAutocompleteContratante(termo) {
         aplicarSkeletonFormulario(true);
       }
 
-      // Permissão financeira (somente eventos)
-      try {
-        const statusFinanceiro = document.getElementById('statusFinanceiro');
-        if (statusFinanceiro) statusFinanceiro.innerHTML = '';
-
-        if (registroEhEvento()) {
-          const permissao = await Auth.apiCall('verificarPermissaoEdicaoFinanceira', {
-            idEvento: eventoAtual.id
-          });
-          permissaoFinanceira = permissao;
-
-          if (permissao && !permissao.permitido) {
-            if (permissao.bloqueio === 'MOVIMENTACAO_FINANCEIRA') {
-              bloquearEdicaoFinanceira(permissao.motivo);
-            }
-          }
-
-          if (permissao?.permitido && statusFinanceiro) {
-            statusFinanceiro.innerHTML = `
-              <div class="status-box safe">
-                <span class="status-icon">🟢</span>
-                <div><strong>Status Financeiro:</strong> Evento liberado para edição.</div>
-              </div>
-            `;
-          }
-        } else {
-          permissaoFinanceira = { permitido: true };
-        }
-      } catch (errPerm) {
-        console.error('Erro permissão financeira:', errPerm);
-      }
+      await aplicarPermissaoFinanceiraEdicao();
 
       // ============================
       // FASE 5 — CONFLITOS DE AGENDA
