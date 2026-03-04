@@ -144,6 +144,38 @@
       margin-bottom: 8px;
     }
 
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+    }
+
+    .header-home-btn {
+      width: 32px;
+      height: 32px;
+      border-radius: var(--radius-sm);
+      border: 1px solid rgba(255,255,255,0.12);
+      background: rgba(255,255,255,0.08);
+      color: var(--gold-400);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      flex-shrink: 0;
+      transition: var(--transition);
+    }
+
+    .header-home-btn:hover {
+      background: rgba(212,168,83,0.18);
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
     .header h1 {
       font-size: 18px;
       font-weight: 700;
@@ -160,6 +192,31 @@
       flex-direction: column;
       align-items: flex-end;
       gap: 4px;
+    }
+
+    .header-logout {
+      width: 32px;
+      height: 32px;
+      border-radius: var(--radius-sm);
+      border: 1px solid rgba(255,255,255,0.12);
+      background: rgba(255,255,255,0.08);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: var(--transition);
+      flex-shrink: 0;
+    }
+
+    .header-logout i {
+      width: 16px;
+      height: 16px;
+      color: rgba(255,255,255,0.85);
+    }
+
+    .header-logout:hover {
+      background: rgba(239,68,68,0.2);
+      border-color: rgba(239,68,68,0.35);
     }
 
     .header-info {
@@ -1146,6 +1203,10 @@
         font-size: 16px;
       }
 
+      .header-left {
+        gap: 8px;
+      }
+
       .header-stats {
         font-size: 11px;
       }
@@ -1241,13 +1302,23 @@
   <!-- Header -->
   <div class="header">
     <div class="header-content">
-      <h1>
-        <i data-lucide="calendar-days" style="width:22px;height:22px;color:var(--gold-400)"></i>
-        <span>Agenda de Eventos</span>
-      </h1>
-      <div class="header-stats">
-        <div id="eventoCount">-</div>
-        <div id="userProfile" class="user-badge">Carregando...</div>
+      <div class="header-left">
+        <button class="header-home-btn" onclick="irParaHome()" title="Voltar ao Início">
+          <i data-lucide="arrow-left" style="width:16px;height:16px"></i>
+        </button>
+        <h1>
+          <i data-lucide="calendar-days" style="width:22px;height:22px;color:var(--gold-400)"></i>
+          <span>Agenda de Eventos</span>
+        </h1>
+      </div>
+      <div class="header-right">
+        <div class="header-stats">
+          <div id="eventoCount">-</div>
+          <div id="userProfile" class="user-badge">Carregando...</div>
+        </div>
+        <button class="header-logout" onclick="Auth.logout()" title="Sair">
+          <i data-lucide="log-out"></i>
+        </button>
       </div>
     </div>
     <div class="header-info" id="headerInfo"></div>

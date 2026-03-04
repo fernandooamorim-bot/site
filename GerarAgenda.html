@@ -95,6 +95,36 @@
       white-space: nowrap;
     }
 
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .header-logout {
+      width: 32px;
+      height: 32px;
+      border-radius: var(--radius-sm);
+      border: 1px solid rgba(255,255,255,0.12);
+      background: rgba(255,255,255,0.08);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .header-logout i {
+      width: 16px;
+      height: 16px;
+      color: rgba(255,255,255,0.85);
+    }
+
+    .header-logout:hover {
+      background: rgba(239,68,68,0.2);
+      border-color: rgba(239,68,68,0.35);
+    }
+
     .wrap {
       max-width: 1100px;
       margin: 0 auto;
@@ -317,7 +347,12 @@
       <i data-lucide="calendar-range"></i>
       <span class="header-title">Agenda Semanal (WhatsApp)</span>
     </div>
-    <div class="user-chip" id="userChip">...</div>
+    <div class="header-right">
+      <div class="user-chip" id="userChip">...</div>
+      <button class="header-logout" onclick="Auth.logout()" title="Sair">
+        <i data-lucide="log-out"></i>
+      </button>
+    </div>
   </div>
 
   <div class="wrap">

@@ -141,6 +141,36 @@
       white-space: nowrap;
     }
 
+    .global-header-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .global-header-logout {
+      width: 32px;
+      height: 32px;
+      border-radius: var(--nav-radius-sm);
+      border: 1px solid rgba(255,255,255,0.12);
+      background: rgba(255,255,255,0.08);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .global-header-logout i {
+      width: 17px;
+      height: 17px;
+      color: rgba(255,255,255,0.8);
+    }
+
+    .global-header-logout:hover {
+      background: rgba(239,68,68,0.2);
+      border-color: rgba(239,68,68,0.35);
+    }
+
     .bottom-nav {
       position: fixed;
       bottom: 0;
@@ -521,9 +551,14 @@
         <span>Central Financeira</span>
       </div>
     </a>
-    <div class="global-header-user">
-      <div class="global-header-avatar" id="ghAvatar">--</div>
-      <div class="global-header-name" id="ghName"></div>
+    <div class="global-header-actions">
+      <div class="global-header-user">
+        <div class="global-header-avatar" id="ghAvatar">--</div>
+        <div class="global-header-name" id="ghName"></div>
+      </div>
+      <button class="global-header-logout" onclick="Auth.logout()" title="Sair">
+        <i data-lucide="log-out"></i>
+      </button>
     </div>
   </div>
 
