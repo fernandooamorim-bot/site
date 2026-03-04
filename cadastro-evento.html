@@ -924,8 +924,8 @@
             </div>
             
             <div class="form-group">
-              <label for="horaInicio" class="required">Hora de Início</label>
-              <input type="time" id="horaInicio" required value="19:00">
+              <label for="horaInicio" id="labelHoraInicio" class="required">Hora de Início</label>
+              <input type="time" id="horaInicio">
             </div>
             
             <div class="form-group">
@@ -1494,6 +1494,14 @@
         labelDuracao.innerHTML = 'Duração <span class="required"></span>';
       }
       
+      // Hora de início: obrigatória para Evento/Reunião/Reserva, opcional para Bloqueio
+      const labelHoraInicio = document.getElementById('labelHoraInicio');
+      const inputHoraInicio = document.getElementById('horaInicio');
+      const horaObrigatoria = !isBloqueio;
+      inputHoraInicio.required = horaObrigatoria;
+      labelHoraInicio.classList.toggle('required', horaObrigatoria);
+      labelHoraInicio.textContent = horaObrigatoria ? 'Hora de Início' : 'Hora de Início (opcional)';
+
       // Required nos campos
       document.getElementById('tipoEvento').required = isEvento;
       document.getElementById('motivo').required = !isEvento;

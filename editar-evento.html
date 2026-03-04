@@ -1587,6 +1587,7 @@ function getConverterFromURL() {
     duracoes: null,
     projetos: null
   };
+  window.__CACHE_PROMISES = {};
 
   let eventoAtual = null;
   let eventoOriginal = null;
@@ -1600,6 +1601,29 @@ function getConverterFromURL() {
   };
   let contratantesCache = [];
   let permissaoFinanceira = null;
+
+  function dropdownsEssenciaisProntos() {
+    return __dropdownsProntos.tipoEvento &&
+      __dropdownsProntos.duracao &&
+      __dropdownsProntos.projeto;
+  }
+
+  async function carregarComCache(chave, loaderFn) {
+    if (window.__CACHE[chave]) return window.__CACHE[chave];
+    if (window.__CACHE_PROMISES[chave]) return window.__CACHE_PROMISES[chave];
+
+    window.__CACHE_PROMISES[chave] = Promise.resolve()
+      .then(loaderFn)
+      .then((dados) => {
+        window.__CACHE[chave] = dados;
+        return dados;
+      })
+      .finally(() => {
+        delete window.__CACHE_PROMISES[chave];
+      });
+
+    return window.__CACHE_PROMISES[chave];
+  }
 
   function mostrarLoadingGlobal(texto) {
     const overlay = document.getElementById('globalLoading');
@@ -2013,13 +2037,19 @@ async function iniciarEditarEvento() {
       if (search) search.style.display = 'none';
       document.getElementById('formEdicao').classList.remove('hidden');
 
-      const evento = await carregarEventoPorId(EVENTO_ID_URL);
+      const promessaEvento = carregarEventoPorId(EVENTO_ID_URL);
+      const promessaReferencias = Promise.allSettled([
+        carregarDropdowns({ autoFill: false }),
+        carregarContratantesParaAutocomplete()
+      ]);
+
+      const evento = await promessaEvento;
       eventoAtual = evento;
       eventoOriginal = JSON.parse(JSON.stringify(evento));
       modoConversaoReserva = getConverterFromURL() && String(eventoOriginal.tipoRegistro || '').trim() === 'Reserva';
 
-      // Modo direto: carrega apenas dados essenciais; referências pesadas (contratante/local) sob demanda.
-      await carregarDropdowns({ autoFill: false });
+      // Aguarda referências críticas em paralelo com a busca do evento.
+      await promessaReferencias;
       preencherFormulario(eventoAtual);
       renderizarStatusTipoRegistro(eventoAtual);
 
@@ -2030,9 +2060,12 @@ async function iniciarEditarEvento() {
       return;
     }
 
-    await carregarContratantesParaAutocomplete();
-    // Fluxo de busca mantém carregamento padrão completo
-    carregarDropdowns();
+    Promise.all([
+      carregarContratantesParaAutocomplete(),
+      carregarDropdowns()
+    ]).catch((err) => {
+      console.warn('Pré-carga de referências falhou (modo busca):', err);
+    });
   } catch (err) {
     console.error('AUTH ERROR:', err);
     esconderLoadingGlobal();
@@ -2236,13 +2269,11 @@ async function carregarEventoPorId(idEvento) {
     // AUTOCOMPLETE
     async function carregarContratantesParaAutocomplete() {
       try {
-        if (window.__CACHE.contratantes) {
-          contratantesCache = window.__CACHE.contratantes;
-          return;
-        }
-        const lista = await Auth.apiCall('listarContratantes', {});
-        if (lista && lista.error) throw new Error(lista.error);
-        window.__CACHE.contratantes = lista;
+        const lista = await carregarComCache('contratantes', async () => {
+          const resposta = await Auth.apiCall('listarContratantes', {});
+          if (resposta && resposta.error) throw new Error(resposta.error);
+          return Array.isArray(resposta) ? resposta : [];
+        });
         contratantesCache = lista;
       } catch (erro) {
         contratantesCache = [];
@@ -2473,9 +2504,20 @@ function executarAutocompleteContratante(termo) {
         verificarConflitosEdicao();
       }, 200);
 
-      // NÃO liberar ações ou esconder loading aqui!
-
-      console.log('✅ Evento pronto para edição (aguardando dropdowns)');
+      if (dropdownsEssenciaisProntos()) {
+        aplicarSkeletonFormulario(false);
+        esconderLoadingGlobal();
+        travarAcoes(false);
+        console.log('✅ Evento pronto para edição (dropdowns já carregados)');
+      } else {
+        carregarDropdowns().catch((errDrop) => {
+          console.warn('Falha ao carregar dropdowns após seleção:', errDrop);
+          aplicarSkeletonFormulario(false);
+          esconderLoadingGlobal();
+          travarAcoes(false);
+        });
+        console.log('✅ Evento pronto para edição (aguardando dropdowns)');
+      }
 
     } catch (erro) {
       console.error('🔥 Erro ao abrir edição:', erro);
@@ -2514,42 +2556,61 @@ async function validarImpactoFinanceiroAntesSalvar(callback) {
     // Resto das funções (igual à versão anterior)
     async function carregarDropdowns(opts = {}) {
       const autoFill = opts.autoFill !== false;
-      try {
-        let lista;
-        if (!window.__CACHE.cerimonialistas) {
-          window.__CACHE.cerimonialistas = await Auth.apiCall('listarCerimonialistas', {});
-        }
-        lista = window.__CACHE.cerimonialistas;
-        if (lista && lista.error) throw new Error(lista.error);
-        popularDropdown('idCerimonialista', lista, true);
-      } catch (e) {}
-      try {
-        let lista;
-        if (!window.__CACHE.vendedores) {
-          window.__CACHE.vendedores = await Auth.apiCall('listarVendedores', {});
-        }
-        lista = window.__CACHE.vendedores;
-        if (lista && lista.error) throw new Error(lista.error);
-        popularDropdown('idVendedor', lista);
-      } catch (e) {}
-      try {
-        let lista;
-        if (!window.__CACHE.parceirosBV) {
-          window.__CACHE.parceirosBV = await Auth.apiCall('listarParceirosBV', {});
-        }
-        lista = window.__CACHE.parceirosBV;
-        if (lista && lista.error) throw new Error(lista.error);
-        popularDropdown('idBV', lista, true);
-      } catch (e) {}
-      // CONFIG - Tipo de Evento
-      try {
-        let tipos;
-        if (!window.__CACHE.tiposEvento) {
-          window.__CACHE.tiposEvento = await Auth.apiCall('listarTiposEvento', {});
-        }
-        tipos = window.__CACHE.tiposEvento;
-        if (tipos && tipos.error) throw new Error(tipos.error);
 
+      const [
+        resCerimonialistas,
+        resVendedores,
+        resParceiros,
+        resTipos,
+        resDuracoes,
+        resProjetos
+      ] = await Promise.allSettled([
+        carregarComCache('cerimonialistas', async () => {
+          const resposta = await Auth.apiCall('listarCerimonialistas', {});
+          if (resposta && resposta.error) throw new Error(resposta.error);
+          return Array.isArray(resposta) ? resposta : [];
+        }),
+        carregarComCache('vendedores', async () => {
+          const resposta = await Auth.apiCall('listarVendedores', {});
+          if (resposta && resposta.error) throw new Error(resposta.error);
+          return Array.isArray(resposta) ? resposta : [];
+        }),
+        carregarComCache('parceirosBV', async () => {
+          const resposta = await Auth.apiCall('listarParceirosBV', {});
+          if (resposta && resposta.error) throw new Error(resposta.error);
+          return Array.isArray(resposta) ? resposta : [];
+        }),
+        carregarComCache('tiposEvento', async () => {
+          const resposta = await Auth.apiCall('listarTiposEvento', {});
+          if (resposta && resposta.error) throw new Error(resposta.error);
+          return Array.isArray(resposta) ? resposta : [];
+        }),
+        carregarComCache('duracoes', async () => {
+          const resposta = await Auth.apiCall('listarDuracoesPadrao', {});
+          if (resposta && resposta.error) throw new Error(resposta.error);
+          return Array.isArray(resposta) ? resposta : [];
+        }),
+        carregarComCache('projetos', async () => {
+          const resposta = await Auth.apiCall('listarProjetosSugeridos', {});
+          if (resposta && resposta.error) throw new Error(resposta.error);
+          return Array.isArray(resposta) ? resposta : [];
+        })
+      ]);
+
+      if (resCerimonialistas.status === 'fulfilled') {
+        popularDropdown('idCerimonialista', resCerimonialistas.value, true);
+      }
+
+      if (resVendedores.status === 'fulfilled') {
+        popularDropdown('idVendedor', resVendedores.value);
+      }
+
+      if (resParceiros.status === 'fulfilled') {
+        popularDropdown('idBV', resParceiros.value, true);
+      }
+
+      if (resTipos.status === 'fulfilled') {
+        const tipos = resTipos.value;
         const sel = document.getElementById('tipoEvento');
         if (sel) {
           sel.innerHTML = '<option value="">Selecione...</option>';
@@ -2560,18 +2621,11 @@ async function validarImpactoFinanceiroAntesSalvar(callback) {
             sel.appendChild(opt);
           });
           __dropdownsProntos.tipoEvento = true;
-          if (autoFill) tentarPreencherEventoAposDropdowns();
         }
-      } catch (e) {}
-      // CONFIG - Durações
-      try {
-        let duracoes;
-        if (!window.__CACHE.duracoes) {
-          window.__CACHE.duracoes = await Auth.apiCall('listarDuracoesPadrao', {});
-        }
-        duracoes = window.__CACHE.duracoes;
-        if (duracoes && duracoes.error) throw new Error(duracoes.error);
+      }
 
+      if (resDuracoes.status === 'fulfilled') {
+        const duracoes = resDuracoes.value;
         const sel = document.getElementById('duracao');
         if (sel) {
           sel.innerHTML = '<option value="">Selecione...</option>';
@@ -2582,23 +2636,16 @@ async function validarImpactoFinanceiroAntesSalvar(callback) {
             const label = m > 0 ? `${h}h${m}` : `${h}h`;
 
             const opt = document.createElement('option');
-            opt.value = String(minutos); // 🔑 value = 120
-            opt.textContent = label;     // label = 2h
+            opt.value = String(minutos);
+            opt.textContent = label;
             sel.appendChild(opt);
           });
           __dropdownsProntos.duracao = true;
-          if (autoFill) tentarPreencherEventoAposDropdowns();
         }
-      } catch (e) {}
-      // CONFIG - Projetos
-      try {
-        let projetos;
-        if (!window.__CACHE.projetos) {
-          window.__CACHE.projetos = await Auth.apiCall('listarProjetosSugeridos', {});
-        }
-        projetos = window.__CACHE.projetos;
-        if (projetos && projetos.error) throw new Error(projetos.error);
+      }
 
+      if (resProjetos.status === 'fulfilled') {
+        const projetos = resProjetos.value;
         const sel = document.getElementById('projeto');
         if (sel) {
           sel.innerHTML = '<option value="">Selecione...</option>';
@@ -2610,9 +2657,10 @@ async function validarImpactoFinanceiroAntesSalvar(callback) {
             sel.appendChild(opt);
           });
           __dropdownsProntos.projeto = true;
-          if (autoFill) tentarPreencherEventoAposDropdowns();
         }
-      } catch (e) {}
+      }
+
+      if (autoFill) tentarPreencherEventoAposDropdowns();
     }
     
     function tentarPreencherEventoAposDropdowns() {
@@ -2977,14 +3025,6 @@ window.addEventListener('load', async () => {
     if (!window.Auth) throw new Error('AUTH_NOT_LOADED');
     const email = localStorage.getItem('auth_email');
     if (!email) throw new Error('NOT_AUTH');
-    const modoDireto = !!getIdEventoFromURL();
-    if (!modoDireto) {
-      // Pré-carregar caches apenas no modo busca.
-      Promise.all([
-        carregarContratantesParaAutocomplete(),
-        carregarDropdowns()
-      ]);
-    }
     await iniciarEditarEvento();
   } catch (err) {
     console.error('Erro de autenticação:', err);
