@@ -1367,7 +1367,6 @@
           <div class="header-user-avatar" id="headerUserAvatar">--</div>
           <div class="header-user-meta">
             <div class="header-user-name" id="headerUserName">Carregando...</div>
-            <div id="userProfile" class="user-badge">Carregando...</div>
           </div>
         </div>
         <button class="header-logout" onclick="Auth.logout()" title="Sair">
@@ -1966,11 +1965,6 @@ calcularDiasIntervalo(dataInicio, dataFim) {
         }
 
         if (AppState.usuario) {
-          const profileEl = document.getElementById('userProfile');
-          if (profileEl) {
-            profileEl.textContent = perfilExibicaoAgenda_(AppState.usuario.perfil);
-          }
-
           const nome = String(AppState.usuario.nome || '').trim();
           const nomeExibicao = nome ? nome.split(' ')[0] : 'Usuário';
           const nomeEl = document.getElementById('headerUserName');

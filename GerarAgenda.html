@@ -462,6 +462,9 @@
       try {
         if (!window.Auth) throw new Error('AUTH_NOT_LOADED');
 
+        // Preenche cabeçalho imediatamente com cache local (evita atraso visual).
+        preencherHeaderUsuarioLocal_();
+
         const auth = await Auth.apiCall('verificarUsuario');
         if (!auth || !auth.ok || !auth.user) {
           throw new Error('NOT_AUTH');
@@ -485,7 +488,8 @@
         document.getElementById('userName').textContent = partes[0] || nomeCompleto;
         document.getElementById('userRole').textContent = perfilExibicao;
         configurarAcoes();
-        await carregarPreset('semana_atual');
+        aplicarPeriodoInicial_();
+        mostrarStatus('Escolha o período e clique em "Carregar Eventos".', 'info');
         if (window.lucide) window.lucide.createIcons();
       } catch (err) {
         console.error('Erro ao iniciar GerarAgenda:', err);
@@ -514,6 +518,51 @@
       if (p === 'socio') return 'Administrador';
       if (p === 'musico') return 'Músico';
       return perfil || 'Usuário';
+    }
+
+    function preencherHeaderUsuarioLocal_() {
+      try {
+        const nomeCache = String(localStorage.getItem('auth_nome') || '').trim();
+        const perfilCache = String(localStorage.getItem('auth_perfil') || '').trim();
+        if (!nomeCache && !perfilCache) return;
+
+        const partes = nomeCache.split(' ').filter(Boolean);
+        const iniciais = partes.length >= 2
+          ? (partes[0][0] + partes[partes.length - 1][0]).toUpperCase()
+          : (nomeCache.slice(0, 2).toUpperCase() || 'US');
+
+        const avatarEl = document.getElementById('userAvatar');
+        const nomeEl = document.getElementById('userName');
+        const perfilEl = document.getElementById('userRole');
+
+        if (avatarEl) avatarEl.textContent = iniciais;
+        if (nomeEl) nomeEl.textContent = partes[0] || nomeCache || 'Usuário';
+        if (perfilEl) perfilEl.textContent = perfilExibicaoGerador_(perfilCache);
+      } catch (_) {}
+    }
+
+    function aplicarPeriodoInicial_() {
+      const hoje = new Date();
+      const diaSemana = hoje.getDay();
+      const deslocamento = (diaSemana + 6) % 7; // segunda-feira = início
+      const inicio = new Date(hoje);
+      inicio.setDate(hoje.getDate() - deslocamento);
+      inicio.setHours(0, 0, 0, 0);
+
+      const fim = new Date(inicio);
+      fim.setDate(inicio.getDate() + 6);
+
+      const iso = (d) => {
+        const yyyy = d.getFullYear();
+        const mm = String(d.getMonth() + 1).padStart(2, '0');
+        const dd = String(d.getDate()).padStart(2, '0');
+        return `${yyyy}-${mm}-${dd}`;
+      };
+
+      state.periodo.dataInicio = iso(inicio);
+      state.periodo.dataFim = iso(fim);
+      document.getElementById('dataInicio').value = state.periodo.dataInicio;
+      document.getElementById('dataFim').value = state.periodo.dataFim;
     }
 
     function configurarAcoes() {
