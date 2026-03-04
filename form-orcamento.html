@@ -772,9 +772,14 @@
       sub.textContent = fases[0];
       if (processingInterval_) clearInterval(processingInterval_);
       processingInterval_ = setInterval(function() {
-        idx = (idx + 1) % fases.length;
-        sub.textContent = fases[idx];
-      }, 1200);
+        if (idx < fases.length - 1) {
+          idx += 1;
+          sub.textContent = fases[idx];
+          return;
+        }
+        // Após chegar na última fase, mantém mensagem estável sem reiniciar ciclo.
+        sub.textContent = 'Finalizando envio... Aguarde mais um instante.';
+      }, 2800);
     }
 
     function estaStandaloneIOS_() {
