@@ -354,6 +354,59 @@
       word-break: break-all;
     }
 
+    .proc-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(10,22,40,0.55);
+      backdrop-filter: blur(2px);
+      z-index: 9999;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 18px;
+    }
+
+    .proc-overlay.show { display: flex; }
+
+    .proc-card {
+      width: min(420px, 100%);
+      background: #ffffff;
+      border-radius: 14px;
+      box-shadow: 0 14px 48px rgba(10,22,40,0.35);
+      border: 1px solid #d9e0ed;
+      padding: 18px;
+      display: grid;
+      gap: 8px;
+      text-align: center;
+    }
+
+    .proc-spinner {
+      width: 28px;
+      height: 28px;
+      border: 3px solid #dbe7fb;
+      border-top-color: #1e3a5f;
+      border-radius: 50%;
+      margin: 0 auto;
+      animation: spin 0.9s linear infinite;
+    }
+
+    .proc-title {
+      font-size: 15px;
+      font-weight: 800;
+      color: #0f172a;
+    }
+
+    .proc-sub {
+      font-size: 13px;
+      color: #334155;
+      min-height: 20px;
+    }
+
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+
     .bottom-nav {
       position: fixed;
       bottom: 0;
@@ -457,7 +510,7 @@
           </div>
           <div class="field">
             <label for="telefone">Telefone (WhatsApp)</label>
-            <input id="telefone" type="text" placeholder="Ex.: 85 99999-9999">
+            <input id="telefone" type="text" inputmode="numeric" autocomplete="tel" maxlength="16" placeholder="Ex.: (85) 99999-9999">
           </div>
           <div class="field">
             <label for="dataEvento">Data do evento</label>
@@ -469,17 +522,17 @@
               <div class="opt-line">
                 <input id="propPocket" type="checkbox">
                 <span>Pocket</span>
-                <input id="valorPocket" type="text" placeholder="Valor (opcional)">
+                <input id="valorPocket" type="text" inputmode="decimal" placeholder="Valor (opcional)">
               </div>
               <div class="opt-line">
                 <input id="propGold" type="checkbox">
                 <span>Gold</span>
-                <input id="valorGold" type="text" placeholder="Valor (opcional)">
+                <input id="valorGold" type="text" inputmode="decimal" placeholder="Valor (opcional)">
               </div>
               <div class="opt-line">
                 <input id="propPremium" type="checkbox">
                 <span>Premium</span>
-                <input id="valorPremium" type="text" placeholder="Valor (opcional)">
+                <input id="valorPremium" type="text" inputmode="decimal" placeholder="Valor (opcional)">
               </div>
             </div>
           </div>
@@ -532,6 +585,14 @@
     </button>
   </nav>
 
+  <div class="proc-overlay" id="procOverlay" aria-hidden="true">
+    <div class="proc-card">
+      <div class="proc-spinner"></div>
+      <div class="proc-title">Processando orçamento</div>
+      <div class="proc-sub" id="procSub">Aguarde alguns instantes...</div>
+    </div>
+  </div>
+
   <script>
     function normalizarPerfil(perfil) {
       return String(perfil || '')
@@ -570,11 +631,36 @@
     function normalizarNumero_(raw) {
       const str = String(raw || '').trim();
       if (!str) return '';
-      return str
+      const somente = str
         .replace(/\s+/g, '')
         .replace(/[Rr]\$/g, '')
+        .replace(/[^0-9.,]/g, '')
         .replace(/\./g, '')
         .replace(',', '.');
+      const n = Number(somente);
+      return isNaN(n) ? '' : String(n);
+    }
+
+    function apenasDigitos_(v) {
+      return String(v || '').replace(/\D/g, '');
+    }
+
+    function formatarTelefoneMascara_(v) {
+      const d = apenasDigitos_(v).slice(0, 11);
+      if (d.length <= 2) return d ? `(${d}` : '';
+      if (d.length <= 6) return `(${d.slice(0,2)}) ${d.slice(2)}`;
+      if (d.length <= 10) return `(${d.slice(0,2)}) ${d.slice(2,6)}-${d.slice(6)}`;
+      return `(${d.slice(0,2)}) ${d.slice(2,7)}-${d.slice(7)}`;
+    }
+
+    function formatarValorVisual_(v) {
+      const limpo = String(v || '')
+        .replace(/[^\d.,]/g, '')
+        .replace(/\./g, '')
+        .replace(',', '.');
+      const n = Number(limpo);
+      if (isNaN(n)) return '';
+      return n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     }
 
     function coletarPayload_() {
@@ -598,9 +684,21 @@
     function validarPayload_(p) {
       if (!p.nome) return 'Informe o nome do contratante.';
       if (!p.telefone) return 'Informe o telefone.';
+      if (apenasDigitos_(p.telefone).length < 10) return 'Telefone inválido.';
       if (!p.dataEvento) return 'Informe a data do evento.';
       if (!p.propostas) return 'Selecione ao menos uma proposta.';
       return '';
+    }
+
+    function setProcessing_(on, etapa) {
+      const overlay = document.getElementById('procOverlay');
+      const sub = document.getElementById('procSub');
+      const btnGerar = document.getElementById('btnGerar');
+      const btnLimpar = document.getElementById('btnLimpar');
+      if (sub && etapa) sub.textContent = etapa;
+      if (overlay) overlay.classList.toggle('show', !!on);
+      if (btnGerar) btnGerar.disabled = !!on;
+      if (btnLimpar) btnLimpar.disabled = !!on;
     }
 
     function limparFormulario_() {
@@ -649,19 +747,21 @@
       }
 
       try {
-        btn.disabled = true;
+        setProcessing_(true, 'Validando dados...');
         setStatus_('Gerando orçamento...', 'info');
+        setTimeout(function() { setProcessing_(true, 'Gerando PDF e preparando links...'); }, 700);
         const resp = await Auth.apiCall('gerarOrcamentoInterno', payload);
         if (!resp || resp.sucesso !== true) {
           throw new Error(resp && (resp.mensagem || resp.error) ? (resp.mensagem || resp.error) : 'Falha ao gerar orçamento');
         }
+        setProcessing_(true, 'Finalizando...');
         renderResultado_(resp);
         setStatus_(resp.mensagem || 'Orçamento gerado com sucesso.', 'ok');
       } catch (err) {
         console.error(err);
         setStatus_('Falha ao gerar orçamento: ' + (err.message || err), 'err');
       } finally {
-        btn.disabled = false;
+        setProcessing_(false, '');
       }
     }
 
@@ -669,6 +769,29 @@
       preencherHeaderLocal_();
       const btnGerar = document.getElementById('btnGerar');
       const btnLimpar = document.getElementById('btnLimpar');
+      const tel = document.getElementById('telefone');
+      const valores = ['valorPocket', 'valorGold', 'valorPremium']
+        .map(id => document.getElementById(id))
+        .filter(Boolean);
+
+      if (tel) {
+        tel.addEventListener('input', function(e) {
+          e.target.value = formatarTelefoneMascara_(e.target.value);
+        });
+      }
+
+      valores.forEach(function(el) {
+        el.addEventListener('input', function(e) {
+          const limpo = String(e.target.value || '')
+            .replace(/[^\d.,]/g, '')
+            .replace(/(,.*),/g, '$1');
+          e.target.value = limpo;
+        });
+        el.addEventListener('blur', function(e) {
+          e.target.value = formatarValorVisual_(e.target.value);
+        });
+      });
+
       if (btnGerar) btnGerar.addEventListener('click', enviarOrcamento_);
       if (btnLimpar) btnLimpar.addEventListener('click', limparFormulario_);
       if (window.lucide) window.lucide.createIcons();
