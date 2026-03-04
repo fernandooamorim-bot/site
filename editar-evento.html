@@ -1873,16 +1873,45 @@ function renderizarConflitosEdicao(eventos) {
   container.innerHTML = html;
 }
 
+function normalizarComparacaoTexto(v) {
+  return String(v ?? '')
+    .trim()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
+}
+
+function criarOpcaoFallback(selectEl, valorOriginal) {
+  const valor = String(valorOriginal ?? '').trim();
+  if (!valor) return false;
+
+  const existente = Array.from(selectEl.options).find(o =>
+    normalizarComparacaoTexto(o.value) === normalizarComparacaoTexto(valor)
+  );
+  if (existente) {
+    selectEl.value = existente.value;
+    return true;
+  }
+
+  const opt = document.createElement('option');
+  opt.value = valor;
+  opt.textContent = valor;
+  opt.dataset.fallback = '1';
+  selectEl.appendChild(opt);
+  selectEl.value = valor;
+  return true;
+}
+
 function setValueSafe(id, valor, tentativas = 0) {
   const el = document.getElementById(id);
   if (!el) return;
 
   if (valor === null || valor === undefined) return;
 
-  const valorNormalizado = String(valor).trim().toLowerCase();
+  const valorNormalizado = normalizarComparacaoTexto(valor);
 
   const optionEncontrada = Array.from(el.options).find(o =>
-    String(o.value).trim().toLowerCase() === valorNormalizado
+    normalizarComparacaoTexto(o.value) === valorNormalizado
   );
 
   if (optionEncontrada) {
@@ -1890,9 +1919,13 @@ function setValueSafe(id, valor, tentativas = 0) {
     return;
   }
 
-  if (tentativas < 20) {
-    setTimeout(() => setValueSafe(id, valor, tentativas + 1), 100);
+  if (tentativas < 30) {
+    setTimeout(() => setValueSafe(id, valor, tentativas + 1), 120);
+    return;
   }
+
+  // Defesa final: evita perder valor legado/salvo quando a lista de opções ainda não veio.
+  criarOpcaoFallback(el, valor);
 }
 
 function escapeHtml(str) {
@@ -2452,12 +2485,6 @@ function executarAutocompleteContratante(termo) {
         aplicarSkeletonFormulario(true);
       }
 
-      // ============================
-      // FASE 4 — PREPARAÇÃO DO FORM
-      // ============================
-      preencherFormulario(eventoAtual);
-      renderizarStatusTipoRegistro(eventoAtual);
-
       // Permissão financeira (somente eventos)
       try {
         const statusFinanceiro = document.getElementById('statusFinanceiro');
@@ -2505,6 +2532,8 @@ function executarAutocompleteContratante(termo) {
       }, 200);
 
       if (dropdownsEssenciaisProntos()) {
+        preencherFormulario(eventoAtual);
+        renderizarStatusTipoRegistro(eventoAtual);
         aplicarSkeletonFormulario(false);
         esconderLoadingGlobal();
         travarAcoes(false);
@@ -2512,6 +2541,8 @@ function executarAutocompleteContratante(termo) {
       } else {
         carregarDropdowns().catch((errDrop) => {
           console.warn('Falha ao carregar dropdowns após seleção:', errDrop);
+          preencherFormulario(eventoAtual);
+          renderizarStatusTipoRegistro(eventoAtual);
           aplicarSkeletonFormulario(false);
           esconderLoadingGlobal();
           travarAcoes(false);
@@ -2904,6 +2935,31 @@ async function validarImpactoFinanceiroAntesSalvar(callback) {
       }
       return true;
     }
+
+    function validarIntegridadeCarregamentoAntesSalvar(dados) {
+      if (!eventoOriginal) return true;
+
+      const camposCriticos = [
+        { chave: 'tipoEvento', label: 'Tipo de Evento' },
+        { chave: 'projeto', label: 'Formato/Projeto' }
+      ];
+
+      const faltantes = camposCriticos
+        .filter(c => {
+          const antigo = String(eventoOriginal?.[c.chave] ?? '').trim();
+          const atual = String(dados?.[c.chave] ?? '').trim();
+          return antigo && !atual;
+        })
+        .map(c => c.label);
+
+      if (faltantes.length === 0) return true;
+
+      mostrarAlerta(
+        `Carregamento incompleto detectado (${faltantes.join(', ')}). Aguarde 1-2 segundos e tente novamente.`,
+        'error'
+      );
+      return false;
+    }
     
     async function confirmarEdicao() {
       // 1) Mostra loading e trava ações imediatamente ao clicar
@@ -2916,6 +2972,11 @@ async function validarImpactoFinanceiroAntesSalvar(callback) {
         try {
           const dadosFormulario = coletarDadosFormulario();
           if (!validarCamposConversaoReserva(dadosFormulario)) {
+            esconderLoadingGlobal();
+            travarAcoes(false);
+            return;
+          }
+          if (!validarIntegridadeCarregamentoAntesSalvar(dadosFormulario)) {
             esconderLoadingGlobal();
             travarAcoes(false);
             return;
