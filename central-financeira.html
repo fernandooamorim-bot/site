@@ -636,6 +636,7 @@ let appReady = false;
 let ultimoPreview = null;
 let ultimoResumoFinanceiro = null;
 let ajustesDetalhadosComissao = [];
+let previewComissaoAtual = null;
 
 const buttons = document.querySelectorAll('.intent button');
 const form = document.getElementById('form');
@@ -1027,6 +1028,21 @@ function recalcularTotaisAjustesDetalhadosComissao_() {
   const ajDeb = document.getElementById('ajDebito');
   if (ajCred) ajCred.value = totalCredito.toFixed(2);
   if (ajDeb) ajDeb.value = totalDebito.toFixed(2);
+  atualizarResumoLiquidoComissao_();
+}
+
+function atualizarResumoLiquidoComissao_() {
+  const card = document.getElementById('resumoLiquidoComissao');
+  if (!card || !previewComissaoAtual) return;
+
+  const base = Number(previewComissaoAtual.totalComissao || 0) + Number(previewComissaoAtual.totalAjuste || 0);
+  const credito = parseValorSeguro(document.getElementById('ajCredito')?.value) || 0;
+  const debito = parseValorSeguro(document.getElementById('ajDebito')?.value) || 0;
+  const liquido = base + credito - debito;
+
+  card.innerHTML =
+    `<strong>Valor líquido para transferir:</strong> R$ ${liquido.toFixed(2)} ` +
+    `<span class="muted">(base R$ ${base.toFixed(2)} + crédito R$ ${credito.toFixed(2)} - débito R$ ${debito.toFixed(2)})</span>`;
 }
 
 /* ================= OBRIGACAO ================= */
@@ -1362,11 +1378,13 @@ function buscarVendedor(q){
 
 function carregarResumoVendedor(){
   resumo.innerHTML = '<span class="muted">Carregando resumo do fechamento...</span>';
+  previewComissaoAtual = null;
 
   Auth.apiCall('visualizarPreviewFechamento', {
     idVendedor: vendedorSelecionado.id
   })
   .then(preview => {
+    previewComissaoAtual = preview || null;
     ultimoPreview = preview;
 
     // ================= NOVA REGRA DE FILTRO DO PREVIEW DE FECHAMENTO =================
@@ -1524,10 +1542,12 @@ function carregarResumoVendedor(){
       resumo.innerHTML = `
         <div><strong>Vendedor:</strong> ${vendedorSelecionado.nome}</div>
         ${alertaAjusteHtml}
+        <div id="resumoLiquidoComissao" style="margin-top:10px"></div>
         <div class="muted">
           Nenhuma comissão nova pendente, porém o fechamento possui ajustes a serem aplicados.
         </div>
       `;
+      atualizarResumoLiquidoComissao_();
       return;
     }
 
@@ -1569,6 +1589,7 @@ function carregarResumoVendedor(){
       ${alertaAjusteHtml}
       <div><strong>Eventos no fechamento:</strong> ${preview.totalEventos}</div>
       <div><strong>Total de comissão a pagar:</strong> R$ ${totalFinal.toFixed(2)}</div>
+      <div id="resumoLiquidoComissao" style="margin-top:8px"></div>
       <div class="divider"></div>
       <div><strong>Detalhamento das Comissões (origem):</strong></div>
     `;
@@ -1616,6 +1637,7 @@ function carregarResumoVendedor(){
     `;
 
     resumo.innerHTML = html;
+    atualizarResumoLiquidoComissao_();
   })
   .catch(err => {
     console.error('Erro ao gerar preview de comissão:', err);
@@ -1871,6 +1893,7 @@ function resetFechamentoForm() {
   document.getElementById('linkPagamento').value = '';
   document.getElementById('confirmarFechamento').checked = false;
   ajustesDetalhadosComissao = [];
+  previewComissaoAtual = null;
   renderAjustesDetalhadosComissao_();
   recalcularTotaisAjustesDetalhadosComissao_();
   resumo.innerHTML = '<span class="muted">Selecione um vendedor</span>';
@@ -1988,6 +2011,27 @@ function executarFechamentoV2(){
 
     consumirOperationKey('fechamento');
     resetFechamentoForm();
+    if (resp.pdfGerado === false && resp.idFechamento) {
+      alert((resp.mensagem || 'Fechamento confirmado, PDF pendente') + '\\nTentando regenerar PDF...');
+      showLoading('Regenerando PDF do fechamento...');
+      Auth.apiCall('regerarPdfFechamentoComissao', { idFechamento: resp.idFechamento })
+        .then(pdfResp => {
+          hideLoading();
+          if (pdfResp && pdfResp.sucesso === true) {
+            alert('Fechamento confirmado e PDF regenerado com sucesso.');
+            if (pdfResp.linkPdf) window.open(pdfResp.linkPdf, '_blank');
+          } else {
+            alert('Fechamento confirmado, mas a regeneração do PDF falhou. Tente novamente pela ação de reprocesso.');
+          }
+        })
+        .catch(errPdf => {
+          hideLoading();
+          console.error('Erro ao regenerar PDF:', errPdf);
+          alert('Fechamento confirmado, mas não foi possível regenerar o PDF agora.');
+        });
+      return;
+    }
+
     alert(resp.mensagem || 'Fechamento realizado com sucesso');
     if (resp.linkPdf) window.open(resp.linkPdf, '_blank');
   })
