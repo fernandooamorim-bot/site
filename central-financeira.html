@@ -1087,12 +1087,13 @@ function renderCamposSaida() {
   }
 
   if (tipo === 'BV_EVENTO') {
+    const valorSugerido = Number(ultimoResumoFinanceiro?.valorBV || 0);
     box.innerHTML = `
       <label>Valor</label>
-      <input type="number" id="valorSaida" readonly>
+      <input type="number" id="valorSaida" step="0.01" value="${valorSugerido > 0 ? valorSugerido.toFixed(2) : ''}">
 
       <label>Data</label>
-      <input type="date" id="dataSaida" value="${hojeLocalISO()}">
+      <input type="date" id="dataSaida" value="${hojeLocalISO()}" readonly>
 
       <label>Link do Comprovante</label>
       <input id="comprovanteSaida">
@@ -1110,7 +1111,7 @@ function renderCamposSaida() {
       <button class="btn primary" onclick="submitSaidaEvento()">Registrar Saída</button>
 
       <div class="muted" style="margin-top:8px">
-        ℹ️ O valor desta saída é definido automaticamente pelo cadastro do evento.
+        ℹ️ Valor sugerido pelo cadastro do evento: R$ ${valorSugerido.toFixed(2)} (você pode ajustar se necessário).
       </div>
     `;
   }
@@ -1146,11 +1147,13 @@ function submitSaidaEvento() {
   let valor = 0;
   let observacoes = '';
   let comprovante = '';
+  let dataSaida = '';
 
   if (tipo === 'NF_EVENTO' || tipo === 'BV_EVENTO') {
     valor = parseValorSeguro(document.getElementById('valorSaida').value);
     comprovante = document.getElementById('comprovanteSaida')?.value || '';
     observacoes = document.getElementById('obsSaida')?.value || '';
+    dataSaida = document.getElementById('dataSaida')?.value || hojeLocalISO();
     if (!valor) return alert('Valor inválido');
   }
 
@@ -1172,6 +1175,7 @@ function submitSaidaEvento() {
     tipoSaida: tipo,
     idEvento: eventoSelecionado,
     valor: valor,
+    dataSaida: dataSaida,
     observacoes: observacoes,
     linkComprovante: comprovante,
     operationKey: obterOuCriarOperationKey('saida')
@@ -1274,6 +1278,15 @@ async function selectEvento(ev){
     statusFinal = 'QUITADO (com excedente)';
   }
 
+  const valorBV = Number(fin.valorBV || 0);
+  const statusBV = String(fin.statusBV || 'N/A');
+  const valorNF = Number(fin.valorNF || 0);
+  const statusNF = String(fin.statusNF || 'N/A');
+  const folhaValor = Number(fin.folhaCustoValor || 0);
+  const bvBadge = fin.bvPendente ? '⚠️ PENDENTE' : (statusBV || 'N/A');
+  const nfBadge = fin.nfPendente ? '⚠️ PENDENTE' : (statusNF || 'N/A');
+  const folhaBadge = fin.folhaPendente ? '⚠️ NÃO REGISTRADA' : 'PROCESSADA';
+
   resumo.innerHTML = `
     <div><strong>Evento:</strong> ${ev.tipoEvento}</div>
     <div><strong>Contratante:</strong> ${ev.contratante}</div>
@@ -1283,7 +1296,19 @@ async function selectEvento(ev){
     <div><strong>Valor pendente atual:</strong> R$ ${vp.toFixed(2)}</div>
     ${extraHtml}
     <div><strong>Status:</strong> ${statusFinal}</div>
+    <div class="divider"></div>
+    <div><strong>Saídas do evento (resumo):</strong></div>
+    <div>• BV: R$ ${valorBV.toFixed(2)} — <strong>${bvBadge}</strong></div>
+    <div>• NF: ${fin.temNF ? ('R$ ' + valorNF.toFixed(2)) : 'Não configurada'} — <strong>${nfBadge}</strong></div>
+    <div>• Folha de custo: R$ ${folhaValor.toFixed(2)} — <strong>${folhaBadge}</strong></div>
   `;
+
+  if (mode === 'obrigacao') {
+    const tipoSaidaEl = document.getElementById('tipoSaida');
+    if (tipoSaidaEl && tipoSaidaEl.value) {
+      renderCamposSaida();
+    }
+  }
 
   if (mode === 'estorno') {
     listarRecebimentosEvento(idEventoReal);
