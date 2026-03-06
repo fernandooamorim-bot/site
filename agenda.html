@@ -2201,12 +2201,13 @@ criarCardEvento(evento) {
   const tituloEvento = isLegado
     ? (evento.contratante || `${evento.tipoEvento || evento.tipo || '-'}`)
     : `${evento.tipoEvento || evento.tipo || '-'}${evento.contratante ? ' - ' + evento.contratante : ''}`;
+  const exibirStatusNoCard = evento.tipo === 'Evento' || evento.tipo === 'Reserva';
   const statusLabel = evento.tipo === 'Reserva'
     ? 'Reserva'
-    : (evento.status ? Utils.getStatusLabel(evento.status) : '');
+    : (exibirStatusNoCard && evento.status ? Utils.getStatusLabel(evento.status) : '');
   const statusClass = evento.tipo === 'Reserva'
     ? 'status-reserva'
-    : (evento.status ? Utils.getStatusBadge(evento.status) : '');
+    : (exibirStatusNoCard && evento.status ? Utils.getStatusBadge(evento.status) : '');
   const temConflitos = Array.isArray(evento.eventosDentro) && evento.eventosDentro.length > 0;
 
   const detalhes = [];
