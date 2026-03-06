@@ -1476,8 +1476,8 @@
       // Seção de valores (SÓ EVENTO)
       document.getElementById('secaoValores').style.display = isEvento ? 'block' : 'none';
       
-      // Seção Informações Adicionais - Evento e Reserva
-      document.getElementById('secaoInformacoesAdicionais').style.display = (isEvento || isReserva) ? 'block' : 'none';
+      // Seção Informações Adicionais - apenas Evento
+      document.getElementById('secaoInformacoesAdicionais').style.display = isEvento ? 'block' : 'none';
       
       // Altera label do contratante e controle required
       const labelContratante = document.getElementById('labelContratante');
@@ -1543,7 +1543,7 @@
 
       // Required nos campos
       document.getElementById('tipoEvento').required = isEvento;
-      document.getElementById('motivo').required = (isBloqueio || isReuniao);
+      document.getElementById('motivo').required = !isEvento;
       document.getElementById('valorTotal').required = isEvento;
       document.getElementById('idVendedor').required = isEvento;
 
@@ -2198,7 +2198,7 @@ if ((tipoRegistro === 'Evento' || tipoRegistro === 'Reunião' || tipoRegistro ==
         dados.projeto = document.getElementById('projeto').value || '';
         dados.idCerimonialista = document.getElementById('idCerimonialista').value || null;
         dados.motivo = document.getElementById('motivo').value;
-        dados.observacoes = document.getElementById('observacoes').value;
+        dados.observacoes = '';
       }
       // REUNIÃO ou BLOQUEIO
       else {
@@ -2207,9 +2207,8 @@ if ((tipoRegistro === 'Evento' || tipoRegistro === 'Reunião' || tipoRegistro ==
       }
       if (tipoRegistro === 'Reserva') {
         const motivoReserva = (document.getElementById('motivo').value || '').trim();
-        const obsReserva = (document.getElementById('observacoes').value || '').trim();
-        if (!motivoReserva && !obsReserva) {
-          alert('Para Reserva, preencha pelo menos "Motivo/Status da Reserva" ou "Observações".');
+        if (!motivoReserva) {
+          alert('Para Reserva, preencha o campo "Motivo/Status da Reserva".');
           return;
         }
       }
