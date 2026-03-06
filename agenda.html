@@ -2200,11 +2200,14 @@ criarCardEvento(evento) {
   const isLegado = String(evento.id || '').startsWith('LG-');
   const tipoRegistro = String(evento.tipo || '').trim();
   const isReuniaoOuBloqueio = tipoRegistro === 'Reunião' || tipoRegistro === 'Bloqueio';
+  const isReserva = tipoRegistro === 'Reserva';
   const observacaoRaw = String(evento.observacoes || '').trim();
   const observacaoTecnicaLegado = /^\[LEGADO\]/i.test(observacaoRaw) || /arquivo=|aba=|linha=|conf=|issues=/i.test(observacaoRaw);
   const observacaoParaTitulo = observacaoTecnicaLegado ? '' : observacaoRaw;
   const tituloEvento = isReuniaoOuBloqueio
     ? (observacaoParaTitulo || evento.contratante || `${evento.tipoEvento || evento.tipo || '-'}`)
+    : isReserva
+      ? `${evento.tipoEvento || 'Reserva'}${evento.contratante ? ' - ' + evento.contratante : (observacaoParaTitulo ? ' - ' + observacaoParaTitulo : '')}`
     : (isLegado
       ? (evento.contratante || `${evento.tipoEvento || evento.tipo || '-'}`)
       : `${evento.tipoEvento || evento.tipo || '-'}${evento.contratante ? ' - ' + evento.contratante : ''}`);

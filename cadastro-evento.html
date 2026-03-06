@@ -1468,7 +1468,7 @@
       document.getElementById('campoProjeto').style.display = (isEvento || isReserva) ? 'block' : 'none';
       
       // Cerimonialista
-      document.getElementById('campoCerimonialista').style.display = isEvento ? 'block' : 'none';
+      document.getElementById('campoCerimonialista').style.display = (isEvento || isReserva) ? 'block' : 'none';
       
       // BLOQUEIO: Esconde TODA seção de Pessoas e Local
       document.getElementById('secaoPessoasLocal').style.display = isBloqueio ? 'none' : 'block';
@@ -1476,15 +1476,18 @@
       // Seção de valores (SÓ EVENTO)
       document.getElementById('secaoValores').style.display = isEvento ? 'block' : 'none';
       
-      // Seção Informações Adicionais completa - só para EVENTO
-      document.getElementById('secaoInformacoesAdicionais').style.display = isEvento ? 'block' : 'none';
+      // Seção Informações Adicionais - Evento e Reserva
+      document.getElementById('secaoInformacoesAdicionais').style.display = (isEvento || isReserva) ? 'block' : 'none';
       
       // Altera label do contratante e controle required
       const labelContratante = document.getElementById('labelContratante');
 
-      if (isEvento || isReserva) {
+      if (isEvento) {
         labelContratante.innerHTML = 'Contratante';
         labelContratante.classList.add('required');
+      } else if (isReserva) {
+        labelContratante.innerHTML = 'Contratante (opcional)';
+        labelContratante.classList.remove('required');
       } else if (isReuniao) {
         labelContratante.innerHTML = 'Cliente/Pessoa (opcional)';
         labelContratante.classList.remove('required');
@@ -1495,7 +1498,7 @@
 
       // Controle visual do label do local
       const labelLocal = document.getElementById('labelLocal');
-      if (isEvento || isReserva) {
+      if (isEvento) {
         labelLocal.classList.add('required');
         labelLocal.textContent = 'Local';
       } else {
@@ -1530,23 +1533,23 @@
         labelDuracao.innerHTML = 'Duração <span class="required"></span>';
       }
       
-      // Hora de início: obrigatória para Evento/Reunião/Reserva, opcional para Bloqueio
+      // Hora de início: obrigatória para Evento/Reunião, opcional para Bloqueio/Reserva
       const labelHoraInicio = document.getElementById('labelHoraInicio');
       const inputHoraInicio = document.getElementById('horaInicio');
-      const horaObrigatoria = !isBloqueio;
+      const horaObrigatoria = (isEvento || isReuniao);
       inputHoraInicio.required = horaObrigatoria;
       labelHoraInicio.classList.toggle('required', horaObrigatoria);
       labelHoraInicio.textContent = horaObrigatoria ? 'Hora de Início' : 'Hora de Início (opcional)';
 
       // Required nos campos
       document.getElementById('tipoEvento').required = isEvento;
-      document.getElementById('motivo').required = !isEvento;
+      document.getElementById('motivo').required = (isBloqueio || isReuniao);
       document.getElementById('valorTotal').required = isEvento;
       document.getElementById('idVendedor').required = isEvento;
 
-      // Contratante e Local obrigatórios para EVENTO e RESERVA
-      document.getElementById('contratanteNome').required = (isEvento || isReserva);
-      document.getElementById('localNome').required = (isEvento || isReserva);
+      // Contratante e Local obrigatórios apenas para EVENTO
+      document.getElementById('contratanteNome').required = isEvento;
+      document.getElementById('localNome').required = isEvento;
     }
     
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -2119,7 +2122,10 @@
         horaInicio: document.getElementById('horaInicio').value,
         duracao: parseInt(document.getElementById('duracao').value) || null,
         idContratante: document.getElementById('idContratante').value || null,
-        idEndereco: document.getElementById('idEndereco').value || null
+        idEndereco: document.getElementById('idEndereco').value || null,
+        nomeContratanteDigitado: document.getElementById('contratanteNome').value.trim(),
+        nomeLocalDigitado: document.getElementById('localNome').value.trim(),
+        nomeCerimonialistaDigitado: document.getElementById('cerimonialistaNome').value.trim()
       };
       /* ───── Resolução automática de IDs por nome digitado ───── */
 
@@ -2190,6 +2196,7 @@ if ((tipoRegistro === 'Evento' || tipoRegistro === 'Reunião' || tipoRegistro ==
       else if (tipoRegistro === 'Reserva') {
         dados.tipoEvento = document.getElementById('tipoEvento').value || 'Reserva';
         dados.projeto = document.getElementById('projeto').value || '';
+        dados.idCerimonialista = document.getElementById('idCerimonialista').value || null;
         dados.motivo = document.getElementById('motivo').value;
         dados.observacoes = document.getElementById('observacoes').value;
       }
@@ -2198,8 +2205,17 @@ if ((tipoRegistro === 'Evento' || tipoRegistro === 'Reunião' || tipoRegistro ==
         dados.motivo = document.getElementById('motivo').value;
         dados.observacoes = document.getElementById('observacoes').value;
       }
+      if (tipoRegistro === 'Reserva') {
+        const motivoReserva = (document.getElementById('motivo').value || '').trim();
+        const obsReserva = (document.getElementById('observacoes').value || '').trim();
+        if (!motivoReserva && !obsReserva) {
+          alert('Para Reserva, preencha pelo menos "Motivo/Status da Reserva" ou "Observações".');
+          return;
+        }
+      }
+
       // ───── Validação profissional: CONTRATANTE ─────
-      if ((tipoRegistro === 'Evento' || tipoRegistro === 'Reunião' || tipoRegistro === 'Reserva') &&
+      if (tipoRegistro === 'Evento' &&
           campoDigitadoSemId('contratanteNome', 'idContratante')) {
 
         // EVENTO → cria automaticamente
@@ -2258,7 +2274,7 @@ if ((tipoRegistro === 'Evento' || tipoRegistro === 'Reunião' || tipoRegistro ==
         return;
       }
       // LOCAL – confirmação, mas fixa o loop setando o hidden antes
-      if ((tipoRegistro === 'Evento' || tipoRegistro === 'Reunião' || tipoRegistro === 'Reserva') &&
+      if (tipoRegistro === 'Evento' &&
           campoDigitadoSemId('localNome', 'idEndereco')) {
         abrirConfirmacao(
   'Local',
