@@ -2166,6 +2166,7 @@ calcularDiasIntervalo(dataInicio, dataFim) {
 criarCardEvento(evento) {
   const classificacao = Utils.classificarEvento(evento.data);
   const podeVerValor = AppState.usuario && ehPerfilGestorAgenda_(AppState.usuario.perfil);
+  const podeVerObservacaoInterna = AppState.usuario && ehPerfilGestorAgenda_(AppState.usuario.perfil);
   const podeEditar = AppState.usuario && ehPerfilGestorAgenda_(AppState.usuario.perfil);
 
   let classeExtra = '';
@@ -2239,7 +2240,9 @@ criarCardEvento(evento) {
   addDetalhe('Cerimonialista', evento.cerimonialista);
   addDetalhe('Look', evento.look);
   addDetalhe('Som Responsável', evento.somResponsavel);
-  addDetalhe('Observações', evento.observacoes);
+  if (podeVerObservacaoInterna) {
+    addDetalhe('Observações', evento.observacoes);
+  }
 
   if (podeVerValor && evento.tipo === 'Evento') {
     addDetalhe('Valor Total', evento.valor ? Utils.formatarMoeda(evento.valor) : '-');

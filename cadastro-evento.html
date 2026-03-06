@@ -1114,18 +1114,6 @@
             📝 Informações Adicionais
           </div>
           
-          <div id="camposAdicionaisEvento" class="form-row">
-            <div class="form-group">
-              <label for="look">Look/Vestimenta</label>
-              <input type="text" id="look" placeholder="Ex: Social, Esporte Fino, Casual">
-            </div>
-            
-            <div class="form-group">
-              <label for="somResponsavel">Responsável pelo Som</label>
-              <input type="text" id="somResponsavel" placeholder="Nome do responsável">
-            </div>
-          </div>
-          
           <div id="campoObservacoes" class="form-group">
             <label for="observacoes">Observações</label>
             <textarea id="observacoes" placeholder="Informações adicionais..."></textarea>
@@ -2188,8 +2176,8 @@ if ((tipoRegistro === 'Evento' || tipoRegistro === 'Reunião' || tipoRegistro ==
         dados.idBV = document.getElementById('idBV').value || null;
         dados.valorBV = parseFloat(document.getElementById('valorBV').value) || 0;
         dados.temNF = document.getElementById('temNF').checked;
-        dados.look = document.getElementById('look').value;
-        dados.somResponsavel = document.getElementById('somResponsavel').value;
+        dados.look = '';
+        dados.somResponsavel = '';
         dados.observacoes = document.getElementById('observacoes').value;
       } 
       // RESERVA (pré-evento sem financeiro)
