@@ -2197,7 +2197,10 @@ criarCardEvento(evento) {
     horarioResumo = `${diasIntervalo} ${diasIntervalo === 1 ? 'dia' : 'dias'}`;
   }
 
-  const tituloEvento = `${evento.tipoEvento || evento.tipo || '-'}${evento.contratante ? ' - ' + evento.contratante : ''}`;
+  const isLegado = String(evento.id || '').startsWith('LG-');
+  const tituloEvento = isLegado
+    ? (evento.contratante || `${evento.tipoEvento || evento.tipo || '-'}`)
+    : `${evento.tipoEvento || evento.tipo || '-'}${evento.contratante ? ' - ' + evento.contratante : ''}`;
   const statusLabel = evento.tipo === 'Reserva'
     ? 'Reserva'
     : (evento.status ? Utils.getStatusLabel(evento.status) : '');
