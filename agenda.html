@@ -2198,9 +2198,13 @@ criarCardEvento(evento) {
   }
 
   const isLegado = String(evento.id || '').startsWith('LG-');
-  const tituloEvento = isLegado
-    ? (evento.contratante || `${evento.tipoEvento || evento.tipo || '-'}`)
-    : `${evento.tipoEvento || evento.tipo || '-'}${evento.contratante ? ' - ' + evento.contratante : ''}`;
+  const tipoRegistro = String(evento.tipo || '').trim();
+  const isReuniaoOuBloqueio = tipoRegistro === 'Reunião' || tipoRegistro === 'Bloqueio';
+  const tituloEvento = isReuniaoOuBloqueio
+    ? (evento.observacoes || evento.contratante || `${evento.tipoEvento || evento.tipo || '-'}`)
+    : (isLegado
+      ? (evento.contratante || `${evento.tipoEvento || evento.tipo || '-'}`)
+      : `${evento.tipoEvento || evento.tipo || '-'}${evento.contratante ? ' - ' + evento.contratante : ''}`);
   const exibirStatusNoCard = evento.tipo === 'Evento' || evento.tipo === 'Reserva';
   const statusLabel = evento.tipo === 'Reserva'
     ? 'Reserva'
