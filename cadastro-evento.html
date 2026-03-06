@@ -1858,9 +1858,6 @@
           const minutos = parseInt(d);
           select.innerHTML += `<option value="${minutos}">${formatarDuracao(minutos)}</option>`;
         });
-        if (lista && (lista.includes(120) || lista.includes('120'))) {
-          select.value = '120';
-        }
       });
 
       // PROJETOS
