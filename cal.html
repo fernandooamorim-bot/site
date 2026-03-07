@@ -83,14 +83,31 @@
         const dates = buildDates_(data.d, data.hi, data.hf);
         if (!dates) throw new Error('Dados de data/hora inválidos.');
 
-        const url = 'https://calendar.google.com/calendar/render?action=TEMPLATE'
+        const urlWeb = 'https://calendar.google.com/calendar/render?action=TEMPLATE'
           + '&text=' + encodeURIComponent(title)
           + '&dates=' + encodeURIComponent(dates)
           + '&details=' + encodeURIComponent(details)
           + '&location=' + encodeURIComponent(locationTxt)
           + '&ctz=' + encodeURIComponent(ctz);
 
-        location.replace(url);
+        const urlApp = 'googlecalendar://?action=TEMPLATE'
+          + '&text=' + encodeURIComponent(title)
+          + '&dates=' + encodeURIComponent(dates)
+          + '&details=' + encodeURIComponent(details)
+          + '&location=' + encodeURIComponent(locationTxt)
+          + '&ctz=' + encodeURIComponent(ctz);
+
+        const start = Date.now();
+        const fallback = setTimeout(() => {
+          if (Date.now() - start < 1800) {
+            location.replace(urlWeb);
+          }
+        }, 900);
+
+        window.addEventListener('pagehide', () => clearTimeout(fallback), { once: true });
+        window.addEventListener('blur', () => clearTimeout(fallback), { once: true });
+
+        location.href = urlApp;
       } catch (err) {
         const msg = document.getElementById('msg');
         const errEl = document.getElementById('err');
