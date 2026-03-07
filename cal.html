@@ -166,6 +166,12 @@
       return 'data:text/calendar;charset=utf-8,' + encodeIcsLikeSafari_(ics);
     }
 
+    function buildIcsHostedUrl_(token) {
+      const t = String(token || '').trim();
+      if (!t) return '';
+      return '/.netlify/functions/calendar-ics?token=' + encodeURIComponent(t);
+    }
+
     function mostrarAcoes_(urlIphone, urlGoogle) {
       const actions = document.getElementById('actions');
       const btnIphone = document.getElementById('btnIphone');
@@ -210,18 +216,35 @@
           + '&location=' + encodeURIComponent(locationTxt)
           + '&ctz=' + encodeURIComponent(ctz)
           + (reminderMinutes > 0 ? ('&reminders=' + encodeURIComponent(String(reminderMinutes))) : '');
-        const urlIphone = buildIcsDataUrl_(data);
+        const urlIphoneHosted = buildIcsHostedUrl_(token);
+        const urlIphoneFallback = buildIcsDataUrl_(data);
+        const urlIphone = urlIphoneHosted || urlIphoneFallback;
 
         if (isIOS_()) {
           const titleEl = document.getElementById('title');
           const msgEl = document.getElementById('msg');
           if (titleEl) titleEl.textContent = 'Ativar lembrete no iPhone';
-          if (msgEl) msgEl.textContent = 'Toque em “Calendário iPhone” para abrir diretamente no app.';
-          if (urlIphone) {
-            mostrarAcoes_(urlIphone, urlWeb);
+          if (msgEl) msgEl.textContent = 'Abrindo Calendário do iPhone...';
+
+          if (urlIphoneHosted) {
+            location.href = urlIphoneHosted;
+            setTimeout(function () {
+              mostrarAcoes_(urlIphoneFallback || '#', urlWeb);
+              if (msgEl) msgEl.textContent = 'Se não abrir automaticamente, toque em uma das opções abaixo.';
+            }, 900);
             return;
           }
-          mostrarAcoes_(urlIphone, urlWeb);
+
+          if (urlIphoneFallback) {
+            location.href = urlIphoneFallback;
+            setTimeout(function () {
+              mostrarAcoes_(urlIphoneFallback, urlWeb);
+              if (msgEl) msgEl.textContent = 'Se não abrir automaticamente, toque em uma das opções abaixo.';
+            }, 900);
+            return;
+          }
+
+          mostrarAcoes_(urlIphoneFallback || '#', urlWeb);
           return;
         }
 
