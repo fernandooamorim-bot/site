@@ -25,24 +25,6 @@
     h1 { margin: 0 0 10px; font-size: 16px; }
     p { margin: 0; opacity: .86; font-size: 13px; line-height: 1.45; }
     .err { color: #fecaca; margin-top: 10px; }
-    a { color: #f5d28f; }
-    .actions {
-      margin-top: 12px;
-      display: none;
-      gap: 8px;
-      flex-wrap: wrap;
-    }
-    .actions.show { display: flex; }
-    .btn {
-      border: 1px solid rgba(255,255,255,.2);
-      background: rgba(255,255,255,.08);
-      color: #fff;
-      border-radius: 10px;
-      padding: 8px 10px;
-      font-size: 12px;
-      font-weight: 700;
-      text-decoration: none;
-    }
   </style>
 </head>
 <body>
@@ -50,29 +32,37 @@
     <h1>Abrindo Google Calendar...</h1>
     <p id="msg">Aguarde um instante.</p>
     <p id="err" class="err" style="display:none"></p>
-    <div id="actions" class="actions">
-      <a id="btnApp" class="btn" href="#">Abrir no app</a>
-      <a id="btnWeb" class="btn" href="#" target="_blank" rel="noopener">Abrir no navegador</a>
-    </div>
   </div>
 
   <script>
     function toDateOnlyIsoParts_(iso) {
-      const m = String(iso || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
-      if (!m) return null;
-      return { y: m[1], mo: m[2], d: m[3] };
+      const str = String(iso || '').trim();
+      const m = str.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+      if (m) return { y: m[1], mo: m[2], d: m[3] };
+      const c = str.match(/^(\d{4})(\d{2})(\d{2})$/);
+      if (c) return { y: c[1], mo: c[2], d: c[3] };
+      return null;
+    }
+
+    function toHourParts_(str) {
+      const raw = String(str || '').trim();
+      const m1 = raw.match(/^(\d{1,2}):(\d{2})$/);
+      if (m1) return { h: String(Number(m1[1])).padStart(2, '0'), m: String(Number(m1[2])).padStart(2, '0') };
+      const m2 = raw.match(/^(\d{1,2})(\d{2})$/);
+      if (m2) return { h: String(Number(m2[1])).padStart(2, '0'), m: String(Number(m2[2])).padStart(2, '0') };
+      return null;
     }
 
     function buildDates_(dIso, hi, hf) {
       const p = toDateOnlyIsoParts_(dIso);
       if (!p) return '';
-      const hh1 = String(hi || '').match(/^(\d{1,2}):(\d{2})$/);
-      const hh2 = String(hf || '').match(/^(\d{1,2}):(\d{2})$/);
+      const hh1 = toHourParts_(hi);
+      const hh2 = toHourParts_(hf);
       if (hh1 && hh2) {
-        const h1 = String(Number(hh1[1])).padStart(2, '0');
-        const m1 = String(Number(hh1[2])).padStart(2, '0');
-        const h2 = String(Number(hh2[1])).padStart(2, '0');
-        const m2 = String(Number(hh2[2])).padStart(2, '0');
+        const h1 = hh1.h;
+        const m1 = hh1.m;
+        const h2 = hh2.h;
+        const m2 = hh2.m;
         return `${p.y}${p.mo}${p.d}T${h1}${m1}00/${p.y}${p.mo}${p.d}T${h2}${m2}00`;
       }
       const start = `${p.y}${p.mo}${p.d}`;
@@ -94,14 +84,15 @@
         if (!data || typeof data !== 'object') throw new Error('Link inválido.');
         if (data.exp && Number(data.exp) < Date.now()) throw new Error('Este link expirou.');
 
-        const title = String(data.t || 'Evento').trim();
+        const title = String(data.t || data.e || 'Evento FA Produções').trim();
         const detailsParts = [];
         if (data.o) detailsParts.push('Obs: ' + String(data.o));
         if (data.m) detailsParts.push('Maps: ' + String(data.m));
+        if (data.e) detailsParts.push('Ref: ' + String(data.e));
         const details = detailsParts.join('\n');
         const locationTxt = String(data.l || '').trim();
         const ctz = String(data.ctz || 'America/Fortaleza').trim();
-        const dates = buildDates_(data.d, data.hi, data.hf);
+        const dates = buildDates_(data.d, data.hi || data.s, data.hf || data.f);
         if (!dates) throw new Error('Dados de data/hora inválidos.');
 
         const urlWeb = 'https://calendar.google.com/calendar/render?action=TEMPLATE'
@@ -119,14 +110,8 @@
           + '&ctz=' + encodeURIComponent(ctz);
 
         const start = Date.now();
-        const actions = document.getElementById('actions');
-        const btnApp = document.getElementById('btnApp');
-        const btnWeb = document.getElementById('btnWeb');
-        if (btnApp) btnApp.href = urlApp;
-        if (btnWeb) btnWeb.href = urlWeb;
         const fallback = setTimeout(() => {
           if (Date.now() - start < 1800) {
-            if (actions) actions.classList.add('show');
             location.replace(urlWeb);
           }
         }, 900);
