@@ -214,7 +214,12 @@
           if (titleEl) titleEl.textContent = 'Abrindo Calendário do iPhone...';
           if (msgEl) msgEl.textContent = 'Aguarde um instante.';
           if (urlIphone) {
-            location.replace(urlIphone);
+            const fallbackManual = setTimeout(() => {
+              mostrarAcoes_(urlIphone, urlWeb);
+            }, 1200);
+            window.addEventListener('pagehide', () => clearTimeout(fallbackManual), { once: true });
+            window.addEventListener('blur', () => clearTimeout(fallbackManual), { once: true });
+            location.href = urlIphone;
             return;
           }
           mostrarAcoes_(urlIphone, urlWeb);
