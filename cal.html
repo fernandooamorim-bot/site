@@ -108,16 +108,20 @@
       return /Android/i.test(ua);
     }
 
+    function encodeIcsLikeSafari_(ics) {
+      return String(ics || '')
+        .replace(/\r\n/g, '\n')
+        .replace(/\n/g, '%0A')
+        .replace(/ /g, '%20');
+    }
+
     function buildIcsDataUrl_(evt) {
       const p = toDateOnlyIsoParts_(evt.d);
       if (!p) return '';
       const title = String(evt.t || evt.e || 'Evento FA Produções');
       const locationTxt = String(evt.l || '');
-      const detailsParts = [];
-      if (evt.o) detailsParts.push('Obs: ' + String(evt.o));
-      if (evt.m) detailsParts.push('Maps: ' + String(evt.m));
-      if (evt.e) detailsParts.push('Ref: ' + String(evt.e));
-      const notes = detailsParts.join('\\n');
+      // Em iOS/Safari, payload menor tende a funcionar melhor do que descrição extensa.
+      const notes = evt.e ? ('Ref: ' + String(evt.e)) : '';
       const hh1 = toHourParts_(evt.hi || evt.s);
       const hh2 = toHourParts_(evt.hf || evt.f);
 
@@ -159,7 +163,7 @@
         'END:VEVENT',
         'END:VCALENDAR'
       ].filter(Boolean).join('\\n');
-      return 'data:text/calendar;charset=utf-8,' + encodeURIComponent(ics);
+      return 'data:text/calendar;charset=utf-8,' + encodeIcsLikeSafari_(ics);
     }
 
     function mostrarAcoes_(urlIphone, urlGoogle) {
@@ -214,6 +218,8 @@
           if (titleEl) titleEl.textContent = 'Abrindo Calendário do iPhone...';
           if (msgEl) msgEl.textContent = 'Aguarde um instante.';
           if (urlIphone) {
+            // Mostra opção manual imediatamente, caso o iOS bloqueie abertura automática.
+            mostrarAcoes_(urlIphone, urlWeb);
             const fallbackManual = setTimeout(() => {
               mostrarAcoes_(urlIphone, urlWeb);
             }, 1200);
