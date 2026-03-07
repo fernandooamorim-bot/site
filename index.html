@@ -572,6 +572,7 @@
       position: relative;
       overflow: hidden;
       -webkit-tap-highlight-color: transparent;
+      min-height: 184px;
     }
 
     .nav-card::before {
@@ -683,6 +684,10 @@
       font-size: 13px;
       color: var(--gray-500);
       line-height: 1.4;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
     }
 
     .nav-card-footer {
@@ -823,6 +828,59 @@
     .anim-d5 { animation-delay: 0.2s; }
 
     /* ============================================
+       RESPONSIVE — Mobile (<= 767px)
+       2 cards por linha para reduzir rolagem
+       ============================================ */
+    @media (max-width: 767px) {
+      .nav-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+      }
+
+      .nav-card {
+        min-height: 156px;
+        padding: 14px;
+        gap: 10px;
+      }
+
+      .nav-card-icon {
+        width: 40px;
+        height: 40px;
+      }
+
+      .nav-card-icon i {
+        width: 20px;
+        height: 20px;
+      }
+
+      .nav-card-arrow {
+        width: 26px;
+        height: 26px;
+        opacity: 1;
+        transform: none;
+      }
+
+      .nav-card-arrow i {
+        width: 14px;
+        height: 14px;
+      }
+
+      .nav-card-title {
+        font-size: 14px;
+        line-height: 1.25;
+      }
+
+      .nav-card-desc {
+        font-size: 12px;
+      }
+
+      .access-badge {
+        font-size: 10px;
+        padding: 3px 8px;
+      }
+    }
+
+    /* ============================================
        RESPONSIVE — Desktop (>= 768px)
        ============================================ */
     @media (min-width: 768px) {
@@ -858,9 +916,9 @@
     }
 
     /* ============================================
-       RESPONSIVE — Small Mobile (<= 380px)
+       RESPONSIVE — Small Mobile (<= 430px)
        ============================================ */
-    @media (max-width: 380px) {
+    @media (max-width: 430px) {
       .nav-grid {
         grid-template-columns: 1fr;
       }
