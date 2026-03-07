@@ -87,8 +87,9 @@
     .card .sub{font-size:12px;color:var(--muted);margin-top:4px}
 
     .bars{margin-top:12px;display:grid;gap:8px}
-    .split{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-top:10px}
-    .mini h3{font-size:13px;color:var(--muted);margin-bottom:6px}
+    .split{display:grid;grid-template-columns:repeat(3,minmax(260px,1fr));gap:14px;margin-top:12px}
+    .mini{border:1px solid var(--line);border-radius:10px;padding:10px;background:#fbfcff}
+    .mini h3{font-size:13px;color:var(--muted);margin-bottom:8px;line-height:1.2}
     .mini-total{margin-top:8px;font-size:12px;font-weight:700;color:var(--navy-2)}
     .bar{display:grid;grid-template-columns:44px 1fr 90px;align-items:center;gap:8px}
     .bar .m{font-size:12px;color:var(--muted);font-weight:700}
@@ -126,7 +127,7 @@
     .bnav.active{color:var(--gold)}
 
     @media (max-width:1100px){.kpis{grid-template-columns:repeat(3,minmax(0,1fr))}}
-    @media (max-width:1100px){.split{grid-template-columns:1fr 1fr}}
+    @media (max-width:1280px){.split{grid-template-columns:1fr 1fr}}
     @media (max-width:860px){.grid{grid-template-columns:1fr}.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.split{grid-template-columns:1fr}}
     @media (min-width:768px){.bottom-nav{display:none}.container{padding-bottom:20px}}
   </style>
@@ -171,9 +172,9 @@
         <div id="barsReceb" class="bars"></div>
       </div>
 
-      <div class="card">
-        <h2><i data-lucide="git-compare-arrows"></i>Leitura Híbrida</h2>
-        <div class="sub">Agenda contratada por DATA_EVENTO + recebimentos por DATA_EVENTO (híbrido)</div>
+      <div class="card" style="grid-column:1/-1">
+        <h2><i data-lucide="git-compare-arrows"></i>Visão por Mês do Evento</h2>
+        <div class="sub">Valores por competência do evento (consistentes para gestão, sem depender da data de lançamento).</div>
         <div id="qualidadeDados" class="badges"></div>
         <div class="split">
           <div class="mini">
@@ -182,7 +183,7 @@
             <div id="totalContratadoMes" class="mini-total">Total: R$ 0,00</div>
           </div>
           <div class="mini">
-            <h3>Recebimentos dos eventos do mês (híbrida)</h3>
+            <h3>Recebimentos dos eventos do mês (base financeira + legado)</h3>
             <div id="barsRecebHibrido" class="bars"></div>
             <div id="totalRecebHibridoMes" class="mini-total">Total: R$ 0,00</div>
           </div>
@@ -378,9 +379,9 @@
 
       const qual = document.getElementById('qualidadeDados');
       qual.innerHTML = `
-        <span class="b warn">Legado no ano: ${Number(q.eventosLegadoAno || 0)}</span>
+        <span class="b warn">Eventos legado no ano: ${Number(q.eventosLegadoAno || 0)}</span>
         <span class="b ok">Com MOV de recebimento: ${Number(q.eventosComMovRecebimento || 0)}</span>
-        <span class="b warn">Fallback espelho EVENTOS: ${Number(q.eventosComFallbackEspelho || 0)}</span>
+        <span class="b warn">Complemento por espelho EVENTOS: ${Number(q.eventosComFallbackEspelho || 0)}</span>
         <span class="b ${Number(q.eventosSemRecebimento || 0) > 0 ? 'warn' : 'ok'}">Sem recebido: ${Number(q.eventosSemRecebimento || 0)}</span>
       `;
     }
