@@ -98,6 +98,9 @@
     .bar .v{font-size:12px;text-align:right;color:var(--muted);font-weight:700}
 
     .table{margin-top:10px;display:grid;gap:8px}
+    .metric-grid{margin-top:10px;display:grid;grid-template-columns:1.2fr 1fr;gap:12px}
+    .metric-mini{border:1px solid var(--line);border-radius:10px;padding:10px;background:#fbfcff}
+    .metric-mini h3{font-size:13px;color:var(--muted);margin-bottom:8px}
     .row{border:1px solid var(--line);border-radius:10px;padding:10px;background:#fff}
     .row-top{display:flex;justify-content:space-between;gap:8px}
     .row .name{font-size:13px;font-weight:700}
@@ -128,6 +131,7 @@
 
     @media (max-width:1100px){.kpis{grid-template-columns:repeat(3,minmax(0,1fr))}}
     @media (max-width:1280px){.split{grid-template-columns:1fr 1fr}}
+    @media (max-width:980px){.metric-grid{grid-template-columns:1fr}}
     @media (max-width:860px){.grid{grid-template-columns:1fr}.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.split{grid-template-columns:1fr}}
     @media (min-width:768px){.bottom-nav{display:none}.container{padding-bottom:20px}}
   </style>
@@ -191,6 +195,22 @@
             <h3>Comissões pagas por mês do evento</h3>
             <div id="barsComissaoEvento" class="bars"></div>
             <div id="totalComissaoEventoMes" class="mini-total">Total: R$ 0,00</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" style="grid-column:1/-1">
+        <h2><i data-lucide="wallet"></i>Resultado Financeiro Mensal</h2>
+        <div class="sub">Recebido por mês do evento, saídas consolidadas e resultado líquido.</div>
+        <div class="metric-grid">
+          <div class="metric-mini">
+            <h3>Resultado Líquido por mês do evento</h3>
+            <div id="barsLiquidoEvento" class="bars"></div>
+            <div id="totalLiquidoEvento" class="mini-total">Total líquido: R$ 0,00</div>
+          </div>
+          <div class="metric-mini">
+            <h3>Totais de saídas no recorte</h3>
+            <div id="saidasResumoMes" class="table"></div>
           </div>
         </div>
       </div>
@@ -320,6 +340,7 @@
 
       renderMensal(mensal);
       renderMensalHibrido(visaoMensal);
+      renderResultadoMensal(visaoMensal);
       renderFunil(funil);
       renderRiscos(riscos);
       renderVendedores(vendedores);
@@ -383,6 +404,32 @@
         <span class="b ok">Com MOV de recebimento: ${Number(q.eventosComMovRecebimento || 0)}</span>
         <span class="b warn">Complemento por espelho EVENTOS: ${Number(q.eventosComFallbackEspelho || 0)}</span>
         <span class="b ${Number(q.eventosSemRecebimento || 0) > 0 ? 'warn' : 'ok'}">Sem recebido: ${Number(q.eventosSemRecebimento || 0)}</span>
+      `;
+    }
+
+    function renderResultadoMensal(visaoMensal) {
+      const liquidoEvento = Array.isArray(visaoMensal?.liquidoEvento) ? visaoMensal.liquidoEvento : [];
+      const totais = visaoMensal?.totais || {};
+      const maxLiquido = Math.max(1, ...liquidoEvento.map(x => Math.abs(Number(x.valor || 0))));
+      const box = document.getElementById('barsLiquidoEvento');
+      box.innerHTML = liquidoEvento.map(x => {
+        const v = Number(x.valor || 0);
+        const p = Math.max(0, Math.min(100, (Math.abs(v) / maxLiquido) * 100));
+        const label = String(x.mes).padStart(2, '0');
+        const color = v < 0 ? '#ef4444' : '#1e3a5f';
+        return `<div class="bar"><div class="m">${label}</div><div class="track"><div class="fill" style="width:${p}%;background:${color}"></div></div><div class="v">${fmt(v)}</div></div>`;
+      }).join('');
+
+      const totalLiquido = document.getElementById('totalLiquidoEvento');
+      if (totalLiquido) totalLiquido.textContent = `Total líquido: ${fmt(totais.liquidoEvento)}`;
+
+      const saidas = document.getElementById('saidasResumoMes');
+      saidas.innerHTML = `
+        <div class="row"><div class="row-top"><div class="name">Comissões pagas</div><div><strong>${fmt(totais.comissaoPagaEvento)}</strong></div></div></div>
+        <div class="row"><div class="row-top"><div class="name">BV pago</div><div><strong>${fmt(totais.bvPagoEvento)}</strong></div></div></div>
+        <div class="row"><div class="row-top"><div class="name">NF paga</div><div><strong>${fmt(totais.nfPagoEvento)}</strong></div></div></div>
+        <div class="row"><div class="row-top"><div class="name">Folha de custo paga</div><div><strong>${fmt(totais.folhaPagoEvento)}</strong></div></div></div>
+        <div class="row"><div class="row-top"><div class="name">Saídas totais</div><div><strong>${fmt(totais.saidasTotalEvento)}</strong></div></div></div>
       `;
     }
 
