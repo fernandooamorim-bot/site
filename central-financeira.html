@@ -538,6 +538,83 @@
     .muted strong {
       color: var(--gray-700);
     }
+
+    .fiscal-toolbar {
+      display: grid;
+      grid-template-columns: 1fr 220px 220px;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+    .fiscal-lista {
+      display: grid;
+      gap: 10px;
+      margin-top: 14px;
+      max-height: 58vh;
+      overflow: auto;
+      padding-right: 4px;
+    }
+    .fiscal-card {
+      border: 1px solid var(--gray-200);
+      border-radius: 12px;
+      padding: 12px;
+      background: #fff;
+    }
+    .fiscal-card.alerta {
+      border-color: #f59e0b;
+      background: #fffbeb;
+    }
+    .fiscal-card.erro {
+      border-color: #ef4444;
+      background: #fef2f2;
+    }
+    .fiscal-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 6px;
+    }
+    .fiscal-id {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 12px;
+      color: var(--gray-600);
+    }
+    .fiscal-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 6px;
+    }
+    .fiscal-tag {
+      display: inline-flex;
+      align-items: center;
+      padding: 3px 8px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 700;
+      border: 1px solid var(--gray-200);
+      background: var(--gray-50);
+      color: var(--gray-700);
+    }
+    .fiscal-actions {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 8px;
+      margin-top: 10px;
+    }
+    .fiscal-actions .btn {
+      margin-top: 0;
+      padding: 8px 10px;
+      font-size: 12px;
+    }
+    @media (max-width: 900px) {
+      .fiscal-toolbar {
+        grid-template-columns: 1fr;
+      }
+      .fiscal-actions {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
   </style>
 </head>
 <body>
@@ -572,6 +649,7 @@
   <button data-mode="estorno">🔴 Estorno</button>
   <button data-mode="comissao">🔵 Comissão</button>
   <button data-mode="obrigacao">🟠 Saídas</button>
+  <button data-mode="fiscalizacao">🛡️ Fiscalização</button>
 </div>
 
 <div class="main">
@@ -607,7 +685,8 @@ window.addEventListener('load', async () => {
     await iniciarCentralFinanceira();
     appReady = true;
     setIntentButtonsEnabled_(true);
-    if (mode) render();
+    const consumiuRota = await aplicarRotaInicialFinanceira_();
+    if (!consumiuRota && mode) render();
 
   } catch (err) {
     console.error('Erro de autenticação:', err);
@@ -637,6 +716,7 @@ let ultimoPreview = null;
 let ultimoResumoFinanceiro = null;
 let ajustesDetalhadosComissao = [];
 let previewComissaoAtual = null;
+let fiscalEventosCache = [];
 
 const buttons = document.querySelectorAll('.intent button');
 const form = document.getElementById('form');
@@ -698,17 +778,22 @@ buttons.forEach(b=>{
     if(mode && mode !== b.dataset.mode &&
        !confirm('Trocar operação limpa os dados atuais. Continuar?')) return;
 
-    mode = b.dataset.mode;
-    buttons.forEach(x=>x.classList.remove('active'));
-    b.classList.add('active');
-
-    eventoSelecionado = null;
-    vendedorSelecionado = null;
-    comissoesPendentes = [];
-
-    render();
+    ativarModoCentral_(b.dataset.mode);
   };
 });
+
+function ativarModoCentral_(novoModo) {
+  mode = novoModo;
+  buttons.forEach(x=>x.classList.remove('active'));
+  const btn = document.querySelector(`.intent button[data-mode="${novoModo}"]`);
+  if (btn) btn.classList.add('active');
+
+  eventoSelecionado = null;
+  vendedorSelecionado = null;
+  comissoesPendentes = [];
+
+  render();
+}
 
 async function iniciarCentralFinanceira() {
   try {
@@ -721,6 +806,76 @@ async function iniciarCentralFinanceira() {
   }
 }
 
+async function aplicarRotaInicialFinanceira_() {
+  try {
+    const qs = new URLSearchParams(window.location.search || '');
+    const modoRaw = String(qs.get('mode') || '').trim().toLowerCase();
+    const acaoRaw = String(qs.get('acao') || '').trim().toLowerCase();
+    const idEvento = String(qs.get('idEvento') || '').trim();
+
+    const modo = ['recebimento', 'estorno', 'comissao', 'obrigacao', 'fiscalizacao'].includes(modoRaw)
+      ? modoRaw
+      : (acaoRaw === 'bv' || acaoRaw === 'folha' ? 'obrigacao' : '');
+
+    if (!modo && !idEvento) return false;
+
+    let modoFinal = modo;
+    if (ehSocio_() && ['recebimento', 'estorno', 'comissao'].includes(modoFinal)) {
+      modoFinal = 'obrigacao';
+    }
+
+    if (modoFinal) {
+      ativarModoCentral_(modoFinal);
+    } else if (!mode) {
+      ativarModoCentral_('obrigacao');
+    }
+
+    if (!idEvento) return true;
+
+    const selecionado = await selecionarEventoPorIdNoModo_(idEvento);
+    if (!selecionado) {
+      resumo.innerHTML = `<span class="muted">Evento ${idEvento} não encontrado para ação rápida.</span>`;
+      return true;
+    }
+
+    if (mode === 'obrigacao') {
+      const tipo = document.getElementById('tipoSaida');
+      if (tipo) {
+        if (acaoRaw === 'bv') tipo.value = 'BV_EVENTO';
+        if (acaoRaw === 'folha') tipo.value = 'FOLHA_EVENTO';
+        if (tipo.value) renderCamposSaida();
+      }
+    }
+
+    return true;
+  } catch (err) {
+    console.error('Falha na rota inicial financeira:', err);
+    return false;
+  }
+}
+
+async function selecionarEventoPorIdNoModo_(idEvento) {
+  const id = String(idEvento || '').trim();
+  if (!id) return false;
+
+  try {
+    const lista = await Auth.apiCall('listarEventosFinanceiros');
+    const eventos = Array.isArray(lista) ? lista : (Array.isArray(lista?.eventos) ? lista.eventos : []);
+    const alvo = eventos.find(e => String(e.idEvento || '') === id);
+    if (!alvo) return false;
+
+    await selectEvento({
+      id: id,
+      contratante: String(alvo.nomeContratante || '').trim() || String(alvo.nomeEvento || ''),
+      tipoEvento: String(alvo.nomeEvento || 'Evento')
+    });
+    return true;
+  } catch (err) {
+    console.error('Falha ao selecionar evento por ID no modo:', err);
+    return false;
+  }
+}
+
 /* ================= RENDER ================= */
 
 function render(){
@@ -728,6 +883,7 @@ function render(){
   if(mode === 'estorno') renderEstorno();
   if(mode === 'comissao') renderComissao();
   if(mode === 'obrigacao') renderObrigacao();
+  if(mode === 'fiscalizacao') renderFiscalizacao();
 }
 function renderEstorno(){
   resumo.innerHTML = '<span class="muted">Selecione um evento para estornar um recebimento</span>';
@@ -1204,6 +1360,242 @@ function submitSaidaEvento() {
   });
 }
 
+/* ================= FISCALIZAÇÃO ================= */
+
+function renderFiscalizacao() {
+  form.innerHTML = `
+    <h3>🛡️ Fiscalização Financeira</h3>
+    <div class="muted">Auditoria operacional com ações rápidas por evento.</div>
+    <div class="fiscal-toolbar">
+      <input id="filtroFiscalBusca" placeholder="Buscar por ID ou nome do evento" oninput="aplicarFiltrosFiscalizacao_()">
+      <select id="filtroFiscalTipo" onchange="aplicarFiltrosFiscalizacao_()">
+        <option value="TODOS">Todos</option>
+        <option value="COM_ALERTA">Com alerta</option>
+        <option value="COM_DIVERGENCIA">Com divergência</option>
+        <option value="QUITADO_BV_PENDENTE">Quitado + BV pendente</option>
+        <option value="QUITADO_NF_PENDENTE">Quitado + NF pendente</option>
+        <option value="SEM_FOLHA">Sem folha</option>
+        <option value="LEGADO">Somente legado</option>
+      </select>
+      <div style="display:flex;gap:8px">
+        <button type="button" class="btn secondary" style="margin-top:0" onclick="carregarFiscalizacao_(true)">Atualizar</button>
+        <button type="button" class="btn primary" style="margin-top:0" onclick="executarAuditoriaFiscalizacao_()">Auditar</button>
+      </div>
+    </div>
+    <div id="listaFiscalizacao" class="fiscal-lista">
+      <div class="muted">Carregando eventos financeiros...</div>
+    </div>
+  `;
+
+  resumo.innerHTML = '<span class="muted">Carregando auditoria financeira...</span>';
+  carregarFiscalizacao_(true);
+}
+
+async function carregarFiscalizacao_(executarAuditoria) {
+  try {
+    showLoading('Carregando fiscalização financeira...');
+    fiscalEventosCache = await Auth.apiCall('listarEventosFinanceiros') || [];
+    hideLoading();
+    aplicarFiltrosFiscalizacao_();
+    if (executarAuditoria) {
+      await executarAuditoriaFiscalizacao_(true);
+    }
+  } catch (err) {
+    hideLoading();
+    console.error('Erro ao carregar fiscalização:', err);
+    resumo.innerHTML = '<span class="muted">Erro ao carregar fiscalização.</span>';
+  }
+}
+
+async function executarAuditoriaFiscalizacao_(silencioso) {
+  try {
+    if (!silencioso) showLoading('Executando auditoria de integridade...');
+    const diag = await Auth.apiCall('diagnosticarIntegridadeFinanceira', { limit: 1000 });
+    if (!silencioso) hideLoading();
+    if (!diag || diag.sucesso !== true) {
+      resumo.innerHTML = '<span class="muted">Falha na auditoria de integridade.</span>';
+      return;
+    }
+    const r = diag.resumo || {};
+    resumo.innerHTML = `
+      <div><strong>Eventos analisados:</strong> ${Number(r.eventosAnalisados || 0)}</div>
+      <div><strong>Divergências:</strong> ${Number(r.divergencias || 0)}</div>
+      <div><strong>Eventos com divergência:</strong> ${Number(r.eventosComDivergencia || 0)}</div>
+      <div class="muted" style="margin-top:8px">Última auditoria executada agora.</div>
+    `;
+  } catch (err) {
+    if (!silencioso) hideLoading();
+    console.error('Erro na auditoria:', err);
+    resumo.innerHTML = '<span class="muted">Erro ao executar auditoria.</span>';
+  }
+}
+
+function aplicarFiltrosFiscalizacao_() {
+  const busca = String(document.getElementById('filtroFiscalBusca')?.value || '').trim().toLowerCase();
+  const tipo = String(document.getElementById('filtroFiscalTipo')?.value || 'TODOS');
+  let lista = Array.isArray(fiscalEventosCache) ? [...fiscalEventosCache] : [];
+
+  if (busca) {
+    lista = lista.filter(ev => {
+      const hay = [
+        String(ev.idEvento || ''),
+        String(ev.nomeEvento || ''),
+        String(ev.nomeContratante || '')
+      ].join(' ').toLowerCase();
+      return hay.indexOf(busca) >= 0;
+    });
+  }
+
+  if (tipo !== 'TODOS') {
+    lista = lista.filter(ev => {
+      const alertas = Array.isArray(ev.alertas) ? ev.alertas : [];
+      const divergencias = Array.isArray(ev.divergencias) ? ev.divergencias : [];
+      const legado = !!(ev.metadados && ev.metadados.legado);
+      if (tipo === 'COM_ALERTA') return alertas.length > 0;
+      if (tipo === 'COM_DIVERGENCIA') return divergencias.length > 0;
+      if (tipo === 'QUITADO_BV_PENDENTE') return alertas.includes('EVENTO_QUITADO_COM_BV_PENDENTE');
+      if (tipo === 'QUITADO_NF_PENDENTE') return alertas.includes('EVENTO_QUITADO_COM_NF_PENDENTE');
+      if (tipo === 'SEM_FOLHA') return alertas.includes('FOLHA_NAO_REGISTRADA');
+      if (tipo === 'LEGADO') return legado;
+      return true;
+    });
+  }
+
+  renderListaFiscalizacao_(lista);
+}
+
+function renderListaFiscalizacao_(lista) {
+  const box = document.getElementById('listaFiscalizacao');
+  if (!box) return;
+  if (!Array.isArray(lista) || lista.length === 0) {
+    box.innerHTML = '<div class="muted">Nenhum evento encontrado para este filtro.</div>';
+    return;
+  }
+
+  box.innerHTML = lista.map(ev => {
+    const alertas = Array.isArray(ev.alertas) ? ev.alertas : [];
+    const divergencias = Array.isArray(ev.divergencias) ? ev.divergencias : [];
+    const cardClasse = divergencias.length > 0 ? 'fiscal-card erro' : (alertas.length > 0 ? 'fiscal-card alerta' : 'fiscal-card');
+    const bvStatus = String(ev?.bv?.status || ev?.custos?.bv?.status || 'N/A');
+    const bvValor = Number(ev?.bv?.valor || ev?.custos?.bv?.valor || 0);
+    const podePagarBV = !!(ev?.acoes?.podePagarBV);
+    const contratante = escaparHtml_(String(ev.nomeContratante || 'N/A'));
+    const nomeEvento = escaparHtml_(String(ev.nomeEvento || 'Evento'));
+    const idEvento = String(ev.idEvento || '');
+
+    return `
+      <div class="${cardClasse}">
+        <div class="fiscal-top">
+          <div>
+            <div><strong>${nomeEvento}</strong></div>
+            <div class="fiscal-id">${escaparHtml_(idEvento)} • ${contratante}</div>
+          </div>
+          <div><strong>${escaparHtml_(String(ev.status || 'ok').toUpperCase())}</strong></div>
+        </div>
+        <div class="muted">
+          Recebido: R$ ${Number(ev.totalRecebido || 0).toFixed(2)} •
+          Pendente: R$ ${Number(ev.valorPendente || 0).toFixed(2)} •
+          BV: R$ ${bvValor.toFixed(2)} (${escaparHtml_(bvStatus)})
+        </div>
+        <div class="fiscal-tags">
+          ${alertas.map(a => `<span class="fiscal-tag">⚠️ ${escaparHtml_(a)}</span>`).join('')}
+          ${divergencias.map(d => `<span class="fiscal-tag">🧩 ${escaparHtml_(d)}</span>`).join('')}
+          ${ev?.metadados?.legado ? '<span class="fiscal-tag">📦 LEGADO</span>' : ''}
+        </div>
+        <div class="fiscal-actions">
+          <button class="btn secondary" onclick="abrirEdicaoEventoFinanceiro_('${escaparAttr_(idEvento)}')">Editar</button>
+          <button class="btn secondary" onclick="abrirSaidasEventoFinanceiro_('${escaparAttr_(idEvento)}','${escaparAttr_(contratante)}','${escaparAttr_(nomeEvento)}')">Saídas</button>
+          <button class="btn primary" onclick="reconciliarEventoFinanceiro_('${escaparAttr_(idEvento)}')">Reconciliar</button>
+          ${podePagarBV
+            ? `<button class="btn danger" onclick="processarBVEventoFinanceiro_('${escaparAttr_(idEvento)}', ${bvValor})">Processar BV</button>`
+            : '<button class="btn secondary" disabled style="opacity:.6">BV OK</button>'}
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function abrirEdicaoEventoFinanceiro_(idEvento) {
+  if (!idEvento) return;
+  window.location.href = 'editar-evento.html?id=' + encodeURIComponent(idEvento);
+}
+
+function abrirSaidasEventoFinanceiro_(idEvento, contratante, nomeEvento) {
+  if (!idEvento) return;
+  const botaoSaidas = document.querySelector('.intent button[data-mode="obrigacao"]');
+  if (botaoSaidas) botaoSaidas.click();
+
+  const inp = document.getElementById('inputEvento');
+  if (inp) inp.value = `${idEvento} — ${contratante || ''}`;
+
+  selectEvento({
+    id: idEvento,
+    contratante: contratante || '',
+    tipoEvento: nomeEvento || ''
+  });
+}
+
+async function reconciliarEventoFinanceiro_(idEvento) {
+  if (!idEvento) return;
+  if (!confirm('Reconciliar espelho financeiro deste evento com as movimentações?')) return;
+  try {
+    showLoading('Reconciliando evento...');
+    const resp = await Auth.apiCall('reconciliarResumoFinanceiroEvento', { idEvento });
+    hideLoading();
+    if (!resp || resp.sucesso !== true) {
+      alert(resp?.mensagem || 'Falha ao reconciliar evento');
+      return;
+    }
+    alert('Evento reconciliado com sucesso.');
+    await carregarFiscalizacao_(false);
+  } catch (err) {
+    hideLoading();
+    tratarErroApi(err);
+  }
+}
+
+async function processarBVEventoFinanceiro_(idEvento, valorBV) {
+  if (!idEvento) return;
+  if (!confirm('Confirmar processamento de BV para este evento?')) return;
+  try {
+    showLoading('Processando BV...');
+    const resp = await Auth.apiCall('apiRegistrarSaidaEvento', {
+      tipoOperacao: 'SAIDA_EVENTO',
+      tipoSaida: 'BV_EVENTO',
+      idEvento: idEvento,
+      valor: Number(valorBV || 0),
+      dataSaida: hojeLocalISO(),
+      observacoes: 'BV processado via painel de fiscalização',
+      linkComprovante: '',
+      operationKey: obterOuCriarOperationKey('saida')
+    });
+    hideLoading();
+    if (!resp || resp.sucesso !== true) {
+      alert(resp?.mensagem || 'Falha ao processar BV');
+      return;
+    }
+    consumirOperationKey('saida');
+    alert('BV processado com sucesso.');
+    await carregarFiscalizacao_(false);
+  } catch (err) {
+    hideLoading();
+    tratarErroApi(err);
+  }
+}
+
+function escaparHtml_(txt) {
+  return String(txt || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function escaparAttr_(txt) {
+  return escaparHtml_(txt).replace(/`/g, '');
+}
+
 /* ================= AUTOCOMPLETE EVENTO ================= */
 
 async function buscarEvento(q){
@@ -1286,6 +1678,8 @@ async function selectEvento(ev){
   const bvBadge = fin.bvPendente ? '⚠️ PENDENTE' : (statusBV || 'N/A');
   const nfBadge = fin.nfPendente ? '⚠️ PENDENTE' : (statusNF || 'N/A');
   const folhaBadge = fin.folhaPendente ? '⚠️ NÃO REGISTRADA' : 'PROCESSADA';
+  const alertas = Array.isArray(fin.alertas) ? fin.alertas : [];
+  const divergencias = Array.isArray(fin.divergencias) ? fin.divergencias : [];
 
   resumo.innerHTML = `
     <div><strong>Evento:</strong> ${ev.tipoEvento}</div>
@@ -1301,6 +1695,8 @@ async function selectEvento(ev){
     <div>• BV: R$ ${valorBV.toFixed(2)} — <strong>${bvBadge}</strong></div>
     <div>• NF: ${fin.temNF ? ('R$ ' + valorNF.toFixed(2)) : 'Não configurada'} — <strong>${nfBadge}</strong></div>
     <div>• Folha de custo: R$ ${folhaValor.toFixed(2)} — <strong>${folhaBadge}</strong></div>
+    ${alertas.length ? `<div class="divider"></div><div><strong>Alertas:</strong> ${alertas.map(a => `⚠️ ${a}`).join(' • ')}</div>` : ''}
+    ${divergencias.length ? `<div style="margin-top:6px"><strong>Divergências:</strong> ${divergencias.map(d => `🧩 ${d}`).join(' • ')}</div>` : ''}
   `;
 
   if (mode === 'obrigacao') {

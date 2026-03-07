@@ -550,8 +550,12 @@
 
 <div class="filtros">
   <button class="btn secondary" onclick="aplicarFiltro('TODOS')">Todos</button>
+  <button class="btn warning" onclick="aplicarFiltro('CRITICOS')">🚨 Críticos</button>
+  <button class="btn warning" onclick="aplicarFiltro('COM_DIVERGENCIA')">🧩 Divergências</button>
+  <button class="btn warning" onclick="aplicarFiltro('QUITADO_BV_PENDENTE')">💥 Quitado + BV pendente</button>
   <button class="btn warning" onclick="aplicarFiltro('COMISSAO_PENDENTE')">💼 Comissão pendente</button>
   <button class="btn warning" onclick="aplicarFiltro('COMISSAO_PROBLEMA')">🚨 Problema de comissão</button>
+  <button class="btn secondary" onclick="aplicarFiltro('LEGADO')">📦 Legado</button>
   <button class="btn success" onclick="aplicarFiltro('OK')">✅ Sem pendências</button>
 </div>
 <div class="modo-visual">
@@ -580,7 +584,12 @@
     COMISSAO_INCONSISTENTE: 'Inconsistência grave na comissão do vendedor',
     COMISSAO_NAO_PAGA_APOS_QUITACAO: 'Evento quitado, mas comissão ainda não foi paga',
     COMISSAO_PAGA_MAIOR_QUE_ESPERADO: 'Comissão paga maior que o valor esperado',
-    COMISSAO_GERADA_MAIOR_QUE_ESPERADO: 'Comissão gerada maior que o valor esperado'
+    COMISSAO_GERADA_MAIOR_QUE_ESPERADO: 'Comissão gerada maior que o valor esperado',
+    EVENTO_QUITADO_COM_BV_PENDENTE: 'Evento quitado com BV pendente',
+    EVENTO_QUITADO_COM_NF_PENDENTE: 'Evento quitado com NF pendente',
+    DUPLICIDADE_BV_PROCESSADO: 'Duplicidade de BV processado',
+    DUPLICIDADE_NF_PROCESSADO: 'Duplicidade de NF processada',
+    DUPLICIDADE_FOLHA_PROCESSADA: 'Duplicidade de folha processada'
   };
 
   async function carregarPainel() {
@@ -593,7 +602,7 @@
         return;
       }
 
-      const eventos = resp.eventos || resp;
+      const eventos = Array.isArray(resp) ? resp : (resp.eventos || []);
       renderizarEventos(eventos);
     } catch (err) {
       console.error('Erro ao carregar painel financeiro:', err);
@@ -629,9 +638,39 @@
       );
     }
 
+    if (tipo === 'CRITICOS') {
+      lista = lista.filter(e =>
+        (Array.isArray(e.alertas) && (
+          e.alertas.includes('INCONSISTENCIA_RECEBIDO_MAIOR_QUE_CONTRATO') ||
+          e.alertas.includes('EVENTO_CANCELADO_COM_RECEBIMENTO') ||
+          e.alertas.includes('EVENTO_QUITADO_COM_BV_PENDENTE') ||
+          e.alertas.includes('EVENTO_QUITADO_COM_NF_PENDENTE') ||
+          e.alertas.includes('DUPLICIDADE_BV_PROCESSADO') ||
+          e.alertas.includes('DUPLICIDADE_NF_PROCESSADO') ||
+          e.alertas.includes('DUPLICIDADE_FOLHA_PROCESSADA')
+        )) ||
+        (Array.isArray(e.divergencias) && e.divergencias.length > 0)
+      );
+    }
+
+    if (tipo === 'COM_DIVERGENCIA') {
+      lista = lista.filter(e => Array.isArray(e.divergencias) && e.divergencias.length > 0);
+    }
+
+    if (tipo === 'QUITADO_BV_PENDENTE') {
+      lista = lista.filter(e =>
+        Array.isArray(e.alertas) && e.alertas.includes('EVENTO_QUITADO_COM_BV_PENDENTE')
+      );
+    }
+
+    if (tipo === 'LEGADO') {
+      lista = lista.filter(e => !!(e.metadados && e.metadados.legado));
+    }
+
     if (tipo === 'OK') {
       lista = lista.filter(e =>
         e.status === 'ok' &&
+        (!Array.isArray(e.divergencias) || e.divergencias.length === 0) &&
         (!e.comissao || e.comissao.status === 'OK' || e.comissao.status === 'QUITADO' || e.comissao.status === 'NA')
       );
     }
@@ -725,7 +764,7 @@
       row.innerHTML = `
         <div>${formatarData(evento.dataEvento)}</div>
         <div>${evento.nomeEvento}</div>
-        <div>${evento.contratante || ''}</div>
+        <div>${evento.nomeContratante || ''}</div>
         <div>R$ ${formatarValor(evento.valorContrato)}</div>
         <div>R$ ${formatarValor(evento.totalRecebido)}</div>
         <div>R$ ${formatarValor(evento.valorPendente)}</div>
@@ -774,6 +813,7 @@
     const alertasFinanceiros = [];
     const alertasComissao = [];
     const alertasCustos = [];
+    const divergencias = [];
 
     (evento.alertas || []).forEach(a => {
       const texto = ALERTAS_LABEL[a] || a;
@@ -797,10 +837,19 @@
         }
       } else if ([
         'BV_PENDENTE',
-        'FOLHA_NAO_REGISTRADA'
+        'FOLHA_NAO_REGISTRADA',
+        'EVENTO_QUITADO_COM_BV_PENDENTE',
+        'EVENTO_QUITADO_COM_NF_PENDENTE',
+        'DUPLICIDADE_BV_PROCESSADO',
+        'DUPLICIDADE_NF_PROCESSADO',
+        'DUPLICIDADE_FOLHA_PROCESSADA'
       ].includes(a)) {
         alertasCustos.push(texto);
       }
+    });
+
+    (evento.divergencias || []).forEach(d => {
+      divergencias.push(d);
     });
 
     card.innerHTML = `
@@ -869,7 +918,7 @@
 
       <div class="linha">
         <span>Nota Fiscal</span>
-        <strong>${evento.nf?.status || 'PROCESSADO'}</strong>
+        <strong>${evento.nf?.status || 'N/A'}</strong>
       </div>
 
       <div class="status ${statusSeguro}">
@@ -879,11 +928,14 @@
       ${alertasFinanceiros.length ? `<div class="alertas"><strong>💰 Financeiro:</strong> ${alertasFinanceiros.join(' • ')}</div>` : ''}
       ${alertasComissao.length ? `<div class="alertas"><strong>💼 Comissão:</strong> ${alertasComissao.join(' • ')}</div>` : ''}
       ${alertasCustos.length ? `<div class="alertas"><strong>🧾 Custos:</strong> ${alertasCustos.join(' • ')}</div>` : ''}
+      ${divergencias.length ? `<div class="alertas"><strong>🧩 Divergências:</strong> ${divergencias.join(' • ')}</div>` : ''}
 
       <div class="acoes">
+        <button class="btn secondary" onclick="irEditar('${evento.idEvento}')">Editar</button>
         ${evento.acoes?.podeReceber ? `<button class="btn success" onclick="irReceber('${evento.idEvento}')">Receber</button>` : ''}
         ${evento.acoes?.podePagarBV ? `<button class="btn warning" onclick="irPagarBV('${evento.idEvento}')">Pagar BV</button>` : ''}
         ${evento.acoes?.podeRegistrarFolha ? `<button class="btn secondary" onclick="irCustos('${evento.idEvento}')">Registrar Custos</button>` : ''}
+        ${divergencias.length ? `<button class="btn warning" onclick="reconciliarEvento('${evento.idEvento}')">Reconciliar</button>` : ''}
       </div>
     `;
 
@@ -925,15 +977,37 @@
   }
 
   function irReceber(id) {
-    window.location.href = 'central-financeira.html';
+    window.location.href = 'central-financeira.html?mode=recebimento&idEvento=' + encodeURIComponent(id || '');
   }
 
   function irPagarBV(id) {
-    window.location.href = 'central-financeira.html';
+    window.location.href = 'central-financeira.html?mode=obrigacao&acao=bv&idEvento=' + encodeURIComponent(id || '');
   }
 
   function irCustos(id) {
-    window.location.href = 'central-financeira.html';
+    window.location.href = 'central-financeira.html?mode=obrigacao&acao=folha&idEvento=' + encodeURIComponent(id || '');
+  }
+
+  function irEditar(id) {
+    window.location.href = 'editar-evento.html?id=' + encodeURIComponent(id || '');
+  }
+
+  async function reconciliarEvento(id) {
+    if (!id) return;
+    if (!confirm('Reconciliar espelho financeiro deste evento?')) return;
+    try {
+      const resp = await Auth.apiCall('reconciliarResumoFinanceiroEvento', { idEvento: id });
+      if (!resp || resp.sucesso !== true) {
+        alert(resp?.mensagem || 'Falha ao reconciliar evento');
+        return;
+      }
+      alert('Evento reconciliado com sucesso.');
+      await carregarPainel();
+      aplicarFiltro(FILTRO_ATUAL, false);
+    } catch (err) {
+      console.error('Erro ao reconciliar evento:', err);
+      alert('Erro ao reconciliar evento.');
+    }
   }
 
   
