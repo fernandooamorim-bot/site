@@ -87,8 +87,9 @@
     .card .sub{font-size:12px;color:var(--muted);margin-top:4px}
 
     .bars{margin-top:12px;display:grid;gap:8px}
-    .split{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:10px}
+    .split{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-top:10px}
     .mini h3{font-size:13px;color:var(--muted);margin-bottom:6px}
+    .mini-total{margin-top:8px;font-size:12px;font-weight:700;color:var(--navy-2)}
     .bar{display:grid;grid-template-columns:44px 1fr 90px;align-items:center;gap:8px}
     .bar .m{font-size:12px;color:var(--muted);font-weight:700}
     .track{height:10px;background:#eef2fa;border-radius:999px;overflow:hidden}
@@ -125,6 +126,7 @@
     .bnav.active{color:var(--gold)}
 
     @media (max-width:1100px){.kpis{grid-template-columns:repeat(3,minmax(0,1fr))}}
+    @media (max-width:1100px){.split{grid-template-columns:1fr 1fr}}
     @media (max-width:860px){.grid{grid-template-columns:1fr}.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.split{grid-template-columns:1fr}}
     @media (min-width:768px){.bottom-nav{display:none}.container{padding-bottom:20px}}
   </style>
@@ -177,10 +179,17 @@
           <div class="mini">
             <h3>Agenda Contratada (valor total por DATA_EVENTO)</h3>
             <div id="barsContratado" class="bars"></div>
+            <div id="totalContratadoMes" class="mini-total">Total: R$ 0,00</div>
           </div>
           <div class="mini">
             <h3>Recebimentos dos eventos do mês (híbrida)</h3>
             <div id="barsRecebHibrido" class="bars"></div>
+            <div id="totalRecebHibridoMes" class="mini-total">Total: R$ 0,00</div>
+          </div>
+          <div class="mini">
+            <h3>Comissões pagas por mês do evento</h3>
+            <div id="barsComissaoEvento" class="bars"></div>
+            <div id="totalComissaoEventoMes" class="mini-total">Total: R$ 0,00</div>
           </div>
         </div>
       </div>
@@ -329,6 +338,8 @@
     function renderMensalHibrido(visaoMensal) {
       const contratado = Array.isArray(visaoMensal?.contratado) ? visaoMensal.contratado : [];
       const recebidoHibrido = Array.isArray(visaoMensal?.recebidoHibrido) ? visaoMensal.recebidoHibrido : [];
+      const comissaoPagaEvento = Array.isArray(visaoMensal?.comissaoPagaEvento) ? visaoMensal.comissaoPagaEvento : [];
+      const totais = visaoMensal?.totais || {};
       const q = visaoMensal?.qualidade || {};
 
       const boxContratado = document.getElementById('barsContratado');
@@ -348,6 +359,22 @@
         const label = String(x.mes).padStart(2, '0');
         return `<div class="bar"><div class="m">${label}</div><div class="track"><div class="fill" style="width:${p}%"></div></div><div class="v">${fmt(v)}</div></div>`;
       }).join('');
+
+      const boxComissao = document.getElementById('barsComissaoEvento');
+      const maxComissao = Math.max(1, ...comissaoPagaEvento.map(x => Number(x.valor || 0)));
+      boxComissao.innerHTML = comissaoPagaEvento.map(x => {
+        const v = Number(x.valor || 0);
+        const p = Math.max(0, Math.min(100, (v / maxComissao) * 100));
+        const label = String(x.mes).padStart(2, '0');
+        return `<div class="bar"><div class="m">${label}</div><div class="track"><div class="fill" style="width:${p}%"></div></div><div class="v">${fmt(v)}</div></div>`;
+      }).join('');
+
+      const totalContratado = document.getElementById('totalContratadoMes');
+      if (totalContratado) totalContratado.textContent = `Total: ${fmt(totais.contratado)}`;
+      const totalRecebHibrido = document.getElementById('totalRecebHibridoMes');
+      if (totalRecebHibrido) totalRecebHibrido.textContent = `Total: ${fmt(totais.recebidoHibrido)}`;
+      const totalComissao = document.getElementById('totalComissaoEventoMes');
+      if (totalComissao) totalComissao.textContent = `Total: ${fmt(totais.comissaoPagaEvento)}`;
 
       const qual = document.getElementById('qualidadeDados');
       qual.innerHTML = `
