@@ -26,6 +26,23 @@
     p { margin: 0; opacity: .86; font-size: 13px; line-height: 1.45; }
     .err { color: #fecaca; margin-top: 10px; }
     a { color: #f5d28f; }
+    .actions {
+      margin-top: 12px;
+      display: none;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .actions.show { display: flex; }
+    .btn {
+      border: 1px solid rgba(255,255,255,.2);
+      background: rgba(255,255,255,.08);
+      color: #fff;
+      border-radius: 10px;
+      padding: 8px 10px;
+      font-size: 12px;
+      font-weight: 700;
+      text-decoration: none;
+    }
   </style>
 </head>
 <body>
@@ -33,6 +50,10 @@
     <h1>Abrindo Google Calendar...</h1>
     <p id="msg">Aguarde um instante.</p>
     <p id="err" class="err" style="display:none"></p>
+    <div id="actions" class="actions">
+      <a id="btnApp" class="btn" href="#">Abrir no app</a>
+      <a id="btnWeb" class="btn" href="#" target="_blank" rel="noopener">Abrir no navegador</a>
+    </div>
   </div>
 
   <script>
@@ -98,8 +119,14 @@
           + '&ctz=' + encodeURIComponent(ctz);
 
         const start = Date.now();
+        const actions = document.getElementById('actions');
+        const btnApp = document.getElementById('btnApp');
+        const btnWeb = document.getElementById('btnWeb');
+        if (btnApp) btnApp.href = urlApp;
+        if (btnWeb) btnWeb.href = urlWeb;
         const fallback = setTimeout(() => {
           if (Date.now() - start < 1800) {
+            if (actions) actions.classList.add('show');
             location.replace(urlWeb);
           }
         }, 900);
