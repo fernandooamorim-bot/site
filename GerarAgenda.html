@@ -264,6 +264,7 @@
       accent-color: var(--navy-600);
     }
 
+
     .btn {
       border: none;
       border-radius: 10px;
@@ -438,9 +439,9 @@
           <button class="btn success" id="btnGerarTexto">Gerar Texto WhatsApp</button>
         </div>
 
-        <label class="option-row" title="Inclui no texto um link por evento para abrir o Google Calendar já preenchido.">
+        <label class="option-row" style="margin:0 0 12px 0" title="Inclui no texto um link por evento para abrir o Google Calendar já preenchido com 1 lembrete de 3h antes.">
           <input type="checkbox" id="chkLinksCalendario" checked>
-          Incluir link “Ativar lembrete no Google Calendar” em cada evento
+          Incluir link “Ativar lembrete no Google Calendar” (3h antes)
         </label>
 
         <div class="status" id="status"></div>
@@ -714,6 +715,7 @@
         const dataInicio = document.getElementById('dataInicio').value || state.periodo.dataInicio;
         const dataFim = document.getElementById('dataFim').value || state.periodo.dataFim;
         const incluirLinksCalendario = !!document.getElementById('chkLinksCalendario')?.checked;
+        const lembreteCalendarioMinutos = incluirLinksCalendario ? '180' : '';
         const baseUrlCalendario = (window.location && window.location.origin)
           ? (window.location.origin + '/site')
           : '';
@@ -730,7 +732,8 @@
           dataFim: dataFim,
           eventosJson: JSON.stringify(state.eventos),
           incluirLinksCalendario: incluirLinksCalendario ? 'TRUE' : 'FALSE',
-          baseUrlCalendario: baseUrlCalendario
+          baseUrlCalendario: baseUrlCalendario,
+          lembreteCalendarioMinutos: lembreteCalendarioMinutos
         });
 
         if (!resp || resp.sucesso !== true) {

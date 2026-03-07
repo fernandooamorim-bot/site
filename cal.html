@@ -25,13 +25,37 @@
     h1 { margin: 0 0 10px; font-size: 16px; }
     p { margin: 0; opacity: .86; font-size: 13px; line-height: 1.45; }
     .err { color: #fecaca; margin-top: 10px; }
+    .actions {
+      margin-top: 12px;
+      display: none;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .actions.show { display: flex; }
+    .btn {
+      border: 1px solid rgba(255,255,255,.2);
+      background: rgba(255,255,255,.08);
+      color: #fff;
+      border-radius: 10px;
+      padding: 8px 10px;
+      font-size: 12px;
+      font-weight: 700;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
   </style>
 </head>
 <body>
   <div class="box">
-    <h1>Abrindo Google Calendar...</h1>
+    <h1 id="title">Abrindo calendário...</h1>
     <p id="msg">Aguarde um instante.</p>
     <p id="err" class="err" style="display:none"></p>
+    <div id="actions" class="actions">
+      <a id="btnIphone" class="btn" href="#">📱 Calendário iPhone</a>
+      <a id="btnGoogle" class="btn" href="#">🗓️ Google Calendar</a>
+    </div>
   </div>
 
   <script>
@@ -41,6 +65,8 @@
       if (m) return { y: m[1], mo: m[2], d: m[3] };
       const c = str.match(/^(\d{4})(\d{2})(\d{2})$/);
       if (c) return { y: c[1], mo: c[2], d: c[3] };
+      const b = str.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+      if (b) return { y: b[3], mo: b[2], d: b[1] };
       return null;
     }
 
@@ -72,6 +98,83 @@
       return `${start}/${end}`;
     }
 
+    function isIOS_() {
+      const ua = navigator.userAgent || '';
+      return /iPhone|iPad|iPod/i.test(ua);
+    }
+
+    function isAndroid_() {
+      const ua = navigator.userAgent || '';
+      return /Android/i.test(ua);
+    }
+
+    function buildIcsDataUrl_(evt) {
+      const p = toDateOnlyIsoParts_(evt.d);
+      if (!p) return '';
+      const title = String(evt.t || evt.e || 'Evento FA Produções');
+      const locationTxt = String(evt.l || '');
+      const detailsParts = [];
+      if (evt.o) detailsParts.push('Obs: ' + String(evt.o));
+      if (evt.m) detailsParts.push('Maps: ' + String(evt.m));
+      if (evt.e) detailsParts.push('Ref: ' + String(evt.e));
+      const notes = detailsParts.join('\\n');
+      const hh1 = toHourParts_(evt.hi || evt.s);
+      const hh2 = toHourParts_(evt.hf || evt.f);
+
+      const dtStamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\\.\\d{3}Z$/, 'Z');
+      let dtStart = '';
+      let dtEnd = '';
+      if (hh1 && hh2) {
+        dtStart = `${p.y}${p.mo}${p.d}T${hh1.h}${hh1.m}00`;
+        dtEnd = `${p.y}${p.mo}${p.d}T${hh2.h}${hh2.m}00`;
+      } else {
+        const start = `${p.y}${p.mo}${p.d}`;
+        const d = new Date(Number(p.y), Number(p.mo) - 1, Number(p.d), 12, 0, 0, 0);
+        d.setDate(d.getDate() + 1);
+        const end = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`;
+        dtStart = `${start}T090000`;
+        dtEnd = `${end}T090000`;
+      }
+
+      const reminderMinutes = Number(evt.r || 180);
+      const trigger = reminderMinutes > 0 ? `-PT${Math.max(1, Math.floor(reminderMinutes))}M` : '-PT180M';
+      const uid = String(evt.e || ('evt-' + p.y + p.mo + p.d)).replace(/[^a-zA-Z0-9_-]/g, '');
+      const ics = [
+        'BEGIN:VCALENDAR',
+        'VERSION:2.0',
+        'PRODID:-//FA Producoes//Agenda//PT-BR',
+        'BEGIN:VEVENT',
+        'UID:' + uid,
+        'DTSTAMP:' + dtStamp,
+        'DTSTART:' + dtStart,
+        'DTEND:' + dtEnd,
+        'SUMMARY:' + title,
+        locationTxt ? ('LOCATION:' + locationTxt) : '',
+        notes ? ('DESCRIPTION:' + notes) : '',
+        'BEGIN:VALARM',
+        'TRIGGER:' + trigger,
+        'ACTION:DISPLAY',
+        'DESCRIPTION:Lembrete do evento',
+        'END:VALARM',
+        'END:VEVENT',
+        'END:VCALENDAR'
+      ].filter(Boolean).join('\\n');
+      return 'data:text/calendar;charset=utf-8,' + encodeURIComponent(ics);
+    }
+
+    function mostrarAcoes_(urlIphone, urlGoogle) {
+      const actions = document.getElementById('actions');
+      const btnIphone = document.getElementById('btnIphone');
+      const btnGoogle = document.getElementById('btnGoogle');
+      const titleEl = document.getElementById('title');
+      const msgEl = document.getElementById('msg');
+      if (btnIphone) btnIphone.href = urlIphone || '#';
+      if (btnGoogle) btnGoogle.href = urlGoogle || '#';
+      if (actions) actions.classList.add('show');
+      if (titleEl) titleEl.textContent = 'Escolha onde adicionar';
+      if (msgEl) msgEl.textContent = 'Se não abrir automaticamente, escolha uma opção abaixo.';
+    }
+
     function redirect_() {
       try {
         const token = String((location.hash || '').replace(/^#/, '')).trim();
@@ -92,6 +195,7 @@
         const details = detailsParts.join('\n');
         const locationTxt = String(data.l || '').trim();
         const ctz = String(data.ctz || 'America/Fortaleza').trim();
+        const reminderMinutes = Number(data.r || 0);
         const dates = buildDates_(data.d, data.hi || data.s, data.hf || data.f);
         if (!dates) throw new Error('Dados de data/hora inválidos.');
 
@@ -100,26 +204,33 @@
           + '&dates=' + encodeURIComponent(dates)
           + '&details=' + encodeURIComponent(details)
           + '&location=' + encodeURIComponent(locationTxt)
-          + '&ctz=' + encodeURIComponent(ctz);
+          + '&ctz=' + encodeURIComponent(ctz)
+          + (reminderMinutes > 0 ? ('&reminders=' + encodeURIComponent(String(reminderMinutes))) : '');
+        const urlIphone = buildIcsDataUrl_(data);
 
-        const urlApp = 'googlecalendar://?action=TEMPLATE'
-          + '&text=' + encodeURIComponent(title)
-          + '&dates=' + encodeURIComponent(dates)
-          + '&details=' + encodeURIComponent(details)
-          + '&location=' + encodeURIComponent(locationTxt)
-          + '&ctz=' + encodeURIComponent(ctz);
-
-        const start = Date.now();
-        const fallback = setTimeout(() => {
-          if (Date.now() - start < 1800) {
-            location.replace(urlWeb);
+        if (isIOS_()) {
+          const titleEl = document.getElementById('title');
+          const msgEl = document.getElementById('msg');
+          if (titleEl) titleEl.textContent = 'Abrindo Calendário do iPhone...';
+          if (msgEl) msgEl.textContent = 'Aguarde um instante.';
+          if (urlIphone) {
+            location.replace(urlIphone);
+            return;
           }
-        }, 900);
+          mostrarAcoes_(urlIphone, urlWeb);
+          return;
+        }
 
-        window.addEventListener('pagehide', () => clearTimeout(fallback), { once: true });
-        window.addEventListener('blur', () => clearTimeout(fallback), { once: true });
+        if (isAndroid_()) {
+          const titleEl = document.getElementById('title');
+          const msgEl = document.getElementById('msg');
+          if (titleEl) titleEl.textContent = 'Abrindo Google Calendar...';
+          if (msgEl) msgEl.textContent = 'Aguarde um instante.';
+          location.replace(urlWeb);
+          return;
+        }
 
-        location.href = urlApp;
+        mostrarAcoes_(urlIphone, urlWeb);
       } catch (err) {
         const msg = document.getElementById('msg');
         const errEl = document.getElementById('err');
