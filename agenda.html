@@ -667,6 +667,22 @@
       background: var(--gray-100);
     }
 
+    .evento-card.hoje {
+      border-color: rgba(16, 185, 129, 0.55);
+      box-shadow: 0 0 0 1px rgba(16, 185, 129, 0.16), var(--shadow-sm);
+    }
+
+    .evento-card.hoje::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 4px;
+      background: #10b981;
+      border-radius: 12px 0 0 12px;
+    }
+
     .evento-icon {
       width: 34px;
       height: 34px;
@@ -792,6 +808,23 @@
     .status-reserva {
       background: rgba(245,158,11,0.14);
       color: #9a3412;
+    }
+
+    .today-badge {
+      display: inline-flex;
+      align-items: center;
+      font-size: 10px;
+      font-weight: 800;
+      line-height: 1;
+      letter-spacing: 0.3px;
+      text-transform: uppercase;
+      color: #047857;
+      background: #ecfdf5;
+      border: 1px solid #a7f3d0;
+      border-radius: var(--radius-full);
+      padding: 3px 7px;
+      margin-left: auto;
+      flex-shrink: 0;
     }
 
     .conflict-badge {
@@ -2220,6 +2253,7 @@ criarCardEvento(evento) {
     ? 'status-reserva'
     : (exibirStatusNoCard && evento.status ? Utils.getStatusBadge(evento.status) : '');
   const temConflitos = Array.isArray(evento.eventosDentro) && evento.eventosDentro.length > 0;
+  const ehHoje = classificacao === 'hoje';
 
   const detalhes = [];
   const addDetalhe = (label, valor) => {
@@ -2270,6 +2304,7 @@ criarCardEvento(evento) {
           <span>${dataResumo}</span>
           <span>•</span>
           <span>${horarioResumo}</span>
+          ${ehHoje ? '<span class="today-badge">Hoje</span>' : ''}
         </div>
 
         <div class="evento-titulo-row">
