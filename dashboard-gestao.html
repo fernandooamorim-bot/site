@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#0f1a2e"/>
+  <meta name="application-name" content="Sistema Super Agenda"/>
+  <meta name="apple-mobile-web-app-title" content="Super Agenda"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+  <meta name="mobile-web-app-capable" content="yes"/>
+  <meta name="msapplication-TileColor" content="#0f1a2e"/>
+  <link rel="manifest" href="site.webmanifest"/>
+  <link rel="icon" type="image/x-icon" href="img/favicon.ico"/>
+  <link rel="icon" type="image/png" sizes="16x16" href="img/favicon-16.png"/>
+  <link rel="icon" type="image/png" sizes="32x32" href="img/favicon-32.png"/>
+  <link rel="icon" type="image/png" sizes="48x48" href="img/favicon-48.png"/>
+  <link rel="apple-touch-icon" sizes="180x180" href="img/apple-touch-icon.png"/>
+  <title>Dashboard Executivo • FA Produções</title>
+
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <script src="auth.js"></script>
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js" defer></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+  <style>
+    :root{
+      --navy:#0f1a2e;
+      --navy-2:#1e3a5f;
+      --gold:#d4a853;
+      --bg:#f6f8fc;
+      --card:#ffffff;
+      --line:#e5e9f2;
+      --text:#1f2937;
+      --muted:#6b7490;
+      --ok:#10b981;
+      --warn:#f59e0b;
+      --danger:#ef4444;
+      --radius:14px;
+      --shadow:0 10px 30px rgba(15,26,46,.08);
+      --font:'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:var(--font);background:var(--bg);color:var(--text)}
+    .header{
+      height:56px;background:var(--navy);color:#fff;display:flex;align-items:center;justify-content:space-between;
+      padding:0 16px;position:sticky;top:0;z-index:20;border-bottom:1px solid rgba(255,255,255,.08)
+    }
+    .brand{display:flex;align-items:center;gap:10px;text-decoration:none;color:#fff}
+    .back{width:32px;height:32px;border-radius:8px;background:rgba(255,255,255,.08);display:flex;align-items:center;justify-content:center}
+    .brand i{color:var(--gold)}
+    .title{font-weight:700;font-size:15px;display:flex;align-items:center;gap:8px}
+    .right{display:flex;align-items:center;gap:8px}
+    .user{display:flex;align-items:center;gap:8px;padding:4px 10px 4px 4px;background:rgba(255,255,255,.07);border-radius:999px}
+    .av{width:28px;height:28px;border-radius:50%;background:#21456f;color:var(--gold);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700}
+    .nm{font-size:12px;font-weight:600;opacity:.92;max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .logout{width:32px;height:32px;border-radius:8px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.08);display:flex;align-items:center;justify-content:center;cursor:pointer}
+    .logout i{color:#fff;width:16px;height:16px}
+
+    .container{max-width:1280px;margin:0 auto;padding:18px 16px 90px}
+    .toolbar{display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin-bottom:14px}
+    .toolbar h1{font-size:24px;letter-spacing:-.4px}
+    .toolbar p{color:var(--muted);font-size:13px;margin-top:2px}
+    .toolbar-right{display:flex;gap:8px;align-items:center}
+    select,button,input{font-family:var(--font)}
+    select,input{
+      border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:#fff;color:var(--text);font-size:13px
+    }
+    .btn{
+      border:0;border-radius:10px;padding:10px 12px;font-size:13px;font-weight:700;cursor:pointer
+    }
+    .btn.primary{background:var(--navy-2);color:#fff}
+    .btn.warn{background:#fff7e8;color:#9a6d08;border:1px solid #f3ddb2}
+    .btn.outline{background:#fff;border:1px solid var(--line);color:var(--text)}
+
+    .kpis{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px;margin-bottom:12px}
+    .kpi{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:14px;box-shadow:var(--shadow)}
+    .kpi .lbl{font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.5px}
+    .kpi .val{margin-top:6px;font-size:22px;font-weight:800;letter-spacing:-.4px}
+    .kpi .sub{margin-top:4px;font-size:12px;color:var(--muted)}
+
+    .grid{display:grid;grid-template-columns:2fr 1.2fr;gap:12px}
+    .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:14px;box-shadow:var(--shadow)}
+    .card h2{font-size:16px;display:flex;align-items:center;gap:8px}
+    .card h2 i{color:var(--gold);width:16px;height:16px}
+    .card .sub{font-size:12px;color:var(--muted);margin-top:4px}
+
+    .bars{margin-top:12px;display:grid;gap:8px}
+    .bar{display:grid;grid-template-columns:44px 1fr 90px;align-items:center;gap:8px}
+    .bar .m{font-size:12px;color:var(--muted);font-weight:700}
+    .track{height:10px;background:#eef2fa;border-radius:999px;overflow:hidden}
+    .fill{height:100%;background:linear-gradient(90deg,#1e3a5f,#3f6fa5)}
+    .bar .v{font-size:12px;text-align:right;color:var(--muted);font-weight:700}
+
+    .table{margin-top:10px;display:grid;gap:8px}
+    .row{border:1px solid var(--line);border-radius:10px;padding:10px;background:#fff}
+    .row-top{display:flex;justify-content:space-between;gap:8px}
+    .row .name{font-size:13px;font-weight:700}
+    .row .meta{font-size:12px;color:var(--muted);margin-top:3px}
+    .badges{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+    .b{font-size:11px;font-weight:700;border-radius:999px;padding:3px 8px}
+    .b.danger{background:#fdecec;color:#9f1d1d}
+    .b.warn{background:#fff7e8;color:#9a6d08}
+    .b.ok{background:#eafaf3;color:#0d8a5d}
+    .actions{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
+    .actions .btn{padding:7px 9px;font-size:12px}
+
+    .empty{font-size:13px;color:var(--muted);padding:14px;border:1px dashed var(--line);border-radius:10px;margin-top:10px}
+
+    .loading{
+      position:fixed;inset:0;background:rgba(10,22,40,.55);display:none;align-items:center;justify-content:center;z-index:30;color:#fff;flex-direction:column;gap:10px
+    }
+    .loading.active{display:flex}
+    .spin{width:42px;height:42px;border:3px solid rgba(255,255,255,.2);border-top-color:var(--gold);border-radius:50%;animation:spin 1s linear infinite}
+    @keyframes spin{to{transform:rotate(360deg)}}
+
+    .bottom-nav{
+      position:fixed;left:0;right:0;bottom:0;height:68px;background:var(--navy);display:flex;justify-content:space-around;align-items:center;border-top:1px solid rgba(255,255,255,.06);z-index:20
+    }
+    .bnav{display:flex;flex-direction:column;align-items:center;gap:3px;border:0;background:none;color:rgba(255,255,255,.6);font-size:10px;font-weight:600}
+    .bnav i{width:20px;height:20px}
+    .bnav.active{color:var(--gold)}
+
+    @media (max-width:1100px){.kpis{grid-template-columns:repeat(3,minmax(0,1fr))}}
+    @media (max-width:860px){.grid{grid-template-columns:1fr}.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
+    @media (min-width:768px){.bottom-nav{display:none}.container{padding-bottom:20px}}
+  </style>
+</head>
+<body>
+  <div class="header">
+    <a class="brand" href="index.html">
+      <div class="back"><i data-lucide="arrow-left"></i></div>
+      <div class="title"><i data-lucide="layout-dashboard"></i><span>Dashboard Executivo</span></div>
+    </a>
+    <div class="right">
+      <div class="user"><div id="av" class="av">--</div><div id="nm" class="nm">Carregando</div></div>
+      <button class="logout" onclick="Auth.logout()"><i data-lucide="log-out"></i></button>
+    </div>
+  </div>
+
+  <div class="container">
+    <div class="toolbar">
+      <div>
+        <h1>Visão de Gestão</h1>
+        <p>Financeiro, riscos, equipe comercial e operação em uma única tela.</p>
+      </div>
+      <div class="toolbar-right">
+        <select id="anoRef"></select>
+        <button class="btn outline" onclick="carregarDashboard()">Atualizar</button>
+      </div>
+    </div>
+
+    <div class="kpis">
+      <div class="kpi"><div class="lbl">Contrato</div><div class="val" id="kContrato">R$ 0,00</div><div class="sub" id="kEventos">0 eventos</div></div>
+      <div class="kpi"><div class="lbl">Recebido</div><div class="val" id="kRecebido">R$ 0,00</div><div class="sub" id="kPerc">0% recebido</div></div>
+      <div class="kpi"><div class="lbl">Pendente</div><div class="val" id="kPendente">R$ 0,00</div><div class="sub" id="kPendEvt">0 eventos parciais/abertos</div></div>
+      <div class="kpi"><div class="lbl">BV</div><div class="val" id="kBV">0</div><div class="sub" id="kBVPend">0 pendente</div></div>
+      <div class="kpi"><div class="lbl">NF</div><div class="val" id="kNF">0</div><div class="sub" id="kNFPend">0 pendente</div></div>
+      <div class="kpi"><div class="lbl">Riscos</div><div class="val" id="kRiscos">0</div><div class="sub">alertas críticos</div></div>
+    </div>
+
+    <div class="grid">
+      <div class="card">
+        <h2><i data-lucide="line-chart"></i>Tendência Mensal</h2>
+        <div class="sub">Recebimento no ano de referência</div>
+        <div id="barsReceb" class="bars"></div>
+      </div>
+
+      <div class="card">
+        <h2><i data-lucide="funnel"></i>Funil Operacional</h2>
+        <div class="sub">Base atual de registros</div>
+        <div class="table" id="funilBox"></div>
+      </div>
+
+      <div class="card">
+        <h2><i data-lucide="shield-alert"></i>Riscos Prioritários</h2>
+        <div class="sub">Eventos com ação financeira imediata</div>
+        <div id="riscosBox"></div>
+      </div>
+
+      <div class="card">
+        <h2><i data-lucide="users"></i>Ranking de Vendedores</h2>
+        <div class="sub">Comissão gerada e paga</div>
+        <div id="vendBox"></div>
+      </div>
+
+      <div class="card" style="grid-column:1/-1">
+        <h2><i data-lucide="calendar-clock"></i>Próximos 30 dias</h2>
+        <div class="sub">Eventos próximos com impacto financeiro</div>
+        <div id="proxBox"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="loading" class="loading">
+    <div class="spin"></div>
+    <div id="loadingText">Carregando dashboard...</div>
+  </div>
+
+  <nav class="bottom-nav">
+    <button class="bnav" onclick="location.href='index.html'"><i data-lucide="layout-grid"></i><span>Início</span></button>
+    <button class="bnav active"><i data-lucide="layout-dashboard"></i><span>Dashboard</span></button>
+    <button class="bnav" onclick="location.href='painel-financeiro.html'"><i data-lucide="bar-chart-3"></i><span>Painel</span></button>
+    <button class="bnav" onclick="location.href='central-financeira.html?mode=fiscalizacao'"><i data-lucide="shield-check"></i><span>Fiscalizar</span></button>
+  </nav>
+
+  <script>
+    let dashboardData = null;
+
+    function showLoading(txt){document.getElementById('loadingText').textContent = txt || 'Processando...';document.getElementById('loading').classList.add('active');}
+    function hideLoading(){document.getElementById('loading').classList.remove('active');}
+
+    function fmt(v){return Number(v || 0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});}
+    function dataPtBr(d){
+      if (!d) return '';
+      const dt = new Date(d);
+      if (isNaN(dt.getTime())) return String(d);
+      return dt.toLocaleDateString('pt-BR');
+    }
+
+    function montarAnos() {
+      const y = new Date().getFullYear();
+      const sel = document.getElementById('anoRef');
+      const anos = [y - 1, y, y + 1];
+      sel.innerHTML = anos.map(a => `<option value="${a}" ${a === y ? 'selected' : ''}>${a}</option>`).join('');
+      sel.onchange = carregarDashboard;
+    }
+
+    function preencherUser() {
+      const nome = localStorage.getItem('auth_nome') || '';
+      const nm = document.getElementById('nm');
+      const av = document.getElementById('av');
+      if (nm) nm.textContent = nome.split(' ')[0] || 'Usuário';
+      if (av) {
+        const p = nome.split(' ');
+        av.textContent = (p.length >= 2 ? (p[0][0] + p[p.length - 1][0]) : (nome.slice(0,2) || '--')).toUpperCase();
+      }
+    }
+
+    function checarPermissao(user) {
+      const perfil = String(user?.perfil || localStorage.getItem('auth_perfil') || '')
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+      if (perfil === 'musico') {
+        alert('Sem permissão para o Dashboard Executivo.');
+        location.href = 'index.html';
+        return false;
+      }
+      return true;
+    }
+
+    async function carregarDashboard() {
+      try {
+        showLoading('Consolidando indicadores...');
+        const ano = Number(document.getElementById('anoRef').value);
+        const resp = await Auth.apiCall('obterDashboardGestao', { ano: ano, incluirCancelados: false });
+        hideLoading();
+        if (!resp || resp.sucesso !== true) throw new Error(resp?.mensagem || 'Falha ao obter dashboard');
+        dashboardData = resp;
+        renderDashboard();
+      } catch (err) {
+        hideLoading();
+        console.error(err);
+        alert('Erro ao carregar dashboard de gestão.');
+      }
+    }
+
+    function renderDashboard() {
+      const d = dashboardData || {};
+      const r = d.resumo || {};
+      const ev = r.eventos || {};
+      const fin = r.financeiro || {};
+      const saidas = r.saidas || {};
+      const riscos = Array.isArray(d.riscos) ? d.riscos : [];
+      const vendedores = Array.isArray(d.vendedores) ? d.vendedores : [];
+      const mensal = Array.isArray(d.mensal) ? d.mensal : [];
+      const funil = d.funil || {};
+      const prox = Array.isArray(d.proximos30dias) ? d.proximos30dias : [];
+
+      document.getElementById('kContrato').textContent = fmt(fin.contrato);
+      document.getElementById('kEventos').textContent = `${Number(ev.total || 0)} eventos`;
+      document.getElementById('kRecebido').textContent = fmt(fin.recebido);
+      document.getElementById('kPerc').textContent = `${Number(fin.percRecebido || 0).toFixed(2)}% recebido`;
+      document.getElementById('kPendente').textContent = fmt(fin.pendente);
+      document.getElementById('kPendEvt').textContent = `${Number(ev.parciais || 0) + Number(ev.abertos || 0)} eventos`;
+      document.getElementById('kBV').textContent = `${Number(saidas.bvProcessado || 0)} pagos`;
+      document.getElementById('kBVPend').textContent = `${Number(saidas.bvPendente || 0)} pendente(s)`;
+      document.getElementById('kNF').textContent = `${Number(saidas.nfProcessada || 0)} processadas`;
+      document.getElementById('kNFPend').textContent = `${Number(saidas.nfPendente || 0)} pendente(s)`;
+      document.getElementById('kRiscos').textContent = `${riscos.filter(x => x.severidade === 'CRITICO').length}`;
+
+      renderMensal(mensal);
+      renderFunil(funil);
+      renderRiscos(riscos);
+      renderVendedores(vendedores);
+      renderProximos(prox);
+    }
+
+    function renderMensal(mensal) {
+      const box = document.getElementById('barsReceb');
+      const max = Math.max(1, ...mensal.map(x => Number(x.recebido || 0)));
+      box.innerHTML = mensal.map(x => {
+        const p = Math.max(0, Math.min(100, (Number(x.recebido || 0) / max) * 100));
+        const label = String(x.mes).padStart(2, '0');
+        return `<div class="bar"><div class="m">${label}</div><div class="track"><div class="fill" style="width:${p}%"></div></div><div class="v">${fmt(x.recebido)}</div></div>`;
+      }).join('');
+    }
+
+    function renderFunil(funil) {
+      const box = document.getElementById('funilBox');
+      box.innerHTML = `
+        <div class="row"><div class="row-top"><div class="name">Eventos</div><div><strong>${Number(funil.eventos || 0)}</strong></div></div></div>
+        <div class="row"><div class="row-top"><div class="name">Reservas</div><div><strong>${Number(funil.reservas || 0)}</strong></div></div></div>
+        <div class="row"><div class="row-top"><div class="name">Reuniões</div><div><strong>${Number(funil.reunioes || 0)}</strong></div></div></div>
+        <div class="row"><div class="row-top"><div class="name">Bloqueios</div><div><strong>${Number(funil.bloqueios || 0)}</strong></div></div></div>
+      `;
+    }
+
+    function renderRiscos(riscos) {
+      const box = document.getElementById('riscosBox');
+      if (!riscos.length) {
+        box.innerHTML = `<div class="empty">Nenhum risco crítico identificado no recorte atual.</div>`;
+        return;
+      }
+      box.innerHTML = riscos.slice(0, 16).map(r => `
+        <div class="row">
+          <div class="row-top">
+            <div class="name">${r.nomeEvento || r.idEvento}</div>
+            <div class="b ${r.severidade === 'CRITICO' ? 'danger' : 'warn'}">${r.severidade}</div>
+          </div>
+          <div class="meta">${r.tipo} • ${dataPtBr(r.dataEvento)}</div>
+          <div class="actions">
+            <button class="btn outline" onclick="location.href='editar-evento.html?id=${encodeURIComponent(r.idEvento)}'">Editar</button>
+            <button class="btn warn" onclick="location.href='central-financeira.html?mode=fiscalizacao'">Fiscalizar</button>
+            <button class="btn primary" onclick="location.href='central-financeira.html?mode=obrigacao&acao=bv&idEvento=${encodeURIComponent(r.idEvento)}'">Ação Financeira</button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function renderVendedores(lista) {
+      const box = document.getElementById('vendBox');
+      if (!lista.length) {
+        box.innerHTML = `<div class="empty">Sem movimentação de comissão no ano.</div>`;
+        return;
+      }
+      box.innerHTML = lista.map(v => `
+        <div class="row">
+          <div class="row-top">
+            <div class="name">${v.nomeVendedor || 'Sem identificação'}</div>
+            <div class="b ${Number(v.pendente || 0) > 0 ? 'warn' : 'ok'}">${Number(v.pendente || 0) > 0 ? 'PENDENTE' : 'OK'}</div>
+          </div>
+          <div class="meta">Gerado: ${fmt(v.gerado)} • Pago: ${fmt(v.pago)} • Pendente: ${fmt(v.pendente)}</div>
+        </div>
+      `).join('');
+    }
+
+    function renderProximos(lista) {
+      const box = document.getElementById('proxBox');
+      if (!lista.length) {
+        box.innerHTML = `<div class="empty">Sem eventos financeiros nos próximos 30 dias.</div>`;
+        return;
+      }
+      box.innerHTML = lista.map(x => `
+        <div class="row">
+          <div class="row-top">
+            <div class="name">${x.nomeEvento}</div>
+            <div class="b ${x.valorPendente > 0 ? 'warn' : 'ok'}">${x.valorPendente > 0 ? 'Pendente' : 'Quitado'}</div>
+          </div>
+          <div class="meta">${dataPtBr(x.dataEvento)} • Saldo: ${fmt(x.valorPendente)}</div>
+          <div class="actions">
+            <button class="btn outline" onclick="location.href='editar-evento.html?id=${encodeURIComponent(x.idEvento)}'">Editar</button>
+            <button class="btn primary" onclick="location.href='central-financeira.html?mode=recebimento&idEvento=${encodeURIComponent(x.idEvento)}'">Receber</button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    window.addEventListener('load', async () => {
+      try {
+        if (window.lucide) lucide.createIcons();
+        const auth = await Auth.apiCall('verificarUsuario');
+        if (!auth || !auth.ok) throw new Error('NOT_AUTH');
+        if (!checarPermissao(auth.user || {})) return;
+        preencherUser();
+        montarAnos();
+        await carregarDashboard();
+      } catch (err) {
+        console.error(err);
+        alert('Sessão inválida. Faça login novamente.');
+        location.href = 'index.html';
+      }
+    });
+  </script>
+</body>
+</html>

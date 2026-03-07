@@ -1081,6 +1081,28 @@
           </div>
         </div>
 
+        <!-- Card: Dashboard Executivo -->
+        <div class="nav-card anim-in anim-d5" id="cardDashboardGestao" onclick="abrir('dashboardGestao')">
+          <div class="nav-card-top">
+            <div class="nav-card-icon gold">
+              <i data-lucide="layout-dashboard"></i>
+            </div>
+            <div class="nav-card-arrow">
+              <i data-lucide="arrow-right"></i>
+            </div>
+          </div>
+          <div class="nav-card-body">
+            <div class="nav-card-title">Dashboard Executivo</div>
+            <div class="nav-card-desc">Visão premium de gestão com KPIs, riscos financeiros e ações rápidas.</div>
+          </div>
+          <div class="nav-card-footer">
+            <span class="access-badge restricted">
+              <i data-lucide="shield"></i>
+              Proprietário e Administrador
+            </span>
+          </div>
+        </div>
+
         <!-- Card: Agenda Semanal (WhatsApp) -->
         <div class="nav-card anim-in anim-d5" id="cardGerarAgenda" onclick="abrir('gerarAgenda')">
           <div class="nav-card-top">
@@ -1311,6 +1333,7 @@
     ocultar('cardEditarEvento');
     ocultar('cardCentralFinanceira');
     ocultar('cardPainelFinanceiro');
+    ocultar('cardDashboardGestao');
     ocultar('cardGerarAgenda');
     ocultar('cardOrcamento');
     
@@ -1368,6 +1391,7 @@
       editarEvento: './editar-evento.html',
       centralFinanceira: './central-financeira.html',
       painelFinanceiro: './painel-financeiro.html',
+      dashboardGestao: './dashboard-gestao.html',
       gerarAgenda: './GerarAgenda.html',
       orcamentoForm: './form-orcamento.html'
     };
