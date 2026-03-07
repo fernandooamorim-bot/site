@@ -215,17 +215,10 @@
         if (isIOS_()) {
           const titleEl = document.getElementById('title');
           const msgEl = document.getElementById('msg');
-          if (titleEl) titleEl.textContent = 'Abrindo Calendário do iPhone...';
-          if (msgEl) msgEl.textContent = 'Aguarde um instante.';
+          if (titleEl) titleEl.textContent = 'Ativar lembrete no iPhone';
+          if (msgEl) msgEl.textContent = 'Toque em “Calendário iPhone” para abrir diretamente no app.';
           if (urlIphone) {
-            // Mostra opção manual imediatamente, caso o iOS bloqueie abertura automática.
             mostrarAcoes_(urlIphone, urlWeb);
-            const fallbackManual = setTimeout(() => {
-              mostrarAcoes_(urlIphone, urlWeb);
-            }, 1200);
-            window.addEventListener('pagehide', () => clearTimeout(fallbackManual), { once: true });
-            window.addEventListener('blur', () => clearTimeout(fallbackManual), { once: true });
-            location.href = urlIphone;
             return;
           }
           mostrarAcoes_(urlIphone, urlWeb);
