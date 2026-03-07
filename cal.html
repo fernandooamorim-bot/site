@@ -172,6 +172,24 @@
       return '/.netlify/functions/calendar-ics?token=' + encodeURIComponent(t);
     }
 
+    async function hostedIcsDisponivel_() {
+      try {
+        // GitHub Pages não suporta Netlify Functions.
+        const host = String(location.hostname || '').toLowerCase();
+        if (host.endsWith('github.io')) return false;
+
+        const probeUrl = '/.netlify/functions/calendar-ics?token=probe';
+        const resp = await fetch(probeUrl, {
+          method: 'GET',
+          cache: 'no-store'
+        });
+        // A função existe quando responde 2xx/4xx/5xx (qualquer coisa diferente de 404).
+        return resp && resp.status !== 404;
+      } catch (_) {
+        return false;
+      }
+    }
+
     function mostrarAcoes_(urlIphone, urlGoogle) {
       const actions = document.getElementById('actions');
       const btnIphone = document.getElementById('btnIphone');
@@ -185,7 +203,7 @@
       if (msgEl) msgEl.textContent = 'Se não abrir automaticamente, escolha uma opção abaixo.';
     }
 
-    function redirect_() {
+    async function redirect_() {
       try {
         const token = String((location.hash || '').replace(/^#/, '')).trim();
         if (!token) throw new Error('Link inválido.');
@@ -216,7 +234,8 @@
           + '&location=' + encodeURIComponent(locationTxt)
           + '&ctz=' + encodeURIComponent(ctz)
           + (reminderMinutes > 0 ? ('&reminders=' + encodeURIComponent(String(reminderMinutes))) : '');
-        const urlIphoneHosted = buildIcsHostedUrl_(token);
+        const podeUsarHosted = await hostedIcsDisponivel_();
+        const urlIphoneHosted = podeUsarHosted ? buildIcsHostedUrl_(token) : '';
         const urlIphoneFallback = buildIcsDataUrl_(data);
         const urlIphone = urlIphoneHosted || urlIphoneFallback;
 
