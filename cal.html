@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#0f1a2e"/>
+  <title>Abrindo calendário...</title>
+  <style>
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #0f1a2e;
+      color: #fff;
+    }
+    .box {
+      width: min(520px, 92vw);
+      border: 1px solid rgba(255,255,255,.14);
+      border-radius: 14px;
+      padding: 18px;
+      background: rgba(255,255,255,.06);
+    }
+    h1 { margin: 0 0 10px; font-size: 16px; }
+    p { margin: 0; opacity: .86; font-size: 13px; line-height: 1.45; }
+    .err { color: #fecaca; margin-top: 10px; }
+    a { color: #f5d28f; }
+  </style>
+</head>
+<body>
+  <div class="box">
+    <h1>Abrindo Google Calendar...</h1>
+    <p id="msg">Aguarde um instante.</p>
+    <p id="err" class="err" style="display:none"></p>
+  </div>
+
+  <script>
+    function toDateOnlyIsoParts_(iso) {
+      const m = String(iso || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+      if (!m) return null;
+      return { y: m[1], mo: m[2], d: m[3] };
+    }
+
+    function buildDates_(dIso, hi, hf) {
+      const p = toDateOnlyIsoParts_(dIso);
+      if (!p) return '';
+      const hh1 = String(hi || '').match(/^(\d{1,2}):(\d{2})$/);
+      const hh2 = String(hf || '').match(/^(\d{1,2}):(\d{2})$/);
+      if (hh1 && hh2) {
+        const h1 = String(Number(hh1[1])).padStart(2, '0');
+        const m1 = String(Number(hh1[2])).padStart(2, '0');
+        const h2 = String(Number(hh2[1])).padStart(2, '0');
+        const m2 = String(Number(hh2[2])).padStart(2, '0');
+        return `${p.y}${p.mo}${p.d}T${h1}${m1}00/${p.y}${p.mo}${p.d}T${h2}${m2}00`;
+      }
+      const start = `${p.y}${p.mo}${p.d}`;
+      const dt = new Date(Number(p.y), Number(p.mo) - 1, Number(p.d), 12, 0, 0, 0);
+      dt.setDate(dt.getDate() + 1);
+      const end = `${dt.getFullYear()}${String(dt.getMonth() + 1).padStart(2, '0')}${String(dt.getDate()).padStart(2, '0')}`;
+      return `${start}/${end}`;
+    }
+
+    function redirect_() {
+      try {
+        const token = String((location.hash || '').replace(/^#/, '')).trim();
+        if (!token) throw new Error('Link inválido.');
+
+        let b64 = token.replace(/-/g, '+').replace(/_/g, '/');
+        while (b64.length % 4 !== 0) b64 += '=';
+        const json = atob(b64);
+        const data = JSON.parse(json);
+        if (!data || typeof data !== 'object') throw new Error('Link inválido.');
+        if (data.exp && Number(data.exp) < Date.now()) throw new Error('Este link expirou.');
+
+        const title = String(data.t || 'Evento').trim();
+        const detailsParts = [];
+        if (data.o) detailsParts.push('Obs: ' + String(data.o));
+        if (data.m) detailsParts.push('Maps: ' + String(data.m));
+        const details = detailsParts.join('\n');
+        const locationTxt = String(data.l || '').trim();
+        const ctz = String(data.ctz || 'America/Fortaleza').trim();
+        const dates = buildDates_(data.d, data.hi, data.hf);
+        if (!dates) throw new Error('Dados de data/hora inválidos.');
+
+        const url = 'https://calendar.google.com/calendar/render?action=TEMPLATE'
+          + '&text=' + encodeURIComponent(title)
+          + '&dates=' + encodeURIComponent(dates)
+          + '&details=' + encodeURIComponent(details)
+          + '&location=' + encodeURIComponent(locationTxt)
+          + '&ctz=' + encodeURIComponent(ctz);
+
+        location.replace(url);
+      } catch (err) {
+        const msg = document.getElementById('msg');
+        const errEl = document.getElementById('err');
+        if (msg) msg.textContent = 'Não foi possível abrir automaticamente.';
+        if (errEl) {
+          errEl.style.display = 'block';
+          errEl.textContent = String(err && err.message ? err.message : err);
+        }
+      }
+    }
+
+    redirect_();
+  </script>
+</body>
+</html>

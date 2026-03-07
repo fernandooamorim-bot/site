@@ -243,6 +243,27 @@
       gap: 8px;
     }
 
+    .option-row {
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 10px;
+      border: 1px solid var(--gray-200);
+      border-radius: 10px;
+      background: #fbfcff;
+      font-size: 12px;
+      color: var(--gray-700);
+      font-weight: 600;
+    }
+
+    .option-row input[type="checkbox"] {
+      width: 16px;
+      height: 16px;
+      margin: 0;
+      accent-color: var(--navy-600);
+    }
+
     .btn {
       border: none;
       border-radius: 10px;
@@ -416,6 +437,11 @@
           <button class="btn primary" id="btnCarregar">Carregar Eventos</button>
           <button class="btn success" id="btnGerarTexto">Gerar Texto WhatsApp</button>
         </div>
+
+        <label class="option-row" title="Inclui no texto um link por evento para abrir o Google Calendar já preenchido.">
+          <input type="checkbox" id="chkLinksCalendario" checked>
+          Incluir link “Ativar lembrete no Google Calendar” em cada evento
+        </label>
 
         <div class="status" id="status"></div>
 
@@ -687,6 +713,10 @@
       try {
         const dataInicio = document.getElementById('dataInicio').value || state.periodo.dataInicio;
         const dataFim = document.getElementById('dataFim').value || state.periodo.dataFim;
+        const incluirLinksCalendario = !!document.getElementById('chkLinksCalendario')?.checked;
+        const baseUrlCalendario = (window.location && window.location.origin)
+          ? (window.location.origin + '/site')
+          : '';
 
         if (!dataInicio || !dataFim) {
           mostrarStatus('Defina um período válido antes de gerar o texto.', 'err');
@@ -698,7 +728,9 @@
         const resp = await Auth.apiCall('gerarTextoAgendaSemanal', {
           dataInicio: dataInicio,
           dataFim: dataFim,
-          eventosJson: JSON.stringify(state.eventos)
+          eventosJson: JSON.stringify(state.eventos),
+          incluirLinksCalendario: incluirLinksCalendario ? 'TRUE' : 'FALSE',
+          baseUrlCalendario: baseUrlCalendario
         });
 
         if (!resp || resp.sucesso !== true) {
