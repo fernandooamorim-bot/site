@@ -341,38 +341,48 @@
        ============================================ */
     .intent {
       display: flex;
-      gap: 10px;
+      gap: 8px;
       margin-bottom: 20px;
-      flex-wrap: wrap;
+      flex-wrap: nowrap;
+      background: #fff;
+      border: 1px solid var(--gray-200);
+      border-radius: 14px;
+      padding: 6px;
+      box-shadow: var(--shadow-sm);
+      overflow-x: auto;
     }
 
     .intent button {
       flex: 1;
-      min-width: 130px;
-      padding: 14px 16px;
-      border-radius: var(--radius-md);
-      border: 1.5px solid var(--gray-200);
-      background: white;
+      min-width: 150px;
+      padding: 12px 14px;
+      border-radius: 10px;
+      border: 1px solid transparent;
+      background: transparent;
       color: var(--gray-600);
       cursor: pointer;
       font-size: 14px;
       font-weight: 600;
       font-family: var(--font);
-      transition: all 0.2s;
-      box-shadow: var(--shadow-sm);
+      transition: all 0.18s;
       position: relative;
       overflow: hidden;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      white-space: nowrap;
     }
 
     .intent button:hover {
-      border-color: var(--navy-400);
+      border-color: var(--gray-200);
       color: var(--navy-600);
-      background: rgba(30,58,95,0.03);
+      background: rgba(30,58,95,0.05);
     }
 
     .intent button.active {
-      border-color: var(--navy-600);
-      background: var(--navy-600);
+      border-color: rgba(30,58,95,0.45);
+      background: linear-gradient(135deg, var(--navy-600), var(--navy-700));
       color: white;
       box-shadow: 0 2px 8px rgba(30,58,95,0.2);
     }
@@ -382,6 +392,46 @@
       cursor: not-allowed !important;
       transform: none !important;
       box-shadow: none !important;
+    }
+
+    .intent button .mode-icon {
+      width: 16px;
+      height: 16px;
+    }
+
+    .intent button .mode-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 18px;
+      height: 18px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 0 6px;
+      background: rgba(30,58,95,0.1);
+      color: var(--navy-600);
+    }
+
+    .intent button.active .mode-badge {
+      background: rgba(255,255,255,0.18);
+      color: #fff;
+    }
+
+    .intent-meta {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin: -8px 0 14px;
+      padding: 0 4px;
+      color: var(--gray-500);
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .intent-meta strong {
+      color: var(--navy-700);
     }
 
     /* ============================================
@@ -676,6 +726,12 @@
       font-size: 12px;
     }
     @media (max-width: 900px) {
+      .intent {
+        flex-wrap: wrap;
+      }
+      .intent button {
+        min-width: calc(50% - 6px);
+      }
       .fiscal-toolbar {
         grid-template-columns: 1fr;
       }
@@ -713,11 +769,31 @@
 <h1>💰 Central Financeira</h1>
 
 <div class="intent">
-  <button data-mode="recebimento">🟢 Recebimento</button>
-  <button data-mode="estorno">🔴 Estorno</button>
-  <button data-mode="comissao">🔵 Comissão</button>
-  <button data-mode="obrigacao">🟠 Saídas</button>
-  <button data-mode="fiscalizacao">🛡️ Fiscalização</button>
+  <button data-mode="recebimento">
+    <i class="mode-icon" data-lucide="circle-dollar-sign"></i>
+    <span>Recebimento</span>
+  </button>
+  <button data-mode="estorno">
+    <i class="mode-icon" data-lucide="rotate-ccw"></i>
+    <span>Estorno</span>
+  </button>
+  <button data-mode="comissao">
+    <i class="mode-icon" data-lucide="badge-percent"></i>
+    <span>Comissão</span>
+  </button>
+  <button data-mode="obrigacao">
+    <i class="mode-icon" data-lucide="arrow-right-left"></i>
+    <span>Saídas</span>
+  </button>
+  <button data-mode="fiscalizacao">
+    <i class="mode-icon" data-lucide="shield-check"></i>
+    <span>Fiscalização</span>
+    <span class="mode-badge" id="badgeFiscalizacao" style="display:none"></span>
+  </button>
+</div>
+<div class="intent-meta">
+  <div>Módulo ativo: <strong id="modoAtivoLabel">—</strong></div>
+  <div id="modoMetaAux"></div>
 </div>
 
 <div class="main">
@@ -831,6 +907,13 @@ const DIVERGENCIAS_LABEL = {
 const buttons = document.querySelectorAll('.intent button');
 const form = document.getElementById('form');
 const resumo = document.getElementById('resumo');
+const MODE_LABELS = {
+  recebimento: 'Recebimento',
+  estorno: 'Estorno',
+  comissao: 'Comissão',
+  obrigacao: 'Saídas',
+  fiscalizacao: 'Fiscalização'
+};
 
 function setIntentButtonsEnabled_(enabled) {
   buttons.forEach(btn => {
@@ -841,6 +924,39 @@ function setIntentButtonsEnabled_(enabled) {
 }
 
 setIntentButtonsEnabled_(false);
+
+function atualizarIndicadorModoAtivo_() {
+  const el = document.getElementById('modoAtivoLabel');
+  const aux = document.getElementById('modoMetaAux');
+  if (!el) return;
+  el.textContent = MODE_LABELS[mode] || '—';
+  if (aux && mode !== 'fiscalizacao') aux.textContent = '';
+}
+
+function atualizarBadgeFiscalizacao_(lista) {
+  const badge = document.getElementById('badgeFiscalizacao');
+  const aux = document.getElementById('modoMetaAux');
+  if (!badge) return;
+
+  const eventos = Array.isArray(lista) ? lista : [];
+  const criticos = eventos.filter(ev => {
+    const alertas = Array.isArray(ev.alertas) ? ev.alertas : [];
+    const divergencias = Array.isArray(ev.divergencias) ? ev.divergencias : [];
+    return divergencias.length > 0 || alertas.length > 0;
+  }).length;
+
+  if (criticos > 0) {
+    badge.textContent = String(criticos);
+    badge.style.display = 'inline-flex';
+  } else {
+    badge.textContent = '';
+    badge.style.display = 'none';
+  }
+
+  if (aux) {
+    aux.textContent = criticos > 0 ? `${criticos} evento(s) com alerta/divergência` : '';
+  }
+}
 
 function humanizarCodigoTecnico_(codigo) {
   return String(codigo || '')
@@ -912,6 +1028,7 @@ function ativarModoCentral_(novoModo) {
   buttons.forEach(x=>x.classList.remove('active'));
   const btn = document.querySelector(`.intent button[data-mode="${novoModo}"]`);
   if (btn) btn.classList.add('active');
+  atualizarIndicadorModoAtivo_();
 
   eventoSelecionado = null;
   vendedorSelecionado = null;
@@ -986,6 +1103,7 @@ async function selecionarEventoPorIdNoModo_(idEvento) {
   try {
     const lista = await Auth.apiCall('listarEventosFinanceiros');
     const eventos = Array.isArray(lista) ? lista : (Array.isArray(lista?.eventos) ? lista.eventos : []);
+    atualizarBadgeFiscalizacao_(eventos);
     const alvo = eventos.find(e => String(e.idEvento || '') === id);
     if (!alvo) return false;
 
@@ -1520,6 +1638,7 @@ async function carregarFiscalizacao_(executarAuditoria) {
   try {
     showLoading('Carregando fiscalização financeira...');
     fiscalEventosCache = await Auth.apiCall('listarEventosFinanceiros') || [];
+    atualizarBadgeFiscalizacao_(fiscalEventosCache);
     hideLoading();
     aplicarFiltrosFiscalizacao_();
     if (executarAuditoria) {
@@ -1528,6 +1647,7 @@ async function carregarFiscalizacao_(executarAuditoria) {
   } catch (err) {
     hideLoading();
     console.error('Erro ao carregar fiscalização:', err);
+    atualizarBadgeFiscalizacao_([]);
     resumo.innerHTML = '<span class="muted">Erro ao carregar fiscalização.</span>';
   }
 }
