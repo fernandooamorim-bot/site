@@ -559,8 +559,8 @@
   <button class="btn success" onclick="aplicarFiltro('OK')">✅ Sem pendências</button>
 </div>
 <div class="modo-visual">
-  <button class="btn secondary" onclick="MODO_VISUAL='ESPELHO'; renderAtual();">🔳 Espelho Financeiro</button>
-  <button class="btn secondary" onclick="MODO_VISUAL='CARDS'; renderAtual();">🧾 Detalhado</button>
+  <button id="btnModoDetalhado" class="btn secondary" onclick="setModoVisual('CARDS')">🧾 Detalhado</button>
+  <button id="btnModoEspelho" class="btn secondary" onclick="setModoVisual('ESPELHO')">🔳 Espelho Financeiro</button>
 </div>
 
 <div id="lista" class="lista">
@@ -570,7 +570,7 @@
 <script>
   let EVENTOS_CACHE = [];
   let FILTRO_ATUAL = 'TODOS';
-  let MODO_VISUAL = 'ESPELHO';
+  let MODO_VISUAL = 'CARDS';
   let listaFiltradaAtual = null;
 
   const ALERTAS_LABEL = {
@@ -591,6 +591,59 @@
     DUPLICIDADE_NF_PROCESSADO: 'Duplicidade de NF processada',
     DUPLICIDADE_FOLHA_PROCESSADA: 'Duplicidade de folha processada'
   };
+
+  const DIVERGENCIAS_LABEL = {
+    STATUS_BV_ESPELHO_DIVERGENTE: 'Status de BV divergente no espelho',
+    STATUS_NF_ESPELHO_DIVERGENTE: 'Status de NF divergente no espelho',
+    FOLHA_CUSTO_ESPELHO_DIVERGENTE: 'Valor da folha divergente no espelho'
+  };
+
+  function humanizarCodigoTecnico(codigo) {
+    return String(codigo || '')
+      .replace(/_/g, ' ')
+      .toLowerCase()
+      .replace(/(^|\s)\S/g, c => c.toUpperCase());
+  }
+
+  function labelAlerta(codigo) {
+    return ALERTAS_LABEL[codigo] || humanizarCodigoTecnico(codigo);
+  }
+
+  function labelDivergencia(codigo) {
+    return DIVERGENCIAS_LABEL[codigo] || humanizarCodigoTecnico(codigo);
+  }
+
+  function escaparHtml(valor) {
+    return String(valor || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  function extrairTipoEvento(nomeEvento, tipoEvento) {
+    const tipo = String(tipoEvento || '').trim();
+    if (tipo) return tipo;
+    const txt = String(nomeEvento || '');
+    const pos = txt.indexOf(' - ');
+    return pos > 0 ? txt.slice(0, pos) : txt || 'Evento';
+  }
+
+  function setModoVisual(modo) {
+    MODO_VISUAL = (modo === 'ESPELHO') ? 'ESPELHO' : 'CARDS';
+    atualizarBotoesModoVisual();
+    renderAtual();
+  }
+
+  function atualizarBotoesModoVisual() {
+    const btnDetalhado = document.getElementById('btnModoDetalhado');
+    const btnEspelho = document.getElementById('btnModoEspelho');
+    if (btnDetalhado) btnDetalhado.classList.toggle('primary', MODO_VISUAL === 'CARDS');
+    if (btnDetalhado) btnDetalhado.classList.toggle('secondary', MODO_VISUAL !== 'CARDS');
+    if (btnEspelho) btnEspelho.classList.toggle('primary', MODO_VISUAL === 'ESPELHO');
+    if (btnEspelho) btnEspelho.classList.toggle('secondary', MODO_VISUAL !== 'ESPELHO');
+  }
 
   async function carregarPainel() {
     try {
@@ -613,6 +666,7 @@
 
   function renderizarEventos(eventos) {
     EVENTOS_CACHE = eventos;
+    atualizarBotoesModoVisual();
     aplicarFiltro(FILTRO_ATUAL, false);
     return;
   }
@@ -763,8 +817,8 @@
 
       row.innerHTML = `
         <div>${formatarData(evento.dataEvento)}</div>
-        <div>${evento.nomeEvento}</div>
-        <div>${evento.nomeContratante || ''}</div>
+        <div>${escaparHtml(evento.nomeEvento)}</div>
+        <div>${escaparHtml(evento.nomeContratante || '')}</div>
         <div>R$ ${formatarValor(evento.valorContrato)}</div>
         <div>R$ ${formatarValor(evento.totalRecebido)}</div>
         <div>R$ ${formatarValor(evento.valorPendente)}</div>
@@ -816,7 +870,7 @@
     const divergencias = [];
 
     (evento.alertas || []).forEach(a => {
-      const texto = ALERTAS_LABEL[a] || a;
+      const texto = labelAlerta(a);
       if ([
         'EVENTO_OCORREU_SEM_RECEBIMENTO',
         'EVENTO_OCORREU_RECEBIMENTO_PARCIAL',
@@ -849,14 +903,23 @@
     });
 
     (evento.divergencias || []).forEach(d => {
-      divergencias.push(d);
+      divergencias.push(labelDivergencia(d));
     });
+
+    const contratante = String(evento.nomeContratante || evento.nomeEvento || 'Evento');
+    const tipoEvento = extrairTipoEvento(evento.nomeEvento, evento.tipoEvento);
+    const idEvento = String(evento.idEvento || '');
+    const nomeEventoSeguro = escaparHtml(String(evento.nomeEvento || 'Evento'));
+    const contratanteSeguro = escaparHtml(contratante);
+    const tipoEventoSeguro = escaparHtml(tipoEvento);
+    const idEventoSeguro = escaparHtml(idEvento);
 
     card.innerHTML = `
       <div class="card-header">
         <div>
-          <div class="titulo">${evento.nomeEvento}</div>
-          <div class="data">${formatarData(evento.dataEvento)}</div>
+          <div class="titulo">${formatarData(evento.dataEvento)} - ${contratanteSeguro}</div>
+          <div class="data">${idEventoSeguro} • ${tipoEventoSeguro}</div>
+          <div class="data" style="margin-top:4px">${nomeEventoSeguro}</div>
         </div>
         <div class="valor">R$ ${formatarValor(evento.valorContrato)}</div>
       </div>
@@ -913,12 +976,12 @@
 
       <div class="linha">
         <span>BV</span>
-        <strong>${evento.bv?.status || 'N/A'}</strong>
+        <strong>${escaparHtml(evento.bv?.status || 'N/A')}</strong>
       </div>
 
       <div class="linha">
         <span>Nota Fiscal</span>
-        <strong>${evento.nf?.status || 'N/A'}</strong>
+        <strong>${escaparHtml(evento.nf?.status || 'N/A')}</strong>
       </div>
 
       <div class="status ${statusSeguro}">
@@ -929,13 +992,14 @@
       ${alertasComissao.length ? `<div class="alertas"><strong>💼 Comissão:</strong> ${alertasComissao.join(' • ')}</div>` : ''}
       ${alertasCustos.length ? `<div class="alertas"><strong>🧾 Custos:</strong> ${alertasCustos.join(' • ')}</div>` : ''}
       ${divergencias.length ? `<div class="alertas"><strong>🧩 Divergências:</strong> ${divergencias.join(' • ')}</div>` : ''}
+      ${evento?.metadados?.legado ? `<div class="alertas"><strong>📦 Origem:</strong> Legado</div>` : ''}
 
       <div class="acoes">
-        <button class="btn secondary" onclick="irEditar('${evento.idEvento}')">Editar</button>
-        ${evento.acoes?.podeReceber ? `<button class="btn success" onclick="irReceber('${evento.idEvento}')">Receber</button>` : ''}
-        ${evento.acoes?.podePagarBV ? `<button class="btn warning" onclick="irPagarBV('${evento.idEvento}')">Pagar BV</button>` : ''}
-        ${evento.acoes?.podeRegistrarFolha ? `<button class="btn secondary" onclick="irCustos('${evento.idEvento}')">Registrar Custos</button>` : ''}
-        ${divergencias.length ? `<button class="btn warning" onclick="reconciliarEvento('${evento.idEvento}')">Reconciliar</button>` : ''}
+        <button class="btn secondary" onclick="irEditar('${idEvento}')">Editar</button>
+        ${evento.acoes?.podeReceber ? `<button class="btn success" onclick="irReceber('${idEvento}')">Receber</button>` : ''}
+        ${evento.acoes?.podePagarBV ? `<button class="btn warning" onclick="irPagarBV('${idEvento}')">Pagar BV</button>` : ''}
+        ${evento.acoes?.podeRegistrarFolha ? `<button class="btn secondary" onclick="irCustos('${idEvento}')">Registrar Custos</button>` : ''}
+        ${divergencias.length ? `<button class="btn warning" onclick="reconciliarEvento('${idEvento}')">Reconciliar</button>` : ''}
       </div>
     `;
 
