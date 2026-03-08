@@ -1042,6 +1042,15 @@ async function iniciarCentralFinanceira() {
     // Pré-carrega vendedores
     vendedoresCache = await Auth.apiCall('listarVendedores') || [];
     console.log('✅ Vendedores carregados:', vendedoresCache.length);
+    // Pré-carrega badge da fiscalização sem mudar o modo atual
+    try {
+      const listaFin = await Auth.apiCall('listarEventosFinanceiros');
+      const eventosFin = Array.isArray(listaFin) ? listaFin : (Array.isArray(listaFin?.eventos) ? listaFin.eventos : []);
+      atualizarBadgeFiscalizacao_(eventosFin);
+    } catch (e) {
+      console.warn('⚠️ Não foi possível pré-carregar badge da fiscalização:', e);
+      atualizarBadgeFiscalizacao_([]);
+    }
   } catch (err) {
     console.error('Erro ao iniciar Central Financeira:', err);
     alert('Erro ao carregar dados iniciais');
