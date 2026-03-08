@@ -969,7 +969,6 @@
     const contratante = String(evento.nomeContratante || evento.nomeEvento || 'Evento');
     const tipoEvento = extrairTipoEvento(evento.nomeEvento, evento.tipoEvento);
     const idEvento = String(evento.idEvento || '');
-    const nomeEventoSeguro = escaparHtml(String(evento.nomeEvento || 'Evento'));
     const contratanteSeguro = escaparHtml(contratante);
     const tipoEventoSeguro = escaparHtml(tipoEvento);
     const idEventoSeguro = escaparHtml(idEvento);
@@ -979,7 +978,6 @@
         <div>
           <div class="titulo">${formatarData(evento.dataEvento)} - ${contratanteSeguro}</div>
           <div class="data">${idEventoSeguro} • ${tipoEventoSeguro}</div>
-          <div class="data" style="margin-top:4px">${nomeEventoSeguro}</div>
         </div>
         <div class="valor">R$ ${formatarValor(evento.valorContrato)}</div>
       </div>
