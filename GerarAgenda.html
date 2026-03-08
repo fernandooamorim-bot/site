@@ -441,7 +441,7 @@
 
         <label class="option-row" style="margin:0 0 12px 0" title="Inclui no final do texto um único link .ics com todos os eventos do período e lembrete de 3h antes.">
           <input type="checkbox" id="chkLinksCalendario" checked>
-          Incluir link único “Adicionar lembrete no calendário” (.ics • 3h antes)
+          Gerar link de lembrete no calendário
         </label>
 
         <div class="status" id="status"></div>
@@ -717,7 +717,7 @@
         const incluirLinksCalendario = !!document.getElementById('chkLinksCalendario')?.checked;
         const lembreteCalendarioMinutos = incluirLinksCalendario ? '180' : '';
         const baseUrlCalendario = (window.location && window.location.origin)
-          ? (window.location.origin + '/site')
+          ? window.location.origin
           : '';
 
         if (!dataInicio || !dataFim) {

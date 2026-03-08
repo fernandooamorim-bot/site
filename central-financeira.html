@@ -718,6 +718,31 @@ let ajustesDetalhadosComissao = [];
 let previewComissaoAtual = null;
 let fiscalEventosCache = [];
 
+const ALERTAS_LABEL = {
+  EVENTO_OCORREU_SEM_RECEBIMENTO: 'Evento já ocorreu e não teve recebimento',
+  EVENTO_OCORREU_RECEBIMENTO_PARCIAL: 'Evento ocorreu com recebimento parcial',
+  INCONSISTENCIA_RECEBIDO_MAIOR_QUE_CONTRATO: 'Recebido maior que o valor do contrato',
+  BV_PENDENTE: 'BV ainda não foi pago',
+  FOLHA_NAO_REGISTRADA: 'Folha de custos não registrada',
+  EVENTO_CANCELADO_COM_RECEBIMENTO: 'Evento cancelado com recebimento',
+  COMISSAO_PENDENTE: 'Comissão do vendedor pendente ou parcial',
+  COMISSAO_INCONSISTENTE: 'Inconsistência grave na comissão do vendedor',
+  COMISSAO_NAO_PAGA_APOS_QUITACAO: 'Evento quitado, mas comissão ainda não foi paga',
+  COMISSAO_PAGA_MAIOR_QUE_ESPERADO: 'Comissão paga maior que o valor esperado',
+  COMISSAO_GERADA_MAIOR_QUE_ESPERADO: 'Comissão gerada maior que o valor esperado',
+  EVENTO_QUITADO_COM_BV_PENDENTE: 'Evento quitado com BV pendente',
+  EVENTO_QUITADO_COM_NF_PENDENTE: 'Evento quitado com NF pendente',
+  DUPLICIDADE_BV_PROCESSADO: 'Duplicidade de BV processado',
+  DUPLICIDADE_NF_PROCESSADO: 'Duplicidade de NF processada',
+  DUPLICIDADE_FOLHA_PROCESSADA: 'Duplicidade de folha processada'
+};
+
+const DIVERGENCIAS_LABEL = {
+  STATUS_BV_ESPELHO_DIVERGENTE: 'Status de BV divergente no espelho',
+  STATUS_NF_ESPELHO_DIVERGENTE: 'Status de NF divergente no espelho',
+  FOLHA_CUSTO_ESPELHO_DIVERGENTE: 'Valor da folha divergente no espelho'
+};
+
 const buttons = document.querySelectorAll('.intent button');
 const form = document.getElementById('form');
 const resumo = document.getElementById('resumo');
@@ -731,6 +756,21 @@ function setIntentButtonsEnabled_(enabled) {
 }
 
 setIntentButtonsEnabled_(false);
+
+function humanizarCodigoTecnico_(codigo) {
+  return String(codigo || '')
+    .replace(/_/g, ' ')
+    .toLowerCase()
+    .replace(/(^|\s)\S/g, c => c.toUpperCase());
+}
+
+function labelAlerta_(codigo) {
+  return ALERTAS_LABEL[codigo] || humanizarCodigoTecnico_(codigo);
+}
+
+function labelDivergencia_(codigo) {
+  return DIVERGENCIAS_LABEL[codigo] || humanizarCodigoTecnico_(codigo);
+}
 
 function aplicarPermissoesTelaFinanceira() {
   if (!ehSocio_()) return;
@@ -1482,13 +1522,15 @@ function renderListaFiscalizacao_(lista) {
     const contratante = escaparHtml_(String(ev.nomeContratante || 'N/A'));
     const nomeEvento = escaparHtml_(String(ev.nomeEvento || 'Evento'));
     const idEvento = String(ev.idEvento || '');
+    const dataEvento = formatarDataFiscalizacao_(ev.dataEvento);
+    const tipoEvento = escaparHtml_(String(ev.tipoEvento || extrairTipoEventoFiscalizacao_(ev.nomeEvento) || 'Evento'));
 
     return `
       <div class="${cardClasse}">
         <div class="fiscal-top">
           <div>
-            <div><strong>${nomeEvento}</strong></div>
-            <div class="fiscal-id">${escaparHtml_(idEvento)} • ${contratante}</div>
+            <div><strong>${dataEvento} - ${contratante}</strong></div>
+            <div class="fiscal-id">${escaparHtml_(idEvento)} • ${tipoEvento}</div>
           </div>
           <div><strong>${escaparHtml_(String(ev.status || 'ok').toUpperCase())}</strong></div>
         </div>
@@ -1498,8 +1540,8 @@ function renderListaFiscalizacao_(lista) {
           BV: R$ ${bvValor.toFixed(2)} (${escaparHtml_(bvStatus)})
         </div>
         <div class="fiscal-tags">
-          ${alertas.map(a => `<span class="fiscal-tag">⚠️ ${escaparHtml_(a)}</span>`).join('')}
-          ${divergencias.map(d => `<span class="fiscal-tag">🧩 ${escaparHtml_(d)}</span>`).join('')}
+          ${alertas.map(a => `<span class="fiscal-tag">⚠️ ${escaparHtml_(labelAlerta_(a))}</span>`).join('')}
+          ${divergencias.map(d => `<span class="fiscal-tag">🧩 ${escaparHtml_(labelDivergencia_(d))}</span>`).join('')}
           ${ev?.metadados?.legado ? '<span class="fiscal-tag">📦 LEGADO</span>' : ''}
         </div>
         <div class="fiscal-actions">
@@ -1513,6 +1555,26 @@ function renderListaFiscalizacao_(lista) {
       </div>
     `;
   }).join('');
+}
+
+function formatarDataFiscalizacao_(valor) {
+  if (!valor) return '--/--/----';
+  if (Object.prototype.toString.call(valor) === '[object Date]' && !isNaN(valor.getTime())) {
+    const d = valor;
+    return String(d.getDate()).padStart(2, '0') + '/' + String(d.getMonth() + 1).padStart(2, '0') + '/' + d.getFullYear();
+  }
+  const str = String(valor).trim();
+  const br = str.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (br) return str;
+  const iso = str.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (iso) return iso[3] + '/' + iso[2] + '/' + iso[1];
+  return str;
+}
+
+function extrairTipoEventoFiscalizacao_(nomeEvento) {
+  const txt = String(nomeEvento || '');
+  const pos = txt.indexOf(' - ');
+  return pos > 0 ? txt.slice(0, pos) : txt;
 }
 
 function abrirEdicaoEventoFinanceiro_(idEvento) {
@@ -1695,8 +1757,8 @@ async function selectEvento(ev){
     <div>• BV: R$ ${valorBV.toFixed(2)} — <strong>${bvBadge}</strong></div>
     <div>• NF: ${fin.temNF ? ('R$ ' + valorNF.toFixed(2)) : 'Não configurada'} — <strong>${nfBadge}</strong></div>
     <div>• Folha de custo: R$ ${folhaValor.toFixed(2)} — <strong>${folhaBadge}</strong></div>
-    ${alertas.length ? `<div class="divider"></div><div><strong>Alertas:</strong> ${alertas.map(a => `⚠️ ${a}`).join(' • ')}</div>` : ''}
-    ${divergencias.length ? `<div style="margin-top:6px"><strong>Divergências:</strong> ${divergencias.map(d => `🧩 ${d}`).join(' • ')}</div>` : ''}
+    ${alertas.length ? `<div class="divider"></div><div><strong>Alertas:</strong> ${alertas.map(a => `⚠️ ${labelAlerta_(a)}`).join(' • ')}</div>` : ''}
+    ${divergencias.length ? `<div style="margin-top:6px"><strong>Divergências:</strong> ${divergencias.map(d => `🧩 ${labelDivergencia_(d)}`).join(' • ')}</div>` : ''}
   `;
 
   if (mode === 'obrigacao') {
