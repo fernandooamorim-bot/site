@@ -302,7 +302,7 @@
       justify-content: center;
       z-index: 9999;
       flex-direction: column;
-      gap: 14px;
+      gap: 10px;
       color: rgba(255,255,255,0.7);
       font-family: var(--font);
       font-size: 14px;
@@ -321,6 +321,20 @@
     }
 
     @keyframes spin { to { transform: rotate(360deg); } }
+
+    #loadingText {
+      font-size: 15px;
+      font-weight: 700;
+      color: rgba(255,255,255,0.92);
+      letter-spacing: -0.2px;
+    }
+
+    #loadingSubtext {
+      font-size: 12px;
+      font-weight: 500;
+      color: rgba(255,255,255,0.72);
+      min-height: 16px;
+    }
 
     /* ============================================
        INTENT BUTTONS (operation selector)
@@ -346,6 +360,8 @@
       font-family: var(--font);
       transition: all 0.2s;
       box-shadow: var(--shadow-sm);
+      position: relative;
+      overflow: hidden;
     }
 
     .intent button:hover {
@@ -359,6 +375,13 @@
       background: var(--navy-600);
       color: white;
       box-shadow: 0 2px 8px rgba(30,58,95,0.2);
+    }
+
+    .intent button[disabled] {
+      opacity: 0.6;
+      cursor: not-allowed !important;
+      transform: none !important;
+      box-shadow: none !important;
     }
 
     /* ============================================
@@ -378,6 +401,12 @@
       min-width: 280px;
       border: 1px solid var(--gray-200);
       box-shadow: var(--shadow-sm);
+      transition: box-shadow 0.2s, border-color 0.2s;
+    }
+
+    .box:hover {
+      border-color: var(--gray-300);
+      box-shadow: var(--shadow-md);
     }
 
     .box h3 {
@@ -457,6 +486,7 @@
       transition: all 0.2s;
       width: 100%;
       letter-spacing: -0.1px;
+      position: relative;
     }
 
     .primary {
@@ -488,6 +518,31 @@
 
     .danger:hover {
       background: #dc2626;
+    }
+
+    .btn[disabled] {
+      opacity: 0.6;
+      cursor: not-allowed !important;
+      transform: none !important;
+      box-shadow: none !important;
+    }
+
+    .btn.is-loading {
+      pointer-events: none;
+    }
+
+    .btn.is-loading::after {
+      content: '';
+      width: 14px;
+      height: 14px;
+      border: 2px solid rgba(255,255,255,0.35);
+      border-top-color: rgba(255,255,255,0.95);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      position: absolute;
+      right: 10px;
+      top: 50%;
+      transform: translateY(-50%);
     }
 
     /* ============================================
@@ -679,8 +734,10 @@ console.log('🚀 central-financeira.html iniciado (frontend externo)');
 
 window.addEventListener('load', async () => {
   try {
+    showLoading('Abrindo Central Financeira...', 'Inicializando sessão');
     if (!window.Auth) throw new Error('AUTH_NOT_LOADED');
 
+    updateLoadingSubtext_('Validando autenticação');
     const auth = await Auth.apiCall('verificarUsuario');
     if (!auth || !auth.ok) throw new Error('NOT_AUTH');
     perfilAtual = String(auth.user?.perfil || '');
@@ -695,25 +752,35 @@ window.addEventListener('load', async () => {
     console.log('🔐 Usuário autenticado:', auth.user?.email);
     aplicarPermissoesTelaFinanceira();
 
+    showLoading('Carregando Central Financeira...', 'Preparando dados iniciais');
     await iniciarCentralFinanceira();
     appReady = true;
     setIntentButtonsEnabled_(true);
+    updateLoadingSubtext_('Aplicando rota de entrada');
     const consumiuRota = await aplicarRotaInicialFinanceira_();
     if (!consumiuRota && mode) render();
+    hideLoading();
 
   } catch (err) {
+    hideLoading();
     console.error('Erro de autenticação:', err);
     alert('Sessão expirada. Volte ao menu.');
     window.location.href = 'index.html';
   }
 });
 
-function showLoading(txt){
+function showLoading(txt, subtxt){
   document.getElementById('loadingText').innerText = txt || 'Processando...';
+  updateLoadingSubtext_(subtxt || '');
   document.getElementById('loading').classList.add('active');
 }
 function hideLoading(){
   document.getElementById('loading').classList.remove('active');
+}
+function updateLoadingSubtext_(subtxt){
+  const el = document.getElementById('loadingSubtext');
+  if (!el) return;
+  el.innerText = subtxt || '';
 }
 
 let mode = null;
@@ -2432,16 +2499,20 @@ function avaliarValorRecebimento(valorDigitado){
 
 function bloquearBotao(btn) {
   if (!btn) return;
+  if (typeof btn.dataset.originalLabel === 'undefined' || btn.dataset.originalLabel === '') {
+    btn.dataset.originalLabel = btn.innerHTML;
+  }
   btn.disabled = true;
-  btn.style.opacity = '0.6';
-  btn.style.cursor = 'not-allowed';
+  btn.classList.add('is-loading');
 }
 
 function liberarBotao(btn) {
   if (!btn) return;
   btn.disabled = false;
-  btn.style.opacity = '1';
-  btn.style.cursor = 'pointer';
+  btn.classList.remove('is-loading');
+  if (btn.dataset.originalLabel) {
+    btn.innerHTML = btn.dataset.originalLabel;
+  }
 }
 
 function resetRecebimentoForm() {
@@ -2635,6 +2706,7 @@ function executarFechamentoV2(){
 <div id="loading" class="loading-overlay">
   <div class="loading-spinner"></div>
   <div id="loadingText">Processando...</div>
+  <div id="loadingSubtext"></div>
 </div>
 
   <!-- Bottom Navigation — Padrão Global -->
