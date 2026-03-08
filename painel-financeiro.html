@@ -549,14 +549,17 @@
 </header>
 
 <div class="filtros">
-  <button class="btn secondary" onclick="aplicarFiltro('TODOS')">Todos</button>
-  <button class="btn warning" onclick="aplicarFiltro('CRITICOS')">🚨 Críticos</button>
-  <button class="btn warning" onclick="aplicarFiltro('COM_DIVERGENCIA')">🧩 Divergências</button>
-  <button class="btn warning" onclick="aplicarFiltro('QUITADO_BV_PENDENTE')">💥 Quitado + BV pendente</button>
-  <button class="btn warning" onclick="aplicarFiltro('COMISSAO_PENDENTE')">💼 Comissão pendente</button>
-  <button class="btn warning" onclick="aplicarFiltro('COMISSAO_PROBLEMA')">🚨 Problema de comissão</button>
-  <button class="btn secondary" onclick="aplicarFiltro('LEGADO')">📦 Legado</button>
-  <button class="btn success" onclick="aplicarFiltro('OK')">✅ Sem pendências</button>
+  <button id="filtro-TODOS" data-filtro="TODOS" class="btn secondary" onclick="aplicarFiltro('TODOS')">Todos <span class="muted" id="filtro-count-TODOS"></span></button>
+  <button id="filtro-CRITICOS" data-filtro="CRITICOS" class="btn warning" onclick="aplicarFiltro('CRITICOS')">🚨 Críticos <span class="muted" id="filtro-count-CRITICOS"></span></button>
+  <button id="filtro-COM_DIVERGENCIA" data-filtro="COM_DIVERGENCIA" class="btn warning" onclick="aplicarFiltro('COM_DIVERGENCIA')">🧩 Divergências <span class="muted" id="filtro-count-COM_DIVERGENCIA"></span></button>
+  <button id="filtro-SEM_RECEBIMENTO" data-filtro="SEM_RECEBIMENTO" class="btn warning" onclick="aplicarFiltro('SEM_RECEBIMENTO')">🔴 Sem recebimento <span class="muted" id="filtro-count-SEM_RECEBIMENTO"></span></button>
+  <button id="filtro-RECEBIMENTO_PARCIAL" data-filtro="RECEBIMENTO_PARCIAL" class="btn warning" onclick="aplicarFiltro('RECEBIMENTO_PARCIAL')">🟠 Recebimento parcial <span class="muted" id="filtro-count-RECEBIMENTO_PARCIAL"></span></button>
+  <button id="filtro-PENDENCIA_RECEBIMENTO" data-filtro="PENDENCIA_RECEBIMENTO" class="btn warning" onclick="aplicarFiltro('PENDENCIA_RECEBIMENTO')">💰 Pendência de recebimento <span class="muted" id="filtro-count-PENDENCIA_RECEBIMENTO"></span></button>
+  <button id="filtro-QUITADO_BV_PENDENTE" data-filtro="QUITADO_BV_PENDENTE" class="btn warning" onclick="aplicarFiltro('QUITADO_BV_PENDENTE')">💥 Quitado + BV pendente <span class="muted" id="filtro-count-QUITADO_BV_PENDENTE"></span></button>
+  <button id="filtro-COMISSAO_PENDENTE" data-filtro="COMISSAO_PENDENTE" class="btn warning" onclick="aplicarFiltro('COMISSAO_PENDENTE')">💼 Comissão pendente <span class="muted" id="filtro-count-COMISSAO_PENDENTE"></span></button>
+  <button id="filtro-COMISSAO_PROBLEMA" data-filtro="COMISSAO_PROBLEMA" class="btn warning" onclick="aplicarFiltro('COMISSAO_PROBLEMA')">🚨 Problema de comissão <span class="muted" id="filtro-count-COMISSAO_PROBLEMA"></span></button>
+  <button id="filtro-LEGADO" data-filtro="LEGADO" class="btn secondary" onclick="aplicarFiltro('LEGADO')">📦 Legado <span class="muted" id="filtro-count-LEGADO"></span></button>
+  <button id="filtro-OK" data-filtro="OK" class="btn success" onclick="aplicarFiltro('OK')">✅ Sem pendências <span class="muted" id="filtro-count-OK"></span></button>
 </div>
 <div class="modo-visual">
   <button id="btnModoDetalhado" class="btn secondary" onclick="setModoVisual('CARDS')">🧾 Detalhado</button>
@@ -667,14 +670,13 @@
   function renderizarEventos(eventos) {
     EVENTOS_CACHE = eventos;
     atualizarBotoesModoVisual();
+    atualizarContadoresFiltros();
     aplicarFiltro(FILTRO_ATUAL, false);
     return;
   }
 
-  function aplicarFiltro(tipo, recarregar = true) {
-    FILTRO_ATUAL = tipo;
-
-    let lista = EVENTOS_CACHE;
+  function filtrarListaPorTipo(listaBase, tipo) {
+    let lista = Array.isArray(listaBase) ? [...listaBase] : [];
 
     if (tipo === 'COMISSAO_PENDENTE') {
       lista = lista.filter(e =>
@@ -689,6 +691,27 @@
         e.comissao &&
         e.comissao.existe === true &&
         e.comissao.status === 'ERRO'
+      );
+    }
+
+    if (tipo === 'SEM_RECEBIMENTO') {
+      lista = lista.filter(e =>
+        Array.isArray(e.alertas) && e.alertas.includes('EVENTO_OCORREU_SEM_RECEBIMENTO')
+      );
+    }
+
+    if (tipo === 'RECEBIMENTO_PARCIAL') {
+      lista = lista.filter(e =>
+        Array.isArray(e.alertas) && e.alertas.includes('EVENTO_OCORREU_RECEBIMENTO_PARCIAL')
+      );
+    }
+
+    if (tipo === 'PENDENCIA_RECEBIMENTO') {
+      lista = lista.filter(e =>
+        Array.isArray(e.alertas) && (
+          e.alertas.includes('EVENTO_OCORREU_SEM_RECEBIMENTO') ||
+          e.alertas.includes('EVENTO_OCORREU_RECEBIMENTO_PARCIAL')
+        )
       );
     }
 
@@ -730,10 +753,47 @@
     }
 
     if (tipo === 'TODOS') {
-      lista = EVENTOS_CACHE;
+      return Array.isArray(listaBase) ? [...listaBase] : [];
     }
 
+    return lista;
+  }
+
+  function atualizarContadoresFiltros() {
+    const filtros = [
+      'TODOS',
+      'CRITICOS',
+      'COM_DIVERGENCIA',
+      'SEM_RECEBIMENTO',
+      'RECEBIMENTO_PARCIAL',
+      'PENDENCIA_RECEBIMENTO',
+      'QUITADO_BV_PENDENTE',
+      'COMISSAO_PENDENTE',
+      'COMISSAO_PROBLEMA',
+      'LEGADO',
+      'OK'
+    ];
+
+    filtros.forEach(tipo => {
+      const count = filtrarListaPorTipo(EVENTOS_CACHE, tipo).length;
+      const countEl = document.getElementById('filtro-count-' + tipo);
+      const btnEl = document.getElementById('filtro-' + tipo);
+      if (countEl) countEl.textContent = `(${count})`;
+      if (btnEl && tipo !== 'TODOS') {
+        const shouldDisable = count === 0 && FILTRO_ATUAL !== tipo;
+        btnEl.disabled = shouldDisable;
+        btnEl.style.opacity = shouldDisable ? '0.55' : '1';
+        btnEl.style.cursor = shouldDisable ? 'not-allowed' : 'pointer';
+      }
+    });
+  }
+
+  function aplicarFiltro(tipo, recarregar = true) {
+    FILTRO_ATUAL = tipo;
+    const lista = filtrarListaPorTipo(EVENTOS_CACHE, tipo);
+
     listaFiltradaAtual = lista;
+    atualizarContadoresFiltros();
 
     renderAtual();
   }
