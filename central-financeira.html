@@ -1003,7 +1003,7 @@ function atualizarBadgeFiscalizacao_(lista) {
 
   const eventos = Array.isArray(lista) ? lista : [];
   const criticos = eventos.filter(ev => {
-    const alertas = Array.isArray(ev.alertas) ? ev.alertas : [];
+    const alertas = (Array.isArray(ev.alertas) ? ev.alertas : []).filter(a => !alertaEhInformativo_(a));
     const divergencias = Array.isArray(ev.divergencias) ? ev.divergencias : [];
     return divergencias.length > 0 || alertas.length > 0;
   }).length;
@@ -1019,6 +1019,10 @@ function atualizarBadgeFiscalizacao_(lista) {
   if (aux) {
     aux.textContent = criticos > 0 ? `${criticos} evento(s) com alerta/divergência` : '';
   }
+}
+
+function alertaEhInformativo_(codigo) {
+  return String(codigo || '').trim() === 'INCONSISTENCIA_RECEBIDO_MAIOR_QUE_CONTRATO';
 }
 
 function humanizarCodigoTecnico_(codigo) {
@@ -1778,10 +1782,11 @@ function aplicarFiltrosFiscalizacao_() {
   if (tipo !== 'TODOS') {
     lista = lista.filter(ev => {
       const alertas = Array.isArray(ev.alertas) ? ev.alertas : [];
+      const alertasCriticos = alertas.filter(a => !alertaEhInformativo_(a));
       const divergencias = Array.isArray(ev.divergencias) ? ev.divergencias : [];
       const divergenciasAuditoria = fiscalDivergenciasAuditoriaMap.get(String(ev.idEvento || '')) || [];
       const legado = !!(ev.metadados && ev.metadados.legado);
-      if (tipo === 'COM_ALERTA') return alertas.length > 0;
+      if (tipo === 'COM_ALERTA') return alertasCriticos.length > 0;
       if (tipo === 'COM_DIVERGENCIA') return divergencias.length > 0 || divergenciasAuditoria.length > 0;
       if (tipo === 'QUITADO_BV_PENDENTE') return alertas.includes('EVENTO_QUITADO_COM_BV_PENDENTE');
       if (tipo === 'QUITADO_NF_PENDENTE') return alertas.includes('EVENTO_QUITADO_COM_NF_PENDENTE');
@@ -1804,9 +1809,10 @@ function renderListaFiscalizacao_(lista) {
 
   box.innerHTML = lista.map(ev => {
     const alertas = Array.isArray(ev.alertas) ? ev.alertas : [];
+    const alertasCriticos = alertas.filter(a => !alertaEhInformativo_(a));
     const divergencias = Array.isArray(ev.divergencias) ? ev.divergencias : [];
     const divergenciasAuditoria = fiscalDivergenciasAuditoriaMap.get(String(ev.idEvento || '')) || [];
-    const cardClasse = (divergencias.length > 0 || divergenciasAuditoria.length > 0) ? 'fiscal-card erro' : (alertas.length > 0 ? 'fiscal-card alerta' : 'fiscal-card');
+    const cardClasse = (divergencias.length > 0 || divergenciasAuditoria.length > 0) ? 'fiscal-card erro' : (alertasCriticos.length > 0 ? 'fiscal-card alerta' : 'fiscal-card');
     const bvStatus = String(ev?.bv?.status || ev?.custos?.bv?.status || 'N/A');
     const bvValor = Number(ev?.bv?.valor || ev?.custos?.bv?.valor || 0);
     const podePagarBV = !!(ev?.acoes?.podePagarBV);
@@ -1831,7 +1837,7 @@ function renderListaFiscalizacao_(lista) {
           BV: R$ ${bvValor.toFixed(2)} (${escaparHtml_(bvStatus)})
         </div>
         <div class="fiscal-tags">
-          ${alertas.map(a => `<span class="fiscal-tag">⚠️ ${escaparHtml_(labelAlerta_(a))}</span>`).join('')}
+          ${alertas.map(a => `<span class="fiscal-tag">${alertaEhInformativo_(a) ? 'ℹ️' : '⚠️'} ${escaparHtml_(labelAlerta_(a))}</span>`).join('')}
           ${divergencias.map(d => `<span class="fiscal-tag">🧩 ${escaparHtml_(labelDivergencia_(d))}</span>`).join('')}
           ${divergenciasAuditoria.slice(0, 3).map(d => `<span class="fiscal-tag">🧩 ${escaparHtml_(humanizarCodigoTecnico_(d))}</span>`).join('')}
           ${divergenciasAuditoria.length > 3 ? `<span class="fiscal-tag">🧩 +${divergenciasAuditoria.length - 3} divergências</span>` : ''}

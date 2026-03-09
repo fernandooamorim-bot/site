@@ -718,7 +718,6 @@
     if (tipo === 'CRITICOS') {
       lista = lista.filter(e =>
         (Array.isArray(e.alertas) && (
-          e.alertas.includes('INCONSISTENCIA_RECEBIDO_MAIOR_QUE_CONTRATO') ||
           e.alertas.includes('EVENTO_CANCELADO_COM_RECEBIMENTO') ||
           e.alertas.includes('EVENTO_QUITADO_COM_BV_PENDENTE') ||
           e.alertas.includes('EVENTO_QUITADO_COM_NF_PENDENTE') ||
