@@ -1319,9 +1319,31 @@
     const session = localStorage.getItem('auth_session');
 
     if (email && perfil && session) {
-      onLoginSuccess({ email, perfil });
-      aplicarPermissoes({ email, perfil });
-      return;
+      try {
+        const auth = await Auth.apiCall('verificarUsuario');
+        if (auth && auth.ok && auth.user) {
+          onLoginSuccess({
+            email: auth.user.email,
+            nome: auth.user.nome,
+            perfil: auth.user.perfil
+          });
+          aplicarPermissoes({
+            email: auth.user.email,
+            nome: auth.user.nome,
+            perfil: auth.user.perfil
+          });
+          return;
+        }
+      } catch (_) {
+        if (window.Auth && typeof Auth.clearAuthStorage === 'function') {
+          Auth.clearAuthStorage();
+        } else {
+          localStorage.removeItem('auth_email');
+          localStorage.removeItem('auth_nome');
+          localStorage.removeItem('auth_perfil');
+          localStorage.removeItem('auth_session');
+        }
+      }
     }
 
     // Sem sessão → mostra login
