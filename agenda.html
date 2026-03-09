@@ -2947,6 +2947,9 @@ renderizarEventosDentro(evento) {
             UI.showLoading();
           }
 
+          // Validação não-bloqueante: mantém boot instantâneo e encerra sessão inválida rapidamente.
+          AgendaController.validarSessaoEmSegundoPlano();
+
           // 2. Carrega config e eventos em paralelo para reduzir tempo de boot.
           await Promise.all([
             AgendaController.carregarConfiguracoes(),
@@ -2980,6 +2983,39 @@ renderizarEventosDentro(evento) {
         } catch (error) {
           Utils.error('❌ Erro ao inicializar:', error);
           UI.showError('Erro ao carregar a agenda: ' + error.message);
+        }
+      },
+      async validarSessaoEmSegundoPlano() {
+        try {
+          if (!window.Auth || typeof Auth.apiCall !== 'function') return;
+          const auth = await Auth.apiCall('verificarUsuario');
+          if (!auth || !auth.ok || !auth.user) {
+            const codigo = String(auth && auth.codigo ? auth.codigo : '').trim();
+            if (
+              codigo === 'SESSAO_INVALIDA' ||
+              codigo === 'SESSAO_EXPIRADA' ||
+              codigo === 'USUARIO_NAO_ENCONTRADO' ||
+              codigo === 'USUARIO_INATIVO' ||
+              codigo === 'SEM_PERMISSAO' ||
+              !auth.ok
+            ) {
+              throw new Error('NOT_AUTH');
+            }
+            return;
+          }
+        } catch (err) {
+          const msg = String((err && err.message) || err || '');
+          const ehErroAuth = /sess[aã]o|auth|usu[aá]rio|not_auth|n[aã]o autenticado|permiss[aã]o/i.test(msg);
+          if (ehErroAuth) {
+            Utils.error('Sessão inválida detectada (agenda):', err);
+            if (window.Auth && typeof Auth.forceLogout === 'function') {
+              Auth.forceLogout('Sua sessão foi encerrada. Faça login novamente.');
+            } else {
+              window.location.href = 'index.html';
+            }
+            return;
+          }
+          Utils.error('Validação de sessão (background) indisponível no momento:', err);
         }
       },
       bootstrapInstantaneoComCache() {

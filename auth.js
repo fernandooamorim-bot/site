@@ -10,6 +10,29 @@
 
   const Auth = {};
 
+  Auth.clearAuthStorage = function () {
+    localStorage.removeItem('auth_email');
+    localStorage.removeItem('auth_nome');
+    localStorage.removeItem('auth_perfil');
+    localStorage.removeItem('auth_session');
+  };
+
+  Auth.forceLogout = function (mensagem) {
+    try {
+      Auth.clearAuthStorage();
+    } catch (_) {}
+
+    if (mensagem) {
+      try { alert(mensagem); } catch (_) {}
+    }
+
+    try {
+      window.location.href = 'index.html';
+    } catch (_) {
+      location.reload();
+    }
+  };
+
   // ======================================================
   // INICIALIZA GOOGLE OAUTH
   // ======================================================
@@ -136,8 +159,18 @@
         throw new Error(data.error);
       }
 
-      if (data && data.sucesso === false && (data.codigo === 'SESSAO_INVALIDA' || data.codigo === 'SESSAO_EXPIRADA')) {
-        localStorage.removeItem('auth_session');
+      if (
+        data &&
+        data.sucesso === false &&
+        (
+          data.codigo === 'SESSAO_INVALIDA' ||
+          data.codigo === 'SESSAO_EXPIRADA' ||
+          data.codigo === 'USUARIO_NAO_ENCONTRADO' ||
+          data.codigo === 'USUARIO_INATIVO'
+        )
+      ) {
+        Auth.forceLogout('Sua sessão foi encerrada. Faça login novamente.');
+        throw new Error(data.mensagem || 'Sessão inválida');
       }
 
       return data;
@@ -152,7 +185,7 @@
   // ======================================================
 
   Auth.logout = function () {
-    localStorage.clear();
+    Auth.clearAuthStorage();
     location.reload();
   };
 
