@@ -1691,6 +1691,7 @@ function renderFiscalizacao() {
         <option value="TODOS">Todos</option>
         <option value="COM_ALERTA">Com alerta</option>
         <option value="COM_DIVERGENCIA">Com divergência</option>
+        <option value="AVISO_RECEBIDO_MAIOR">Aviso: recebido maior que contrato</option>
         <option value="QUITADO_BV_PENDENTE">Quitado + BV pendente</option>
         <option value="QUITADO_NF_PENDENTE">Quitado + NF pendente</option>
         <option value="SEM_FOLHA">Sem folha</option>
@@ -1788,6 +1789,7 @@ function aplicarFiltrosFiscalizacao_() {
       const legado = !!(ev.metadados && ev.metadados.legado);
       if (tipo === 'COM_ALERTA') return alertasCriticos.length > 0;
       if (tipo === 'COM_DIVERGENCIA') return divergencias.length > 0 || divergenciasAuditoria.length > 0;
+      if (tipo === 'AVISO_RECEBIDO_MAIOR') return alertas.includes('INCONSISTENCIA_RECEBIDO_MAIOR_QUE_CONTRATO');
       if (tipo === 'QUITADO_BV_PENDENTE') return alertas.includes('EVENTO_QUITADO_COM_BV_PENDENTE');
       if (tipo === 'QUITADO_NF_PENDENTE') return alertas.includes('EVENTO_QUITADO_COM_NF_PENDENTE');
       if (tipo === 'SEM_FOLHA') return alertas.includes('FOLHA_NAO_REGISTRADA');
@@ -1795,6 +1797,41 @@ function aplicarFiltrosFiscalizacao_() {
       return true;
     });
   }
+
+  // Ordenação de prioridade para "Todos":
+  // 1) divergências/alertas críticos
+  // 2) avisos informativos
+  // 3) sem pendências
+  const prioridadeFiscal_ = function (ev) {
+    const alertas = Array.isArray(ev?.alertas) ? ev.alertas : [];
+    const alertasCriticos = alertas.filter(a => !alertaEhInformativo_(a));
+    const divergencias = Array.isArray(ev?.divergencias) ? ev.divergencias : [];
+    const divergenciasAuditoria = fiscalDivergenciasAuditoriaMap.get(String(ev?.idEvento || '')) || [];
+    if (divergencias.length > 0 || divergenciasAuditoria.length > 0 || alertasCriticos.length > 0) return 0;
+    if (alertas.length > 0) return 1;
+    return 2;
+  };
+
+  const normalizarDataFiscalSort_ = function (valor) {
+    if (!valor) return Number.MAX_SAFE_INTEGER;
+    if (Object.prototype.toString.call(valor) === '[object Date]' && !isNaN(valor.getTime())) {
+      return valor.getTime();
+    }
+    const s = String(valor).trim();
+    if (/^\d{2}\/\d{2}\/\d{4}$/.test(s)) {
+      const [d, m, a] = s.split('/').map(Number);
+      return new Date(a, m - 1, d).getTime();
+    }
+    const dt = new Date(s);
+    return isNaN(dt.getTime()) ? Number.MAX_SAFE_INTEGER : dt.getTime();
+  };
+
+  lista.sort((a, b) => {
+    const pa = prioridadeFiscal_(a);
+    const pb = prioridadeFiscal_(b);
+    if (pa !== pb) return pa - pb;
+    return normalizarDataFiscalSort_(a?.dataEvento) - normalizarDataFiscalSort_(b?.dataEvento);
+  });
 
   renderListaFiscalizacao_(lista);
 }
