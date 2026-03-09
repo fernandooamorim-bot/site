@@ -308,6 +308,29 @@
       display: none;
     }
 
+    .mobile-more-options {
+      display: none;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      width: 100%;
+      padding: 10px 16px;
+      border: none;
+      border-top: 1px solid var(--gray-200);
+      background: var(--bg-card);
+      color: var(--navy-600);
+      font-family: var(--font);
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: var(--transition);
+    }
+
+    .mobile-more-options:hover {
+      background: var(--gray-50);
+      color: var(--navy-700);
+    }
+
     .view-toolbar {
       display: none;
       align-items: center;
@@ -1253,6 +1276,28 @@
        RESPONSIVE
        ============================================ */
     @media (max-width: 640px) {
+      .mobile-more-options {
+        display: inline-flex;
+      }
+
+      .filters-container.mobile-secondary-collapsed .view-toolbar,
+      .filters-container.mobile-secondary-collapsed .toggle-filters,
+      .filters-container.mobile-secondary-collapsed .filters-advanced {
+        display: none !important;
+      }
+
+      .filters-container.mobile-secondary-open .view-toolbar.show {
+        display: flex !important;
+      }
+
+      .filters-container.mobile-secondary-open .toggle-filters {
+        display: flex !important;
+      }
+
+      .filters-container.mobile-secondary-open .filters-advanced.show {
+        display: block !important;
+      }
+
       .view-toolbar {
         flex-direction: column;
         align-items: stretch;
@@ -1420,6 +1465,11 @@
       <button class="filter-btn" data-filter="mesAtual">Mês Atual</button>
       <button class="filter-btn" data-filter="todos">Todos</button>
     </div>
+
+    <button class="mobile-more-options" id="mobileMoreOptions" aria-expanded="false">
+      <i data-lucide="sliders-horizontal" style="width:14px;height:14px"></i>
+      <span id="mobileMoreOptionsText">Mais opções</span>
+    </button>
 
     <div class="view-toolbar" id="viewToolbar">
       <div class="view-mode">
@@ -1605,7 +1655,8 @@ if (!AUTH.email) {
       modoVisualizacao: 'cards',
       filtroAtivo: 'todos',
       ultimaAtualizacao: null,
-      loading: false
+      loading: false,
+      mobileSecondaryOpen: false
 
     };
 
@@ -1632,6 +1683,10 @@ if (!AUTH.email) {
     function ehPerfilGestorAgenda_(perfil) {
       const p = normalizarPerfilAgenda_(perfil);
       return p === 'proprietario' || p === 'socio' || p === 'administrador' || p === 'admin';
+    }
+
+    function isMobileAgenda_() {
+      return window.matchMedia('(max-width: 640px)').matches;
     }
 
     function perfilExibicaoAgenda_(perfil) {
@@ -1988,6 +2043,31 @@ calcularDiasIntervalo(dataInicio, dataFim) {
             setTimeout(() => el.remove(), 260);
           }, Math.max(900, Number(duracaoMs) || 3200));
         } catch (_) {}
+      },
+
+      atualizarEstadoControlesMobile_() {
+        const container = document.querySelector('.filters-container');
+        const btn = document.getElementById('mobileMoreOptions');
+        const txt = document.getElementById('mobileMoreOptionsText');
+        if (!container || !btn) return;
+
+        if (!isGestorAgenda() || !isMobileAgenda_()) {
+          container.classList.remove('mobile-secondary-open', 'mobile-secondary-collapsed');
+          btn.style.display = isGestorAgenda() ? '' : 'none';
+          btn.setAttribute('aria-expanded', 'false');
+          if (txt) txt.textContent = 'Mais opções';
+          return;
+        }
+
+        container.classList.toggle('mobile-secondary-open', !!AppState.mobileSecondaryOpen);
+        container.classList.toggle('mobile-secondary-collapsed', !AppState.mobileSecondaryOpen);
+        btn.setAttribute('aria-expanded', AppState.mobileSecondaryOpen ? 'true' : 'false');
+        if (txt) txt.textContent = AppState.mobileSecondaryOpen ? 'Ocultar opções' : 'Mais opções';
+      },
+
+      alternarControlesMobile_() {
+        AppState.mobileSecondaryOpen = !AppState.mobileSecondaryOpen;
+        UI.atualizarEstadoControlesMobile_();
       },
 
       atualizarHeader() {
@@ -2942,8 +3022,10 @@ renderizarEventosDentro(evento) {
 
       aplicarRestricoesPerfil() {
         const viewToolbar = document.getElementById('viewToolbar');
+        const btnMobileMore = document.getElementById('mobileMoreOptions');
         if (isGestorAgenda()) {
           if (viewToolbar) viewToolbar.classList.add('show');
+          UI.atualizarEstadoControlesMobile_();
           return;
         }
 
@@ -2959,6 +3041,8 @@ renderizarEventosDentro(evento) {
 
         const filtrosAdvanced = document.getElementById('filtersAdvanced');
         if (filtrosAdvanced) filtrosAdvanced.style.display = 'none';
+
+        if (btnMobileMore) btnMobileMore.style.display = 'none';
 
         const btnToggleFilters = document.getElementById('btnToggleFilters');
         if (btnToggleFilters) btnToggleFilters.style.display = 'none';
@@ -3452,7 +3536,17 @@ renderizarEventosDentro(evento) {
                 }
               }
             });
-            // Scroll listener para virtualização
+          }
+
+          // Toggle opções extras no mobile
+          const btnMobileMore = document.getElementById('mobileMoreOptions');
+          if (btnMobileMore) {
+            btnMobileMore.addEventListener('click', () => {
+              UI.alternarControlesMobile_();
+            });
+          }
+
+          // Scroll listener para virtualização
           let scrollTimeout;
           let ultimoScroll = 0;
 
@@ -3478,7 +3572,10 @@ renderizarEventosDentro(evento) {
               }
             }, 50);
           });
-          }
+
+          window.addEventListener('resize', () => {
+            UI.atualizarEstadoControlesMobile_();
+          });
 
           // Botão aplicar filtros
           const btnAplicar = document.getElementById('btnAplicarFiltros');
@@ -3536,6 +3633,10 @@ renderizarEventosDentro(evento) {
           const btnToggleFilters = document.getElementById('btnToggleFilters');
           if (btnToggleFilters) {
             btnToggleFilters.addEventListener('click', () => {
+              if (isMobileAgenda_() && !AppState.mobileSecondaryOpen && isGestorAgenda()) {
+                AppState.mobileSecondaryOpen = true;
+                UI.atualizarEstadoControlesMobile_();
+              }
               const toggleBtn = document.getElementById('toggleAdvanced');
               if (toggleBtn) {
                 toggleBtn.click();
