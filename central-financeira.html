@@ -374,6 +374,21 @@
       white-space: nowrap;
     }
 
+    .intent button + button::before {
+      content: '';
+      position: absolute;
+      left: -5px;
+      top: 10px;
+      bottom: 10px;
+      width: 1px;
+      background: var(--gray-200);
+      pointer-events: none;
+    }
+
+    .intent button.active::before {
+      opacity: 0;
+    }
+
     .intent button:hover {
       border-color: var(--gray-200);
       color: var(--navy-600);
@@ -667,9 +682,9 @@
       display: grid;
       gap: 10px;
       margin-top: 14px;
-      max-height: 58vh;
-      overflow: auto;
-      padding-right: 4px;
+      max-height: none;
+      overflow: visible;
+      padding-right: 0;
     }
     .fiscal-card {
       border: 1px solid var(--gray-200);
@@ -727,16 +742,30 @@
     }
     @media (max-width: 900px) {
       .intent {
-        flex-wrap: wrap;
+        flex-wrap: nowrap;
+        gap: 6px;
+        padding: 5px;
+        scroll-snap-type: x proximity;
       }
       .intent button {
-        min-width: calc(50% - 6px);
+        min-width: 138px;
+        flex: 0 0 auto;
+        scroll-snap-align: start;
+      }
+      .intent button + button::before {
+        left: -3px;
       }
       .fiscal-toolbar {
         grid-template-columns: 1fr;
       }
       .fiscal-actions {
         grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+      .box {
+        min-width: 100%;
+      }
+      .main {
+        gap: 12px;
       }
     }
   </style>
@@ -834,7 +863,12 @@ window.addEventListener('load', async () => {
     setIntentButtonsEnabled_(true);
     updateLoadingSubtext_('Aplicando rota de entrada');
     const consumiuRota = await aplicarRotaInicialFinanceira_();
-    if (!consumiuRota && mode) render();
+    if (!consumiuRota) {
+      const modoPadrao = ehSocio_() ? 'obrigacao' : 'recebimento';
+      ativarModoCentral_(modoPadrao);
+    } else if (mode) {
+      render();
+    }
     hideLoading();
 
   } catch (err) {
