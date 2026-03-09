@@ -55,7 +55,7 @@
 
       const params = new URLSearchParams();
       params.append('action', 'verificarUsuario');
-      params.append('email', email);
+      params.append('idToken', response.credential);
 
       const res = await fetch(API_URL, {
         method: 'POST',
@@ -69,6 +69,10 @@
         return;
       }
 
+      if (!data.sessionToken) {
+        throw new Error('Sessão não retornada pelo backend');
+      }
+
       const user = {
         email: data.user.email,
         nome: data.user.nome,
@@ -78,6 +82,7 @@
       localStorage.setItem('auth_email', user.email);
       localStorage.setItem('auth_nome', user.nome);
       localStorage.setItem('auth_perfil', user.perfil);
+      localStorage.setItem('auth_session', data.sessionToken);
 
       if (typeof onLoginSuccess === 'function') {
         onLoginSuccess(user);
@@ -99,16 +104,16 @@
 
   Auth.apiCall = async function (action, payload = {}) {
     try {
-      const email = localStorage.getItem('auth_email');
+      const sessionToken = localStorage.getItem('auth_session');
 
-      if (!email) {
+      if (!sessionToken) {
         throw new Error('Usuário não autenticado');
       }
 
       // Monta parâmetros como FORM (evita preflight CORS)
       const params = new URLSearchParams();
       params.append('action', action);
-      params.append('email', email);
+      params.append('sessionToken', sessionToken);
 
       Object.keys(payload).forEach(key => {
         if (payload[key] !== undefined && payload[key] !== null) {
@@ -129,6 +134,10 @@
 
       if (data.error) {
         throw new Error(data.error);
+      }
+
+      if (data && data.sucesso === false && (data.codigo === 'SESSAO_INVALIDA' || data.codigo === 'SESSAO_EXPIRADA')) {
+        localStorage.removeItem('auth_session');
       }
 
       return data;

@@ -1316,8 +1316,9 @@
   async function boot() {
     const email = localStorage.getItem('auth_email');
     const perfil = localStorage.getItem('auth_perfil');
+    const session = localStorage.getItem('auth_session');
 
-    if (email && perfil) {
+    if (email && perfil && session) {
       onLoginSuccess({ email, perfil });
       aplicarPermissoes({ email, perfil });
       return;

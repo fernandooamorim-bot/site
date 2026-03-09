@@ -3149,7 +3149,8 @@ window.addEventListener('load', async () => {
   try {
     if (!window.Auth) throw new Error('AUTH_NOT_LOADED');
     const email = localStorage.getItem('auth_email');
-    if (!email) throw new Error('NOT_AUTH');
+    const session = localStorage.getItem('auth_session');
+    if (!email || !session) throw new Error('NOT_AUTH');
     await iniciarEditarEvento();
   } catch (err) {
     console.error('Erro de autenticação:', err);
