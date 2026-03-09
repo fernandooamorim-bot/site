@@ -1342,16 +1342,21 @@
         nome: auth.user.nome,
         perfil: auth.user.perfil
       });
-    } catch (_) {
-      if (window.Auth && typeof Auth.forceLogout === 'function') {
-        Auth.forceLogout('Sua sessão foi encerrada. Faça login novamente.');
-      } else {
-        localStorage.removeItem('auth_email');
-        localStorage.removeItem('auth_nome');
-        localStorage.removeItem('auth_perfil');
-        localStorage.removeItem('auth_session');
-        window.location.href = 'index.html';
+    } catch (err) {
+      // Só derruba sessão em erro real de autenticação.
+      if (err && (err.name === 'AuthSessionError' || /sess[aã]o|usu[aá]rio inativo|n[aã]o encontrado/i.test(String(err.message || '')))) {
+        if (window.Auth && typeof Auth.forceLogout === 'function') {
+          Auth.forceLogout('Sua sessão foi encerrada. Faça login novamente.');
+        } else {
+          localStorage.removeItem('auth_email');
+          localStorage.removeItem('auth_nome');
+          localStorage.removeItem('auth_perfil');
+          localStorage.removeItem('auth_session');
+          window.location.href = 'index.html';
+        }
+        return;
       }
+      console.warn('Validação de sessão em segundo plano indisponível:', err);
     }
   }
 

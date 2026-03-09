@@ -170,7 +170,10 @@
         )
       ) {
         Auth.forceLogout('Sua sessão foi encerrada. Faça login novamente.');
-        throw new Error(data.mensagem || 'Sessão inválida');
+        const authErr = new Error(data.mensagem || 'Sessão inválida');
+        authErr.name = 'AuthSessionError';
+        authErr.code = data.codigo || 'SESSAO_INVALIDA';
+        throw authErr;
       }
 
       return data;
