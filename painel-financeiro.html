@@ -446,6 +446,36 @@
       transform: translateY(-1px);
     }
 
+    @media (max-width: 767px) {
+      .filtros {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+      }
+
+      .filtros .btn {
+        width: 100%;
+        min-height: 44px;
+        padding: 10px 10px;
+        font-size: 12px;
+        line-height: 1.2;
+      }
+
+      .filtros .btn[data-filtro="PENDENCIA_RECEBIMENTO"] {
+        grid-column: 1 / -1;
+      }
+
+      .modo-visual {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+      }
+
+      .modo-visual .btn {
+        width: 100%;
+      }
+    }
+
     /* ============================================
        LOADING
        ============================================ */
@@ -552,6 +582,7 @@
   <button id="filtro-TODOS" data-filtro="TODOS" class="btn secondary" onclick="aplicarFiltro('TODOS')">Todos <span class="muted" id="filtro-count-TODOS"></span></button>
   <button id="filtro-CRITICOS" data-filtro="CRITICOS" class="btn warning" onclick="aplicarFiltro('CRITICOS')">🚨 Críticos <span class="muted" id="filtro-count-CRITICOS"></span></button>
   <button id="filtro-COM_DIVERGENCIA" data-filtro="COM_DIVERGENCIA" class="btn warning" onclick="aplicarFiltro('COM_DIVERGENCIA')">🧩 Divergências <span class="muted" id="filtro-count-COM_DIVERGENCIA"></span></button>
+  <button id="filtro-AVISO_RECEBIDO_MAIOR" data-filtro="AVISO_RECEBIDO_MAIOR" class="btn secondary" onclick="aplicarFiltro('AVISO_RECEBIDO_MAIOR')">ℹ️ Recebido maior <span class="muted" id="filtro-count-AVISO_RECEBIDO_MAIOR"></span></button>
   <button id="filtro-SEM_RECEBIMENTO" data-filtro="SEM_RECEBIMENTO" class="btn warning" onclick="aplicarFiltro('SEM_RECEBIMENTO')">🔴 Sem recebimento <span class="muted" id="filtro-count-SEM_RECEBIMENTO"></span></button>
   <button id="filtro-RECEBIMENTO_PARCIAL" data-filtro="RECEBIMENTO_PARCIAL" class="btn warning" onclick="aplicarFiltro('RECEBIMENTO_PARCIAL')">🟠 Recebimento parcial <span class="muted" id="filtro-count-RECEBIMENTO_PARCIAL"></span></button>
   <button id="filtro-PENDENCIA_RECEBIMENTO" data-filtro="PENDENCIA_RECEBIMENTO" class="btn warning" onclick="aplicarFiltro('PENDENCIA_RECEBIMENTO')">💰 Pendência de recebimento <span class="muted" id="filtro-count-PENDENCIA_RECEBIMENTO"></span></button>
@@ -614,6 +645,50 @@
 
   function labelDivergencia(codigo) {
     return DIVERGENCIAS_LABEL[codigo] || humanizarCodigoTecnico(codigo);
+  }
+
+  function alertaEhInformativo(codigo) {
+    return String(codigo || '').trim() === 'INCONSISTENCIA_RECEBIDO_MAIOR_QUE_CONTRATO';
+  }
+
+  function parseDataParaOrdem(valor) {
+    if (!valor) return Number.MAX_SAFE_INTEGER;
+    if (valor instanceof Date && !isNaN(valor.getTime())) return valor.getTime();
+    const s = String(valor).trim();
+    if (/^\d{2}\/\d{2}\/\d{4}$/.test(s)) {
+      const [d, m, a] = s.split('/').map(Number);
+      return new Date(a, m - 1, d).getTime();
+    }
+    const dt = new Date(s);
+    return isNaN(dt.getTime()) ? Number.MAX_SAFE_INTEGER : dt.getTime();
+  }
+
+  function prioridadeEventoFinanceiro(evento) {
+    const alertas = Array.isArray(evento?.alertas) ? evento.alertas : [];
+    const divergencias = Array.isArray(evento?.divergencias) ? evento.divergencias : [];
+    const alertasCriticos = alertas.filter(a => !alertaEhInformativo(a));
+    if (divergencias.length > 0 || alertasCriticos.length > 0) return 0;
+    if (alertas.length > 0) return 1;
+    return 2;
+  }
+
+  function ordenarListaFinanceira(listaBase) {
+    const lista = Array.isArray(listaBase) ? [...listaBase] : [];
+    lista.sort((a, b) => {
+      const pa = prioridadeEventoFinanceiro(a);
+      const pb = prioridadeEventoFinanceiro(b);
+      if (pa !== pb) return pa - pb;
+      return parseDataParaOrdem(a?.dataEvento) - parseDataParaOrdem(b?.dataEvento);
+    });
+    return lista;
+  }
+
+  function temSomenteAlertaInformativo(evento) {
+    const alertas = Array.isArray(evento?.alertas) ? evento.alertas : [];
+    const divergencias = Array.isArray(evento?.divergencias) ? evento.divergencias : [];
+    if (divergencias.length > 0) return false;
+    if (alertas.length === 0) return false;
+    return alertas.every(alertaEhInformativo);
   }
 
   function escaparHtml(valor) {
@@ -729,6 +804,12 @@
       );
     }
 
+    if (tipo === 'AVISO_RECEBIDO_MAIOR') {
+      lista = lista.filter(e =>
+        Array.isArray(e.alertas) && e.alertas.includes('INCONSISTENCIA_RECEBIDO_MAIOR_QUE_CONTRATO')
+      );
+    }
+
     if (tipo === 'COM_DIVERGENCIA') {
       lista = lista.filter(e => Array.isArray(e.divergencias) && e.divergencias.length > 0);
     }
@@ -752,10 +833,10 @@
     }
 
     if (tipo === 'TODOS') {
-      return Array.isArray(listaBase) ? [...listaBase] : [];
+      return ordenarListaFinanceira(listaBase);
     }
 
-    return lista;
+    return ordenarListaFinanceira(lista);
   }
 
   function atualizarContadoresFiltros() {
@@ -763,6 +844,7 @@
       'TODOS',
       'CRITICOS',
       'COM_DIVERGENCIA',
+      'AVISO_RECEBIDO_MAIOR',
       'SEM_RECEBIMENTO',
       'RECEBIMENTO_PARCIAL',
       'PENDENCIA_RECEBIMENTO',
@@ -836,6 +918,10 @@
     lista.forEach(evento => {
       let statusSeguro = evento.status;
 
+      if (temSomenteAlertaInformativo(evento)) {
+        statusSeguro = 'ok';
+      }
+
       if (evento.comissao?.status === 'ERRO') {
         statusSeguro = 'erro';
       } else if (
@@ -906,6 +992,10 @@
   function criarCard(evento) {
     let statusSeguro = evento.status;
 
+    if (temSomenteAlertaInformativo(evento)) {
+      statusSeguro = 'ok';
+    }
+
     if (evento.comissao?.status === 'ERRO') {
       statusSeguro = 'erro';
     } else if (
@@ -933,10 +1023,11 @@
       if ([
         'EVENTO_OCORREU_SEM_RECEBIMENTO',
         'EVENTO_OCORREU_RECEBIMENTO_PARCIAL',
-        'INCONSISTENCIA_RECEBIDO_MAIOR_QUE_CONTRATO',
         'EVENTO_CANCELADO_COM_RECEBIMENTO'
       ].includes(a)) {
         alertasFinanceiros.push(texto);
+      } else if (a === 'INCONSISTENCIA_RECEBIDO_MAIOR_QUE_CONTRATO') {
+        alertasFinanceiros.push('ℹ️ ' + texto);
       } else if ([
         'COMISSAO_PENDENTE',
         'COMISSAO_INCONSISTENTE',
