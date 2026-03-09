@@ -592,6 +592,9 @@
   <button id="filtro-LEGADO" data-filtro="LEGADO" class="btn secondary" onclick="aplicarFiltro('LEGADO')">📦 Legado <span class="muted" id="filtro-count-LEGADO"></span></button>
   <button id="filtro-OK" data-filtro="OK" class="btn success" onclick="aplicarFiltro('OK')">✅ Sem pendências <span class="muted" id="filtro-count-OK"></span></button>
 </div>
+<div id="filtrosExtraBar" style="max-width:1100px;margin:0 auto 10px;padding:0 20px;display:flex;justify-content:flex-end;">
+  <button id="btnMaisFiltros" class="btn secondary" style="display:none" onclick="alternarMaisFiltros()">Mais filtros</button>
+</div>
 <div class="modo-visual">
   <button id="btnModoDetalhado" class="btn secondary" onclick="setModoVisual('CARDS')">🧾 Detalhado</button>
   <button id="btnModoEspelho" class="btn secondary" onclick="setModoVisual('ESPELHO')">🔳 Espelho Financeiro</button>
@@ -606,6 +609,7 @@
   let FILTRO_ATUAL = 'TODOS';
   let MODO_VISUAL = 'CARDS';
   let listaFiltradaAtual = null;
+  let MOSTRAR_TODOS_FILTROS_MOBILE = false;
 
   const ALERTAS_LABEL = {
     EVENTO_OCORREU_SEM_RECEBIMENTO: 'Evento já ocorreu e não teve recebimento',
@@ -681,6 +685,45 @@
       return parseDataParaOrdem(a?.dataEvento) - parseDataParaOrdem(b?.dataEvento);
     });
     return lista;
+  }
+
+  function isMobileViewport() {
+    return window.matchMedia('(max-width: 767px)').matches;
+  }
+
+  function alternarMaisFiltros() {
+    MOSTRAR_TODOS_FILTROS_MOBILE = !MOSTRAR_TODOS_FILTROS_MOBILE;
+    atualizarContadoresFiltros();
+  }
+
+  function atualizarBotaoMaisFiltros() {
+    const btn = document.getElementById('btnMaisFiltros');
+    const bar = document.getElementById('filtrosExtraBar');
+    if (!btn || !bar) return;
+
+    const filtrosComZero = [
+      'CRITICOS',
+      'COM_DIVERGENCIA',
+      'AVISO_RECEBIDO_MAIOR',
+      'SEM_RECEBIMENTO',
+      'RECEBIMENTO_PARCIAL',
+      'PENDENCIA_RECEBIMENTO',
+      'QUITADO_BV_PENDENTE',
+      'COMISSAO_PENDENTE',
+      'COMISSAO_PROBLEMA',
+      'LEGADO',
+      'OK'
+    ].filter(tipo => filtrarListaPorTipo(EVENTOS_CACHE, tipo).length === 0);
+
+    if (!isMobileViewport() || filtrosComZero.length === 0) {
+      bar.style.display = 'none';
+      btn.style.display = 'none';
+      return;
+    }
+
+    bar.style.display = 'flex';
+    btn.style.display = 'inline-flex';
+    btn.textContent = MOSTRAR_TODOS_FILTROS_MOBILE ? 'Menos filtros' : 'Mais filtros';
   }
 
   function temSomenteAlertaInformativo(evento) {
@@ -862,11 +905,14 @@
       if (countEl) countEl.textContent = `(${count})`;
       if (btnEl && tipo !== 'TODOS') {
         const shouldDisable = count === 0 && FILTRO_ATUAL !== tipo;
+        const shouldHide = isMobileViewport() && !MOSTRAR_TODOS_FILTROS_MOBILE && count === 0 && FILTRO_ATUAL !== tipo;
+        btnEl.style.display = shouldHide ? 'none' : '';
         btnEl.disabled = shouldDisable;
         btnEl.style.opacity = shouldDisable ? '0.55' : '1';
         btnEl.style.cursor = shouldDisable ? 'not-allowed' : 'pointer';
       }
     });
+    atualizarBotaoMaisFiltros();
   }
 
   function aplicarFiltro(tipo, recarregar = true) {
@@ -1227,6 +1273,7 @@
 window.addEventListener('load', () => {
   console.log('🚀 painel-financeiro.html iniciado (frontend externo)');
   carregarPainel();
+  window.addEventListener('resize', () => atualizarContadoresFiltros());
 });
 </script>
 
