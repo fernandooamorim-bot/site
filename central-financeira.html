@@ -1902,7 +1902,7 @@ async function reconciliarEventoFinanceiro_(idEvento) {
       return;
     }
     alert('Evento reconciliado com sucesso.');
-    await carregarFiscalizacao_(false);
+    await carregarFiscalizacao_(true);
   } catch (err) {
     hideLoading();
     tratarErroApi(err);
