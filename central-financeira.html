@@ -456,6 +456,7 @@
       display: flex;
       gap: 16px;
       flex-wrap: wrap;
+      align-items: flex-start;
     }
 
     .box {
@@ -767,6 +768,32 @@
       .main {
         gap: 12px;
       }
+      body[data-mode="fiscalizacao"] .fiscal-lista {
+        max-height: none;
+        overflow: visible;
+        padding-right: 0;
+      }
+      body[data-mode="fiscalizacao"] .side {
+        position: static;
+        top: auto;
+        max-height: none;
+        overflow: visible;
+      }
+    }
+
+    @media (min-width: 901px) {
+      body[data-mode="fiscalizacao"] .fiscal-lista {
+        max-height: calc(100vh - 330px);
+        overflow: auto;
+        padding-right: 6px;
+      }
+
+      body[data-mode="fiscalizacao"] .side {
+        position: sticky;
+        top: 76px;
+        max-height: calc(100vh - 92px);
+        overflow: auto;
+      }
     }
   </style>
 </head>
@@ -963,6 +990,7 @@ setIntentButtonsEnabled_(false);
 function atualizarIndicadorModoAtivo_() {
   const el = document.getElementById('modoAtivoLabel');
   const aux = document.getElementById('modoMetaAux');
+  document.body.setAttribute('data-mode', mode || '');
   if (!el) return;
   el.textContent = MODE_LABELS[mode] || '—';
   if (aux && mode !== 'fiscalizacao') aux.textContent = '';
