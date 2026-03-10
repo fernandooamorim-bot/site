@@ -139,30 +139,68 @@ function setConfig(chave, valor) {
 // ========================================
 
 /**
- * Registra log de ação no sistema
+ * Registra log de ação no sistema.
+ * Compatível com chamadas antigas e novas:
+ * - registrarLog('ACAO', 'TABELA', 'ID', 'DETALHES')
+ * - registrarLog('ACAO', 'DETALHES')
+ * - registrarLog(request, 'ACAO', 'TABELA', 'ID', 'DETALHES') [legado]
  */
-function registrarLog(request, acao, tabela, idRegistro, detalhes) {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheet = ss.getSheetByName('LOGS');
+function registrarLog() {
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const sheet = ss.getSheetByName('LOGS');
+    if (!sheet) return;
 
-  const usuario = requireUser(request.token);
+    const args = Array.prototype.slice.call(arguments);
 
-  const proximaLinha = sheet.getLastRow() + 1;
-  const idLog = `LOG-${Date.now()}`;
+    let acao = '';
+    let tabela = '';
+    let idRegistro = '';
+    let detalhes = '';
 
-  const novoLog = [
-    idLog,
-    new Date(),
-    usuario.email,
-    acao,
-    tabela,
-    idRegistro,
-    detalhes
-  ];
+    // Legado: primeiro argumento era request
+    const primeiroEhRequest = args.length > 0 && typeof args[0] === 'object' && args[0] !== null && !Array.isArray(args[0]);
+    if (primeiroEhRequest) args.shift();
 
-  sheet
-    .getRange(proximaLinha, 1, 1, novoLog.length)
-    .setValues([novoLog]);
+    if (args.length === 2) {
+      acao = String(args[0] || '');
+      detalhes = String(args[1] || '');
+    } else {
+      acao = String(args[0] || '');
+      tabela = String(args[1] || '');
+      idRegistro = String(args[2] || '');
+      detalhes = String(args[3] || '');
+    }
+
+    let emailUsuario = 'sistema';
+    try {
+      if (typeof getUsuarioAtual === 'function') {
+        const u = getUsuarioAtual();
+        if (u && u.email) emailUsuario = String(u.email);
+      }
+    } catch (e) {
+      // Best effort: não falha operação principal por causa de log
+    }
+
+    const proximaLinha = sheet.getLastRow() + 1;
+    const idLog = `LOG-${Date.now()}`;
+    const novoLog = [
+      idLog,
+      new Date(),
+      emailUsuario,
+      acao,
+      tabela,
+      idRegistro,
+      detalhes
+    ];
+
+    sheet.getRange(proximaLinha, 1, 1, novoLog.length).setValues([novoLog]);
+  } catch (err) {
+    // Logger nunca deve quebrar fluxo transacional principal
+    try {
+      Logger.log('[registrarLog] falha ignorada: ' + String(err));
+    } catch (_) {}
+  }
 }
 
 // ========================================
@@ -195,11 +233,22 @@ function validarUsuario(email) {
  * Verifica permissão do usuário
  */
 function verificarPermissao(request, acao) {
-  const usuario = requireUser(request.token);
+  let usuario = null;
+  if (typeof getUsuarioAtual === 'function') {
+    try {
+      usuario = getUsuarioAtual();
+    } catch (e) {
+      usuario = null;
+    }
+  }
+  if (!usuario || !usuario.perfil) return false;
 
+  const permissoesSocio = ['cadastrar_evento', 'ver_financeiro', 'ver_dashboard'];
   const permissoes = {
     'Proprietário': ['*'], // Todas as permissões
-    'Sócio': ['cadastrar_evento', 'ver_financeiro', 'ver_dashboard'],
+    'Sócio': permissoesSocio,
+    'Administrador': permissoesSocio,
+    'Admin': permissoesSocio,
     'Músico': ['ver_agenda']
   };
 

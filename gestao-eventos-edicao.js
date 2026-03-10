@@ -42,20 +42,53 @@ function buscarEventoPorContratante(nomeParcial) {
   if (!sheet) return [];
 
   const dados = sheet.getDataRange().getValues();
-  const busca = String(nomeParcial).toLowerCase();
+  const busca = String(nomeParcial || '').trim().toLowerCase();
   const eventos = [];
+  const hoje = new Date();
+  hoje.setHours(0, 0, 0, 0);
 
   for (let i = 1; i < dados.length; i++) {
     const linha = dados[i];
+    const id = String(linha[COL.ID_EVENTO] || '').trim();
     const nome = String(linha[COL.NOME_CONTRATANTE] || '').toLowerCase();
-    if (!nome.includes(busca)) continue;
+    const tipoEvento = String(linha[COL.TIPO_EVENTO] || '').trim();
+    const matchNome = nome.includes(busca);
+    const matchId = id.toLowerCase().includes(busca);
+    if (!matchNome && !matchId) continue;
 
-    eventos.push(mapEventoResumo(linha));
-    if (eventos.length >= 20) break;
+    const resumo = mapEventoResumo(linha);
+    const dataEvento = normalizarData(linha[COL.DATA_EVENTO]);
+    const pendente = Number(linha[COL.VALOR_PENDENTE] || 0);
+    const statusRecebimento = String(linha[COL.STATUS_RECEBIMENTO] || '').toUpperCase();
+    const temPendencia = pendente > 0 || statusRecebimento === 'PENDENTE' || statusRecebimento === 'PARCIAL';
+
+    let prioridadeData = 999999;
+    if (dataEvento instanceof Date && !isNaN(dataEvento.getTime())) {
+      const d = new Date(dataEvento.getFullYear(), dataEvento.getMonth(), dataEvento.getDate());
+      prioridadeData = Math.abs(Math.round((d.getTime() - hoje.getTime()) / 86400000));
+    }
+
+    const prioridadeMatch = matchId ? 0 : 1;
+    const prioridadePendencia = temPendencia ? 0 : 1;
+
+    eventos.push({
+      item: resumo,
+      k1: prioridadeMatch,
+      k2: prioridadePendencia,
+      k3: prioridadeData
+    });
   }
 
-  Logger.log('✅ Encontrados: ' + eventos.length);
-  return eventos;
+  eventos.sort((a, b) => {
+    if (a.k1 !== b.k1) return a.k1 - b.k1;
+    if (a.k2 !== b.k2) return a.k2 - b.k2;
+    if (a.k3 !== b.k3) return a.k3 - b.k3;
+    return String(a.item.contratante || '').localeCompare(String(b.item.contratante || ''), 'pt-BR');
+  });
+
+  const result = eventos.slice(0, 20).map(x => x.item);
+  Logger.log('✅ Encontrados: ' + result.length);
+  return result;
 }
 
 function buscarEventoPorData(dataISO) {
@@ -126,16 +159,24 @@ function buscarEventoPorPeriodo(periodo) {
   const eventos = [];
 
   for (let i = 1; i < dados.length; i++) {
-    const dataEvento = dados[i][COL.DATA_EVENTO];
-    if (!(dataEvento instanceof Date)) continue;
+    const dataEvento = normalizarData(dados[i][COL.DATA_EVENTO]);
+    if (!dataEvento) continue;
     if (dataEvento >= inicio && dataEvento <= fim) {
       eventos.push(mapEventoResumo(dados[i]));
-      if (eventos.length >= 20) break;
     }
   }
 
+  eventos.sort((a, b) => {
+    const da = normalizarData(a.dataFormatada);
+    const db = normalizarData(b.dataFormatada);
+    if (da && db) return da - db;
+    if (da && !db) return -1;
+    if (!da && db) return 1;
+    return String(a.id || '').localeCompare(String(b.id || ''));
+  });
+
   Logger.log('✅ Encontrados: ' + eventos.length);
-  return eventos;
+  return eventos.slice(0, 20);
 }
 
 /* =========================
@@ -182,15 +223,23 @@ function buscarEventoParaEdicao(idEvento) {
       const nomeContratanteAtual = String(l[COL.NOME_CONTRATANTE] || '').trim();
       const nomeLocalAtual = String(l[COL.LOCAL] || '').trim();
 
-      const refContratanteExiste = idContratanteAtual
-        ? referenciaExisteNaAbaPorId_('CONTRATANTES', idContratanteAtual)
-        : false;
-      const refEnderecoExiste = idEnderecoAtual
-        ? referenciaExisteNaAbaPorId_('ENDERECOS', idEnderecoAtual)
-        : false;
+      const nomeContratanteCadastro = idContratanteAtual
+        ? String(buscarNomePorId('CONTRATANTES', idContratanteAtual) || '').trim()
+        : '';
+      const nomeLocalCadastro = idEnderecoAtual
+        ? String(buscarNomePorId('ENDERECOS', idEnderecoAtual) || '').trim()
+        : '';
+
+      const refContratanteExiste = !!nomeContratanteCadastro;
+      const refEnderecoExiste = !!nomeLocalCadastro;
+      const refContratanteDivergente = refContratanteExiste &&
+        normalizarTextoComparacao_(nomeContratanteAtual) !== normalizarTextoComparacao_(nomeContratanteCadastro);
+      const refEnderecoDivergente = refEnderecoExiste &&
+        normalizarTextoComparacao_(nomeLocalAtual) !== normalizarTextoComparacao_(nomeLocalCadastro);
 
       const evento = {
   id: l[COL.ID_EVENTO],
+  tipoRegistro: l[COL.TIPO_REGISTRO] || 'Evento',
 
   // 🔑 PADRÃO DEFINITIVO
   dataEvento: formatarDataISO(l[COL.DATA_EVENTO]),
@@ -208,8 +257,12 @@ function buscarEventoParaEdicao(idEvento) {
   idBV: String(l[COL.ID_BV] || '').trim(),
   nomeContratanteAtual: nomeContratanteAtual,
   nomeLocalAtual: nomeLocalAtual,
+  nomeContratanteCadastro: nomeContratanteCadastro,
+  nomeLocalCadastro: nomeLocalCadastro,
   referenciaContratanteOk: !idContratanteAtual || refContratanteExiste,
   referenciaEnderecoOk: !idEnderecoAtual || refEnderecoExiste,
+  referenciaContratanteDivergente: !!refContratanteDivergente,
+  referenciaEnderecoDivergente: !!refEnderecoDivergente,
 
   valorTotal: Number(l[COL.VALOR_TOTAL]) || 0,
   valorBV: Number(l[COL.VALOR_BV]) || 0,
@@ -411,6 +464,8 @@ function salvarEdicaoEvento(idEvento, dadosFormulario, email) {
     idEndereco: dadosFormulario.idEndereco || arguments[1]?.idEndereco,
     idVendedor: dadosFormulario.idVendedor || arguments[1]?.idVendedor,
     idBV: dadosFormulario.idBV || arguments[1]?.idBV,
+    nomeContratanteEditado: dadosFormulario.nomeContratanteEditado || dadosFormulario.nomeContratante || arguments[1]?.nomeContratanteEditado,
+    nomeLocalEditado: dadosFormulario.nomeLocalEditado || dadosFormulario.nomeLocal || arguments[1]?.nomeLocalEditado,
     nomeContratanteFallback: dadosFormulario.nomeContratanteFallback || arguments[1]?.nomeContratanteFallback,
     nomeLocalFallback: dadosFormulario.nomeLocalFallback || arguments[1]?.nomeLocalFallback,
 
@@ -427,6 +482,11 @@ function salvarEdicaoEvento(idEvento, dadosFormulario, email) {
     somResponsavel: dadosFormulario.somResponsavel || arguments[1]?.somResponsavel,
     observacoes: dadosFormulario.observacoes || arguments[1]?.observacoes
   };
+
+  const converterReserva =
+    dadosFormulario.converterReserva === true ||
+    dadosFormulario.converterReserva === 'true' ||
+    dadosFormulario.converterReserva === '1';
 
   // 1) Log explícito para depuração de NF
   Logger.log('DEBUG NF — recebido:', dadosFormulario.temNF, 'normalizado:', dados.temNF);
@@ -458,14 +518,33 @@ function salvarEdicaoEvento(idEvento, dadosFormulario, email) {
     Logger.log('✅ Evento encontrado na linha ' + (linhaIndex + 1));
 
     const linha = dadosSheet[linhaIndex];
+    const tipoRegistroAtual = String(linha[COL.TIPO_REGISTRO] || 'Evento').trim() || 'Evento';
+    const estaConvertendoReserva = converterReserva && tipoRegistroAtual === 'Reserva';
+
+    if (estaConvertendoReserva) {
+      if (!dados.tipoEvento) {
+        throw new Error('Para converter reserva em evento, selecione o Tipo de Evento.');
+      }
+      if (!dados.idVendedor) {
+        throw new Error('Para converter reserva em evento, selecione o Vendedor.');
+      }
+      if (!(Number(dados.valorTotal) > 0)) {
+        throw new Error('Para converter reserva em evento, informe um Valor Total maior que zero.');
+      }
+      linha[COL.TIPO_REGISTRO] = 'Evento';
+      linha[COL.COMISSAO_TIPO] = 'Padrão';
+      linha[COL.COMISSAO_VALOR] = Number(obterConfig('COMISSAO_PADRAO_PERCENTUAL')) || 0;
+    }
+
+    const tipoRegistroFinal = String(linha[COL.TIPO_REGISTRO] || tipoRegistroAtual || 'Evento').trim() || 'Evento';
+    const ehEventoFinal = tipoRegistroFinal === 'Evento';
 
     // ================================
     // DETECTAR ATIVAÇÃO DE NF / BV NA EDIÇÃO
     // ================================
     // Normalização explícita de NF (boolean definitivo)
     // NF normalizada é a fonte da verdade
-    linha[COL.TEM_NF] = dados.temNF === true;
-    const querNFAgora = linha[COL.TEM_NF] === true;
+    linha[COL.TEM_NF] = ehEventoFinal ? (dados.temNF === true) : false;
 
     // DATA EVENTO
     if (dados.dataEvento) {
@@ -488,8 +567,12 @@ function salvarEdicaoEvento(idEvento, dadosFormulario, email) {
 
     // Outros campos
     linha[COL.DURACAO] = dados.duracao || '';
-    linha[COL.TIPO_EVENTO] = dados.tipoEvento || '';
-    linha[COL.PROJETO] = dados.projeto || '';
+    linha[COL.TIPO_EVENTO] = ehEventoFinal
+      ? (dados.tipoEvento || linha[COL.TIPO_EVENTO] || '')
+      : tipoRegistroFinal.toUpperCase();
+    linha[COL.PROJETO] = (ehEventoFinal || tipoRegistroFinal === 'Reserva')
+      ? (dados.projeto || '')
+      : '';
 
     // IDs + ESPELHAMENTO DE NOMES (resiliente: nunca apagar por referência ausente)
     const refContratante = resolverReferenciaMestreEdicao_({
@@ -502,8 +585,17 @@ function salvarEdicaoEvento(idEvento, dadosFormulario, email) {
     linha[COL.ID_CONTRATANTE] = refContratante.id;
     linha[COL.NOME_CONTRATANTE] = refContratante.nome;
 
-    linha[COL.ID_CERIMONIALISTA] = dados.idCerimonialista || '';
-    linha[COL.NOME_CERIMONIALISTA] = dados.idCerimonialista
+    const nomeContratanteDigitado = String(dados.nomeContratanteEditado || '').trim();
+    if (nomeContratanteDigitado) {
+      linha[COL.NOME_CONTRATANTE] = nomeContratanteDigitado;
+      if (linha[COL.ID_CONTRATANTE]) {
+        atualizarNomeNaAbaMestrePorId_('CONTRATANTES', linha[COL.ID_CONTRATANTE], nomeContratanteDigitado);
+      }
+    }
+
+    const permiteCerimonialista = ehEventoFinal || tipoRegistroFinal === 'Reserva';
+    linha[COL.ID_CERIMONIALISTA] = permiteCerimonialista ? (dados.idCerimonialista || '') : '';
+    linha[COL.NOME_CERIMONIALISTA] = (permiteCerimonialista && dados.idCerimonialista)
       ? buscarNomePorId('CERIMONIALISTAS', dados.idCerimonialista)
       : '';
 
@@ -517,83 +609,107 @@ function salvarEdicaoEvento(idEvento, dadosFormulario, email) {
     linha[COL.ID_ENDERECO] = refEndereco.id;
     linha[COL.LOCAL] = refEndereco.nome;
 
-    linha[COL.ID_VENDEDOR] = dados.idVendedor || '';
-    linha[COL.ID_BV] = dados.idBV || '';
-
-    // ───────── CONTROLE DE EDIÇÃO FINANCEIRA ─────────
-    // ACL moderna para alteração de VALOR_TOTAL ou VALOR_BV
-    let podeAlterarFinanceiro = false;
-    let permissaoFinanceira = verificarPermissaoEdicaoFinanceira(idEvento);
-    // Substituir lógica de perfil por ACL moderna:
-    const usuario = getUsuarioAtual();
-    if (usuario.PERFIL === 'Proprietário') {
-      // mantém comportamento atual
-      podeAlterarFinanceiro = permissaoFinanceira.permitido;
-    } else {
-      // exige permissão extra
-      podeAlterarFinanceiro = permissaoFinanceira.permitido;
+    const nomeLocalDigitado = String(dados.nomeLocalEditado || '').trim();
+    if (nomeLocalDigitado) {
+      linha[COL.LOCAL] = nomeLocalDigitado;
+      if (linha[COL.ID_ENDERECO]) {
+        atualizarNomeNaAbaMestrePorId_('ENDERECOS', linha[COL.ID_ENDERECO], nomeLocalDigitado);
+      }
     }
 
-    if (podeAlterarFinanceiro) {
-      // BV agora depende da definição acima
-      const querBVAgora =
-        Number(dados.valorBV) > 0;
+    linha[COL.ID_VENDEDOR] = ehEventoFinal ? (dados.idVendedor || '') : '';
+    linha[COL.ID_BV] = ehEventoFinal ? (dados.idBV || '') : '';
+    linha[COL.NOME_VENDEDOR] = (ehEventoFinal && linha[COL.ID_VENDEDOR])
+      ? buscarNomePorId('VENDEDORES', linha[COL.ID_VENDEDOR])
+      : '';
 
-      linha[COL.VALOR_TOTAL] =
-        Number(dados.valorTotal) || linha[COL.VALOR_TOTAL];
-
-      // BV
-      if (querBVAgora) {
-        linha[COL.VALOR_BV] = Number(dados.valorBV);
-        linha[COL.ID_BV] = dados.idBV || '';
-      } else {
-        linha[COL.VALOR_BV] = 0;
-        linha[COL.ID_BV] = '';
+    if (ehEventoFinal) {
+      if (!linha[COL.COMISSAO_TIPO] || String(linha[COL.COMISSAO_TIPO]).trim() === 'N/A') {
+        linha[COL.COMISSAO_TIPO] = 'Padrão';
       }
-
-      // Comissões e BV
-      // (O recálculo de NF será feito para todos logo abaixo)
-      linha[COL.VALOR_COMISSAO_CALCULADO] = null; // será recalculado no bloco de NF
-      linha[COL.STATUS_BV] = null;
-      linha[COL.STATUS_COMISSAO] = null;
-
-      // Resolver nome do BV no espelho EVENTOS
-      if (linha[COL.ID_BV]) {
-        linha[COL.NOME_BV] = buscarNomePorId('PARCEIROS_BV', linha[COL.ID_BV]);
-      } else {
-        linha[COL.NOME_BV] = '';
+      if (!linha[COL.COMISSAO_VALOR] || Number(linha[COL.COMISSAO_VALOR]) <= 0) {
+        linha[COL.COMISSAO_VALOR] = Number(obterConfig('COMISSAO_PADRAO_PERCENTUAL')) || 0;
       }
-    } else {
-      Logger.log('🔒 Financeiro bloqueado: ' + permissaoFinanceira.motivo);
     }
 
-    // ================================
-    // 🔁 BLOCO FINANCEIRO DEFINITIVO
-    // MESMA LÓGICA DO CADASTRO DE EVENTO
-    // ================================
+    if (ehEventoFinal) {
+      // ───────── CONTROLE DE EDIÇÃO FINANCEIRA ─────────
+      let podeAlterarFinanceiro = false;
+      let permissaoFinanceira = verificarPermissaoEdicaoFinanceira(idEvento);
+      const usuario = getUsuarioAtual();
+      if (usuario.PERFIL === 'Proprietário') {
+        podeAlterarFinanceiro = permissaoFinanceira.permitido;
+      } else {
+        podeAlterarFinanceiro = permissaoFinanceira.permitido;
+      }
 
-    // Percentual oficial de NF vem da CONFIG (fonte da verdade)
-    const percentualNFConfig = Number(obterConfig('NF_PERCENTUAL')) || 0;
+      if (podeAlterarFinanceiro || estaConvertendoReserva) {
+        const querBVAgora = Number(dados.valorBV) > 0;
 
-    const financeiro = calcularFinanceiroEvento({
-      valorTotal: Number(linha[COL.VALOR_TOTAL]) || 0,
-      valorBV: Number(linha[COL.VALOR_BV]) || 0,
-      temNF: linha[COL.TEM_NF] === true,
-      percentualNF: linha[COL.TEM_NF] === true ? percentualNFConfig : 0,
-      comissaoTipo: linha[COL.COMISSAO_TIPO],
-      comissaoValor: linha[COL.COMISSAO_VALOR]
-    });
+        linha[COL.VALOR_TOTAL] = Number(dados.valorTotal) || linha[COL.VALOR_TOTAL];
+        linha[COL.VALOR_RECEBIDO] = Number(linha[COL.VALOR_RECEBIDO]) || 0;
+        linha[COL.VALOR_PENDENTE] = Math.max(0, Number(linha[COL.VALOR_TOTAL]) - Number(linha[COL.VALOR_RECEBIDO]));
 
-    // Grava NF
-    linha[COL.VALOR_NF] = Number(financeiro.valorNF) || 0;
-    linha[COL.STATUS_NF] = financeiro.statusNF || 'N/A';
+        if (querBVAgora) {
+          linha[COL.VALOR_BV] = Number(dados.valorBV);
+          linha[COL.ID_BV] = dados.idBV || '';
+        } else {
+          linha[COL.VALOR_BV] = 0;
+          linha[COL.ID_BV] = '';
+        }
 
-    // Comissão
-    linha[COL.VALOR_COMISSAO_CALCULADO] = financeiro.valorComissaoCalculado || 0;
-    linha[COL.STATUS_COMISSAO] = financeiro.statusComissao || 'N/A';
+        linha[COL.VALOR_COMISSAO_CALCULADO] = null;
+        linha[COL.STATUS_BV] = null;
+        linha[COL.STATUS_COMISSAO] = null;
 
-    // BV
-    linha[COL.STATUS_BV] = financeiro.statusBV || 'N/A';
+        if (linha[COL.ID_BV]) {
+          linha[COL.NOME_BV] = buscarNomePorId('PARCEIROS_BV', linha[COL.ID_BV]);
+        } else {
+          linha[COL.NOME_BV] = '';
+        }
+      } else {
+        Logger.log('🔒 Financeiro bloqueado: ' + permissaoFinanceira.motivo);
+      }
+
+      // 🔁 BLOCO FINANCEIRO DEFINITIVO (somente Evento)
+      const percentualNFConfig = Number(obterConfig('NF_PERCENTUAL')) || 0;
+      const financeiro = calcularFinanceiroEvento({
+        valorTotal: Number(linha[COL.VALOR_TOTAL]) || 0,
+        valorBV: Number(linha[COL.VALOR_BV]) || 0,
+        temNF: linha[COL.TEM_NF] === true,
+        percentualNF: linha[COL.TEM_NF] === true ? percentualNFConfig : 0,
+        comissaoTipo: linha[COL.COMISSAO_TIPO],
+        comissaoValor: linha[COL.COMISSAO_VALOR]
+      });
+
+      linha[COL.VALOR_NF] = Number(financeiro.valorNF) || 0;
+      linha[COL.STATUS_NF] = financeiro.statusNF || 'N/A';
+      linha[COL.VALOR_COMISSAO_CALCULADO] = financeiro.valorComissaoCalculado || 0;
+      linha[COL.STATUS_COMISSAO] = financeiro.statusComissao || 'N/A';
+      linha[COL.STATUS_BV] = financeiro.statusBV || 'N/A';
+      linha[COL.STATUS_RECEBIMENTO] = Number(linha[COL.VALOR_PENDENTE]) > 0 ? 'PENDENTE' : 'QUITADO';
+    } else {
+      // Tipos não financeiros: limpa espelho financeiro para evitar poluição.
+      linha[COL.VALOR_TOTAL] = 0;
+      linha[COL.VALOR_RECEBIDO] = 0;
+      linha[COL.VALOR_PENDENTE] = 0;
+      linha[COL.STATUS_RECEBIMENTO] = 'N/A';
+      linha[COL.ID_VENDEDOR] = '';
+      linha[COL.NOME_VENDEDOR] = '';
+      linha[COL.COMISSAO_TIPO] = 'N/A';
+      linha[COL.COMISSAO_VALOR] = '';
+      linha[COL.VALOR_COMISSAO_CALCULADO] = 0;
+      linha[COL.VALOR_COMISSAO_PAGO] = 0;
+      linha[COL.STATUS_COMISSAO] = 'N/A';
+      linha[COL.ID_BV] = '';
+      linha[COL.NOME_BV] = '';
+      linha[COL.VALOR_BV] = 0;
+      linha[COL.STATUS_BV] = 'N/A';
+      linha[COL.BV_DATA_PAGAMENTO] = '';
+      linha[COL.TEM_NF] = false;
+      linha[COL.VALOR_NF] = 0;
+      linha[COL.STATUS_NF] = 'N/A';
+    }
 
     // Outros
     linha[COL.LOOK] = dados.look || '';
@@ -624,8 +740,11 @@ function salvarEdicaoEvento(idEvento, dadosFormulario, email) {
     };
 
     if (
-      (eventoAtualizado.temNF && eventoAtualizado.valorNF > 0) ||
-      (eventoAtualizado.valorBV > 0)
+      ehEventoFinal &&
+      (
+        (eventoAtualizado.temNF && eventoAtualizado.valorNF > 0) ||
+        (eventoAtualizado.valorBV > 0)
+      )
     ) {
       garantirMovimentacoesNF_BV(eventoAtualizado, emailExecutor);
     }
@@ -673,6 +792,19 @@ function resolverReferenciaMestreEdicao_(ctx) {
 
   if (idNovo) {
     const nomeLookup = String(buscarNomePorId(aba, idNovo) || '').trim();
+
+    // Se não houve troca de ID e o nome no EVENTOS diverge do mestre, preserva texto atual.
+    // Isso evita "troca silenciosa" de nome/local em registros legados.
+    if (
+      idAtual &&
+      idNovo === idAtual &&
+      nomeAtual &&
+      nomeLookup &&
+      normalizarTextoComparacao_(nomeAtual) !== normalizarTextoComparacao_(nomeLookup)
+    ) {
+      return { id: idAtual, nome: nomeAtual };
+    }
+
     if (nomeLookup) {
       return { id: idNovo, nome: nomeLookup };
     }
@@ -684,11 +816,42 @@ function resolverReferenciaMestreEdicao_(ctx) {
   return { id: idAtual, nome: nomeFallback || nomeAtual };
 }
 
+function normalizarTextoComparacao_(texto) {
+  return String(texto || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase();
+}
+
+function atualizarNomeNaAbaMestrePorId_(nomeAba, id, nomeNovo) {
+  const aba = String(nomeAba || '').trim();
+  const alvoId = String(id || '').trim();
+  const novoNome = String(nomeNovo || '').trim();
+  if (!aba || !alvoId || !novoNome) return false;
+
+  try {
+    const sh = SpreadsheetApp.getActive().getSheetByName(aba);
+    if (!sh) return false;
+    const dados = sh.getDataRange().getValues();
+    for (let i = 1; i < dados.length; i++) {
+      if (String(dados[i][0] || '').trim() === alvoId) {
+        sh.getRange(i + 1, 2).setValue(novoNome);
+        return true;
+      }
+    }
+    return false;
+  } catch (_) {
+    return false;
+  }
+}
+
 /* =========================
    LISTAR PARA DROPDOWNS (NOVAS!)
 ========================= */
 /* FUNÇÃO DUPLICADA
-function listarContratantes() {
+function listarContratantesLegacyEdicao_() {
   Logger.log('📋 listarContratantes');
   try {
     const sheet = SpreadsheetApp.getActive().getSheetByName('CONTRATANTES');
@@ -715,7 +878,7 @@ function listarContratantes() {
 
 */
 /*
-function listarCerimonialistas() {
+function listarCerimonialistasLegacyEdicao_() {
   Logger.log('📋 listarCerimonialistas');
   try {
     const sheet = SpreadsheetApp.getActive().getSheetByName('CERIMONIALISTAS');
@@ -743,7 +906,7 @@ function listarCerimonialistas() {
 
 /* FUNÇÃO DUPLICADA
 
-function listarEnderecos() {
+function listarEnderecosLegacyEdicao_() {
   Logger.log('📋 listarEnderecos');
   try {
     const sheet = SpreadsheetApp.getActive().getSheetByName('ENDERECOS');
@@ -770,7 +933,7 @@ function listarEnderecos() {
   */
 
 /* JÁ EXISTE ESSA FUNÇÃO EM UTILS
-function listarVendedores() {
+function listarVendedoresLegacyEdicao_() {
   Logger.log('📋 listarVendedores');
   try {
     const sheet = SpreadsheetApp.getActive().getSheetByName('VENDEDORES');
@@ -799,7 +962,7 @@ function listarVendedores() {
 
 /* funcao duplicada
 
-function listarParceirosBV() {
+function listarParceirosBVLegacyEdicao_() {
   Logger.log('📋 listarParceirosBV');
   try {
     const sheet = SpreadsheetApp.getActive().getSheetByName('PARCEIROS_BV');
@@ -831,11 +994,22 @@ function listarParceirosBV() {
 
 function mapEventoResumo(l) {
   const dataNormalizada = normalizarData(l[COL.DATA_EVENTO]);
+  let horaInicio = '';
+  const horaRaw = l[COL.HORA_INICIO];
+  if (horaRaw instanceof Date) {
+    horaInicio = Utilities.formatDate(horaRaw, Session.getScriptTimeZone() || 'America/Fortaleza', 'HH:mm');
+  } else if (typeof horaRaw === 'string') {
+    horaInicio = horaRaw.trim();
+  }
 
   return {
     id: l[COL.ID_EVENTO],
+    tipoRegistro: l[COL.TIPO_REGISTRO] || 'Evento',
     tipoEvento: l[COL.TIPO_EVENTO] || '',
     contratante: l[COL.NOME_CONTRATANTE] || '—',
+    local: l[COL.LOCAL] || '',
+    horaInicio: horaInicio,
+    duracao: Number(l[COL.DURACAO]) || 0,
     valor: l[COL.VALOR_TOTAL] || 0,
     dataFormatada: dataNormalizada
       ? Utilities.formatDate(dataNormalizada, 'GMT-3', 'dd/MM/yyyy')
@@ -886,7 +1060,7 @@ function calcularStatusFinanceiro(l) {
    FUNÇÕES CONFIG
 ========================= */
 
-function obterConfig(chave) {
+function obterConfigLegacyEdicao_(chave) {
   const ss = SpreadsheetApp.getActive();
   const sheet = ss.getSheetByName('CONFIG');
   
@@ -901,19 +1075,19 @@ function obterConfig(chave) {
   return null;
 }
 
-function listarTiposEvento() {
+function listarTiposEventoLegacyEdicao_() {
   const valor = obterConfig('TIPOS_EVENTO');
   if (!valor) return ['Casamento', 'Aniversário', 'Formatura', 'Corporativo', 'Festa', 'Outro'];
   return String(valor).split(';').map(function(t) { return t.trim(); }).filter(function(t) { return t; });
 }
 
-function listarDuracoesPadrao() {
+function listarDuracoesPadraoLegacyEdicao_() {
   const valor = obterConfig('DURACOES_PADRAO');
   if (!valor) return ['60','90','120','150','180','210','240'];
   return String(valor).split(';').map(function(d) { return d.trim(); }).filter(function(d) { return d; });
 }
 
-function listarProjetosSugeridos() {
+function listarProjetosSugeridosLegacyEdicao_() {
   const valor = obterConfig('PROJETOS_SUGERIDOS');
   if (!valor) return ['Banda Completa', 'Banda Reduzida', 'Banda Personalizada'];
   return String(valor).split(';').map(function(p) { return p.trim(); }).filter(function(p) { return p; });
@@ -923,7 +1097,7 @@ function listarProjetosSugeridos() {
    CADASTRO RÁPIDO CONTRATANTE
 ========================= */
 
-function cadastrarContratanteRapido(dados) {
+function cadastrarContratanteRapidoLegacyEdicao_(dados) {
   try {
     const ss = SpreadsheetApp.getActive();
     const sheet = ss.getSheetByName('PESSOAS');

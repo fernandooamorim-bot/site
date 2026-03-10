@@ -84,6 +84,10 @@ function determinarStatusComissao_(esperado, gerado, pago, pendente) {
   return 'PENDENTE';
 }
 
+function alertaEhSomenteInformativo_(codigo) {
+  return String(codigo || '').trim() === 'INCONSISTENCIA_RECEBIDO_MAIOR_QUE_CONTRATO';
+}
+
 function calcularAjustesComissaoPorEstorno(idVendedor) {
   const ss = SpreadsheetApp.getActive();
   const shMov = ss.getSheetByName('MOVIMENTACOES_FINANCEIRAS');
@@ -253,8 +257,9 @@ function calcularFinanceiroEvento(dados) {
   // ───────── STATUS FINANCEIROS ─────────
   const statusNF = temNF ? 'PROCESSADO' : 'N/A';
   const statusBV = valorBV > 0 ? 'PENDENTE' : 'N/A';
+  // Comissão de evento novo só vira PENDENTE após existir COMISSAO_GERADA.
   const statusComissao =
-    valorComissaoCalculado > 0 ? 'PENDENTE' : 'N/A';
+    valorComissaoCalculado > 0 ? 'AGUARDANDO' : 'N/A';
 
   return {
     valorNF,
@@ -375,6 +380,45 @@ function recalcularFinanceiroEvento(idEvento) {
  * BACKEND ULTRA SEGURO — NÃO DUPLICA, NÃO REPROCESSA
  * ===================================================== */
 
+function statusFinanceiroNormalizado_(status) {
+  return String(status || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .toUpperCase();
+}
+
+function resumirSaidasMovEvento_(movData, m, idEvento) {
+  const resumo = {
+    bv: { processado: 0, pendente: 0, total: 0 },
+    nf: { processado: 0, pendente: 0, total: 0 },
+    folha: { processado: 0, total: 0 }
+  };
+
+  for (let i = 1; i < movData.length; i++) {
+    if (String(movData[i][m('ID_EVENTO')] || '').trim() !== String(idEvento)) continue;
+
+    const tipo = String(movData[i][m('TIPO_MOVIMENTACAO')] || '').trim();
+    const status = statusFinanceiroNormalizado_(movData[i][m('STATUS')]);
+    if (status === 'CANCELADO') continue;
+
+    if (tipo === 'BV_EVENTO') {
+      resumo.bv.total += 1;
+      if (status === 'PROCESSADO') resumo.bv.processado += 1;
+      else if (status === 'PENDENTE') resumo.bv.pendente += 1;
+    } else if (tipo === 'NF_EVENTO') {
+      resumo.nf.total += 1;
+      if (status === 'PROCESSADO') resumo.nf.processado += 1;
+      else if (status === 'PENDENTE') resumo.nf.pendente += 1;
+    } else if (tipo === 'FOLHA_EVENTO') {
+      resumo.folha.total += 1;
+      if (status === 'PROCESSADO') resumo.folha.processado += 1;
+    }
+  }
+
+  return resumo;
+}
+
 /**
  * Registro de NF do evento (valor vem do EVENTO)
  */
@@ -391,11 +435,15 @@ function registrarNFEvento(idEvento, meta) {
     const evt = shEvt.getDataRange().getValues();
     const head = evt[0];
     const e = c => head.indexOf(c);
+    const movData = shMov.getDataRange().getValues();
+    const movHead = movData[0];
+    const m = c => movHead.indexOf(c);
 
     for (let i = 1; i < evt.length; i++) {
       if (evt[i][e('ID_EVENTO')] !== idEvento) continue;
 
-      if (evt[i][e('STATUS_NF')] === 'PROCESSADO') {
+      const resumoMov = resumirSaidasMovEvento_(movData, m, idEvento);
+      if (resumoMov.nf.processado > 0) {
         throw new Error('NF já processada para este evento');
       }
 
@@ -435,7 +483,7 @@ function registrarNFEvento(idEvento, meta) {
  * Registro de BV do evento (valor vem do EVENTO)
  */
 function registrarBVEvento(idEvento, meta) {
-  exigirAcao('eventos:registrarSaida');
+  exigirPermissaoSaidaBV_();
   return executarComLockFinanceiro_('BV_EVENTO', function () {
     const ss = SpreadsheetApp.getActive();
     const shEvt = ss.getSheetByName('EVENTOS');
@@ -447,31 +495,44 @@ function registrarBVEvento(idEvento, meta) {
     const evt = shEvt.getDataRange().getValues();
     const head = evt[0];
     const e = c => head.indexOf(c);
+    const movData = shMov.getDataRange().getValues();
+    const movHead = movData[0];
+    const m = c => movHead.indexOf(c);
 
     for (let i = 1; i < evt.length; i++) {
       if (evt[i][e('ID_EVENTO')] !== idEvento) continue;
 
-      if (evt[i][e('STATUS_BV')] === 'PROCESSADO') {
+      const resumoMov = resumirSaidasMovEvento_(movData, m, idEvento);
+      if (resumoMov.bv.processado > 0) {
         throw new Error('BV já processado para este evento');
       }
 
-      const valorBV = Number(evt[i][e('VALOR_BV')]) || 0;
+      const valorManual = Number(meta && meta.valor);
+      const valorBV = !isNaN(valorManual) && valorManual > 0
+        ? Number(valorManual.toFixed(2))
+        : (Number(evt[i][e('VALOR_BV')]) || 0);
       if (valorBV <= 0) throw new Error('Evento não possui BV válido');
+      const nomeCerimonialista = String(evt[i][e('NOME_CERIMONIALISTA')] || '').trim();
+      const obsEvento = String(evt[i][e('OBSERVACOES')] || '').trim();
+      const nomeParceiro = String(evt[i][e('NOME_BV')] || '').trim();
+      const destino = resolverDestinatarioBV_(nomeCerimonialista, obsEvento, nomeParceiro);
+      const obsDestino = montarObsDestinoBV_(destino, { id: '', criado: false, encontrado: false });
 
       const idMovimentacao = gerarIDMovimentacao();
+      const dataSaida = (meta && meta.dataSaida) ? normalizarData(meta.dataSaida) : normalizarData(new Date());
       const linhaMov = [
         idMovimentacao,
         'BV_EVENTO',
         'SAÍDA',
         idEvento,
         evt[i][e('NOME_EVENTO')],
-        normalizarData(new Date()),
+        dataSaida,
         valorBV,
         '',
         'BV',
         '',
         linkComprovante,
-        observacoesExtra || 'BV registrada automaticamente pelo sistema',
+        (observacoesExtra || 'BV registrada automaticamente pelo sistema') + obsDestino,
         usuario,
         new Date(),
         '',
@@ -479,12 +540,26 @@ function registrarBVEvento(idEvento, meta) {
       ];
 
       appendRowComVerificacao_(shMov, linhaMov, 'MOVIMENTACOES_FINANCEIRAS/BV_EVENTO');
+      setValueComVerificacao_(shEvt, i + 1, e('VALOR_BV') + 1, valorBV, 'EVENTOS/VALOR_BV');
       setValueComVerificacao_(shEvt, i + 1, e('STATUS_BV') + 1, 'PROCESSADO', 'EVENTOS/STATUS_BV');
       return { sucesso: true, idMovimentacao: idMovimentacao };
     }
 
     throw new Error('Evento não encontrado');
   });
+}
+
+function exigirPermissaoSaidaBV_() {
+  try {
+    return exigirAcao('eventos:registrarSaidaBV');
+  } catch (err) {
+    // Compatibilidade com fluxos antigos que ainda usam permissão ampla de saída.
+    const msg = String(err && err.message ? err.message : '');
+    if (msg.indexOf('FORBIDDEN_ACTION') === 0) {
+      return exigirAcao('eventos:registrarSaida');
+    }
+    throw err;
+  }
 }
 
 /**
@@ -504,6 +579,9 @@ function registrarFolhaEvento(idEvento, valor, descricao) {
     const evt = shEvt.getDataRange().getValues();
     const head = evt[0];
     const e = c => head.indexOf(c);
+    const movData = shMov.getDataRange().getValues();
+    const movHead = movData[0];
+    const m = c => movHead.indexOf(c);
 
     for (let i = 1; i < evt.length; i++) {
       if (evt[i][e('ID_EVENTO')] !== idEvento) continue;
@@ -513,9 +591,9 @@ function registrarFolhaEvento(idEvento, valor, descricao) {
       const nomeContratante = evt[i][e('NOME_CONTRATANTE')] || '';
       const nomePadraoEvento = (tipoEvento + ' ' + nomeContratante).trim();
 
-      // BLOQUEIO DEFINITIVO: folha é lançamento ÚNICO
-      const atual = Number(evt[i][e('FOLHA_CUSTO_VALOR')]) || 0;
-      if (atual > 0) {
+      // BLOQUEIO DEFINITIVO: folha é lançamento ÚNICO (fonte: MOVIMENTACOES)
+      const resumoMov = resumirSaidasMovEvento_(movData, m, idEvento);
+      if (resumoMov.folha.processado > 0) {
         throw new Error('Folha de custos já registrada para este evento');
       }
 
@@ -864,38 +942,141 @@ function buscarResumoFinanceiroEvento(idEvento) {
   const mov = shMov.getDataRange().getValues();
   const movHead = mov.shift();
   const m = c => movHead.indexOf(c);
+  let valorRecebidoAteAgora = 0;
+  let bvProcessado = false;
+  let bvPendenteMov = false;
+  let nfProcessada = false;
+  let nfPendenteMov = false;
+  let folhaCustoValorMov = 0;
+  let qtdBvProcessado = 0;
+  let qtdNfProcessada = 0;
+  let qtdFolhaProcessada = 0;
 
-  const recebimentos = mov.filter(r =>
-    String(r[m('ID_EVENTO')]) === String(idEvento) &&
-    r[m('NATUREZA')] === 'ENTRADA' &&
-    r[m('STATUS')] !== 'CANCELADO'
-  );
+  for (let i = 0; i < mov.length; i++) {
+    const row = mov[i];
+    if (String(row[m('ID_EVENTO')] || '').trim() !== String(idEvento)) continue;
 
-  const valorRecebidoAteAgora = recebimentos.reduce((s, r) => {
-    const raw = r[m('VALOR')];
-    if (raw === null || raw === undefined || raw === '') return s;
+    const tipo = String(row[m('TIPO_MOVIMENTACAO')] || '').trim();
+    const status = statusFinanceiroNormalizado_(row[m('STATUS')]);
+    if (status === 'CANCELADO') continue;
 
-    const normalizado =
-      typeof raw === 'string'
-        ? Number(raw.replace(/\./g, '').replace(',', '.'))
-        : Number(raw);
+    const rawValor = row[m('VALOR')];
+    const valor = typeof rawValor === 'string'
+      ? Number(rawValor.replace(/\./g, '').replace(',', '.'))
+      : Number(rawValor);
+    const valorSeguro = isNaN(valor) ? 0 : valor;
 
-    return s + (isNaN(normalizado) ? 0 : normalizado);
-  }, 0);
+    if (tipo === 'RECEBIMENTO_CLIENTE' && status === 'PROCESSADO') {
+      valorRecebidoAteAgora += valorSeguro;
+      continue;
+    }
+    if (tipo === 'ESTORNO_RECEBIMENTO' && status === 'PROCESSADO') {
+      valorRecebidoAteAgora -= valorSeguro;
+      continue;
+    }
+
+    if (tipo === 'BV_EVENTO') {
+      if (status === 'PROCESSADO') {
+        bvProcessado = true;
+        qtdBvProcessado += 1;
+      } else if (status === 'PENDENTE') {
+        bvPendenteMov = true;
+      }
+      continue;
+    }
+
+    if (tipo === 'NF_EVENTO') {
+      if (status === 'PROCESSADO') {
+        nfProcessada = true;
+        qtdNfProcessada += 1;
+      } else if (status === 'PENDENTE') {
+        nfPendenteMov = true;
+      }
+      continue;
+    }
+
+    if (tipo === 'FOLHA_EVENTO' && status === 'PROCESSADO') {
+      folhaCustoValorMov += valorSeguro;
+      qtdFolhaProcessada += 1;
+    }
+  }
+
+  valorRecebidoAteAgora = Number(valorRecebidoAteAgora.toFixed(2));
 
   const valorTotal = Number(evt[evtIdx][e('VALOR_TOTAL')]) || 0;
-  const valorPendente = valorTotal - valorRecebidoAteAgora;
+  // Pendente não deve ficar negativo; excedente de recebimento é tratado como "a maior".
+  const valorPendente = Number(Math.max(valorTotal - valorRecebidoAteAgora, 0).toFixed(2));
+  const valorBV = Number(evt[evtIdx][e('VALOR_BV')]) || 0;
+  const statusBVEspelho = String(evt[evtIdx][e('STATUS_BV')] || 'N/A');
+  const statusBV = valorBV > 0 ? (bvProcessado ? 'PROCESSADO' : 'PENDENTE') : 'N/A';
+  const temNF = String(evt[evtIdx][e('TEM_NF')] || '').toUpperCase() === 'TRUE';
+  const valorNF = Number(evt[evtIdx][e('VALOR_NF')]) || 0;
+  const statusNFEspelho = String(evt[evtIdx][e('STATUS_NF')] || 'N/A');
+  const statusNF = temNF ? (nfProcessada ? 'PROCESSADO' : 'PENDENTE') : 'N/A';
+  const folhaCustoValorEspelho = Number(evt[evtIdx][e('FOLHA_CUSTO_VALOR')]) || 0;
+  const folhaCustoValor = Number(folhaCustoValorMov.toFixed(2));
+  const folhaCustoDescricao = String(evt[evtIdx][e('FOLHA_CUSTO_DESCRICAO')] || '');
 
   let statusRecebimento = 'EM_ABERTO';
   if (valorRecebidoAteAgora > 0 && valorPendente > 0) statusRecebimento = 'PARCIAL';
   if (valorPendente <= 0) statusRecebimento = 'QUITADO';
 
+  const divergencias = [];
+  if (statusFinanceiroNormalizado_(statusBVEspelho) !== statusFinanceiroNormalizado_(statusBV)) {
+    divergencias.push('STATUS_BV_ESPELHO_DIVERGENTE');
+  }
+  if (statusFinanceiroNormalizado_(statusNFEspelho) !== statusFinanceiroNormalizado_(statusNF)) {
+    divergencias.push('STATUS_NF_ESPELHO_DIVERGENTE');
+  }
+  if (Math.abs(folhaCustoValorEspelho - folhaCustoValor) > 0.01) {
+    divergencias.push('FOLHA_CUSTO_ESPELHO_DIVERGENTE');
+  }
+  if (qtdBvProcessado > 1) divergencias.push('DUPLICIDADE_BV_PROCESSADO');
+  if (qtdNfProcessada > 1) divergencias.push('DUPLICIDADE_NF_PROCESSADO');
+  if (qtdFolhaProcessada > 1) divergencias.push('DUPLICIDADE_FOLHA_PROCESSADA');
+  if (valorRecebidoAteAgora > valorTotal + 0.01) {
+    alertas.push('INCONSISTENCIA_RECEBIDO_MAIOR_QUE_CONTRATO');
+  }
+
+  const alertas = [];
+  if (statusRecebimento === 'QUITADO' && valorBV > 0 && !bvProcessado) {
+    alertas.push('EVENTO_QUITADO_COM_BV_PENDENTE');
+  }
+  if (statusRecebimento === 'QUITADO' && temNF && !nfProcessada) {
+    alertas.push('EVENTO_QUITADO_COM_NF_PENDENTE');
+  }
+  if (valorBV > 0 && bvPendenteMov && !bvProcessado) {
+    alertas.push('BV_PENDENTE_EM_MOVIMENTACOES');
+  }
+  if (temNF && nfPendenteMov && !nfProcessada) {
+    alertas.push('NF_PENDENTE_EM_MOVIMENTACOES');
+  }
+
   return {
     valorTotal,
     valorRecebidoAteAgora,
     valorPendente,
-    statusRecebimento
+    statusRecebimento,
+    valorBV,
+    statusBV,
+    statusBVEspelho,
+    bvPendente: valueOrFalse_(valorBV > 0 && !bvProcessado),
+    temNF,
+    valorNF,
+    statusNF,
+    statusNFEspelho,
+    nfPendente: valueOrFalse_(temNF && !nfProcessada),
+    folhaCustoValor,
+    folhaCustoValorEspelho,
+    folhaCustoDescricao,
+    folhaPendente: valueOrFalse_(folhaCustoValor <= 0),
+    divergencias,
+    alertas
   };
+}
+
+function valueOrFalse_(value) {
+  return value ? true : false;
 }
 
 /**
@@ -976,17 +1157,6 @@ function listarRecebimentosPorEvento(idEvento) {
 /* =====================================================
  * PREVIEW DO FECHAMENTO (USADO PELO FRONTEND)
  * ===================================================== */
-
-/*
-function extrairIdRecebimentoDaObservacao(obs) {
-  if (!obs || typeof obs !== 'string') return null;
-
-  const texto = obs.replace(/\s+/g, ' ').trim();
-
-  const match = texto.match(/MOV-\d{8}-\d{3}(?![\d-])/);
-  return match ? match[0] : null;
-}
-*/
 
 function visualizarPreviewFechamento(idVendedor) {
   // Mantém alinhamento com a ACL e com o roteador da API.
@@ -1239,7 +1409,7 @@ function visualizarPreviewFechamento(idVendedor) {
  * O fechamento NUNCA recalcula ou reaplica ajustes.
  * Qualquer alteração nessa regra gera DESCONTO DUPLO e PREJUÍZO.
  */
-function fecharComissaoVendedor(idVendedor, _, __, ajusteCredito, ajusteDebito, linkComprovante) {
+function fecharComissaoVendedor(idVendedor, _, __, ajusteCredito, ajusteDebito, linkComprovante, ajustesDetalhados) {
   exigirAcao('comissao:fechar');
   let etapa = 'inicio';
   const logPrefix = '[FECHAMENTO_COMISSAO][idVendedor=' + String(idVendedor) + '] ';
@@ -1324,8 +1494,14 @@ function fecharComissaoVendedor(idVendedor, _, __, ajusteCredito, ajusteDebito, 
     0
   );
 
-  const ajusteCreditoNum = Number(ajusteCredito) || 0;
-  const ajusteDebitoNum = Number(ajusteDebito) || 0;
+  const ajustesDetalhadosNorm = normalizarAjustesDetalhadosFechamento_(ajustesDetalhados);
+  const somaAjustesDetalhados = somarAjustesDetalhadosFechamento_(ajustesDetalhadosNorm);
+  const ajusteCreditoNum = ajustesDetalhadosNorm.length
+    ? somaAjustesDetalhados.totalCredito
+    : (Number(ajusteCredito) || 0);
+  const ajusteDebitoNum = ajustesDetalhadosNorm.length
+    ? somaAjustesDetalhados.totalDebito
+    : (Number(ajusteDebito) || 0);
   const valorFinal =
     total +
     ajusteCreditoNum -
@@ -1364,9 +1540,12 @@ function fecharComissaoVendedor(idVendedor, _, __, ajusteCredito, ajusteDebito, 
     totalComissoes: total,
     ajusteCredito: ajusteCreditoNum,
     ajusteDebito: ajusteDebitoNum,
+    ajustesDetalhados: ajustesDetalhadosNorm,
     linkComprovante: String(linkComprovante || '').trim(),
     valorFinal: valorFinal
   });
+
+  const descricaoAjusteFechamento = gerarDescricaoAjustesDetalhadosFechamento_(ajustesDetalhadosNorm);
 
   etapa = 'registrar_fechamento';
   const linhaFechamento = [
@@ -1379,7 +1558,7 @@ function fecharComissaoVendedor(idVendedor, _, __, ajusteCredito, ajusteDebito, 
     total,
     ajusteCreditoNum,
     ajusteDebitoNum,
-    '',
+    descricaoAjusteFechamento,
     valorFinal,
     'CONFIRMADO',
     new Date(),
@@ -1443,10 +1622,20 @@ function fecharComissaoVendedor(idVendedor, _, __, ajusteCredito, ajusteDebito, 
     appendRowComVerificacao_(shMov, linhaAjuste, 'MOVIMENTACOES_FINANCEIRAS/AJUSTE_COMISSAO_ESTORNO');
   }
 
+  let linkPdf = '';
+  let pdfGerado = false;
+  let mensagemPdf = '';
   etapa = 'gerar_pdf';
-  const linkPdf = gerarPdfFechamentoComissao(idFechamento);
-  atualizarLinkPdfNoFechamento_(shFech, idFechamento, linkPdf);
-  log('PDF gerado com sucesso');
+  try {
+    linkPdf = gerarPdfFechamentoComissao(idFechamento);
+    atualizarLinkPdfNoFechamento_(shFech, idFechamento, linkPdf);
+    pdfGerado = true;
+    log('PDF gerado com sucesso');
+  } catch (pdfErr) {
+    const detalhePdf = String(pdfErr && pdfErr.message ? pdfErr.message : pdfErr);
+    mensagemPdf = 'Fechamento confirmado, mas o PDF não foi gerado automaticamente.';
+    log('ALERTA PDF: ' + detalhePdf);
+  }
 
   // =====================================================
   // ESPELHO FINANCEIRO — VALOR_COMISSAO_PAGO (PÓS-FECHAMENTO)
@@ -1545,7 +1734,10 @@ function fecharComissaoVendedor(idVendedor, _, __, ajusteCredito, ajusteDebito, 
     idFechamento,
     valorFinal,
     linkPdf,
-    mensagem: 'Fechamento realizado com sucesso'
+    pdfGerado: pdfGerado,
+    mensagem: pdfGerado
+      ? 'Fechamento realizado com sucesso'
+      : (mensagemPdf || 'Fechamento confirmado sem PDF automático')
   };
   } catch (err) {
     const detalhe = String(err && err.message ? err.message : err);
@@ -1557,6 +1749,74 @@ function fecharComissaoVendedor(idVendedor, _, __, ajusteCredito, ajusteDebito, 
       try { lock.releaseLock(); } catch (_) {}
     }
   }
+}
+
+function regerarPdfFechamentoComissao(idFechamento) {
+  exigirAcao('comissao:fechar');
+  if (!idFechamento) {
+    throw new Error('ID_FECHAMENTO obrigatório para regerar PDF');
+  }
+
+  const ss = SpreadsheetApp.getActive();
+  const shFech = ss.getSheetByName('FECHAMENTOS_COMISSAO');
+  if (!shFech) {
+    throw new Error('Aba FECHAMENTOS_COMISSAO não encontrada');
+  }
+
+  const linkPdf = gerarPdfFechamentoComissao(idFechamento);
+  atualizarLinkPdfNoFechamento_(shFech, idFechamento, linkPdf);
+
+  return {
+    sucesso: true,
+    idFechamento: String(idFechamento),
+    linkPdf: String(linkPdf || '').trim(),
+    mensagem: 'PDF do fechamento regenerado com sucesso'
+  };
+}
+
+function normalizarAjustesDetalhadosFechamento_(itens) {
+  if (!Array.isArray(itens)) return [];
+  return itens
+    .map(function (item) {
+      const tipo = String(item && item.tipo ? item.tipo : '').toUpperCase() === 'DEBITO' ? 'DEBITO' : 'CREDITO';
+      const valor = Number(item && item.valor);
+      const descricao = String(item && item.descricao ? item.descricao : '').trim();
+      return {
+        tipo: tipo,
+        valor: isNaN(valor) ? 0 : Number(valor.toFixed(2)),
+        descricao: descricao
+      };
+    })
+    .filter(function (item) {
+      return item.valor > 0;
+    });
+}
+
+function somarAjustesDetalhadosFechamento_(itens) {
+  let totalCredito = 0;
+  let totalDebito = 0;
+  (itens || []).forEach(function (item) {
+    if (item.tipo === 'DEBITO') totalDebito += Number(item.valor || 0);
+    else totalCredito += Number(item.valor || 0);
+  });
+  return {
+    totalCredito: Number(totalCredito.toFixed(2)),
+    totalDebito: Number(totalDebito.toFixed(2))
+  };
+}
+
+function gerarDescricaoAjustesDetalhadosFechamento_(itens) {
+  if (!Array.isArray(itens) || !itens.length) return '';
+  const resumo = itens
+    .slice(0, 3)
+    .map(function (item) {
+      return item.tipo + ': ' + (item.descricao || 'Sem descrição');
+    })
+    .join(' | ');
+  if (itens.length > 3) {
+    return resumo + ' | +' + (itens.length - 3) + ' ajuste(s)';
+  }
+  return resumo;
 }
 
 /**
@@ -1886,7 +2146,8 @@ function atualizarResumoFinanceiroEvento(idEvento) {
 
   const totalRecebido = receb.reduce((s, r) => s + (Number(r[m('VALOR')]) || 0), 0);
   const valorTotal = Number(evt[evtIdx][e('VALOR_TOTAL')]) || 0;
-  const pendente = valorTotal - totalRecebido;
+  // Mantém pendência financeira sem negativos (excedente é tratado como recebimento acima do contrato).
+  const pendente = Math.max(valorTotal - totalRecebido, 0);
 
   let status = 'EM_ABERTO';
   if (totalRecebido > 0 && pendente > 0) status = 'PARCIAL';
@@ -1896,6 +2157,266 @@ function atualizarResumoFinanceiroEvento(idEvento) {
   shEvt.getRange(row, e('VALOR_RECEBIDO') + 1).setValue(totalRecebido);
   shEvt.getRange(row, e('VALOR_PENDENTE') + 1).setValue(pendente);
   shEvt.getRange(row, e('STATUS_RECEBIMENTO') + 1).setValue(status);
+}
+
+/**
+ * =====================================================
+ * MIGRAÇÃO DE SALDO INICIAL FINANCEIRO (LEGADO)
+ * =====================================================
+ * Cria movimentos históricos idempotentes para eventos já importados:
+ * - RECEBIMENTO_CLIENTE (PROCESSADO) com marcador de migração
+ * - COMISSAO_GERADA (PROCESSADO) com INCLUIDO_EM_FECHAMENTO legado
+ *
+ * Objetivo: permitir que novos lançamentos sejam incrementais sem perder
+ * o histórico já refletido na aba EVENTOS.
+ */
+function resolverDestinatarioBV_(nomeCerimonialista, observacoesEvento, nomeParceiroBV) {
+  const nomeCer = String(nomeCerimonialista || '').trim();
+  if (nomeCer) {
+    return { nome: nomeCer, fonte: 'NOME_CERIMONIALISTA' };
+  }
+
+  const obs = String(observacoesEvento || '').trim();
+  if (obs) {
+    const match = obs.match(/(?:CERIMONIAL(?:ISTA)?|BV)\s*[:\-]\s*([^|;\\n]+)/i);
+    if (match && String(match[1] || '').trim()) {
+      return { nome: String(match[1]).trim(), fonte: 'OBSERVACOES' };
+    }
+  }
+
+  const nomeParceiro = String(nomeParceiroBV || '').trim();
+  if (nomeParceiro) {
+    return { nome: nomeParceiro, fonte: 'NOME_BV' };
+  }
+
+  return { nome: '', fonte: 'INDEFINIDO' };
+}
+
+function montarObsDestinoBV_(destino, cadastro) {
+  const nome = String((destino && destino.nome) || '').trim();
+  if (!nome) return '';
+  const fonte = String((destino && destino.fonte) || 'INDEFINIDO');
+  const idCer = String((cadastro && cadastro.id) || '').trim();
+  const statusCad = cadastro && cadastro.criado
+    ? 'cerimonialista_cadastrado'
+    : (cadastro && cadastro.encontrado ? 'cerimonialista_existente' : 'cerimonialista_nao_cadastrado');
+  return ' | destino_bv=' + nome + ' | fonte_destino=' + fonte + ' | id_cerimonialista=' + idCer + ' | ' + statusCad;
+}
+
+function garantirCerimonialistaPorNome_(nome, usuarioEmail) {
+  const nomeLimpo = String(nome || '').trim();
+  if (!nomeLimpo) return { id: '', nome: '', criado: false, encontrado: false };
+
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sh = ss.getSheetByName('CERIMONIALISTAS');
+  if (!sh) return { id: '', nome: nomeLimpo, criado: false, encontrado: false };
+
+  const data = sh.getDataRange().getValues();
+  const key = normalizarTextoSaldoInicial_(nomeLimpo);
+
+  for (let i = 1; i < data.length; i++) {
+    const nomeRow = String(data[i][1] || '').trim();
+    if (normalizarTextoSaldoInicial_(nomeRow) === key) {
+      return {
+        id: String(data[i][0] || '').trim(),
+        nome: nomeRow || nomeLimpo,
+        criado: false,
+        encontrado: true
+      };
+    }
+  }
+
+  let novoId = 1;
+  if (data.length > 1) {
+    let maxId = 0;
+    for (let i = 1; i < data.length; i++) {
+      const n = Number(data[i][0]);
+      if (!isNaN(n) && n > maxId) maxId = n;
+    }
+    novoId = maxId + 1;
+  }
+
+  sh.appendRow([
+    novoId,
+    nomeLimpo,
+    '',
+    'Cadastro automático via migração BV legado (' + String(usuarioEmail || '') + ')',
+    new Date()
+  ]);
+
+  return {
+    id: String(novoId),
+    nome: nomeLimpo,
+    criado: true,
+    encontrado: false
+  };
+}
+
+function montarCacheVendedoresSaldoInicial_() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const shVend = ss.getSheetByName('VENDEDORES');
+  if (!shVend) {
+    throw new Error('Aba VENDEDORES não encontrada para resolver ID_VENDEDOR.');
+  }
+
+  const data = shVend.getDataRange().getValues();
+  const mapaPorNome = {};
+  for (let i = 1; i < data.length; i++) {
+    const id = String(data[i][0] || '').trim();
+    const nome = String(data[i][1] || '').trim();
+    if (!id || !nome) continue;
+    const key = normalizarTextoSaldoInicial_(nome);
+    if (!key) continue;
+    if (!mapaPorNome[key]) mapaPorNome[key] = [];
+    mapaPorNome[key].push({ id: id, nome: nome });
+  }
+
+  return { porNome: mapaPorNome };
+}
+
+function resolverIdVendedorSaldoInicial_(idVendedorAtual, nomeVendedor, cacheVendedores) {
+  const idAtual = String(idVendedorAtual || '').trim();
+  if (idAtual) return { ok: true, idVendedor: idAtual };
+
+  const nome = String(nomeVendedor || '').trim();
+  if (!nome) return { ok: false, motivo: 'NOME_VENDEDOR vazio' };
+
+  const key = normalizarTextoSaldoInicial_(nome);
+  const candidatos = (((cacheVendedores || {}).porNome || {})[key]) || [];
+  if (candidatos.length === 1) {
+    return { ok: true, idVendedor: candidatos[0].id };
+  }
+  if (candidatos.length === 0) {
+    return { ok: false, motivo: 'NOME_VENDEDOR não encontrado em VENDEDORES: ' + nome };
+  }
+  return { ok: false, motivo: 'NOME_VENDEDOR ambíguo em VENDEDORES: ' + nome };
+}
+
+function normalizarTextoSaldoInicial_(texto) {
+  return String(texto || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase();
+}
+
+function recalcularEspelhosFinanceirosMigracao_(idsEvento, shEvt, shMov) {
+  if (!idsEvento || !idsEvento.length) return;
+
+  const idsSet = {};
+  for (let i = 0; i < idsEvento.length; i++) {
+    idsSet[String(idsEvento[i])] = true;
+  }
+
+  const evtData = shEvt.getDataRange().getValues();
+  const movData = shMov.getDataRange().getValues();
+  if (evtData.length < 2 || movData.length < 2) return;
+
+  const evtHead = evtData[0];
+  const movHead = movData[0];
+  const e = function (c) { return evtHead.indexOf(c); };
+  const m = function (c) { return movHead.indexOf(c); };
+
+  const colunasEventos = [
+    'ID_EVENTO',
+    'VALOR_TOTAL',
+    'VALOR_RECEBIDO',
+    'VALOR_PENDENTE',
+    'STATUS_RECEBIMENTO',
+    'ID_VENDEDOR',
+    'VALOR_COMISSAO_CALCULADO',
+    'VALOR_COMISSAO_PAGO',
+    'STATUS_COMISSAO'
+  ];
+  const colunasMov = [
+    'TIPO_MOVIMENTACAO',
+    'NATUREZA',
+    'STATUS',
+    'ID_EVENTO',
+    'ID_CONTRAPARTE',
+    'VALOR'
+  ];
+
+  for (var i = 0; i < colunasEventos.length; i++) {
+    if (e(colunasEventos[i]) === -1) {
+      throw new Error('Coluna obrigatória não encontrada em EVENTOS: ' + colunasEventos[i]);
+    }
+  }
+  for (var j = 0; j < colunasMov.length; j++) {
+    if (m(colunasMov[j]) === -1) {
+      throw new Error('Coluna obrigatória não encontrada em MOVIMENTACOES_FINANCEIRAS: ' + colunasMov[j]);
+    }
+  }
+
+  const mapaRecebido = {};
+  const mapaComissao = {};
+
+  for (let r = 1; r < movData.length; r++) {
+    const row = movData[r];
+    if (String(row[m('STATUS')] || '') === 'CANCELADO') continue;
+
+    const idEvento = String(row[m('ID_EVENTO')] || '').trim();
+    if (!idsSet[idEvento]) continue;
+
+    const tipoMov = String(row[m('TIPO_MOVIMENTACAO')] || '');
+    const natureza = String(row[m('NATUREZA')] || '');
+    const valor = Number(row[m('VALOR')]) || 0;
+
+    if (natureza === 'ENTRADA') {
+      if (!mapaRecebido[idEvento]) mapaRecebido[idEvento] = 0;
+      mapaRecebido[idEvento] += valor;
+    }
+
+    if (tipoMov === 'COMISSAO_GERADA') {
+      const idVendedor = String(row[m('ID_CONTRAPARTE')] || '').trim();
+      if (!mapaComissao[idEvento]) {
+        mapaComissao[idEvento] = {
+          geradoPorVendedor: {},
+          pagoPorVendedor: {}
+        };
+      }
+      if (!mapaComissao[idEvento].geradoPorVendedor[idVendedor]) {
+        mapaComissao[idEvento].geradoPorVendedor[idVendedor] = 0;
+      }
+      mapaComissao[idEvento].geradoPorVendedor[idVendedor] += valor;
+
+      if (String(row[m('STATUS')] || '') === 'PROCESSADO') {
+        if (!mapaComissao[idEvento].pagoPorVendedor[idVendedor]) {
+          mapaComissao[idEvento].pagoPorVendedor[idVendedor] = 0;
+        }
+        mapaComissao[idEvento].pagoPorVendedor[idVendedor] += valor;
+      }
+    }
+  }
+
+  for (let rEvt = 1; rEvt < evtData.length; rEvt++) {
+    const row = evtData[rEvt];
+    const idEvento = String(row[e('ID_EVENTO')] || '').trim();
+    if (!idsSet[idEvento]) continue;
+
+    const totalRecebido = Number((mapaRecebido[idEvento] || 0).toFixed(2));
+    const valorTotal = Number(row[e('VALOR_TOTAL')]) || 0;
+    const pendente = Number((valorTotal - totalRecebido).toFixed(2));
+
+    let statusRecebimento = 'EM_ABERTO';
+    if (totalRecebido > 0 && pendente > 0) statusRecebimento = 'PARCIAL';
+    if (pendente <= 0) statusRecebimento = 'QUITADO';
+
+    const idVendedor = String(row[e('ID_VENDEDOR')] || '').trim();
+    const esperado = Number(row[e('VALOR_COMISSAO_CALCULADO')]) || 0;
+    const totalGerado = Number((((mapaComissao[idEvento] || {}).geradoPorVendedor || {})[idVendedor] || 0).toFixed(2));
+    const totalPago = Number((((mapaComissao[idEvento] || {}).pagoPorVendedor || {})[idVendedor] || 0).toFixed(2));
+    const totalPendenteComissao = Number(Math.max(totalGerado - totalPago, 0).toFixed(2));
+    const statusComissao = determinarStatusComissao_(Number(esperado.toFixed(2)), totalGerado, totalPago, totalPendenteComissao);
+
+    const rowNumber = rEvt + 1;
+    setValueComVerificacao_(shEvt, rowNumber, e('VALOR_RECEBIDO') + 1, totalRecebido, 'EVENTOS/VALOR_RECEBIDO');
+    setValueComVerificacao_(shEvt, rowNumber, e('VALOR_PENDENTE') + 1, pendente, 'EVENTOS/VALOR_PENDENTE');
+    setValueComVerificacao_(shEvt, rowNumber, e('STATUS_RECEBIMENTO') + 1, statusRecebimento, 'EVENTOS/STATUS_RECEBIMENTO');
+    setValueComVerificacao_(shEvt, rowNumber, e('VALOR_COMISSAO_PAGO') + 1, totalPago, 'EVENTOS/VALOR_COMISSAO_PAGO');
+    setValueComVerificacao_(shEvt, rowNumber, e('STATUS_COMISSAO') + 1, statusComissao, 'EVENTOS/STATUS_COMISSAO');
+  }
 }
 
 /**
@@ -2081,9 +2602,11 @@ function lerSaudeFinanceiraEvento(idEvento) {
     'COMISSAO_INCONSISTENTE'
   ];
 
+  const alertasCriticos = alertas.filter(a => !alertaEhSomenteInformativo_(a));
+
   if (alertas.some(a => errosCriticos.includes(a))) {
     status = 'erro';
-  } else if (alertas.length > 0) {
+  } else if (alertasCriticos.length > 0) {
     status = 'alerta';
   }
 
@@ -2153,6 +2676,7 @@ function listarEventosFinanceiros() {
   // 🔹 Leitura ÚNICA das planilhas
   const eventosData = sheetEventos.getDataRange().getValues();
   const movData = sheetMov.getDataRange().getValues();
+  const mapaMovPorEvento = agruparMovimentacoesFinanceirasPorEvento_(movData);
 
   const lista = [];
 
@@ -2174,7 +2698,8 @@ function listarEventosFinanceiros() {
       const leitura = lerSaudeFinanceiraEvento_(
         idEvento,
         eventosData,
-        movData
+        movData,
+        mapaMovPorEvento
       );
 
       if (!leitura || !leitura.resumoFinanceiro) continue;
@@ -2196,6 +2721,7 @@ function listarEventosFinanceiros() {
       lista.push({
         idEvento: leitura.idEvento,
         nomeEvento: leitura.nomeEvento,
+        nomeContratante: leitura.nomeContratante,
         dataEvento: leitura.dataEvento,
         statusEvento: leitura.statusEvento,
 
@@ -2212,9 +2738,11 @@ function listarEventosFinanceiros() {
 
         // 🚨 Alertas & ações
         alertas: leitura.alertas,
+        divergencias: leitura.divergencias || [],
         acoes: leitura.acoes,
         status: leitura.status,
-        comissao
+        comissao,
+        metadados: leitura.metadados || {}
       });
 
     } catch (erro) {
@@ -2251,7 +2779,480 @@ function listarEventosFinanceiros() {
   return lista;
 }
 
-function lerSaudeFinanceiraEvento_(idEvento, eventosData, movData) {
+function obterDashboardGestao(params) {
+  exigirAcao('eventos:visualizarFinanceiro');
+
+  const anoAtual = new Date().getFullYear();
+  const ano = Number((params && params.ano) || anoAtual);
+  const incluirCancelados = String((params && params.incluirCancelados) || '').toUpperCase() === 'TRUE';
+
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const shEvt = ss.getSheetByName('EVENTOS');
+  const shMov = ss.getSheetByName('MOVIMENTACOES_FINANCEIRAS');
+  if (!shEvt || !shMov) throw new Error('Planilhas EVENTOS ou MOVIMENTACOES_FINANCEIRAS não encontradas');
+
+  const evtData = shEvt.getDataRange().getValues();
+  const movData = shMov.getDataRange().getValues();
+  if (evtData.length < 2) {
+    return {
+      sucesso: true,
+      ano: ano,
+      resumo: {
+        eventos: { total: 0, ativos: 0, cancelados: 0, quitados: 0, parciais: 0, abertos: 0 },
+        financeiro: { contrato: 0, recebido: 0, pendente: 0, percRecebido: 0 },
+        saidas: { bvProcessado: 0, bvPendente: 0, nfProcessada: 0, nfPendente: 0, folhaTotal: 0, folhaEventos: 0 }
+      },
+      visaoMensal: {
+        contratado: [],
+        recebidoHibrido: [],
+        comissaoPagaEvento: [],
+        saidasEvento: [],
+        liquidoEvento: [],
+        totais: {
+          contratado: 0,
+          recebidoHibrido: 0,
+          comissaoPagaEvento: 0,
+          bvPagoEvento: 0,
+          nfPagoEvento: 0,
+          folhaPagoEvento: 0,
+          saidasTotalEvento: 0,
+          liquidoEvento: 0
+        },
+        qualidade: {
+          eventosLegadoAno: 0,
+          eventosComMovRecebimento: 0,
+          eventosComFallbackEspelho: 0,
+          eventosSemRecebimento: 0
+        }
+      },
+      riscos: [],
+      vendedores: [],
+      mensal: []
+    };
+  }
+
+  const evtHead = evtData[0];
+  const e = function (c) { return evtHead.indexOf(c); };
+  const movHead = movData[0];
+  const m = function (c) { return movHead.indexOf(c); };
+
+  const mapaMov = agruparMovimentacoesFinanceirasPorEvento_(movData);
+  const mapaComissaoEvento = {};
+  const rankingVendedores = {};
+  const mensal = {};
+  const mensalEvento = {};
+  for (let mes = 1; mes <= 12; mes++) {
+    mensal[mes] = { recebido: 0, comissaoPaga: 0, bvPago: 0, folha: 0 };
+    mensalEvento[mes] = {
+      contratado: 0,
+      recebidoHibrido: 0,
+      comissaoPagaEvento: 0,
+      bvPagoEvento: 0,
+      nfPagoEvento: 0,
+      folhaPagoEvento: 0,
+      saidasTotalEvento: 0,
+      liquidoEvento: 0,
+      eventos: 0,
+      fallbackEspelho: 0
+    };
+  }
+  const qualidade = {
+    eventosLegadoAno: 0,
+    eventosComMovRecebimento: 0,
+    eventosComFallbackEspelho: 0,
+    eventosSemRecebimento: 0
+  };
+
+  for (let i = 1; i < movData.length; i++) {
+    const row = movData[i];
+    const idEvento = String(row[m('ID_EVENTO')] || '').trim();
+    if (!idEvento) continue;
+
+    const tipo = String(row[m('TIPO_MOVIMENTACAO')] || '').trim();
+    const status = statusFinanceiroNormalizado_(row[m('STATUS')]);
+    if (status === 'CANCELADO') continue;
+
+    const valor = Number(row[m('VALOR')]) || 0;
+    const idContraparte = String(row[m('ID_CONTRAPARTE')] || '').trim();
+    const nomeContraparte = String(row[m('CONTRAPARTE')] || '').trim();
+    const dtInfo = extrairAnoMesFinanceiro_(row[m('DATA_MOVIMENTACAO')]);
+
+    if (!mapaComissaoEvento[idEvento]) {
+      mapaComissaoEvento[idEvento] = { gerado: 0, pago: 0 };
+    }
+    if (tipo === 'COMISSAO_GERADA') {
+      mapaComissaoEvento[idEvento].gerado += valor;
+      if (status === 'PROCESSADO') mapaComissaoEvento[idEvento].pago += valor;
+
+      // Ranking de vendedores no dashboard deve refletir o ano selecionado.
+      if (dtInfo.ano === ano) {
+        const chaveVend = idContraparte || nomeContraparte || 'SEM_VENDEDOR';
+        if (!rankingVendedores[chaveVend]) {
+          rankingVendedores[chaveVend] = {
+            idVendedor: idContraparte,
+            nomeVendedor: nomeContraparte || 'Sem identificação',
+            gerado: 0,
+            pago: 0
+          };
+        }
+        rankingVendedores[chaveVend].gerado += valor;
+        if (status === 'PROCESSADO') rankingVendedores[chaveVend].pago += valor;
+      }
+    }
+
+    if (dtInfo.ano === ano && dtInfo.mes >= 1 && dtInfo.mes <= 12) {
+      if (tipo === 'RECEBIMENTO_CLIENTE' && status === 'PROCESSADO') mensal[dtInfo.mes].recebido += valor;
+      if (tipo === 'ESTORNO_RECEBIMENTO' && status === 'PROCESSADO') mensal[dtInfo.mes].recebido -= valor;
+      if (tipo === 'COMISSAO_GERADA' && status === 'PROCESSADO') mensal[dtInfo.mes].comissaoPaga += valor;
+      if (tipo === 'BV_EVENTO' && status === 'PROCESSADO') mensal[dtInfo.mes].bvPago += valor;
+      if (tipo === 'FOLHA_EVENTO' && status === 'PROCESSADO') mensal[dtInfo.mes].folha += valor;
+    }
+  }
+
+  const resumo = {
+    eventos: { total: 0, ativos: 0, cancelados: 0, quitados: 0, parciais: 0, abertos: 0 },
+    financeiro: { contrato: 0, recebido: 0, pendente: 0, percRecebido: 0 },
+    saidas: { bvProcessado: 0, bvPendente: 0, nfProcessada: 0, nfPendente: 0, folhaTotal: 0, folhaEventos: 0 }
+  };
+  const riscos = [];
+  const funil = { reservas: 0, eventos: 0, reunioes: 0, bloqueios: 0 };
+  const proximos30dias = [];
+
+  const hoje = new Date();
+  hoje.setHours(0, 0, 0, 0);
+  const limite30 = new Date(hoje.getTime());
+  limite30.setDate(limite30.getDate() + 30);
+
+  for (let i = 1; i < evtData.length; i++) {
+    const row = evtData[i];
+    const idEvento = String(row[e('ID_EVENTO')] || '').trim();
+    if (!idEvento) continue;
+
+    const tipoRegistro = String(row[e('TIPO_REGISTRO')] || '').trim();
+    if (tipoRegistro === 'Evento') funil.eventos++;
+    if (tipoRegistro === 'Reserva') funil.reservas++;
+    if (tipoRegistro === 'Reuniao') funil.reunioes++;
+    if (tipoRegistro === 'Bloqueio') funil.bloqueios++;
+
+    if (tipoRegistro !== 'Evento') continue;
+
+    const dataEvtInfo = extrairAnoMesFinanceiro_(row[e('DATA_EVENTO')]);
+    if (dataEvtInfo.ano !== ano) continue;
+
+    const statusEvt = String(row[e('STATUS_GERAL')] || 'ATIVO');
+    if (!incluirCancelados && statusEvt === 'CANCELADO') continue;
+
+    resumo.eventos.total++;
+    if (statusEvt === 'CANCELADO') resumo.eventos.cancelados++;
+    else resumo.eventos.ativos++;
+
+    const valorTotal = Number(row[e('VALOR_TOTAL')]) || 0;
+    resumo.financeiro.contrato += valorTotal;
+
+    const bucket = mapaMov[idEvento] || {
+      recebido: 0,
+      bv: { processado: 0, pendente: 0, valorProcessado: 0 },
+      nf: { processado: 0, pendente: 0, valorProcessado: 0 },
+      folha: { processado: 0, valorProcessado: 0 }
+    };
+    const recebido = Number((bucket.recebido || 0).toFixed(2));
+    const recebidoEspelho = Number(row[e('VALOR_RECEBIDO')]) || 0;
+    const pendente = Number(Math.max(valorTotal - recebido, 0).toFixed(2));
+    resumo.financeiro.recebido += recebido;
+    resumo.financeiro.pendente += pendente;
+
+    mensalEvento[dataEvtInfo.mes].contratado += valorTotal;
+    mensalEvento[dataEvtInfo.mes].eventos += 1;
+    let recebidoHibrido = recebido;
+    if (recebido > 0) {
+      qualidade.eventosComMovRecebimento++;
+    } else if (recebidoEspelho > 0) {
+      recebidoHibrido = recebidoEspelho;
+      mensalEvento[dataEvtInfo.mes].fallbackEspelho += 1;
+      qualidade.eventosComFallbackEspelho++;
+    } else {
+      qualidade.eventosSemRecebimento++;
+    }
+    mensalEvento[dataEvtInfo.mes].recebidoHibrido += recebidoHibrido;
+    const comissaoPagaEvento = Number((mapaComissaoEvento[idEvento]?.pago || 0).toFixed(2));
+    const bvPagoEvento = Number((bucket.bv.valorProcessado || 0).toFixed(2));
+    const nfPagoEvento = Number((bucket.nf.valorProcessado || 0).toFixed(2));
+    const folhaPagoEvento = Number((bucket.folha.valorProcessado || 0).toFixed(2));
+    const saidasTotalEvento = Number((comissaoPagaEvento + bvPagoEvento + nfPagoEvento + folhaPagoEvento).toFixed(2));
+    const liquidoEvento = Number((recebidoHibrido - saidasTotalEvento).toFixed(2));
+
+    mensalEvento[dataEvtInfo.mes].comissaoPagaEvento += comissaoPagaEvento;
+    mensalEvento[dataEvtInfo.mes].bvPagoEvento += bvPagoEvento;
+    mensalEvento[dataEvtInfo.mes].nfPagoEvento += nfPagoEvento;
+    mensalEvento[dataEvtInfo.mes].folhaPagoEvento += folhaPagoEvento;
+    mensalEvento[dataEvtInfo.mes].saidasTotalEvento += saidasTotalEvento;
+    mensalEvento[dataEvtInfo.mes].liquidoEvento += liquidoEvento;
+
+    if (String(row[e('OBSERVACOES')] || '').indexOf('[LEGADO]') !== -1) {
+      qualidade.eventosLegadoAno++;
+    }
+
+    if (recebido <= 0) resumo.eventos.abertos++;
+    else if (pendente > 0) resumo.eventos.parciais++;
+    else resumo.eventos.quitados++;
+
+    const valorBV = Number(row[e('VALOR_BV')]) || 0;
+    const temNF = String(row[e('TEM_NF')] || '').toUpperCase() === 'TRUE';
+    const valorFolhaMov = Number((bucket.folha.valorProcessado || 0).toFixed(2));
+
+    if (valorBV > 0) {
+      if ((bucket.bv.processado || 0) > 0) resumo.saidas.bvProcessado++;
+      else resumo.saidas.bvPendente++;
+    }
+    if (temNF) {
+      if ((bucket.nf.processado || 0) > 0) resumo.saidas.nfProcessada++;
+      else resumo.saidas.nfPendente++;
+    }
+    if (valorFolhaMov > 0) {
+      resumo.saidas.folhaEventos++;
+      resumo.saidas.folhaTotal += valorFolhaMov;
+    }
+
+    const statusReceb = statusRecebimentoInterno_(recebido, valorTotal);
+    if (statusReceb === 'QUITADO' && valorBV > 0 && (bucket.bv.processado || 0) === 0) {
+      riscos.push({
+        idEvento: idEvento,
+        severidade: 'CRITICO',
+        tipo: 'EVENTO_QUITADO_COM_BV_PENDENTE',
+        nomeEvento: `${row[e('TIPO_EVENTO')]} - ${row[e('NOME_CONTRATANTE')]}`,
+        dataEvento: row[e('DATA_EVENTO')]
+      });
+    }
+    if (statusReceb === 'QUITADO' && temNF && (bucket.nf.processado || 0) === 0) {
+      riscos.push({
+        idEvento: idEvento,
+        severidade: 'CRITICO',
+        tipo: 'EVENTO_QUITADO_COM_NF_PENDENTE',
+        nomeEvento: `${row[e('TIPO_EVENTO')]} - ${row[e('NOME_CONTRATANTE')]}`,
+        dataEvento: row[e('DATA_EVENTO')]
+      });
+    }
+    if ((bucket.bv.processado || 0) > 1) {
+      riscos.push({
+        idEvento: idEvento,
+        severidade: 'ALTO',
+        tipo: 'DUPLICIDADE_BV_PROCESSADO',
+        nomeEvento: `${row[e('TIPO_EVENTO')]} - ${row[e('NOME_CONTRATANTE')]}`,
+        dataEvento: row[e('DATA_EVENTO')]
+      });
+    }
+
+    const dataEventoNorm = normalizarData(row[e('DATA_EVENTO')]);
+    if (dataEventoNorm && dataEventoNorm >= hoje && dataEventoNorm <= limite30) {
+      proximos30dias.push({
+        idEvento: idEvento,
+        dataEvento: row[e('DATA_EVENTO')],
+        nomeEvento: `${row[e('TIPO_EVENTO')]} - ${row[e('NOME_CONTRATANTE')]}`,
+        statusRecebimento: statusReceb,
+        valorPendente: pendente
+      });
+    }
+  }
+
+  resumo.financeiro.contrato = Number(resumo.financeiro.contrato.toFixed(2));
+  resumo.financeiro.recebido = Number(resumo.financeiro.recebido.toFixed(2));
+  resumo.financeiro.pendente = Number(resumo.financeiro.pendente.toFixed(2));
+  resumo.saidas.folhaTotal = Number(resumo.saidas.folhaTotal.toFixed(2));
+  resumo.financeiro.percRecebido = resumo.financeiro.contrato > 0
+    ? Number(((resumo.financeiro.recebido / resumo.financeiro.contrato) * 100).toFixed(2))
+    : 0;
+
+  const vendedores = Object.keys(rankingVendedores).map(function (k) {
+    const v = rankingVendedores[k];
+    const pendente = Math.max(v.gerado - v.pago, 0);
+    return {
+      idVendedor: v.idVendedor || '',
+      nomeVendedor: v.nomeVendedor || 'Sem identificação',
+      gerado: Number(v.gerado.toFixed(2)),
+      pago: Number(v.pago.toFixed(2)),
+      pendente: Number(pendente.toFixed(2))
+    };
+  }).sort(function (a, b) {
+    return b.pago - a.pago;
+  }).slice(0, 10);
+
+  const mensalLista = [];
+  const contratadoLista = [];
+  const recebidoHibridoLista = [];
+  const comissaoPagaEventoLista = [];
+  const saidasEventoLista = [];
+  const liquidoEventoLista = [];
+  let totalContratadoEvento = 0;
+  let totalRecebidoHibridoEvento = 0;
+  let totalComissaoPagaEvento = 0;
+  let totalBvPagoEvento = 0;
+  let totalNfPagoEvento = 0;
+  let totalFolhaPagoEvento = 0;
+  let totalSaidasEvento = 0;
+  let totalLiquidoEvento = 0;
+  for (let mes = 1; mes <= 12; mes++) {
+    mensalLista.push({
+      mes: mes,
+      recebido: Number((mensal[mes].recebido || 0).toFixed(2)),
+      comissaoPaga: Number((mensal[mes].comissaoPaga || 0).toFixed(2)),
+      bvPago: Number((mensal[mes].bvPago || 0).toFixed(2)),
+      folha: Number((mensal[mes].folha || 0).toFixed(2))
+    });
+    const contratadoMes = Number((mensalEvento[mes].contratado || 0).toFixed(2));
+    const recebidoHibridoMes = Number((mensalEvento[mes].recebidoHibrido || 0).toFixed(2));
+    const comissaoPagaEventoMes = Number((mensalEvento[mes].comissaoPagaEvento || 0).toFixed(2));
+    const bvPagoEventoMes = Number((mensalEvento[mes].bvPagoEvento || 0).toFixed(2));
+    const nfPagoEventoMes = Number((mensalEvento[mes].nfPagoEvento || 0).toFixed(2));
+    const folhaPagoEventoMes = Number((mensalEvento[mes].folhaPagoEvento || 0).toFixed(2));
+    const saidasTotalEventoMes = Number((mensalEvento[mes].saidasTotalEvento || 0).toFixed(2));
+    const liquidoEventoMes = Number((mensalEvento[mes].liquidoEvento || 0).toFixed(2));
+    contratadoLista.push({
+      mes: mes,
+      valor: contratadoMes,
+      eventos: Number(mensalEvento[mes].eventos || 0)
+    });
+    recebidoHibridoLista.push({
+      mes: mes,
+      valor: recebidoHibridoMes,
+      fallbackEspelho: Number(mensalEvento[mes].fallbackEspelho || 0)
+    });
+    comissaoPagaEventoLista.push({
+      mes: mes,
+      valor: comissaoPagaEventoMes
+    });
+    saidasEventoLista.push({
+      mes: mes,
+      valor: saidasTotalEventoMes,
+      comissaoPaga: comissaoPagaEventoMes,
+      bvPago: bvPagoEventoMes,
+      nfPago: nfPagoEventoMes,
+      folhaPago: folhaPagoEventoMes
+    });
+    liquidoEventoLista.push({
+      mes: mes,
+      valor: liquidoEventoMes
+    });
+    totalContratadoEvento += contratadoMes;
+    totalRecebidoHibridoEvento += recebidoHibridoMes;
+    totalComissaoPagaEvento += comissaoPagaEventoMes;
+    totalBvPagoEvento += bvPagoEventoMes;
+    totalNfPagoEvento += nfPagoEventoMes;
+    totalFolhaPagoEvento += folhaPagoEventoMes;
+    totalSaidasEvento += saidasTotalEventoMes;
+    totalLiquidoEvento += liquidoEventoMes;
+  }
+
+  riscos.sort(function (a, b) {
+    if (a.severidade === b.severidade) return 0;
+    if (a.severidade === 'CRITICO') return -1;
+    if (b.severidade === 'CRITICO') return 1;
+    return 0;
+  });
+
+  proximos30dias.sort(function (a, b) {
+    const da = normalizarData(a.dataEvento);
+    const db = normalizarData(b.dataEvento);
+    if (da && db) return da - db;
+    return 0;
+  });
+
+  return {
+    sucesso: true,
+    ano: ano,
+    resumo: resumo,
+    visaoMensal: {
+      contratado: contratadoLista,
+      recebidoHibrido: recebidoHibridoLista,
+      comissaoPagaEvento: comissaoPagaEventoLista,
+      saidasEvento: saidasEventoLista,
+      liquidoEvento: liquidoEventoLista,
+      totais: {
+        contratado: Number(totalContratadoEvento.toFixed(2)),
+        recebidoHibrido: Number(totalRecebidoHibridoEvento.toFixed(2)),
+        comissaoPagaEvento: Number(totalComissaoPagaEvento.toFixed(2)),
+        bvPagoEvento: Number(totalBvPagoEvento.toFixed(2)),
+        nfPagoEvento: Number(totalNfPagoEvento.toFixed(2)),
+        folhaPagoEvento: Number(totalFolhaPagoEvento.toFixed(2)),
+        saidasTotalEvento: Number(totalSaidasEvento.toFixed(2)),
+        liquidoEvento: Number(totalLiquidoEvento.toFixed(2))
+      },
+      qualidade: qualidade
+    },
+    riscos: riscos.slice(0, 40),
+    vendedores: vendedores,
+    mensal: mensalLista,
+    funil: funil,
+    proximos30dias: proximos30dias.slice(0, 30)
+  };
+}
+
+function extrairAnoMesFinanceiro_(dataBruta) {
+  const d = normalizarData(dataBruta);
+  if (!d || isNaN(d.getTime())) {
+    return { ano: 0, mes: 0 };
+  }
+  return {
+    ano: d.getFullYear(),
+    mes: d.getMonth() + 1
+  };
+}
+
+function agruparMovimentacoesFinanceirasPorEvento_(movData) {
+  const mapa = {};
+  if (!Array.isArray(movData) || movData.length < 2) return mapa;
+
+  for (let i = 1; i < movData.length; i++) {
+    const row = movData[i];
+    const idEvento = String(row[3] || '').trim();
+    if (!idEvento) continue;
+
+    const tipo = String(row[1] || '').trim();
+    const status = statusFinanceiroNormalizado_(row[15]);
+    if (status === 'CANCELADO') continue;
+
+    const valor = Number(row[6]) || 0;
+    const bucket = mapa[idEvento] || {
+      recebido: 0,
+      bv: { processado: 0, pendente: 0, valorProcessado: 0 },
+      nf: { processado: 0, pendente: 0, valorProcessado: 0 },
+      folha: { processado: 0, valorProcessado: 0 }
+    };
+
+    if (tipo === 'RECEBIMENTO_CLIENTE' && status === 'PROCESSADO') {
+      bucket.recebido += valor;
+    } else if (tipo === 'ESTORNO_RECEBIMENTO' && status === 'PROCESSADO') {
+      bucket.recebido -= valor;
+    } else if (tipo === 'BV_EVENTO') {
+      if (status === 'PROCESSADO') {
+        bucket.bv.processado += 1;
+        bucket.bv.valorProcessado += valor;
+      } else if (status === 'PENDENTE') {
+        bucket.bv.pendente += 1;
+      }
+    } else if (tipo === 'NF_EVENTO') {
+      if (status === 'PROCESSADO') {
+        bucket.nf.processado += 1;
+        bucket.nf.valorProcessado += valor;
+      } else if (status === 'PENDENTE') {
+        bucket.nf.pendente += 1;
+      }
+    } else if (tipo === 'FOLHA_EVENTO' && status === 'PROCESSADO') {
+      bucket.folha.processado += 1;
+      bucket.folha.valorProcessado += valor;
+    }
+
+    mapa[idEvento] = bucket;
+  }
+
+  return mapa;
+}
+
+function lerSaudeFinanceiraEvento_(idEvento, eventosData, movData, mapaMovPorEvento) {
+  const evtHead = Array.isArray(eventosData) && eventosData.length > 0 ? eventosData[0] : [];
+  const idxEvt = function (nome, fallback) {
+    const pos = Array.isArray(evtHead) ? evtHead.indexOf(nome) : -1;
+    return pos >= 0 ? pos : fallback;
+  };
   const evento = eventosData.find(r => String(r[COL.ID_EVENTO]) === String(idEvento));
   if (!evento) throw new Error('Evento não encontrado');
 
@@ -2273,73 +3274,109 @@ function lerSaudeFinanceiraEvento_(idEvento, eventosData, movData) {
   const valorTotal = Number(evento[COL.VALOR_TOTAL]) || 0;
   const valorBV = Number(evento[COL.VALOR_BV]) || 0;
   const valorNF = Number(evento[COL.VALOR_NF]) || 0;
-  const temNF = evento[COL.TEM_NF] === true;
+  const temNF = evento[COL.TEM_NF] === true || String(evento[COL.TEM_NF] || '').toUpperCase() === 'TRUE';
   const statusEvento = evento[COL.STATUS_GERAL] || 'ATIVO';
+  const statusBVEspelho = String(evento[idxEvt('STATUS_BV', COL.STATUS_BV)] || 'N/A');
+  const statusNFEspelho = String(evento[idxEvt('STATUS_NF', COL.STATUS_NF)] || 'N/A');
+  const folhaEspelho = Number(evento[idxEvt('FOLHA_CUSTO_VALOR', COL.FOLHA_CUSTO_VALOR)]) || 0;
 
-  let totalRecebido = 0;
-  let bvPago = false;
-  let folhaExiste = false;
+  const bucket = (mapaMovPorEvento && mapaMovPorEvento[idEvento]) || {
+    recebido: 0,
+    bv: { processado: 0, pendente: 0, valorProcessado: 0 },
+    nf: { processado: 0, pendente: 0, valorProcessado: 0 },
+    folha: { processado: 0, valorProcessado: 0 }
+  };
 
-  for (let i = 1; i < movData.length; i++) {
-    if (String(movData[i][3]) !== String(idEvento)) continue;
-
-    const tipo = movData[i][1];
-    const status = movData[i][15];
-    const valor = Number(movData[i][6]) || 0;
-
-    if (tipo === 'RECEBIMENTO_CLIENTE' && status === 'PROCESSADO') {
-      totalRecebido += valor;
-    }
-    if (tipo === 'BV_EVENTO' && status === 'PROCESSADO') {
-      bvPago = true;
-    }
-    if (tipo === 'FOLHA_EVENTO') {
-      folhaExiste = true;
-    }
-  }
+  const totalRecebido = Number((bucket.recebido || 0).toFixed(2));
+  const bvPago = (bucket.bv.processado || 0) > 0;
+  const nfProcessada = (bucket.nf.processado || 0) > 0;
+  const folhaExiste = (bucket.folha.processado || 0) > 0;
+  const folhaMov = Number((bucket.folha.valorProcessado || 0).toFixed(2));
 
   const pendente = Math.max(0, valorTotal - totalRecebido);
 
   const alertas = [];
+  const divergencias = [];
   if (eventoJaOcorreu && totalRecebido === 0 && valorTotal > 0) {
     alertas.push('EVENTO_OCORREU_SEM_RECEBIMENTO');
+  }
+  if (eventoJaOcorreu && totalRecebido > 0 && pendente > 0) {
+    alertas.push('EVENTO_OCORREU_RECEBIMENTO_PARCIAL');
+  }
+  if (totalRecebido > valorTotal + 0.01) {
+    alertas.push('INCONSISTENCIA_RECEBIDO_MAIOR_QUE_CONTRATO');
   }
   if (valorBV > 0 && !bvPago) {
     alertas.push('BV_PENDENTE');
   }
+  if (statusRecebimentoInterno_(totalRecebido, valorTotal) === 'QUITADO' && valorBV > 0 && !bvPago) {
+    alertas.push('EVENTO_QUITADO_COM_BV_PENDENTE');
+  }
+  if (statusRecebimentoInterno_(totalRecebido, valorTotal) === 'QUITADO' && temNF && !nfProcessada) {
+    alertas.push('EVENTO_QUITADO_COM_NF_PENDENTE');
+  }
   if (eventoJaOcorreu && !folhaExiste) {
     alertas.push('FOLHA_NAO_REGISTRADA');
   }
+  if ((bucket.bv.processado || 0) > 1) alertas.push('DUPLICIDADE_BV_PROCESSADO');
+  if ((bucket.nf.processado || 0) > 1) alertas.push('DUPLICIDADE_NF_PROCESSADO');
+  if ((bucket.folha.processado || 0) > 1) alertas.push('DUPLICIDADE_FOLHA_PROCESSADA');
+
+  const statusBVCalculado = valorBV > 0 ? (bvPago ? 'PROCESSADO' : 'PENDENTE') : 'N/A';
+  const statusNFCalculado = temNF ? (nfProcessada ? 'PROCESSADO' : 'PENDENTE') : 'N/A';
+  if (statusFinanceiroNormalizado_(statusBVEspelho) !== statusFinanceiroNormalizado_(statusBVCalculado)) {
+    divergencias.push('STATUS_BV_ESPELHO_DIVERGENTE');
+  }
+  if (statusFinanceiroNormalizado_(statusNFEspelho) !== statusFinanceiroNormalizado_(statusNFCalculado)) {
+    divergencias.push('STATUS_NF_ESPELHO_DIVERGENTE');
+  }
+  if (Math.abs(folhaEspelho - folhaMov) > 0.01) {
+    divergencias.push('FOLHA_CUSTO_ESPELHO_DIVERGENTE');
+  }
 
   let status = 'ok';
-  if (alertas.length > 0) status = 'alerta';
+  const alertasCriticos = alertas.filter(a => !alertaEhSomenteInformativo_(a));
+  if (divergencias.length > 0 || alertasCriticos.length > 0) status = 'alerta';
 
   return {
     idEvento: evento[COL.ID_EVENTO],
+    tipoEvento: String(evento[COL.TIPO_EVENTO] || ''),
     nomeEvento: `${evento[COL.TIPO_EVENTO]} - ${evento[COL.NOME_CONTRATANTE]}`,
+    nomeContratante: String(evento[COL.NOME_CONTRATANTE] || ''),
     dataEvento: evento[COL.DATA_EVENTO],
     statusEvento,
     status,
     alertas,
+    divergencias,
     resumoFinanceiro: {
       valorContrato: valorTotal,
       totalRecebido,
       valorPendente: pendente,
-      statusRecebimento:
-        totalRecebido === 0 ? 'ABERTO' :
-        totalRecebido < valorTotal ? 'PARCIAL' : 'QUITADO'
+      statusRecebimento: statusRecebimentoInterno_(totalRecebido, valorTotal)
     },
     custos: {
-      nf: { existe: temNF, valor: valorNF, status: temNF ? 'PROCESSADO' : 'NA' },
-      bv: { existe: valorBV > 0, valor: valorBV, status: valorBV > 0 ? (bvPago ? 'PROCESSADO' : 'PENDENTE') : 'NA' },
-      folha: { existe: folhaExiste }
+      nf: { existe: temNF, valor: valorNF, status: statusNFCalculado, pendente: temNF && !nfProcessada },
+      bv: { existe: valorBV > 0, valor: valorBV, status: statusBVCalculado, pendente: valorBV > 0 && !bvPago },
+      folha: { existe: folhaExiste, valor: folhaMov }
     },
     acoes: {
       podeReceber: pendente > 0 && statusEvento === 'ATIVO',
       podePagarBV: valorBV > 0 && !bvPago,
       podeRegistrarFolha: eventoJaOcorreu && !folhaExiste
+    },
+    metadados: {
+      tipoRegistro: String(evento[COL.TIPO_REGISTRO] || ''),
+      legado: String(evento[idxEvt('CRIADO_POR', COL.CRIADO_POR)] || '').toLowerCase().indexOf('migracao') !== -1,
+      statusBVEspelho: statusBVEspelho,
+      statusNFEspelho: statusNFEspelho
     }
   };
+}
+
+function statusRecebimentoInterno_(totalRecebido, valorTotal) {
+  if (totalRecebido <= 0) return 'ABERTO';
+  if (totalRecebido < valorTotal) return 'PARCIAL';
+  return 'QUITADO';
 }
 
 function lerComissaoEvento_(idEvento, eventosData, movData) {
@@ -2510,6 +3547,7 @@ function diagnosticarIntegridadeFinanceira(params) {
   exigirAcao('eventos:visualizarFinanceiro');
 
   const limite = Math.max(1, Math.min(Number((params && params.limit) || 200), 2000));
+  const idEventoFiltro = String((params && params.idEvento) || '').trim();
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const shEvt = ss.getSheetByName('EVENTOS');
   const shMov = ss.getSheetByName('MOVIMENTACOES_FINANCEIRAS');
@@ -2535,9 +3573,17 @@ function diagnosticarIntegridadeFinanceira(params) {
 
   const colunasObrigatoriasEventos = [
     'ID_EVENTO',
+    'TIPO_REGISTRO',
+    'STATUS_GERAL',
     'VALOR_RECEBIDO',
     'VALOR_PENDENTE',
     'VALOR_TOTAL',
+    'VALOR_BV',
+    'STATUS_BV',
+    'TEM_NF',
+    'VALOR_NF',
+    'STATUS_NF',
+    'FOLHA_CUSTO_VALOR',
     'VALOR_COMISSAO_PAGO',
     'VALOR_COMISSAO_CALCULADO',
     'STATUS_COMISSAO'
@@ -2571,7 +3617,11 @@ function diagnosticarIntegridadeFinanceira(params) {
       mapaMov[idEvento] = {
         recebidoLiquido: 0,
         comissaoGeradaPorVendedor: {},
-        comissaoPagaPorVendedor: {}
+        comissaoPagaPorVendedor: {},
+        bvProcessado: 0,
+        nfProcessado: 0,
+        folhaProcessada: 0,
+        valorFolhaProcessada: 0
       };
     }
 
@@ -2598,16 +3648,34 @@ function diagnosticarIntegridadeFinanceira(params) {
         }
         mapaMov[idEvento].comissaoPagaPorVendedor[idVendedor] += valor;
       }
+    } else if (tipo === 'BV_EVENTO' && status === 'PROCESSADO') {
+      mapaMov[idEvento].bvProcessado += 1;
+    } else if (tipo === 'NF_EVENTO' && status === 'PROCESSADO') {
+      mapaMov[idEvento].nfProcessado += 1;
+    } else if (tipo === 'FOLHA_EVENTO' && status === 'PROCESSADO') {
+      mapaMov[idEvento].folhaProcessada += 1;
+      mapaMov[idEvento].valorFolhaProcessada += valor;
     }
   }
 
   const divergencias = [];
   const tolerancia = 0.01;
+  let eventosAnalisados = 0;
 
   for (let i = 1; i < evtData.length; i++) {
     const row = evtData[i];
     const idEvento = String(row[e('ID_EVENTO')] || '').trim();
     if (!idEvento) continue;
+    if (idEventoFiltro && idEvento !== idEventoFiltro) continue;
+
+    // Mantém o mesmo recorte operacional de listarEventosFinanceiros:
+    // apenas eventos reais e status válidos para o fluxo financeiro.
+    const tipoRegistro = String(row[e('TIPO_REGISTRO')] || '').trim();
+    const statusGeral = String(row[e('STATUS_GERAL')] || '').trim();
+    if (tipoRegistro !== 'Evento') continue;
+    if (!['ATIVO', 'CANCELADO'].includes(statusGeral)) continue;
+
+    eventosAnalisados++;
 
     const idVendedor = String(row[e('ID_VENDEDOR')] || '').trim();
     const valorTotal = Number(row[e('VALOR_TOTAL')]) || 0;
@@ -2616,11 +3684,20 @@ function diagnosticarIntegridadeFinanceira(params) {
     const valorComissaoPagaEspelho = Number(row[e('VALOR_COMISSAO_PAGO')]) || 0;
     const valorComissaoEsperada = Number(row[e('VALOR_COMISSAO_CALCULADO')]) || 0;
     const statusComissaoEspelho = String(row[e('STATUS_COMISSAO')] || '');
+    const valorBVEspelho = Number(row[e('VALOR_BV')]) || 0;
+    const statusBVEspelho = String(row[e('STATUS_BV')] || 'N/A');
+    const temNFEspelho = String(row[e('TEM_NF')] || '').toUpperCase() === 'TRUE';
+    const statusNFEspelho = String(row[e('STATUS_NF')] || 'N/A');
+    const folhaEspelho = Number(row[e('FOLHA_CUSTO_VALOR')]) || 0;
 
     const mov = mapaMov[idEvento] || {
       recebidoLiquido: 0,
       comissaoGeradaPorVendedor: {},
-      comissaoPagaPorVendedor: {}
+      comissaoPagaPorVendedor: {},
+      bvProcessado: 0,
+      nfProcessado: 0,
+      folhaProcessada: 0,
+      valorFolhaProcessada: 0
     };
 
     const recebidoCalculado = Number((mov.recebidoLiquido || 0).toFixed(2));
@@ -2671,16 +3748,205 @@ function diagnosticarIntegridadeFinanceira(params) {
       });
     }
 
+    const statusBVEsperado = valorBVEspelho > 0
+      ? ((mov.bvProcessado || 0) > 0 ? 'PROCESSADO' : 'PENDENTE')
+      : 'N/A';
+    if (statusFinanceiroNormalizado_(statusBVEspelho) !== statusFinanceiroNormalizado_(statusBVEsperado)) {
+      divergencias.push({
+        idEvento: idEvento,
+        tipo: 'STATUS_BV_DIVERGENTE',
+        esperado: statusBVEsperado,
+        atual: statusBVEspelho || 'N/A'
+      });
+    }
+
+    const statusNFEsperado = temNFEspelho
+      ? ((mov.nfProcessado || 0) > 0 ? 'PROCESSADO' : 'PENDENTE')
+      : 'N/A';
+    if (statusFinanceiroNormalizado_(statusNFEspelho) !== statusFinanceiroNormalizado_(statusNFEsperado)) {
+      divergencias.push({
+        idEvento: idEvento,
+        tipo: 'STATUS_NF_DIVERGENTE',
+        esperado: statusNFEsperado,
+        atual: statusNFEspelho || 'N/A'
+      });
+    }
+
+    const folhaEsperada = Number((mov.valorFolhaProcessada || 0).toFixed(2));
+    if (Math.abs(folhaEspelho - folhaEsperada) > tolerancia) {
+      divergencias.push({
+        idEvento: idEvento,
+        tipo: 'FOLHA_CUSTO_VALOR_DIVERGENTE',
+        esperado: folhaEsperada,
+        atual: Number(folhaEspelho.toFixed(2))
+      });
+    }
+
+    if ((mov.bvProcessado || 0) > 1) {
+      divergencias.push({
+        idEvento: idEvento,
+        tipo: 'DUPLICIDADE_BV_PROCESSADO',
+        esperado: 1,
+        atual: mov.bvProcessado
+      });
+    }
+    if ((mov.nfProcessado || 0) > 1) {
+      divergencias.push({
+        idEvento: idEvento,
+        tipo: 'DUPLICIDADE_NF_PROCESSADO',
+        esperado: 1,
+        atual: mov.nfProcessado
+      });
+    }
+    if ((mov.folhaProcessada || 0) > 1) {
+      divergencias.push({
+        idEvento: idEvento,
+        tipo: 'DUPLICIDADE_FOLHA_PROCESSADA',
+        esperado: 1,
+        atual: mov.folhaProcessada
+      });
+    }
+
     if (divergencias.length >= limite) break;
+  }
+
+  const eventosComDivergencia = {};
+  for (let i = 0; i < divergencias.length; i++) {
+    eventosComDivergencia[divergencias[i].idEvento] = true;
   }
 
   return {
     sucesso: true,
     resumo: {
-      eventosAnalisados: evtData.length - 1,
+      eventosAnalisados: eventosAnalisados,
       divergencias: divergencias.length,
+      eventosComDivergencia: Object.keys(eventosComDivergencia).length,
       truncadoNoLimite: divergencias.length >= limite
     },
     divergencias: divergencias
   };
+}
+
+function reconciliarResumoFinanceiroEvento(idEvento) {
+  exigirAcao('eventos:editar');
+  const alvo = String(idEvento || '').trim();
+  if (!alvo) throw new Error('ID_EVENTO_OBRIGATORIO');
+
+  return executarComLockFinanceiro_('RECONCILIAR_RESUMO_EVENTO', function () {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const shEvt = ss.getSheetByName('EVENTOS');
+    const shMov = ss.getSheetByName('MOVIMENTACOES_FINANCEIRAS');
+    if (!shEvt || !shMov) throw new Error('Planilhas EVENTOS ou MOVIMENTACOES_FINANCEIRAS não encontradas');
+
+    const evtData = shEvt.getDataRange().getValues();
+    const movData = shMov.getDataRange().getValues();
+    const evtHead = evtData[0];
+    const movHead = movData[0] || [];
+    const e = function (c) { return evtHead.indexOf(c); };
+    const m = function (c) { return movHead.indexOf(c); };
+    const rowIdx = evtData.findIndex(function (r, idx) {
+      return idx > 0 && String(r[e('ID_EVENTO')] || '').trim() === alvo;
+    });
+    if (rowIdx === -1) throw new Error('EVENTO_NAO_ENCONTRADO');
+
+    const resumo = buscarResumoFinanceiroEvento(alvo);
+    if (!resumo) throw new Error('RESUMO_FINANCEIRO_INDISPONIVEL');
+
+    const rowNumber = rowIdx + 1;
+    const valorRecebido = Number(resumo.valorRecebidoAteAgora || 0);
+    const valorPendente = Number(resumo.valorPendente || 0);
+    const statusRecebimento = String(resumo.statusRecebimento || 'EM_ABERTO');
+    const statusBV = String(resumo.statusBV || 'N/A');
+    const statusNF = String(resumo.statusNF || 'N/A');
+    const folhaValor = Number(resumo.folhaCustoValor || 0);
+    const idVendedorEvento = String(evtData[rowIdx][e('ID_VENDEDOR')] || '').trim();
+    const valorComissaoEsperada = Number(evtData[rowIdx][e('VALOR_COMISSAO_CALCULADO')]) || 0;
+
+    let totalComissaoGerada = 0;
+    let totalComissaoPaga = 0;
+    const idxTipoMov = m('TIPO_MOVIMENTACAO');
+    const idxStatusMov = m('STATUS');
+    const idxIdEventoMov = m('ID_EVENTO');
+    const idxIdContraparteMov = m('ID_CONTRAPARTE');
+    const idxValorMov = m('VALOR');
+
+    if (
+      idxTipoMov >= 0 &&
+      idxStatusMov >= 0 &&
+      idxIdEventoMov >= 0 &&
+      idxIdContraparteMov >= 0 &&
+      idxValorMov >= 0 &&
+      idVendedorEvento
+    ) {
+      for (let i = 1; i < movData.length; i++) {
+        const row = movData[i];
+        if (String(row[idxIdEventoMov] || '').trim() !== alvo) continue;
+        if (String(row[idxIdContraparteMov] || '').trim() !== idVendedorEvento) continue;
+        if (String(row[idxTipoMov] || '').trim() !== 'COMISSAO_GERADA') continue;
+
+        const statusMov = statusFinanceiroNormalizado_(row[idxStatusMov]);
+        if (statusMov === 'CANCELADO') continue;
+
+        const valorMov = Number(row[idxValorMov]) || 0;
+        totalComissaoGerada += valorMov;
+        if (statusMov === 'PROCESSADO') {
+          totalComissaoPaga += valorMov;
+        }
+      }
+    }
+
+    totalComissaoGerada = Number(totalComissaoGerada.toFixed(2));
+    totalComissaoPaga = Number(totalComissaoPaga.toFixed(2));
+    const totalComissaoPendente = Number(Math.max(totalComissaoGerada - totalComissaoPaga, 0).toFixed(2));
+    const statusComissao = determinarStatusComissao_(
+      Number(valorComissaoEsperada.toFixed(2)),
+      totalComissaoGerada,
+      totalComissaoPaga,
+      totalComissaoPendente
+    );
+
+    const setIfExists_ = function (colName, value, contexto) {
+      const idx = e(colName);
+      if (idx >= 0) {
+        setValueComVerificacao_(shEvt, rowNumber, idx + 1, value, contexto);
+      }
+    };
+
+    setIfExists_('VALOR_RECEBIDO', Number(valorRecebido.toFixed(2)), 'EVENTOS/VALOR_RECEBIDO_RECONCILIAR');
+    setIfExists_('VALOR_PENDENTE', Number(valorPendente.toFixed(2)), 'EVENTOS/VALOR_PENDENTE_RECONCILIAR');
+    setIfExists_('STATUS_RECEBIMENTO', statusRecebimento, 'EVENTOS/STATUS_RECEBIMENTO_RECONCILIAR');
+    setIfExists_('STATUS_BV', statusBV, 'EVENTOS/STATUS_BV_RECONCILIAR');
+    setIfExists_('STATUS_NF', statusNF, 'EVENTOS/STATUS_NF_RECONCILIAR');
+    setIfExists_('FOLHA_CUSTO_VALOR', Number(folhaValor.toFixed(2)), 'EVENTOS/FOLHA_CUSTO_VALOR_RECONCILIAR');
+    setIfExists_('VALOR_COMISSAO_PAGO', Number(totalComissaoPaga.toFixed(2)), 'EVENTOS/VALOR_COMISSAO_PAGO_RECONCILIAR');
+    setIfExists_('STATUS_COMISSAO', statusComissao, 'EVENTOS/STATUS_COMISSAO_RECONCILIAR');
+
+    const setMetaBestEffort_ = function (colName, value, contexto) {
+      const idx = e(colName);
+      if (idx < 0) return;
+      try {
+        setValueComVerificacao_(shEvt, rowNumber, idx + 1, value, contexto);
+      } catch (metaErr) {
+        Logger.log('[RECONCILIAR_META_WARN] idEvento=' + alvo + ' col=' + colName + ' erro=' + String(metaErr));
+      }
+    };
+
+    setMetaBestEffort_('ULTIMA_EDICAO', new Date(), 'EVENTOS/ULTIMA_EDICAO_RECONCILIAR');
+    setMetaBestEffort_('EDITADO_POR', getUsuarioAtual().email, 'EVENTOS/EDITADO_POR_RECONCILIAR');
+
+    return {
+      sucesso: true,
+      idEvento: alvo,
+      resumoAtualizado: {
+        valorRecebido: Number(valorRecebido.toFixed(2)),
+        valorPendente: Number(valorPendente.toFixed(2)),
+        statusRecebimento: statusRecebimento,
+        statusBV: statusBV,
+        statusNF: statusNF,
+        folhaCustoValor: Number(folhaValor.toFixed(2)),
+        valorComissaoPago: Number(totalComissaoPaga.toFixed(2)),
+        statusComissao: statusComissao
+      }
+    };
+  });
 }

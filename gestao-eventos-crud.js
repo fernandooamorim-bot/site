@@ -10,20 +10,25 @@
 function aplicarPermissoesComissao(perfilUsuario) {
   const selectTipo = document.getElementById('comissaoTipo');
   const campoValor = document.getElementById('comissaoValorContainer');
+  const perfilNorm = String(perfilUsuario || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .toLowerCase();
 
   if (!selectTipo) return;
 
   // Limpa opções
   selectTipo.innerHTML = '';
 
-  if (perfilUsuario === 'Proprietário') {
+  if (perfilNorm === 'proprietario') {
     // Todas as opções
     selectTipo.innerHTML += '<option value="Padrão">Padrão</option>';
     selectTipo.innerHTML += '<option value="Percentual">Percentual</option>';
     selectTipo.innerHTML += '<option value="Fixo">Fixo</option>';
     selectTipo.innerHTML += '<option value="Sem Comissão">Sem Comissão</option>';
     if (campoValor) campoValor.style.display = 'block';
-  } else if (perfilUsuario === 'Sócio') {
+  } else if (perfilNorm === 'socio' || perfilNorm === 'administrador' || perfilNorm === 'admin') {
     // Apenas padrão e sem comissão
     selectTipo.innerHTML += '<option value="Padrão">Padrão</option>';
     selectTipo.innerHTML += '<option value="Sem Comissão">Sem Comissão</option>';
@@ -86,14 +91,15 @@ function criarEvento(dados, email) {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     const sheet = ss.getSheetByName('EVENTOS');
     const user = requireUserByEmail(email);
-    requirePermission(user, 'registrar_evento');
-    const usuario = user.email;
+    requirePermission(user, 'eventos:criar');
+    const usuario = user.email || user.EMAIL || email;
     const usuarioFinal = usuario || email || 'SYSTEM';
 
     const tipoRegistro = dados.tipoRegistro || 'Evento';
     const isEvento = tipoRegistro === 'Evento';
     const isReuniao = tipoRegistro === 'Reunião';
     const isBloqueio = tipoRegistro === 'Bloqueio';
+    const isReserva = tipoRegistro === 'Reserva';
 
     const idEvento = gerarIDEvento();
 
@@ -130,11 +136,13 @@ const horaInicio = dados.horaInicio
 
     // ===== RESOLUÇÃO DE NOMES (IGUAL AO WEBAPP, PORÉM CENTRALIZADO) =====
     const nomeContratante = dados.idContratante
-  ? buscarNomePorId('CONTRATANTES', dados.idContratante)
-  : '';
+      ? buscarNomePorId('CONTRATANTES', dados.idContratante)
+      : String(dados.nomeContratanteDigitado || '').trim();
 
-    const nomeCerimonialista = isEvento
-      ? buscarNomePorId('CERIMONIALISTAS', dados.idCerimonialista)
+    const nomeCerimonialista = (isEvento || isReserva)
+      ? (dados.idCerimonialista
+        ? buscarNomePorId('CERIMONIALISTAS', dados.idCerimonialista)
+        : String(dados.nomeCerimonialistaDigitado || '').trim())
       : '';
 
     const nomeVendedor = isEvento
@@ -143,7 +151,7 @@ const horaInicio = dados.horaInicio
 
     const nomeLocal = dados.idEndereco
       ? buscarNomePorId('ENDERECOS', dados.idEndereco)
-      : isBloqueio ? 'N/A' : '';
+      : (isBloqueio ? 'N/A' : String(dados.nomeLocalDigitado || '').trim());
 
     const nomeBV = isEvento
       ? buscarNomePorId('PARCEIROS_BV', dados.idBV)
@@ -190,8 +198,8 @@ const horaInicio = dados.horaInicio
       dataFimTexto,                      // 4 DATA_FIM
       horaInicio,                    // 5 HORA_INICIO
       duracaoNumero,                     // 6 DURACAO
-      isEvento ? dados.tipoEvento || '' : tipoRegistro.toUpperCase(), // 7
-      dados.projeto || '',               // 8
+      isEvento ? dados.tipoEvento || '' : (isReserva ? (dados.tipoEvento || 'RESERVA') : tipoRegistro.toUpperCase()), // 7
+      (isEvento || isReserva) ? (dados.projeto || '') : '',               // 8
       dados.idContratante || '',         // 9
       nomeContratante,                   // 10 NOME_CONTRATANTE
       dados.idCerimonialista || '',      // 11
@@ -288,7 +296,8 @@ function buscarNomePorId(nomeAba, id) {
  */
 function registrarBV(idEvento, idParceiro, tipoBV, valorBV, valorContrato, email) {
   const user = requireUserByEmail(email);
-  requirePermission(user, 'registrar_bv');
+  // Compatibilidade com ACL atual: criação de evento pode registrar metadados de BV.
+  requirePermission(user, 'eventos:criar');
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheet = ss.getSheetByName('MOVIMENTACOES_FINANCEIRAS');
   
@@ -378,8 +387,8 @@ function editarEvento(idEvento, dadosAtualizados, email) {
     const sheet = ss.getSheetByName('EVENTOS');
     const data = sheet.getDataRange().getValues();
     const user = requireUserByEmail(email);
-    requirePermission(user, 'editar_evento');
-    const usuario = user.email;
+    requirePermission(user, 'eventos:editar');
+    const usuario = user.email || user.EMAIL || email;
     
     // Encontra linha do evento
     for (let i = 1; i < data.length; i++) {
@@ -435,12 +444,10 @@ function listarEventos(filtros = {}) {
     const sheet = ss.getSheetByName('EVENTOS');
     
     if (!sheet) {
-      Logger.log('ERRO: Aba EVENTOS não encontrada');
       return [];
     }
     
     const data = sheet.getDataRange().getValues();
-    Logger.log('Total de linhas na aba EVENTOS: ' + data.length);
     
     const eventos = [];
     
@@ -448,7 +455,6 @@ function listarEventos(filtros = {}) {
     for (let i = 1; i < data.length; i++) {
       // Pula linhas vazias
       if (!data[i][0]) {
-        Logger.log('Linha ' + (i+1) + ' está vazia, pulando...');
         continue;
       }
       
@@ -543,8 +549,6 @@ function listarEventos(filtros = {}) {
         observacoes: data[i][COL.OBSERVACOES]   // Observações do evento
       };
       
-      Logger.log('Evento encontrado: ' + evento.id + ' - ' + evento.tipoEvento + ' ' + evento.contratante);
-      
       // ========================================
       // APLICA FILTROS (SE HOUVER)
       // ========================================
@@ -569,19 +573,17 @@ function listarEventos(filtros = {}) {
       }
     }
     
-    Logger.log('Total de eventos retornados: ' + eventos.length);
-    
     // ========================================
     // DETECTA EVENTOS DENTRO DE INTERVALOS
     // ========================================
     const eventosComRelacoes = detectarEventosDentroDeIntervalos(eventos);
 
-    // Auditoria automática
-  const auditoria = auditarOrdemCronologica(eventosComRelacoes);
-    
-    if (!auditoria.passou) {
-      Logger.log('⚠️ ATENÇÃO: Auditoria identificou problemas!');
-      Logger.log('Eventos com problemas: ' + auditoria.erros.length);
+    // Auditoria opcional (desligada por padrão para performance em produção).
+    if (deveAuditarAgenda_()) {
+      const auditoria = auditarOrdemCronologica(eventosComRelacoes);
+      if (!auditoria.passou) {
+        Logger.log('⚠️ Auditoria agenda identificou problemas: ' + auditoria.erros.length);
+      }
     }
     
   
@@ -589,9 +591,447 @@ function listarEventos(filtros = {}) {
     
   } catch (error) {
     Logger.log('ERRO em listarEventos: ' + error.message);
-    Logger.log('Stack: ' + error.stack);
     throw error;
   }
+}
+
+/**
+ * Lista eventos conforme perfil do usuário autenticado.
+ * Músico: apenas Eventos dentro da janela de hoje até +1 mês, sem dados financeiros.
+ */
+function listarEventosPorUsuario(email) {
+  return listarEventosBootstrap(email).eventos || [];
+}
+
+function listarEventosBootstrap(email) {
+  const user = requireUserByEmail(email);
+  return obterPayloadAgendaPorUsuario_(user);
+}
+
+function obterPayloadAgendaPorUsuario_(user) {
+  const cfgCache = obterConfiguracaoCacheCompartilhadoAgenda_();
+
+  if (!cfgCache.ativo) {
+    return montarPayloadAgendaPorUsuarioSemCache_(user, '');
+  }
+
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const sh = ss.getSheetByName('EVENTOS');
+    if (!sh) {
+      return {
+        eventos: [],
+        syncVersion: 'NO_EVENTOS_SHEET'
+      };
+    }
+
+    const sync = montarSyncAgendaInfo_(String(user.PERFIL || ''), ss, sh);
+    const escopoPerfil = normalizarPerfilCacheAgenda_(user.PERFIL) === 'musico' ? 'musico' : 'gestor';
+    const diaBucket = escopoPerfil === 'musico'
+      ? Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyyMMdd')
+      : 'all';
+
+    const chaveCache = [
+      'AGENDA_SHARED_V2',
+      escopoPerfil,
+      diaBucket,
+      sync.version
+    ].join('|');
+
+    const cache = CacheService.getScriptCache();
+    const parsed = lerJsonCacheCompartilhadoAgenda_(cache, chaveCache);
+    if (parsed) {
+      if (Array.isArray(parsed)) {
+        return {
+          eventos: parsed,
+          syncVersion: String(sync.version || '')
+        };
+      }
+
+      if (Array.isArray(parsed.eventos)) {
+        return {
+          eventos: parsed.eventos,
+          syncVersion: String(parsed.syncVersion || sync.version || '')
+        };
+      }
+    }
+
+    const payload = montarPayloadAgendaPorUsuarioSemCache_(user, String(sync.version || ''));
+    salvarJsonCacheCompartilhadoAgenda_(cache, chaveCache, payload, cfgCache.ttlSegundos);
+    return payload;
+  } catch (e) {
+    Logger.log('Falha no cache compartilhado da agenda: ' + e.message);
+    return montarPayloadAgendaPorUsuarioSemCache_(user, '');
+  }
+}
+
+function montarPayloadAgendaPorUsuarioSemCache_(user, syncVersion) {
+  return {
+    eventos: listarEventosPorUsuarioSemCache_(user),
+    syncVersion: String(syncVersion || '')
+  };
+}
+
+function listarEventosPorUsuarioSemCache_(user) {
+  const eventos = listarEventos();
+
+  if (!user || normalizarPerfilCacheAgenda_(user.PERFIL) !== 'musico') {
+    return eventos;
+  }
+
+  const inicio = new Date();
+  inicio.setHours(0, 0, 0, 0);
+
+  const limite = new Date(inicio);
+  limite.setMonth(limite.getMonth() + 1);
+  limite.setHours(23, 59, 59, 999);
+
+  return eventos
+    .filter(function (evento) {
+      if (!evento || evento.tipo !== 'Evento') return false;
+      const data = parseDataBR(evento.data);
+      if (!data) return false;
+      data.setHours(0, 0, 0, 0);
+      return data >= inicio && data <= limite;
+    })
+    .map(function (evento) {
+      return sanitizarEventoParaMusico_(evento);
+    });
+}
+
+function lerJsonCacheCompartilhadoAgenda_(cache, chaveBase) {
+  try {
+    const raw = cache.get(chaveBase);
+    if (!raw) return null;
+
+    let parsed = null;
+    try {
+      parsed = JSON.parse(raw);
+    } catch (_) {
+      return null;
+    }
+
+    if (!parsed || typeof parsed !== 'object' || !parsed.__chunkedAgenda) {
+      return parsed;
+    }
+
+    const total = Number(parsed.total || 0);
+    if (!total || total < 1) return null;
+
+    const keys = [];
+    for (var i = 0; i < total; i++) {
+      keys.push(chaveBase + '|part|' + i);
+    }
+
+    const partes = cache.getAll(keys);
+    if (!partes) return null;
+
+    let json = '';
+    for (var j = 0; j < keys.length; j++) {
+      const parte = partes[keys[j]];
+      if (typeof parte !== 'string') return null;
+      json += parte;
+    }
+
+    return JSON.parse(json);
+  } catch (e) {
+    Logger.log('Falha ao ler cache compartilhado chunked da agenda: ' + e.message);
+    return null;
+  }
+}
+
+function salvarJsonCacheCompartilhadoAgenda_(cache, chaveBase, valor, ttlSegundos) {
+  try {
+    const json = typeof valor === 'string' ? valor : JSON.stringify(valor);
+    if (!json) return false;
+
+    if (json.length <= 90000) {
+      cache.put(chaveBase, json, ttlSegundos);
+      return true;
+    }
+
+    const chunkSize = 80000;
+    const total = Math.ceil(json.length / chunkSize);
+    if (total > 10) {
+      Logger.log(
+        'Agenda shared cache ignorado por tamanho excessivo (bytes=' +
+        String(json.length) +
+        ', partes=' +
+        String(total) +
+        ')'
+      );
+      return false;
+    }
+
+    for (var i = 0; i < total; i++) {
+      const chunk = json.slice(i * chunkSize, (i + 1) * chunkSize);
+      cache.put(chaveBase + '|part|' + i, chunk, ttlSegundos);
+    }
+
+    cache.put(
+      chaveBase,
+      JSON.stringify({ __chunkedAgenda: true, total: total }),
+      ttlSegundos
+    );
+    return true;
+  } catch (e) {
+    Logger.log('Falha ao salvar cache compartilhado da agenda: ' + e.message);
+    return false;
+  }
+}
+
+/**
+ * Retorna versão leve da agenda para revalidação de cache no frontend.
+ * Usa metadados do arquivo + tamanho da aba EVENTOS.
+ */
+function obterAgendaSyncInfo(email) {
+  const user = requireUserByEmail(email);
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sh = ss.getSheetByName('EVENTOS');
+
+  if (!sh) {
+    return {
+      ok: true,
+      perfil: user.PERFIL,
+      rows: 0,
+      version: 'NO_EVENTOS_SHEET'
+    };
+  }
+
+  const sync = montarSyncAgendaInfo_(String(user.PERFIL || ''), ss, sh);
+
+  return {
+    ok: true,
+    perfil: user.PERFIL,
+    rows: sync.rows,
+    syncMode: 'EVENTOS',
+    syncOptions: {
+      verificarAbaEventos: sync.verificarAbaEventos,
+      verificarArquivo: sync.verificarArquivo
+    },
+    assinaturaEventos: sync.assinaturaEventos,
+    assinaturaAbaEventos: sync.assinaturaAbaEventos,
+    arquivoAtualizadoMs: sync.arquivoAtualizadoMs,
+    version: sync.version
+  };
+}
+
+function montarSyncAgendaInfo_(perfil, ss, sh) {
+  const rows = sh.getLastRow();
+  const assinatura = obterAssinaturaEventos_(sh);
+  const cfgSync = obterConfiguracaoSyncAgenda_();
+  const assinaturaAbaEventos = cfgSync.verificarAbaEventos
+    ? obterAssinaturaConteudoAbaEventos_(sh)
+    : 'OFF';
+  const arquivoAtualizadoMs = cfgSync.verificarArquivo
+    ? obterUltimaAtualizacaoArquivoAgendaMs_(ss)
+    : 0;
+
+  const version = [
+    String(perfil || ''),
+    'EVENTOS',
+    String(rows || 0),
+    assinatura,
+    assinaturaAbaEventos,
+    String(arquivoAtualizadoMs || 0)
+  ].join('|');
+
+  return {
+    rows: rows,
+    assinaturaEventos: assinatura,
+    assinaturaAbaEventos: assinaturaAbaEventos,
+    arquivoAtualizadoMs: arquivoAtualizadoMs,
+    verificarAbaEventos: cfgSync.verificarAbaEventos,
+    verificarArquivo: cfgSync.verificarArquivo,
+    version: version
+  };
+}
+
+function obterConfiguracaoSyncAgenda_() {
+  try {
+    const cfg = getConfig ? getConfig() : {};
+    return {
+      verificarAbaEventos: configBoolSyncAgenda_(cfg, 'AGENDA_SYNC_VERIFICAR_ABA_EVENTOS', false),
+      verificarArquivo: configBoolSyncAgenda_(cfg, 'AGENDA_SYNC_VERIFICAR_ARQUIVO', false)
+    };
+  } catch (_) {
+    return {
+      verificarAbaEventos: false,
+      verificarArquivo: false
+    };
+  }
+}
+
+function configBoolSyncAgenda_(cfg, chave, padrao) {
+  const bruto = cfg && Object.prototype.hasOwnProperty.call(cfg, chave) ? cfg[chave] : null;
+  if (bruto === null || typeof bruto === 'undefined' || String(bruto).trim() === '') return !!padrao;
+  const s = String(bruto).trim().toLowerCase();
+  return s === 'true' || s === '1' || s === 'sim' || s === 'yes' || s === 'on';
+}
+
+function obterConfiguracaoCacheCompartilhadoAgenda_() {
+  try {
+    const cfg = getConfig ? getConfig() : {};
+    const ativo = configBoolSyncAgenda_(cfg, 'AGENDA_CACHE_COMPARTILHADO_ATIVO', false);
+    const ttlRaw = Number(String(cfg && cfg.AGENDA_CACHE_COMPARTILHADO_TTL_SEGUNDOS || '').trim());
+    const ttlSegundos = (!isNaN(ttlRaw) && ttlRaw >= 30 && ttlRaw <= 21600)
+      ? Math.floor(ttlRaw)
+      : 120;
+
+    return {
+      ativo: ativo,
+      ttlSegundos: ttlSegundos
+    };
+  } catch (_) {
+    return {
+      ativo: false,
+      ttlSegundos: 120
+    };
+  }
+}
+
+function normalizarPerfilCacheAgenda_(perfil) {
+  return String(perfil || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .toLowerCase();
+}
+
+function obterAssinaturaConteudoAbaEventos_(sheet) {
+  try {
+    const lastRow = sheet.getLastRow();
+    const lastColumn = sheet.getLastColumn();
+    if (lastRow <= 1 || lastColumn <= 0) return 'EMPTY';
+
+    const headers = sheet.getRange(1, 1, 1, lastColumn).getValues()[0].map(String);
+    const idxTipo = headers.indexOf('TIPO_REGISTRO');
+    const idxData = headers.indexOf('DATA_EVENTO');
+    const idxDataFim = headers.indexOf('DATA_FIM');
+    const idxHora = headers.indexOf('HORA_INICIO');
+    const idxDur = headers.indexOf('DURACAO');
+    const idxTipoEvento = headers.indexOf('TIPO_EVENTO');
+    const idxProjeto = headers.indexOf('PROJETO');
+    const idxContratante = headers.indexOf('NOME_CONTRATANTE');
+    const idxLocal = headers.indexOf('LOCAL');
+    const idxStatus = headers.indexOf('STATUS_GERAL');
+    const idxId = headers.indexOf('ID_EVENTO');
+
+    const relevantes = [
+      idxId, idxTipo, idxData, idxDataFim, idxHora,
+      idxDur, idxTipoEvento, idxProjeto, idxContratante, idxLocal, idxStatus
+    ].filter(function (i) { return i >= 0; });
+
+    if (!relevantes.length) return 'NO_COLUMNS';
+
+    const totalRegistros = lastRow - 1;
+    const data = sheet.getRange(2, 1, totalRegistros, lastColumn).getValues();
+
+    let hash = 2166136261; // FNV-1a 32-bit seed
+    for (let r = 0; r < data.length; r++) {
+      for (let c = 0; c < relevantes.length; c++) {
+        const idx = relevantes[c];
+        const raw = data[r][idx];
+        const valor = normalizarValorAssinaturaAgenda_(raw);
+        for (let k = 0; k < valor.length; k++) {
+          hash ^= valor.charCodeAt(k);
+          hash += (hash << 1) + (hash << 4) + (hash << 7) + (hash << 8) + (hash << 24);
+        }
+        hash ^= 31;
+      }
+    }
+
+    const finalHash = (hash >>> 0).toString(16);
+    return String(totalRegistros) + ':' + finalHash;
+  } catch (e) {
+    Logger.log('Aviso obterAssinaturaConteudoAbaEventos_: ' + e.message);
+    return 'ERR';
+  }
+}
+
+function normalizarValorAssinaturaAgenda_(valor) {
+  if (valor === null || typeof valor === 'undefined') return '';
+  if (Object.prototype.toString.call(valor) === '[object Date]') {
+    if (isNaN(valor.getTime())) return '';
+    return String(valor.getTime());
+  }
+  if (typeof valor === 'number') {
+    if (isNaN(valor)) return '';
+    return String(Number(valor.toFixed(6)));
+  }
+  return String(valor).trim();
+}
+
+function obterUltimaAtualizacaoArquivoAgendaMs_(ss) {
+  try {
+    const file = DriveApp.getFileById(ss.getId());
+    const dt = file.getLastUpdated();
+    if (!dt) return 0;
+    const ms = dt.getTime();
+    return isNaN(ms) ? 0 : ms;
+  } catch (e) {
+    Logger.log('Aviso obterUltimaAtualizacaoArquivoAgendaMs_: ' + e.message);
+    return 0;
+  }
+}
+
+function obterAssinaturaEventos_(sheet) {
+  const lastRow = sheet.getLastRow();
+  const lastColumn = sheet.getLastColumn();
+  if (lastRow <= 1) return 'EMPTY';
+
+  const cabecalho = sheet.getRange(1, 1, 1, lastColumn).getValues()[0];
+  const idxId = cabecalho.indexOf('ID_EVENTO');
+  const idxUltimaEdicao = cabecalho.indexOf('ULTIMA_EDICAO');
+  const idxCriacao = cabecalho.indexOf('DATA_CRIACAO');
+
+  const totalRegistros = lastRow - 1;
+
+  const ids = idxId >= 0
+    ? sheet.getRange(2, idxId + 1, totalRegistros, 1).getValues()
+    : [];
+  const ultimaEdicao = idxUltimaEdicao >= 0
+    ? sheet.getRange(2, idxUltimaEdicao + 1, totalRegistros, 1).getValues()
+    : [];
+  const criacao = idxCriacao >= 0
+    ? sheet.getRange(2, idxCriacao + 1, totalRegistros, 1).getValues()
+    : [];
+
+  let maxTs = 0;
+  let ultimoId = '';
+  for (let i = 0; i < totalRegistros; i++) {
+    const idAtual = ids[i] ? String(ids[i][0] || '').trim() : '';
+    if (idAtual) ultimoId = idAtual;
+
+    const c1 = ultimaEdicao[i] ? ultimaEdicao[i][0] : null;
+    const c2 = criacao[i] ? criacao[i][0] : null;
+    const ts = Math.max(normalizarTimestampMs_(c1), normalizarTimestampMs_(c2));
+    if (ts > maxTs) maxTs = ts;
+  }
+
+  return [String(totalRegistros), String(ultimoId), String(maxTs)].join(':');
+}
+
+function normalizarTimestampMs_(valor) {
+  if (!valor) return 0;
+  if (Object.prototype.toString.call(valor) === '[object Date]') {
+    return isNaN(valor.getTime()) ? 0 : valor.getTime();
+  }
+  const num = Number(valor);
+  if (!isNaN(num) && num > 0) return Math.floor(num);
+  const d = new Date(String(valor));
+  if (isNaN(d.getTime())) return 0;
+  return d.getTime();
+}
+
+function sanitizarEventoParaMusico_(evento) {
+  if (!evento || typeof evento !== 'object') return evento;
+
+  // Remove campos financeiros sensíveis para o perfil Músico.
+  return Object.assign({}, evento, {
+    valor: '',
+    status: ''
+  });
 }
 
 /**
@@ -635,6 +1075,49 @@ function calcularHoraFim(horaInicio, duracao) {
 }
 
 /**
+ * Hora de virada para ordenação comercial da agenda.
+ * Ex.: 06 => horários entre 00:00 e 05:59 contam como "depois" da noite anterior.
+ */
+function obterHoraViradaMadrugada_() {
+  try {
+    const config = getConfig ? getConfig() : {};
+    const bruto = config && config.AGENDA_HORA_VIRADA_MADRUGADA;
+    const num = Number(String(bruto || '').trim());
+    if (!isNaN(num) && num >= 0 && num <= 12) return Math.floor(num);
+  } catch (_) {}
+  return 6;
+}
+
+function horaParaMinutosOrdenacaoAgenda_(horaStr) {
+  const str = String(horaStr || '').trim();
+  const m = str.match(/^(\d{1,2}):(\d{2})$/);
+  if (!m) return 99 * 60;
+
+  const h = Number(m[1]);
+  const mm = Number(m[2]);
+  if (isNaN(h) || isNaN(mm) || h < 0 || h > 23 || mm < 0 || mm > 59) return 99 * 60;
+
+  let total = (h * 60) + mm;
+  const virada = obterHoraViradaMadrugada_();
+  if (h < virada) total += 24 * 60;
+  return total;
+}
+
+function compararEventosPorDataHoraAgenda_(a, b) {
+  const dataA = parseDataBR(a && a.data);
+  const dataB = parseDataBR(b && b.data);
+
+  if (dataA && dataB) {
+    if (dataA.getTime() !== dataB.getTime()) return dataA - dataB;
+    return horaParaMinutosOrdenacaoAgenda_(a && a.hora) - horaParaMinutosOrdenacaoAgenda_(b && b.hora);
+  }
+
+  if (dataA && !dataB) return -1;
+  if (!dataA && dataB) return 1;
+  return horaParaMinutosOrdenacaoAgenda_(a && a.hora) - horaParaMinutosOrdenacaoAgenda_(b && b.hora);
+}
+
+/**
  * Detecta eventos que estão dentro de intervalos (eventos com dataFim)
  * @param {Array} eventos - Array de eventos
  * @returns {Array} Array de eventos com relações
@@ -659,7 +1142,11 @@ function detectarEventosDentroDeIntervalos(eventos) {
         if (!dataEvt || dataEvt < dataInicio || dataEvt > dataFim) return false;
 
         // Se for o mesmo dia do início do intervalo, valida horário
-        if (evt.data === intervalo.data && evt.hora && evt.hora < horaInicioIntervalo) {
+        if (
+          evt.data === intervalo.data &&
+          evt.hora &&
+          horaParaMinutosOrdenacaoAgenda_(evt.hora) < horaParaMinutosOrdenacaoAgenda_(horaInicioIntervalo)
+        ) {
           return false;
         }
 
@@ -667,14 +1154,7 @@ function detectarEventosDentroDeIntervalos(eventos) {
       });
 
       if (eventosDentro.length > 0) {
-        eventosDentro.sort((a, b) => {
-          const dA = parseDataBR(a.data);
-          const dB = parseDataBR(b.data);
-          if (dA.getTime() === dB.getTime()) {
-            return (a.hora || '').localeCompare(b.hora || '');
-          }
-          return dA - dB;
-        });
+        eventosDentro.sort(compararEventosPorDataHoraAgenda_);
 
         intervalo.eventosDentro = eventosDentro;
         intervalo.inicioIntervalo = horaInicioIntervalo;
@@ -685,15 +1165,7 @@ function detectarEventosDentroDeIntervalos(eventos) {
     const eventosFinais = [...eventos];
 
     // Ordenação final: data → hora
-    eventosFinais.sort((a, b) => {
-      const dataA = parseDataBR(a.data);
-      const dataB = parseDataBR(b.data);
-
-      if (dataA.getTime() === dataB.getTime()) {
-        return (a.hora || '').localeCompare(b.hora || '');
-      }
-      return dataA - dataB;
-    });
+    eventosFinais.sort(compararEventosPorDataHoraAgenda_);
 
     return eventosFinais;
 
@@ -780,10 +1252,7 @@ function auditarOrdemCronologica(eventos) {
  * Parse robusto de data DD/MM/YYYY (Backend)
  */
 function parseDataBR(dataStr) {
-  if (!dataStr) {
-    Logger.log('⚠️ parseDataBR: data vazia');
-    return null;
-  }
+  if (!dataStr) return null;
   
   try {
     // Converte para string
@@ -793,53 +1262,43 @@ function parseDataBR(dataStr) {
     const regex = /^(\d{2})\/(\d{2})\/(\d{4})$/;
     const match = str.match(regex);
     
-    if (!match) {
-      Logger.log('Formato inválido (esperado DD/MM/YYYY): ' + str);
-      return null;
-    }
+    if (!match) return null;
     
     const dia = parseInt(match[1], 10);
     const mes = parseInt(match[2], 10) - 1; // 0-based
     const ano = parseInt(match[3], 10);
     
     // Validações básicas
-    if (ano < 1900 || ano > 2100) {
-      Logger.log('Ano inválido: ' + ano);
-      return null;
-    }
+    if (ano < 1900 || ano > 2100) return null;
     
-    if (mes < 0 || mes > 11) {
-      Logger.log('Mês inválido: ' + (mes + 1));
-      return null;
-    }
+    if (mes < 0 || mes > 11) return null;
     
-    if (dia < 1 || dia > 31) {
-      Logger.log('Dia inválido: ' + dia);
-      return null;
-    }
+    if (dia < 1 || dia > 31) return null;
     
     // Cria data
     const data = new Date(ano, mes, dia, 12, 0, 0, 0);
     
     // Valida se data é válida
-    if (isNaN(data.getTime())) {
-      Logger.log('Data inválida: ' + str);
-      return null;
-    }
+    if (isNaN(data.getTime())) return null;
     
     // Valida se componentes batem (31/02 vira 03/03)
     if (data.getDate() !== dia || 
         data.getMonth() !== mes || 
-        data.getFullYear() !== ano) {
-      Logger.log('Data inexistente (ex: 31/02): ' + str);
-      return null;
-    }
+        data.getFullYear() !== ano) return null;
     
     return data;
     
   } catch (e) {
-    Logger.log('Erro ao fazer parse de data: ' + e.message + ' - ' + dataStr);
     return null;
+  }
+}
+
+function deveAuditarAgenda_() {
+  try {
+    const valor = String(obterConfig('AGENDA_AUDITORIA_ATIVA') || '').toLowerCase().trim();
+    return valor === 'true' || valor === '1' || valor === 'sim';
+  } catch (_) {
+    return false;
   }
 }
 
@@ -1085,6 +1544,7 @@ function buscarEventosPorData(dataBusca) {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     const sheet = ss.getSheetByName('EVENTOS');
     if (!sheet) return [];
+    const tzPlanilha = ss.getSpreadsheetTimeZone() || Session.getScriptTimeZone() || 'America/Fortaleza';
 
     const dados = sheet.getDataRange().getValues();
     const eventos = [];
@@ -1114,8 +1574,12 @@ function buscarEventosPorData(dataBusca) {
 
       if (incluir) {
         let horaStr = '';
-        if (dados[i][4] instanceof Date) {
-          horaStr = Utilities.formatDate(dados[i][4], 'GMT-3', 'HH:mm');
+        const valorHora = dados[i][4];
+        if (valorHora instanceof Date) {
+          // Usa o fuso da planilha para evitar distorções (ex.: 00:00 virar 23:34)
+          horaStr = Utilities.formatDate(valorHora, tzPlanilha, 'HH:mm');
+        } else if (typeof valorHora === 'string' && /^\d{1,2}:\d{2}$/.test(valorHora.trim())) {
+          horaStr = valorHora.trim().padStart(5, '0');
         }
 
         eventos.push({
@@ -1133,7 +1597,7 @@ function buscarEventosPorData(dataBusca) {
       }
     }
 
-    eventos.sort((a, b) => (a.hora || '').localeCompare(b.hora || ''));
+    eventos.sort(compararEventosPorDataHoraAgenda_);
     return eventos;
 
   } catch (e) {
@@ -1223,7 +1687,8 @@ function carregarConfiguracoes() {
       return {
         AGENDA_FILTRO_PADRAO: 'proximos',
         AGENDA_CACHE_TIMEOUT: 300000,
-        AGENDA_CORES_PERSONALIZADAS: true
+        AGENDA_CORES_PERSONALIZADAS: true,
+        AGENDA_LIMITE_TODOS: 200
       };
     }
     
@@ -1236,16 +1701,7 @@ function carregarConfiguracoes() {
       const valor = data[i][1];
       
       if (chave) {
-        // Converte tipos
-        if (valor === 'TRUE' || valor === 'true') {
-          config[chave] = true;
-        } else if (valor === 'FALSE' || valor === 'false') {
-          config[chave] = false;
-        } else if (!isNaN(valor)) {
-          config[chave] = Number(valor);
-        } else {
-          config[chave] = valor;
-        }
+        config[chave] = normalizarValorConfig_(valor);
       }
     }
     
@@ -1257,9 +1713,28 @@ function carregarConfiguracoes() {
     return {
       AGENDA_FILTRO_PADRAO: 'proximos',
       AGENDA_CACHE_TIMEOUT: 300000,
-      AGENDA_CORES_PERSONALIZADAS: true
+      AGENDA_CORES_PERSONALIZADAS: true,
+      AGENDA_LIMITE_TODOS: 200
     };
   }
+}
+
+function normalizarValorConfig_(valor) {
+  if (valor === null || typeof valor === 'undefined') return '';
+  if (typeof valor === 'boolean') return valor;
+  if (typeof valor === 'number') return valor;
+
+  const texto = String(valor).trim();
+  const lower = texto.toLowerCase();
+
+  if (lower === 'true' || lower === 'sim' || lower === '1') return true;
+  if (lower === 'false' || lower === 'nao' || lower === 'não' || lower === '0') return false;
+
+  if (texto !== '' && /^-?\d+(\.\d+)?$/.test(texto)) {
+    return Number(texto);
+  }
+
+  return texto;
 }
   
 
@@ -1289,7 +1764,8 @@ function testarMelhorias() {
  */
 function garantirMovimentacoesNF_BV(evento, email) {
   const user = requireUserByEmail(email);
-  requirePermission(user, 'registrar_nf');
+  // Compatibilidade com ACL atual: criação de evento pode preparar movimentos de NF/BV.
+  requirePermission(user, 'eventos:criar');
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheetMov = ss.getSheetByName('MOVIMENTACOES_FINANCEIRAS');
   if (!sheetMov) throw new Error('Aba MOVIMENTACOES_FINANCEIRAS não encontrada');
@@ -1310,7 +1786,7 @@ function garantirMovimentacoesNF_BV(evento, email) {
     if (dadosMov[i][1] === 'BV_EVENTO') existeBV = true;
   }
 
-  const usuario = user.email;
+  const usuario = user.email || user.EMAIL || email;
   const agora = new Date();
 
   // =========================

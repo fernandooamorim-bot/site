@@ -15,9 +15,15 @@
  * ENTRYPOINT ÚNICO
  * ======================================================
  */
+const AUTH_CONFIG = {
+  GOOGLE_CLIENT_ID: '179346910046-ph0lma4i52sc9prtlkfdd63d82m350qj.apps.googleusercontent.com',
+  SESSION_TTL_DIAS_PADRAO: 30
+};
+
 function doPost(e) {
   let action = '';
   let email = '';
+  let emailAutenticado = '';
   let params = {};
   const requestId = 'REQ-' + Utilities.getUuid().slice(0, 8).toUpperCase();
   const startedAt = Date.now();
@@ -97,18 +103,14 @@ if (raw && raw.startsWith('{')) {
     // 3. LOGIN
     // ======================================================
     if (action === 'verificarUsuario') {
-      if (!email) {
-        return json({ error: 'EMAIL_REQUIRED' });
-      }
-      return verificarUsuario(email);
+      return verificarUsuario(params);
     }
 
     // ======================================================
     // 4. CONTEXTO GLOBAL (APÓS LOGIN)
     // ======================================================
-    if (email) {
-      globalThis.REQUEST_EMAIL = email;
-    }
+    emailAutenticado = autenticarRequisicaoComSessao_(params);
+    globalThis.REQUEST_EMAIL = emailAutenticado;
 
     // ======================================================
     // 5. AGENDA
@@ -117,13 +119,25 @@ if (raw && raw.startsWith('{')) {
       exigirAcao('eventos:listar');
       return json({
         ok: true,
-        eventos: listarEventos(email)
+        eventos: listarEventosPorUsuario(emailAutenticado)
       });
+    }
+
+    if (action === 'listarEventosBootstrap') {
+      exigirAcao('eventos:listar');
+      return json(
+        Object.assign({ ok: true }, listarEventosBootstrap(emailAutenticado))
+      );
     }
 
     if (action === 'buscarEventosPorData') {
       exigirAcao('eventos:listar');
       return json(buscarEventosPorData(params.data));
+    }
+
+    if (action === 'obterAgendaSyncInfo') {
+      exigirAcao('eventos:listar');
+      return json(obterAgendaSyncInfo(emailAutenticado));
     }
 
     // ======================================================
@@ -172,10 +186,8 @@ if (raw && raw.startsWith('{')) {
     // 9. CRIAÇÃO DE EVENTO
     // ======================================================
     if (action === 'criarEvento') {
-      if (!email) return json({ error: 'EMAIL_REQUIRED' });
-      globalThis.REQUEST_EMAIL = email;
       exigirAcao('eventos:criar');
-      return json(criarEvento(params, email));
+      return json(criarEvento(params, emailAutenticado));
     }
 
     // ======================================================
@@ -218,8 +230,6 @@ if (raw && raw.startsWith('{')) {
     }
 
     if (action === 'salvarEdicaoEvento') {
-      if (!email) return json({ error: 'EMAIL_REQUIRED' });
-      globalThis.REQUEST_EMAIL = email;
       exigirAcao('eventos:editar');
       return json(salvarEdicaoEvento(params.idEvento, params));
     }
@@ -229,12 +239,12 @@ if (raw && raw.startsWith('{')) {
 // ======================================================
 
 if (action === 'buscarResumoFinanceiroEvento') {
-  exigirAcao('eventos:listar');
+  exigirAcao('eventos:visualizarFinanceiro');
   return json(buscarResumoFinanceiroEvento(params.idEvento));
 }
 
 if (action === 'listarRecebimentosPorEvento') {
-  exigirAcao('eventos:listar');
+  exigirAcao('eventos:visualizarFinanceiro');
   return json(listarRecebimentosPorEvento(params.idEvento));
 }
 
@@ -242,7 +252,7 @@ if (action === 'apiRegistrarRecebimento') {
   exigirAcao('eventos:registrarRecebimento');
   return json(
     executarComIdempotenciaFinanceira_(
-      { action: action, email: email, params: params },
+      { action: action, email: emailAutenticado, params: params },
       function () {
         return apiRegistrarRecebimento(params);
       }
@@ -254,7 +264,7 @@ if (action === 'apiEstornarRecebimento') {
   exigirAcao('eventos:estornarRecebimento');
   return json(
     executarComIdempotenciaFinanceira_(
-      { action: action, email: email, params: params },
+      { action: action, email: emailAutenticado, params: params },
       function () {
         return apiEstornarRecebimento(params);
       }
@@ -263,10 +273,15 @@ if (action === 'apiEstornarRecebimento') {
 }
 
 if (action === 'apiRegistrarSaidaEvento') {
-  exigirAcao('eventos:registrarSaida');
+  const tipoSaida = String(params.tipoSaida || '').trim();
+  if (tipoSaida === 'BV_EVENTO') {
+    exigirAcao('eventos:registrarSaidaBV');
+  } else {
+    exigirAcao('eventos:registrarSaida');
+  }
   return json(
     executarComIdempotenciaFinanceira_(
-      { action: action, email: email, params: params },
+      { action: action, email: emailAutenticado, params: params },
       function () {
         return apiRegistrarSaidaEvento(params);
       }
@@ -276,7 +291,18 @@ if (action === 'apiRegistrarSaidaEvento') {
 
 if (action === 'apiUploadComprovante') {
   // Upload de comprovante é usado nas operações financeiras da Central.
-  exigirAcao('eventos:registrarRecebimento');
+  const categoriaComprovante = String(params.categoria || '').toUpperCase().trim();
+  if (categoriaComprovante === 'SAIDA_EVENTO') {
+    try {
+      exigirAcao('eventos:registrarSaidaBV');
+    } catch (err) {
+      exigirAcao('eventos:registrarSaida');
+    }
+  } else if (categoriaComprovante === 'FECHAMENTO_COMISSAO') {
+    exigirAcao('comissao:fechar');
+  } else {
+    exigirAcao('eventos:registrarRecebimento');
+  }
   return json(apiUploadComprovante(params));
 }
 
@@ -289,10 +315,17 @@ if (action === 'fecharComissaoVendedor') {
   exigirAcao('comissao:fechar');
   const ajusteCredito = Number(params.ajusteCredito);
   const ajusteDebito = Number(params.ajusteDebito);
+  let ajustesDetalhados = [];
+  try {
+    const rawAjustes = String(params.ajustesDetalhadosJson || '').trim();
+    ajustesDetalhados = rawAjustes ? JSON.parse(rawAjustes) : [];
+  } catch (_) {
+    ajustesDetalhados = [];
+  }
 
   return json(
     executarComIdempotenciaFinanceira_(
-      { action: action, email: email, params: params },
+      { action: action, email: emailAutenticado, params: params },
       function () {
         return fecharComissaoVendedor(
           params.idVendedor,
@@ -300,11 +333,17 @@ if (action === 'fecharComissaoVendedor') {
           null,
           isNaN(ajusteCredito) ? 0 : ajusteCredito,
           isNaN(ajusteDebito) ? 0 : ajusteDebito,
-          params.linkComprovante || ''
+          params.linkComprovante || '',
+          ajustesDetalhados
         );
       }
     )
   );
+}
+
+if (action === 'regerarPdfFechamentoComissao') {
+  exigirAcao('comissao:fechar');
+  return json(regerarPdfFechamentoComissao(params.idFechamento));
 }
 
 if (action === 'listarEventosFinanceiros') {
@@ -312,9 +351,110 @@ if (action === 'listarEventosFinanceiros') {
   return json(listarEventosFinanceiros());
 }
 
+if (action === 'obterDashboardGestao') {
+  exigirAcao('eventos:visualizarFinanceiro');
+  return json(obterDashboardGestao(params));
+}
+
 if (action === 'diagnosticarIntegridadeFinanceira') {
   exigirAcao('eventos:visualizarFinanceiro');
   return json(diagnosticarIntegridadeFinanceira(params));
+}
+
+if (action === 'reconciliarResumoFinanceiroEvento') {
+  exigirAcao('eventos:editar');
+  return json(reconciliarResumoFinanceiroEvento(params.idEvento));
+}
+
+if (action === 'migrarSaldoInicialFinanceiro') {
+  const usuario = exigirAcao('financeiro:migrarSaldoInicial');
+  if (String(usuario.PERFIL || '') !== 'Proprietário') {
+    throw new Error('FORBIDDEN_ACTION: financeiro:migrarSaldoInicial');
+  }
+  return json(migrarSaldoInicialFinanceiro(params));
+}
+
+if (action === 'auditarSaldoInicialFinanceiro') {
+  const usuario = exigirAcao('financeiro:migrarSaldoInicial');
+  if (String(usuario.PERFIL || '') !== 'Proprietário') {
+    throw new Error('FORBIDDEN_ACTION: financeiro:migrarSaldoInicial');
+  }
+  return json(auditarSaldoInicialFinanceiro(params));
+}
+
+if (action === 'reconciliarMovimentacoesSaldoInicialPosAuditoria') {
+  const usuario = exigirAcao('financeiro:migrarSaldoInicial');
+  if (String(usuario.PERFIL || '') !== 'Proprietário') {
+    throw new Error('FORBIDDEN_ACTION: financeiro:migrarSaldoInicial');
+  }
+  return json(reconciliarMovimentacoesSaldoInicialPosAuditoria(params));
+}
+
+if (action === 'auditarSaidasLegado2025') {
+  const usuario = exigirAcao('financeiro:migrarSaldoInicial');
+  if (String(usuario.PERFIL || '') !== 'Proprietário') {
+    throw new Error('FORBIDDEN_ACTION: financeiro:migrarSaldoInicial');
+  }
+  return json(auditarSaidasLegado2025(params));
+}
+
+if (action === 'migrarSaidasLegadoNfFolha2025') {
+  const usuario = exigirAcao('financeiro:migrarSaldoInicial');
+  if (String(usuario.PERFIL || '') !== 'Proprietário') {
+    throw new Error('FORBIDDEN_ACTION: financeiro:migrarSaldoInicial');
+  }
+  return json(migrarSaidasLegadoNfFolha2025(params));
+}
+
+if (action === 'auditarBvLegado2025a2027') {
+  const usuario = exigirAcao('financeiro:migrarSaldoInicial');
+  if (String(usuario.PERFIL || '') !== 'Proprietário') {
+    throw new Error('FORBIDDEN_ACTION: financeiro:migrarSaldoInicial');
+  }
+  return json(auditarBvLegado2025a2027(params));
+}
+
+if (action === 'migrarBvLegado2025a2027') {
+  const usuario = exigirAcao('financeiro:migrarSaldoInicial');
+  if (String(usuario.PERFIL || '') !== 'Proprietário') {
+    throw new Error('FORBIDDEN_ACTION: financeiro:migrarSaldoInicial');
+  }
+  return json(migrarBvLegado2025a2027(params));
+}
+
+// ======================================================
+// 12. AGENDA SEMANAL (WHATSAPP)
+// ======================================================
+if (action === 'carregarAgendaSemanalPreview') {
+  exigirAcao('agenda:gerarSemanal');
+  return json(carregarAgendaSemanalPreview(params));
+}
+
+if (action === 'gerarTextoAgendaSemanal') {
+  exigirAcao('agenda:gerarSemanal');
+  let eventos = [];
+  try {
+    const eventosJson = String(params.eventosJson || '').trim();
+    eventos = eventosJson ? JSON.parse(eventosJson) : [];
+  } catch (_) {
+    eventos = [];
+  }
+  return json(gerarTextoAgendaSemanal({
+    dataInicio: params.dataInicio,
+    dataFim: params.dataFim,
+    eventos: eventos,
+    incluirLinksCalendario: params.incluirLinksCalendario,
+    baseUrlCalendario: params.baseUrlCalendario,
+    lembreteCalendarioMinutos: params.lembreteCalendarioMinutos
+  }));
+}
+
+// ======================================================
+// 13. ORÇAMENTO (UTILITÁRIO EXTERNO INTEGRADO)
+// ======================================================
+if (action === 'gerarOrcamentoInterno') {
+  exigirAcao('orcamento:gerar');
+  return json(gerarOrcamentoInterno(params, emailAutenticado));
 }
 
     // ======================================================
@@ -349,11 +489,31 @@ if (action === 'diagnosticarIntegridadeFinanceira') {
     mensagem = 'Sessão inválida. Faça login novamente.';
   }
 
+  if (msg === 'SESSION_TOKEN_REQUIRED') {
+    codigo = 'SESSAO_INVALIDA';
+    mensagem = 'Sessão ausente. Faça login novamente.';
+  }
+
+  if (msg === 'SESSION_TOKEN_INVALID') {
+    codigo = 'SESSAO_INVALIDA';
+    mensagem = 'Sessão inválida. Faça login novamente.';
+  }
+
+  if (msg === 'SESSION_TOKEN_EXPIRED') {
+    codigo = 'SESSAO_EXPIRADA';
+    mensagem = 'Sessão expirada. Faça login novamente.';
+  }
+
+  if (msg.indexOf('ORCAMENTO_') === 0) {
+    codigo = 'ORCAMENTO_ERRO';
+    mensagem = msg;
+  }
+
   // Observabilidade determinística para rastrear falhas de produção
   Logger.log(
     '[API_AUTH_ERRO] requestId=' + requestId +
     ' action=' + String(action || '') +
-    ' email=' + String(email || '') +
+    ' email=' + String(emailAutenticado || email || '') +
     ' codigo=' + codigo +
     ' msg=' + msg +
     (stack ? ' stack=' + stack : '')
@@ -364,7 +524,7 @@ if (action === 'diagnosticarIntegridadeFinanceira') {
     registrarErroApiDoPost_({
       requestId: requestId,
       action: action,
-      email: email,
+      email: emailAutenticado || email,
       codigo: codigo,
       mensagem: msg,
       stack: stack,
@@ -374,8 +534,17 @@ if (action === 'diagnosticarIntegridadeFinanceira') {
     Logger.log('[API_AUTH_ERRO_LOG_FALHA] requestId=' + requestId + ' erro=' + String(logErr));
   }
 
-  // Para comissão, devolve a mensagem técnica para diagnóstico rápido no frontend.
-  if (action === 'fecharComissaoVendedor' || action === 'visualizarPreviewFechamento') {
+  // Para ações críticas, devolve a mensagem técnica para diagnóstico rápido no frontend.
+  if (
+    action === 'fecharComissaoVendedor' ||
+    action === 'visualizarPreviewFechamento' ||
+    action === 'reconciliarResumoFinanceiroEvento'
+  ) {
+    mensagem = msg || mensagem;
+  }
+
+  // Para orçamento integrado, também devolve erro técnico para diagnóstico rápido.
+  if (action === 'gerarOrcamentoInterno') {
     mensagem = msg || mensagem;
   }
 
@@ -641,21 +810,206 @@ function normalizarParaFingerprint_(valor) {
  * LOGIN / IDENTIDADE
  * ======================================================
  */
-function verificarUsuario(email) {
-  if (!email) {
-    return json({ ok: false, error: 'EMAIL_NOT_PROVIDED' });
+function verificarUsuario(params) {
+  const idToken = String((params && params.idToken) || '').trim();
+  const sessionToken = String((params && params.sessionToken) || '').trim();
+
+  if (!idToken && !sessionToken) {
+    return json({ ok: false, error: 'AUTH_REQUIRED' });
   }
 
-  const user = requireUserByEmail(email);
+  if (sessionToken && !idToken) {
+    const sessao = validarSessionToken_(sessionToken);
+    const userSessao = requireUserByEmail(sessao.e);
+    return json({
+      ok: true,
+      user: {
+        email: userSessao.EMAIL,
+        nome: userSessao.NOME,
+        perfil: userSessao.PERFIL
+      }
+    });
+  }
+
+  const identidade = validarIdTokenGoogle_(idToken);
+  const user = requireUserByEmail(identidade.email);
+  const novoSessionToken = criarSessionToken_({
+    email: String(user.EMAIL || '').trim().toLowerCase(),
+    nome: String(user.NOME || '').trim(),
+    perfil: String(user.PERFIL || '').trim()
+  });
 
   return json({
     ok: true,
+    sessionToken: novoSessionToken,
+    sessionExpiresIn: getSessionTtlSeconds_(),
     user: {
       email: user.EMAIL,
       nome: user.NOME,
       perfil: user.PERFIL
     }
   });
+}
+
+function autenticarRequisicaoComSessao_(params) {
+  const token = String((params && params.sessionToken) || '').trim();
+  if (!token) {
+    throw new Error('SESSION_TOKEN_REQUIRED');
+  }
+
+  const payload = validarSessionToken_(token);
+  if (!payload || !payload.e) {
+    throw new Error('SESSION_TOKEN_INVALID');
+  }
+
+  return String(payload.e).trim().toLowerCase();
+}
+
+function validarIdTokenGoogle_(idToken) {
+  const url =
+    'https://oauth2.googleapis.com/tokeninfo?id_token=' +
+    encodeURIComponent(idToken);
+
+  let response;
+  try {
+    response = UrlFetchApp.fetch(url, {
+      method: 'get',
+      muteHttpExceptions: true
+    });
+  } catch (_) {
+    throw new Error('GOOGLE_TOKENINFO_UNAVAILABLE');
+  }
+
+  if (!response || response.getResponseCode() !== 200) {
+    throw new Error('GOOGLE_ID_TOKEN_INVALID');
+  }
+
+  let data = {};
+  try {
+    data = JSON.parse(response.getContentText() || '{}');
+  } catch (_) {
+    throw new Error('GOOGLE_ID_TOKEN_INVALID');
+  }
+
+  if (String(data.aud || '').trim() !== AUTH_CONFIG.GOOGLE_CLIENT_ID) {
+    throw new Error('GOOGLE_AUDIENCE_MISMATCH');
+  }
+
+  if (String(data.email_verified || '').toLowerCase() !== 'true') {
+    throw new Error('GOOGLE_EMAIL_NOT_VERIFIED');
+  }
+
+  const expSeconds = Number(data.exp || 0);
+  if (!expSeconds || (expSeconds * 1000) <= Date.now()) {
+    throw new Error('GOOGLE_ID_TOKEN_EXPIRED');
+  }
+
+  const email = String(data.email || '').trim().toLowerCase();
+  if (!email) {
+    throw new Error('GOOGLE_EMAIL_MISSING');
+  }
+
+  return {
+    email: email,
+    sub: String(data.sub || '').trim()
+  };
+}
+
+function criarSessionToken_(user) {
+  const now = Math.floor(Date.now() / 1000);
+  const ttlSeconds = getSessionTtlSeconds_();
+  const payload = {
+    e: String(user.email || '').trim().toLowerCase(),
+    n: String(user.nome || ''),
+    p: String(user.perfil || ''),
+    iat: now,
+    exp: now + ttlSeconds,
+    jti: Utilities.getUuid().replace(/-/g, '')
+  };
+
+  const payloadB64 = base64UrlEncodeString_(JSON.stringify(payload));
+  const assinatura = assinarTextoHex_(payloadB64);
+  return payloadB64 + '.' + assinatura;
+}
+
+function validarSessionToken_(token) {
+  const parts = String(token || '').split('.');
+  if (parts.length !== 2) {
+    throw new Error('SESSION_TOKEN_INVALID');
+  }
+
+  const payloadB64 = parts[0];
+  const assinaturaRecebida = parts[1];
+  if (!payloadB64 || !assinaturaRecebida) {
+    throw new Error('SESSION_TOKEN_INVALID');
+  }
+
+  const assinaturaEsperada = assinarTextoHex_(payloadB64);
+  if (assinaturaEsperada !== assinaturaRecebida) {
+    throw new Error('SESSION_TOKEN_INVALID');
+  }
+
+  let payload = null;
+  try {
+    payload = JSON.parse(base64UrlDecodeToString_(payloadB64));
+  } catch (_) {
+    throw new Error('SESSION_TOKEN_INVALID');
+  }
+
+  const exp = Number(payload && payload.exp);
+  if (!exp || (exp * 1000) <= Date.now()) {
+    throw new Error('SESSION_TOKEN_EXPIRED');
+  }
+
+  return payload;
+}
+
+function assinarTextoHex_(texto) {
+  const secret = obterAuthSessionSecret_();
+  const bytes = Utilities.computeHmacSignature(
+    Utilities.MacAlgorithm.HMAC_SHA_256,
+    String(texto || ''),
+    secret
+  );
+  return bytes
+    .map(function (b) {
+      return ((b + 256) % 256).toString(16).padStart(2, '0');
+    })
+    .join('');
+}
+
+function obterAuthSessionSecret_() {
+  const props = PropertiesService.getScriptProperties();
+  let secret = String(props.getProperty('AUTH_SESSION_SECRET') || '').trim();
+  if (!secret) {
+    secret = Utilities.getUuid().replace(/-/g, '') + Utilities.getUuid().replace(/-/g, '');
+    props.setProperty('AUTH_SESSION_SECRET', secret);
+  }
+  return secret;
+}
+
+function base64UrlEncodeString_(str) {
+  return Utilities.base64EncodeWebSafe(String(str || ''), Utilities.Charset.UTF_8)
+    .replace(/=+$/g, '');
+}
+
+function base64UrlDecodeToString_(b64url) {
+  let base = String(b64url || '').replace(/-/g, '+').replace(/_/g, '/');
+  const padding = base.length % 4;
+  if (padding) base += '===='.slice(padding);
+  const bytes = Utilities.base64Decode(base);
+  return Utilities.newBlob(bytes).getDataAsString('UTF-8');
+}
+
+function getSessionTtlSeconds_() {
+  let dias = Number(obterConfig('AUTH_SESSION_TTL_DIAS'));
+  if (isNaN(dias) || dias <= 0) {
+    dias = AUTH_CONFIG.SESSION_TTL_DIAS_PADRAO;
+  }
+
+  // Limites defensivos: mínimo 1 dia, máximo 365 dias.
+  dias = Math.max(1, Math.min(365, Math.floor(dias)));
+  return dias * 24 * 60 * 60;
 }
 
 /**
@@ -682,23 +1036,22 @@ function requireUserByEmail(email) {
  * ACL — CONTROLE DE ACESSO
  * ======================================================
  */
+const SOCIO_RULES = [
+  'eventos:criar',
+  'eventos:editar',
+  'eventos:listar',
+  'eventos:visualizarFinanceiro',
+  'eventos:registrarSaidaBV',
+  'agenda:gerarSemanal',
+  'orcamento:gerar'
+];
+
 const ACL = {
   'Proprietário': ['*'],
-
-  'Sócio': [
-    'eventos:criar',
-    'eventos:editar',
-    'eventos:listar',
-    'eventos:registrarRecebimento',
-    'eventos:estornarRecebimento',
-    'eventos:registrarSaida',
-    'comissao:fechar',
-    'eventos:visualizarFinanceiro'
-  ],
-
-  'Músico': [
-    'eventos:listar'
-  ]
+  'Sócio': SOCIO_RULES,
+  'Administrador': SOCIO_RULES,
+  'Admin': SOCIO_RULES,
+  'Músico': ['eventos:listar']
 };
 
 function requirePermission(user, action) {

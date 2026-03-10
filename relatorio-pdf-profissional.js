@@ -57,6 +57,9 @@ function gerarPdfFechamentoComissao(idFechamento) {
 
   const ajustePorEventoSnapshot = {};
   const ajusteObsPorEventoSnapshot = {};
+  const ajustesDetalhadosSnapshot = (snapshot && Array.isArray(snapshot.ajustesDetalhados))
+    ? snapshot.ajustesDetalhados
+    : [];
   if (snapshot && Array.isArray(snapshot.comissoes)) {
     snapshot.comissoes.forEach(item => {
       const idEvento = String(item.idEvento || '');
@@ -82,22 +85,87 @@ function gerarPdfFechamentoComissao(idFechamento) {
   const movHead = movData.shift();
   const m = c => movHead.indexOf(c);
   const idVendedorFechamento = String(vendedor.id);
+  const colTimestamp = m('TIMESTAMP');
+  const colDataMov = m('DATA_MOVIMENTACAO');
+
+  function parseDataFlexivelParaTs_(valor) {
+    if (!valor && valor !== 0) return null;
+    if (Object.prototype.toString.call(valor) === '[object Date]') {
+      const t = valor.getTime();
+      return isNaN(t) ? null : t;
+    }
+
+    const txt = String(valor || '').trim();
+    if (!txt) return null;
+
+    // dd/MM/yyyy HH:mm:ss
+    let mBr = txt.match(/^(\d{2})\/(\d{2})\/(\d{4})(?:\s+(\d{2}):(\d{2})(?::(\d{2}))?)?$/);
+    if (mBr) {
+      const d = Number(mBr[1]);
+      const mo = Number(mBr[2]) - 1;
+      const y = Number(mBr[3]);
+      const hh = Number(mBr[4] || 0);
+      const mi = Number(mBr[5] || 0);
+      const ss = Number(mBr[6] || 0);
+      const dt = new Date(y, mo, d, hh, mi, ss, 0);
+      const ts = dt.getTime();
+      return isNaN(ts) ? null : ts;
+    }
+
+    // yyyy-MM-dd HH:mm:ss / ISO
+    const dtGen = new Date(txt);
+    const tsGen = dtGen.getTime();
+    return isNaN(tsGen) ? null : tsGen;
+  }
 
   // Total já pago por evento (inclui fechamento atual + anteriores) para o vendedor
   const totalPagoPorEvento = {};
   movData.forEach(r => {
     const idFechMov = String(r[m('INCLUIDO_EM_FECHAMENTO')] || '');
     const tsFechMov = idFechMov ? dataGeracaoPorFechamento[idFechMov] : null;
+    const tsTimestampMov = colTimestamp >= 0 ? parseDataFlexivelParaTs_(r[colTimestamp]) : null;
+    const tsDataMov = colDataMov >= 0 ? parseDataFlexivelParaTs_(r[colDataMov]) : null;
+    const tsReferencia =
+      (typeof tsFechMov === 'number' && !isNaN(tsFechMov)) ? tsFechMov :
+      (typeof tsTimestampMov === 'number' && !isNaN(tsTimestampMov)) ? tsTimestampMov :
+      (typeof tsDataMov === 'number' && !isNaN(tsDataMov)) ? tsDataMov :
+      null;
     if (
       r[m('TIPO_MOVIMENTACAO')] === 'COMISSAO_GERADA' &&
       r[m('STATUS')] === 'PROCESSADO' &&
       String(r[m('ID_CONTRAPARTE')]) === idVendedorFechamento &&
-      tsFechMov &&
-      tsFechMov <= tsFechamentoAtual
+      tsReferencia &&
+      tsReferencia <= tsFechamentoAtual
     ) {
       const idEvento = String(r[m('ID_EVENTO')]);
       const valor = Number(r[m('VALOR')]) || 0;
       totalPagoPorEvento[idEvento] = (totalPagoPorEvento[idEvento] || 0) + valor;
+    }
+  });
+
+  // Total de comissão gerada até o fechamento (base contábil para percentual acumulado)
+  const totalGeradoPorEvento = {};
+  movData.forEach(r => {
+    const idFechMov = String(r[m('INCLUIDO_EM_FECHAMENTO')] || '');
+    const tsFechMov = idFechMov ? dataGeracaoPorFechamento[idFechMov] : null;
+    const tsTimestampMov = colTimestamp >= 0 ? parseDataFlexivelParaTs_(r[colTimestamp]) : null;
+    const tsDataMov = colDataMov >= 0 ? parseDataFlexivelParaTs_(r[colDataMov]) : null;
+    const tsReferencia =
+      (typeof tsFechMov === 'number' && !isNaN(tsFechMov)) ? tsFechMov :
+      (typeof tsTimestampMov === 'number' && !isNaN(tsTimestampMov)) ? tsTimestampMov :
+      (typeof tsDataMov === 'number' && !isNaN(tsDataMov)) ? tsDataMov :
+      null;
+
+    if (
+      r[m('TIPO_MOVIMENTACAO')] === 'COMISSAO_GERADA' &&
+      String(r[m('ID_CONTRAPARTE')]) === idVendedorFechamento &&
+      String(r[m('STATUS')] || '').toUpperCase() !== 'CANCELADO' &&
+      tsReferencia &&
+      tsReferencia <= tsFechamentoAtual
+    ) {
+      const idEvento = String(r[m('ID_EVENTO')]);
+      const valor = Number(r[m('VALOR')]) || 0;
+      totalGeradoPorEvento[idEvento] = (totalGeradoPorEvento[idEvento] || 0) + valor;
     }
   });
 
@@ -161,8 +229,28 @@ function gerarPdfFechamentoComissao(idFechamento) {
       let infoComissaoAplicada = '';
       let tipoComissaoLabel = '';
 
-      // Comissão FIXA → sem percentual
-      if (comissaoTipo === 'Fixo') {
+      const ehLegado = String(c.idEvento || '').indexOf('LG-') === 0;
+
+      // Legado: percentual acumulado em cima de 10% do valor total do evento
+      if (ehLegado) {
+        const baseLegado = Math.max(valorTotalContrato - valorBV - valorNF, 0);
+        valorComissaoTotalEvento = Number((baseLegado * 0.10).toFixed(2));
+        percentualTotalPago =
+          valorComissaoTotalEvento > 0
+            ? (valorComissaoPagoEvento / valorComissaoTotalEvento) * 100
+            : null;
+
+        tipoComissaoLabel = 'Legado';
+        infoComissaoAplicada = 'Percentual aplicado: 10% (legado)';
+        const partesLegado = [];
+        if (valorBV > 0) partesLegado.push(`BV ${formatarMoedaRelatorio_(valorBV)}`);
+        if (valorNF > 0) partesLegado.push(`NF ${formatarMoedaRelatorio_(valorNF)}`);
+        descricaoBase = partesLegado.length
+          ? `Base legado: ${formatarMoedaRelatorio_(baseLegado)} <span style="color:#666;font-size:12px">(Contrato ${formatarMoedaRelatorio_(valorTotalContrato)} − ${partesLegado.join(' − ')})</span>`
+          : `Base legado: ${formatarMoedaRelatorio_(baseLegado)} (10%)`;
+      }
+      // Comissão FIXA → sem percentual baseado em regra de cadastro
+      else if (comissaoTipo === 'Fixo') {
         descricaoBase = 'Comissão fixa — não possui base percentual';
         percentualTotalPago =
           valorComissaoTotalEvento > 0
@@ -170,7 +258,7 @@ function gerarPdfFechamentoComissao(idFechamento) {
             : null;
 
         tipoComissaoLabel = 'Fixa';
-        infoComissaoAplicada = `Valor fixo aplicado: ${formatarMoeda(valorComissaoTotalEvento || valorComissaoPagoEvento)}`;
+        infoComissaoAplicada = `Valor fixo aplicado: ${formatarMoedaRelatorio_(valorComissaoTotalEvento || valorComissaoPagoEvento)}`;
       }
 
       // Comissão Padrão ou Percentual
@@ -240,16 +328,16 @@ function gerarPdfFechamentoComissao(idFechamento) {
 
         // Monta descrição profissional da base
         const partes = [];
-        if (valorBV > 0) partes.push(`BV ${formatarMoeda(valorBV)}`);
-        if (valorNF > 0) partes.push(`NF ${formatarMoeda(valorNF)}`);
+        if (valorBV > 0) partes.push(`BV ${formatarMoedaRelatorio_(valorBV)}`);
+        if (valorNF > 0) partes.push(`NF ${formatarMoedaRelatorio_(valorNF)}`);
 
         if (partes.length === 0) {
-          descricaoBase = `Base de comissão: ${formatarMoeda(baseContrato)}`;
+          descricaoBase = `Base de comissão: ${formatarMoedaRelatorio_(baseContrato)}`;
         } else {
           descricaoBase = `
-            Base de comissão: ${formatarMoeda(baseContrato)}
+            Base de comissão: ${formatarMoedaRelatorio_(baseContrato)}
             <span style="color:#666;font-size:12px">
-              (Contrato ${formatarMoeda(valorTotalContrato)} − ${partes.join(' − ')})
+              (Contrato ${formatarMoedaRelatorio_(valorTotalContrato)} − ${partes.join(' − ')})
             </span>
           `;
         }
@@ -272,8 +360,8 @@ function gerarPdfFechamentoComissao(idFechamento) {
         percentualTotalPago: percentualTotalPago,
         descricaoBase: descricaoBase,
         obs: [
-          evt[e('VALOR_BV')] > 0 ? `BV: ${formatarMoeda(evt[e('VALOR_BV')])}` : null,
-          evt[e('VALOR_NF')] > 0 ? `NF: ${formatarMoeda(evt[e('VALOR_NF')])}` : null
+          evt[e('VALOR_BV')] > 0 ? `BV: ${formatarMoedaRelatorio_(evt[e('VALOR_BV')])}` : null,
+          evt[e('VALOR_NF')] > 0 ? `NF: ${formatarMoedaRelatorio_(evt[e('VALOR_NF')])}` : null
         ].filter(Boolean).join(' | '),
         tipoComissao: tipoComissaoLabel,
         infoComissaoAplicada: infoComissaoAplicada,
@@ -287,10 +375,17 @@ function gerarPdfFechamentoComissao(idFechamento) {
       valorComissao: c.valorComissao
     });
 
-    eventosMap[c.idEvento].totalComissaoEvento += c.valorComissao;
+      eventosMap[c.idEvento].totalComissaoEvento += c.valorComissao;
   });
 
-  const eventosArray = Object.values(eventosMap);
+  const eventosArray = Object.values(eventosMap).sort((a, b) => {
+    const pa = String(a.dataEvento || '').split('/');
+    const pb = String(b.dataEvento || '').split('/');
+    const ta = pa.length === 3 ? new Date(Number(pa[2]), Number(pa[1]) - 1, Number(pa[0])).getTime() : 0;
+    const tb = pb.length === 3 ? new Date(Number(pb[2]), Number(pb[1]) - 1, Number(pb[0])).getTime() : 0;
+    if (ta !== tb) return ta - tb;
+    return String(a.idEvento || '').localeCompare(String(b.idEvento || ''));
+  });
 
   eventosArray.forEach(ev => {
     ev.totalPago = Number(ev.totalPago) || 0;
@@ -306,7 +401,8 @@ function gerarPdfFechamentoComissao(idFechamento) {
     totalComissao,
     ajusteCredito,
     ajusteDebito,
-    valorFinal
+    valorFinal,
+    ajustesDetalhadosSnapshot
   );
 
   /* ================= PDF / DRIVE ================= */
@@ -351,7 +447,8 @@ function gerarRelatorioComissaoHTML_V2(
   totalComissao,
   ajusteCredito,
   ajusteDebito,
-  valorFinal
+  valorFinal,
+  ajustesDetalhados
 ) {
   const logoUrl = (typeof obterConfig === 'function')
     ? String(obterConfig('LOGO_RELATORIO_PDF_URL') || '').trim()
@@ -382,7 +479,7 @@ function gerarRelatorioComissaoHTML_V2(
           <tr>
             <td class="event-cell">
               <div class="label">Comissão neste fechamento</div>
-              <div class="value ok">${formatarMoeda(ev.totalComissaoEvento)}</div>
+              <div class="value ok">${formatarMoedaRelatorio_(ev.totalComissaoEvento)}</div>
             </td>
 
             <td class="event-cell">
@@ -392,14 +489,14 @@ function gerarRelatorioComissaoHTML_V2(
 
             <td class="event-cell">
               <div class="label">Comissão total já paga (acumulado)</div>
-              <div class="value">${formatarMoeda(ev.totalPago)}</div>
+              <div class="value">${formatarMoedaRelatorio_(ev.totalPago)}</div>
             </td>
           </tr>
         </table>
 
         ${ev.ajusteEstornoFechamento < 0 ? `
           <div class="event-alert">
-            Ajuste por estorno aplicado neste fechamento: ${formatarMoeda(ev.ajusteEstornoFechamento)}
+            Ajuste por estorno aplicado neste fechamento: ${formatarMoedaRelatorio_(ev.ajusteEstornoFechamento)}
             ${ev.ajusteEstornoObs ? ` | ${ev.ajusteEstornoObs}` : ''}
           </div>
         ` : ''}
@@ -408,6 +505,26 @@ function gerarRelatorioComissaoHTML_V2(
       </article>
     `;
   });
+
+  let blocoAjustesDetalhados = '';
+  if (Array.isArray(ajustesDetalhados) && ajustesDetalhados.length) {
+    const linhas = ajustesDetalhados.map(function (a) {
+      const tipo = String(a.tipo || '').toUpperCase() === 'DEBITO' ? 'Débito' : 'Crédito';
+      const valor = Number(a.valor || 0);
+      const descricao = String(a.descricao || '').trim() || 'Sem descrição';
+      return `<tr><td>${tipo}</td><td>${descricao}</td><td style="text-align:right">${formatarMoedaRelatorio_(valor)}</td></tr>`;
+    }).join('');
+
+    blocoAjustesDetalhados = `
+      <div class="summary" style="margin-top:14px">
+        <h2 style="margin-top:0">Ajustes Aplicados</h2>
+        <table class="summary-grid">
+          <tr><td><strong>Tipo</strong></td><td><strong>Descrição</strong></td><td style="text-align:right"><strong>Valor</strong></td></tr>
+          ${linhas}
+        </table>
+      </div>
+    `;
+  }
 
   return `
 <!DOCTYPE html>
@@ -676,14 +793,15 @@ function gerarRelatorioComissaoHTML_V2(
     <div class="content">
       <h2>Detalhamento por Evento</h2>
       ${blocosEventos || '<div>Nenhum evento encontrado para este fechamento.</div>'}
+      ${blocoAjustesDetalhados}
 
       <div class="summary">
         <table class="summary-grid">
-          <tr><td>Total Comissões</td><td>${formatarMoeda(totalComissao)}</td></tr>
-          <tr><td>Ajuste Crédito</td><td>${formatarMoeda(ajusteCredito)}</td></tr>
-          <tr><td>Ajuste Débito</td><td>${formatarMoeda(ajusteDebito)}</td></tr>
+          <tr><td>Total Comissões</td><td>${formatarMoedaRelatorio_(totalComissao)}</td></tr>
+          <tr><td>Ajuste Crédito</td><td>${formatarMoedaRelatorio_(ajusteCredito)}</td></tr>
+          <tr><td>Ajuste Débito</td><td>${formatarMoedaRelatorio_(ajusteDebito)}</td></tr>
         </table>
-        <div class="final">VALOR FINAL: ${formatarMoeda(valorFinal)}</div>
+        <div class="final">VALOR FINAL: ${formatarMoedaRelatorio_(valorFinal)}</div>
         <div class="foot">Documento gerado automaticamente pelo sistema | ${dataFmt}</div>
       </div>
     </div>
@@ -700,7 +818,7 @@ function getOrCreateFolder_(parent, name) {
   return it.hasNext() ? it.next() : parent.createFolder(name);
 }
 
-function formatarMoeda(valor) {
+function formatarMoedaRelatorio_(valor) {
   return 'R$ ' + Number(valor || 0).toLocaleString('pt-BR', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2

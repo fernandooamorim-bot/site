@@ -1,0 +1,18 @@
+# Sistema / editor
+**/.DS_Store
+**/.git/**
+**/.idea/**
+**/.vscode/**
+
+# Arquivos auxiliares que nao devem ir para producao
+**/*bak*.js
+**/*backup*.js
+**/*teste*.js
+**/*test*.js
+**/*debug*.js
+**/*diagnostico*.js
+**/diag-*.js
+**/autorizacao-scopes.js
+**/registrar-pagamentos.js
+**/trigger-validacao.js
+**/adicionar-cidade-estado.js
