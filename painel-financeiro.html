@@ -134,30 +134,29 @@
     }
 
     .bottom-nav {
-      position: fixed; bottom: calc(env(safe-area-inset-bottom) + 8px); left: calc(env(safe-area-inset-left) + 10px); right: calc(env(safe-area-inset-right) + 10px);
-      height: calc(var(--nav-height) + 8px); background: var(--nav-navy-800);
-      border: 1px solid rgba(255,255,255,0.08);
-      display: flex; align-items: center; justify-content: space-evenly;
-      z-index: 200; padding: 6px 6px 8px;
-      border-radius: 18px;
-      box-shadow: 0 -10px 24px rgba(10,22,40,0.26);
+      position: fixed; bottom: 0; left: 0; right: 0;
+      height: calc(var(--nav-height) + env(safe-area-inset-bottom)); background: var(--nav-navy-800);
+      border-top: 1px solid rgba(255,255,255,0.08);
+      display: flex; align-items: flex-start; justify-content: space-evenly;
+      z-index: 200; padding: 6px 8px calc(env(safe-area-inset-bottom) + 8px);
+      border-radius: 0;
       font-family: var(--nav-font);
     }
 
     .bnav-item {
       display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
-      padding: 7px 14px; min-height: 52px; min-width: 68px; border-radius: 14px;
+      padding: 4px 10px 6px; min-height: 52px; min-width: 62px; border-radius: 14px;
       cursor: pointer; -webkit-tap-highlight-color: transparent;
       text-decoration: none; border: none; background: none; transition: all 0.2s;
     }
-    .bnav-item i { width: 22px; height: 22px; color: rgba(255,255,255,0.55); transition: color 0.2s; }
+    .bnav-item i, .bnav-item svg { width: 22px; height: 22px; color: rgba(255,255,255,0.55); stroke: currentColor; fill: none; transition: color 0.2s; }
     .bnav-item span { font-family: var(--nav-font); font-size: 11px; font-weight: 600; color: rgba(255,255,255,0.55); transition: color 0.2s; line-height: 1; }
     .bnav-item.active i, .bnav-item:hover i { color: var(--nav-gold-400); }
     .bnav-item.active span, .bnav-item:hover span { color: var(--nav-gold-400); }
     .bnav-item.active { background: rgba(212,168,83,0.08); }
 
     @media (min-width: 768px) { .bottom-nav { display: none; } body { padding-bottom: 0 !important; } }
-    @media (max-width: 767px) { body { padding-bottom: calc(var(--nav-height) + env(safe-area-inset-bottom) + 24px) !important; } }
+    @media (max-width: 767px) { body { padding-bottom: calc(var(--nav-height) + env(safe-area-inset-bottom) + 12px) !important; } }
   </style>
 
   <style>

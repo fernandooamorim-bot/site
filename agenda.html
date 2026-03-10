@@ -119,7 +119,7 @@
       background: var(--bg-app);
       color: var(--gray-900);
       line-height: 1.5;
-      padding-bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom) + 24px);
+      padding-bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom) + 12px);
       min-height: 100vh;
       min-height: 100dvh;
     }
@@ -972,7 +972,7 @@
       backdrop-filter: blur(6px);
       display: none;
       justify-content: center;
-      align-items: flex-start;
+      align-items: center;
       z-index: 1000;
       padding: 20px;
       overflow-y: auto;
@@ -1226,19 +1226,18 @@
        ============================================ */
     .footer-nav {
       position: fixed;
-      bottom: calc(env(safe-area-inset-bottom) + 8px);
-      left: calc(env(safe-area-inset-left) + 10px);
-      right: calc(env(safe-area-inset-right) + 10px);
-      height: calc(var(--bottom-nav-height) + 8px);
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom));
       background: var(--bg-header);
-      border: 1px solid rgba(255,255,255,0.08);
+      border-top: 1px solid rgba(255,255,255,0.08);
       display: flex;
-      align-items: center;
+      align-items: flex-start;
       justify-content: space-evenly;
       z-index: 50;
-      padding: 6px 6px 8px;
-      border-radius: 18px;
-      box-shadow: 0 -10px 24px rgba(10,22,40,0.26);
+      padding: 6px 8px calc(env(safe-area-inset-bottom) + 8px);
+      border-radius: 0;
     }
 
     .footer-btn {
@@ -1246,9 +1245,9 @@
       border: none;
       color: rgba(255,255,255,0.4);
       font-size: 20px;
-      padding: 7px 14px;
+      padding: 4px 10px 6px;
       min-height: 52px;
-      min-width: 68px;
+      min-width: 62px;
       cursor: pointer;
       transition: var(--transition);
       border-radius: 14px;
@@ -1258,6 +1257,13 @@
       align-items: center;
       gap: 4px;
       -webkit-tap-highlight-color: transparent;
+    }
+
+    .footer-btn i,
+    .footer-btn svg {
+      color: currentColor;
+      stroke: currentColor;
+      fill: none;
     }
 
     .footer-btn:hover {
@@ -1480,11 +1486,11 @@
     <div class="view-toolbar" id="viewToolbar">
       <div class="view-mode">
         <button class="view-mode-btn active" id="btnModoCards" data-view-mode="cards">
-          <i data-lucide="cards" style="width:14px;height:14px"></i>
+          <i data-lucide="layout-grid" style="width:14px;height:14px"></i>
           Cards
         </button>
         <button class="view-mode-btn" id="btnModoPlanilha" data-view-mode="planilha">
-          <i data-lucide="sheet" style="width:14px;height:14px"></i>
+          <i data-lucide="table-2" style="width:14px;height:14px"></i>
           Planilha
         </button>
       </div>
