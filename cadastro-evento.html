@@ -380,53 +380,6 @@
       }
     }
 
-    .form-intro {
-      margin-bottom: 16px;
-      background: linear-gradient(135deg, rgba(20,34,64,0.98), rgba(15,26,46,0.96));
-      border-radius: var(--radius-lg);
-      border: 1px solid rgba(255,255,255,0.06);
-      padding: 18px 18px 16px;
-      color: rgba(255,255,255,0.92);
-      box-shadow: var(--shadow-md);
-    }
-
-    .form-intro-title {
-      font-size: 18px;
-      font-weight: 800;
-      letter-spacing: -0.3px;
-      color: #fff;
-      margin-bottom: 6px;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .form-intro-sub {
-      font-size: 13px;
-      color: rgba(255,255,255,0.75);
-      margin-bottom: 12px;
-      line-height: 1.45;
-    }
-
-    .form-intro-grid {
-      display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 8px;
-    }
-
-    .form-intro-item {
-      background: rgba(255,255,255,0.07);
-      border: 1px solid rgba(255,255,255,0.1);
-      border-radius: 10px;
-      padding: 9px 10px;
-      font-size: 12px;
-      font-weight: 600;
-      color: rgba(255,255,255,0.9);
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
     .tipo-registro-select-wrap {
       display: none;
     }
@@ -466,9 +419,6 @@
     }
 
     @media (max-width: 767px) {
-      .form-intro-grid {
-        grid-template-columns: 1fr;
-      }
       .tipo-chips {
         grid-template-columns: 1fr 1fr;
       }
@@ -516,6 +466,13 @@
       align-items: center;
       gap: 10px;
       letter-spacing: -0.25px;
+    }
+
+    .section-title i {
+      width: 18px;
+      height: 18px;
+      color: var(--navy-500);
+      flex-shrink: 0;
     }
 
     /* ============================================
@@ -573,6 +530,14 @@
       color: var(--gray-800);
       background: var(--surface-0);
       transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    input[type="date"],
+    input[type="time"] {
+      appearance: none;
+      -webkit-appearance: none;
+      min-height: 48px;
+      line-height: 1.2;
     }
 
     input:focus, select:focus, textarea:focus {
@@ -893,6 +858,18 @@
         border-radius: 14px;
         padding: 18px 14px;
       }
+      .form-row-3 > .form-group {
+        margin-bottom: 14px;
+      }
+      .form-row-3 > .form-group:last-child {
+        margin-bottom: 0;
+      }
+      input, select, textarea {
+        min-height: 50px;
+      }
+      textarea {
+        min-height: 96px;
+      }
       .actions {
         position: sticky;
         bottom: calc(var(--nav-height) + 8px);
@@ -991,6 +968,20 @@
   font-weight: 500;
   color: var(--gray-700);
 }
+
+#campoEventoMultiDias.checkbox-group {
+  background: var(--surface-1);
+  border-color: var(--gray-200);
+  border-radius: 12px;
+  padding: 12px 14px;
+  margin-top: 8px;
+}
+
+#campoEventoMultiDias .toggle-text {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--gray-600);
+}
   </style>
 </head>
 <body>
@@ -1030,22 +1021,11 @@
     
     <div class="form-container">
       <form id="formEvento" onsubmit="return false;">
-        <div class="form-intro">
-          <div class="form-intro-title">Cadastro Inteligente</div>
-          <div class="form-intro-sub">
-            Fluxo unificado para Evento, Reserva, Reunião e Bloqueio com validações de agenda e regras financeiras.
-          </div>
-          <div class="form-intro-grid">
-            <div class="form-intro-item">Validação de conflito por data/hora</div>
-            <div class="form-intro-item">Regras por tipo de registro</div>
-            <div class="form-intro-item">Cadastro seguro com confirmação</div>
-          </div>
-        </div>
-        
         <!-- SEÇÃO: TIPO DE REGISTRO -->
         <div class="form-section">
           <div class="section-title">
-            🎯 Tipo de Registro
+            <i data-lucide="target"></i>
+            Tipo de Registro
             <span id="tipoIndicator" class="tipo-indicator tipo-evento">EVENTO</span>
           </div>
           
@@ -1083,7 +1063,8 @@
         <!-- SEÇÃO: INFORMAÇÕES BÁSICAS -->
         <div class="form-section">
           <div class="section-title">
-            📅 Informações Básicas
+            <i data-lucide="calendar-days"></i>
+            Informações Básicas
           </div>
           
           <!-- EVENTO: Tipo de evento -->
@@ -1167,7 +1148,8 @@
         <!-- SEÇÃO: PESSOAS E LOCAL -->
         <div id="secaoPessoasLocal" class="form-section">
           <div class="section-title">
-            👥 Pessoas e Local
+            <i data-lucide="users"></i>
+            Pessoas e Local
           </div>
           
           <!-- CONTRATANTE -->
@@ -1210,7 +1192,8 @@
         <!-- SEÇÃO: VALORES (SÓ PARA EVENTOS) -->
         <div id="secaoValores" class="form-section">
           <div class="section-title">
-            💰 Valores e Comissões
+            <i data-lucide="wallet"></i>
+            Valores e Comissões
           </div>
           
           <div class="form-row">
@@ -1276,7 +1259,8 @@
         <!-- SEÇÃO: INFORMAÇÕES ADICIONAIS -->
         <div id="secaoInformacoesAdicionais" class="form-section">
           <div class="section-title">
-            📝 Informações Adicionais
+            <i data-lucide="file-text"></i>
+            Informações Adicionais
           </div>
           
           <div id="campoObservacoes" class="form-group">
