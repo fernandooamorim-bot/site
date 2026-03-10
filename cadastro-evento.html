@@ -325,6 +325,13 @@
     }
     .overlay.active { display: flex; }
 
+    @media (max-width: 767px) {
+      .overlay {
+        backdrop-filter: none;
+        -webkit-backdrop-filter: none;
+      }
+    }
+
     .overlay-box {
       background: white;
       padding: 32px;
@@ -1355,7 +1362,7 @@
       setTimeout(() => {
         fecharLoading();
         if (callback) callback();
-      }, 2200);
+      }, 1000);
     }
 
     function fecharLoading() {
