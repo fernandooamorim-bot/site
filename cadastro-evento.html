@@ -188,14 +188,14 @@
       bottom: 0;
       left: 0;
       right: 0;
-      height: calc(var(--nav-height) + env(safe-area-inset-bottom));
+      height: calc(var(--nav-height) + env(safe-area-inset-bottom) + 10px);
       background: var(--nav-navy-800);
       border-top: 1px solid rgba(255,255,255,0.08);
       display: flex;
       align-items: flex-start;
       justify-content: space-evenly;
       z-index: 200;
-      padding: 2px 8px calc(env(safe-area-inset-bottom) + 12px);
+      padding: 0 8px calc(env(safe-area-inset-bottom) + 16px);
       border-radius: 0;
       font-family: var(--nav-font);
     }
@@ -206,7 +206,7 @@
       align-items: center;
       justify-content: center;
       gap: 4px;
-      padding: 4px 10px 6px;
+      padding: 2px 10px 8px;
       min-height: 52px;
       min-width: 62px;
       border-radius: 14px;
@@ -222,7 +222,7 @@
     .bnav-item svg {
       width: 22px;
       height: 22px;
-      color: rgba(255,255,255,0.82);
+      color: rgba(255,255,255,0.9);
       stroke: currentColor;
       fill: none;
       transition: color 0.2s;
@@ -232,7 +232,7 @@
       font-family: var(--nav-font);
       font-size: 11px;
       font-weight: 600;
-      color: rgba(255,255,255,0.82);
+      color: rgba(255,255,255,0.9);
       transition: color 0.2s;
       line-height: 1;
     }
