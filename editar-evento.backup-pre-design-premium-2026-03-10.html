@@ -307,15 +307,6 @@
       color: var(--navy-600);
       margin-bottom: 20px;
       letter-spacing: -0.2px;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .search-title i {
-      width: 18px;
-      height: 18px;
-      color: var(--navy-600);
     }
 
     /* ============================================
@@ -361,9 +352,7 @@
     }
 
     .toggle-icon {
-      width: 15px;
-      height: 15px;
-      color: currentColor;
+      font-size: 16px;
     }
 
     /* ============================================
@@ -710,7 +699,6 @@
       border: 1px solid var(--gray-200);
       border-radius: var(--radius-md);
       box-shadow: var(--shadow-sm);
-      border-top: 2px solid rgba(212,168,83,0.7);
     }
 
     .section-title {
@@ -721,15 +709,6 @@
       padding-bottom: 12px;
       border-bottom: 1px solid var(--gray-200);
       letter-spacing: -0.2px;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .section-title i {
-      width: 18px;
-      height: 18px;
-      color: var(--navy-600);
     }
 
     /* ============================================
@@ -758,11 +737,6 @@
       font-size: 13px;
     }
 
-    .status-agenda-slot {
-      margin-top: -2px;
-      margin-bottom: 14px;
-    }
-
     .status-box.safe {
       background: rgba(16,185,129,0.08);
       border: 1px solid rgba(16,185,129,0.25);
@@ -782,17 +756,10 @@
     }
 
     .status-icon {
+      font-size: 20px;
       line-height: 1;
       flex-shrink: 0;
       margin-top: 2px;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-    }
-
-    .status-icon i {
-      width: 18px;
-      height: 18px;
     }
 
     /* Mobile refinado */
@@ -802,7 +769,9 @@
         font-size: 12.5px;
       }
 
-      .status-icon i { width: 17px; height: 17px; }
+      .status-icon {
+        font-size: 18px;
+      }
     }
     
 
@@ -1223,138 +1192,10 @@
   color: var(--gray-700);
 }
 
-    /* Conflitos premium */
-    .conflitos-wrap {
-      border-radius: 12px;
-      border: 1px solid var(--gray-200);
-      background: #fff;
-      overflow: hidden;
-    }
-
-    .conflitos-wrap.ok {
-      border-color: rgba(16,185,129,0.45);
-      background: rgba(16,185,129,0.06);
-    }
-
-    .conflitos-wrap.warn {
-      border-color: rgba(245,158,11,0.55);
-      background: rgba(245,158,11,0.11);
-    }
-
-    .conflitos-header {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      font-size: 14px;
-      font-weight: 800;
-      padding: 10px 12px;
-      color: var(--gray-800);
-      border-bottom: 1px solid rgba(148,163,184,0.2);
-    }
-
-    .conflitos-header i {
-      width: 16px;
-      height: 16px;
-      flex-shrink: 0;
-    }
-
-    .conflitos-wrap.ok .conflitos-header {
-      color: #065f46;
-      border-bottom-color: rgba(16,185,129,0.25);
-    }
-
-    .conflitos-wrap.warn .conflitos-header {
-      color: #92400e;
-      border-bottom-color: rgba(245,158,11,0.25);
-    }
-
-    .conflitos-lista {
-      padding: 8px;
-      display: grid;
-      gap: 8px;
-    }
-
-    .conflito-item {
-      background: #fff;
-      border: 1px solid var(--gray-200);
-      border-radius: 10px;
-      padding: 10px;
-      box-shadow: 0 1px 0 rgba(15,23,42,0.03);
-    }
-
-    .conflito-top {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 8px;
-      margin-bottom: 6px;
-      flex-wrap: wrap;
-    }
-
-    .conflito-tipo {
-      display: inline-flex;
-      align-items: center;
-      border-radius: 999px;
-      padding: 2px 8px;
-      font-size: 11px;
-      font-weight: 700;
-      letter-spacing: 0.2px;
-      text-transform: uppercase;
-      background: rgba(16,185,129,0.16);
-      color: #065f46;
-    }
-
-    .conflito-meta {
-      font-size: 12px;
-      color: var(--gray-600);
-      font-weight: 600;
-    }
-
-    .conflito-evento {
-      font-size: 14px;
-      font-weight: 700;
-      color: var(--gray-800);
-      margin-bottom: 4px;
-      line-height: 1.35;
-    }
-
-    .conflito-linha {
-      font-size: 12px;
-      color: var(--gray-600);
-      line-height: 1.35;
-    }
-
-    .conflito-linha strong {
-      color: var(--gray-700);
-    }
-
 /* Mobile: mantém compacto */
 @media (max-width: 600px) {
   .toggle-row {
     padding-top: 4px;
-  }
-
-  .toggle-buttons {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 8px;
-  }
-
-  .toggle-btn {
-    justify-content: center;
-  }
-
-  .section {
-    padding: 18px 14px;
-    border-radius: 14px;
-  }
-
-  .form-group {
-    margin-bottom: 14px;
-  }
-
-  .status-agenda-slot {
-    margin-top: 0;
   }
 }
   </style>
@@ -1395,9 +1236,9 @@
       </div>
     </div>
     <div id="alertContainer"></div>
-<div id="successCard" class="hidden success-overlay">
+    <div id="successCard" class="hidden success-overlay">
   <div class="success-card">
-    <h3 style="margin-bottom:4px;">Evento atualizado com sucesso</h3>
+    <h3 style="margin-bottom:4px;">✅ Evento atualizado com sucesso</strong>
 
     <p style="margin:12px 0;color:#555;font-size:14px;">
       As alterações foram salvas corretamente.
@@ -1413,34 +1254,31 @@
     
     <!-- SEÇÃO DE BUSCA -->
     <div class="search-section">
-      <div class="search-title">
-        <i data-lucide="search"></i>
-        Como você quer buscar o evento?
-      </div>
+      <div class="search-title">🔍 Como você quer buscar o evento?</div>
       
       <!-- BOTÕES TOGGLE -->
       <div class="toggle-buttons">
         <label class="toggle-btn active">
           <input type="radio" name="searchType" value="id" checked onchange="trocarTipoBusca('id')">
-          <i class="toggle-icon" data-lucide="hash"></i>
+          <span class="toggle-icon">🔢</span>
           <span>Por ID</span>
         </label>
         
         <label class="toggle-btn">
           <input type="radio" name="searchType" value="nome" onchange="trocarTipoBusca('nome')">
-          <i class="toggle-icon" data-lucide="user"></i>
+          <span class="toggle-icon">👤</span>
           <span>Por Nome</span>
         </label>
         
         <label class="toggle-btn">
           <input type="radio" name="searchType" value="data" onchange="trocarTipoBusca('data')">
-          <i class="toggle-icon" data-lucide="calendar-days"></i>
+          <span class="toggle-icon">📅</span>
           <span>Por Data</span>
         </label>
         
         <label class="toggle-btn">
           <input type="radio" name="searchType" value="periodo" onchange="trocarTipoBusca('periodo')">
-          <i class="toggle-icon" data-lucide="calendar-range"></i>
+          <span class="toggle-icon">🗓️</span>
           <span>Por Período</span>
         </label>
       </div>
@@ -1453,7 +1291,7 @@
           <div class="search-input-wrapper">
             <input type="text" id="inputID" placeholder="Ex: AG-20251228-001" 
                    onkeypress="if(event.key==='Enter') buscarEvento()">
-            <button class="btn-search" onclick="buscarEvento()">Buscar</button>
+            <button class="btn-search" onclick="buscarEvento()">🔍 Buscar</button>
           </div>
           <p class="helper-text">💡 Digite o ID completo ou parcial (ex: AG-2025)</p>
         </div>
@@ -1467,7 +1305,7 @@
                      onkeypress="if(event.key==='Enter') buscarEvento()">
               <div id="autocompleteList" class="autocomplete-list"></div>
             </div>
-            <button class="btn-search" onclick="buscarEvento()">Buscar</button>
+            <button class="btn-search" onclick="buscarEvento()">🔍 Buscar</button>
           </div>
           <p class="helper-text">💡 Digite parte do nome e selecione da lista</p>
         </div>
@@ -1476,7 +1314,7 @@
         <div id="searchByData" class="search-field-group">
           <div class="search-input-wrapper">
             <input type="date" id="inputData" onchange="buscarEvento()">
-            <button class="btn-search" onclick="buscarEvento()">Buscar</button>
+            <button class="btn-search" onclick="buscarEvento()">🔍 Buscar</button>
           </div>
           <p class="helper-text">💡 Selecione a data do evento</p>
         </div>
@@ -1493,7 +1331,7 @@
               <option value="proximos">Próximos eventos</option>
               <option value="este-ano">Este ano</option>
             </select>
-            <button class="btn-search" onclick="buscarEvento()">Buscar</button>
+            <button class="btn-search" onclick="buscarEvento()">🔍 Buscar</button>
           </div>
           <p class="helper-text">💡 Filtre eventos por período de tempo</p>
         </div>
@@ -1503,7 +1341,7 @@
       <!-- RESULTADOS DA BUSCA -->
       <div id="resultsSection" class="results-section">
         <div class="results-header">
-          <div class="results-title">Resultados da Busca</div>
+          <div class="results-title">📊 Resultados da Busca</div>
           <div class="results-count" id="resultsCount"></div>
         </div>
         <div id="resultsList" class="results-list"></div>
@@ -1516,12 +1354,10 @@
       
       <!-- DADOS DO EVENTO -->
       <div class="section">
-        <div class="section-title">
-          <i data-lucide="calendar-days"></i>
-          Dados do Evento
-        </div>
+        <div class="section-title">📅 Dados do Evento</div>
         
-        <!-- STATUS -->
+        <!-- STATUS / CONFLITOS DE AGENDA -->
+        <div id="statusAgenda"></div>
         <div id="statusTipoRegistro"></div>
         
         <div class="form-row">
@@ -1575,9 +1411,6 @@
             <div id="horarioFimCalc" style="margin-top:8px;padding:8px;background:#e3f2fd;border-radius:4px;color:#0d47a1;font-weight:600;display:none;"></div>
           </div>
         </div>
-
-        <!-- CONFLITOS DE AGENDA -->
-        <div id="statusAgenda" class="status-agenda-slot"></div>
         
         <div class="form-row">
           <div class="form-group">
@@ -1636,10 +1469,7 @@
       
       <!-- DADOS FINANCEIROS -->
       <div class="section" id="sectionFinanceiro">
-        <div class="section-title">
-          <i data-lucide="wallet"></i>
-          Dados Financeiros
-        </div>
+        <div class="section-title">💰 Dados Financeiros</div>
         <div id="statusConversaoReserva"></div>
         <!-- STATUS / BLOQUEIO FINANCEIRO -->
         <div id="statusFinanceiro"></div>
@@ -1700,10 +1530,7 @@
       
       <!-- DETALHES OPERACIONAIS -->
       <div class="section">
-        <div class="section-title">
-          <i data-lucide="file-text"></i>
-          Detalhes Operacionais
-        </div>
+        <div class="section-title">🎭 Detalhes Operacionais</div>
         
         <div class="form-row">
           <div class="form-group">
@@ -1734,9 +1561,9 @@
       
       <!-- AÇÕES -->
       <div class="actions">
-        <button class="btn btn-secondary" onclick="voltarParaBusca()">Voltar para Busca</button>
+        <button class="btn btn-secondary" onclick="voltarParaBusca()">↩️ Voltar para Busca</button>
         <button class="btn btn-primary" onclick="validarEMostrarResumo()">
-          Salvar Alterações
+          💾 Salvar Alterações
         </button>
       </div>
     </div>
@@ -1745,7 +1572,9 @@
   <!-- MODAL DE CONFIRMAÇÃO -->
   <div id="modalConfirmacao" class="modal-overlay">
     <div class="modal">
-      <div class="modal-title">Confirmar Alterações</div>
+      <div class="modal-title">
+        ⚠️ Confirmar Alterações
+      </div>
       
       <p style="margin-bottom: 20px; color: #666;">
         As seguintes alterações serão realizadas no evento:
@@ -1756,8 +1585,8 @@
       <div id="resumoValidacoes" class="validation-summary"></div>
       
       <div class="actions">
-        <button class="btn btn-secondary" onclick="fecharModal()">Voltar</button>
-        <button class="btn btn-primary" onclick="confirmarEdicao()">Confirmar Alterações</button>
+        <button class="btn btn-secondary" onclick="fecharModal()">↩️ Voltar</button>
+        <button class="btn btn-primary" onclick="confirmarEdicao()">✅ Confirmar Alterações</button>
       </div>
     </div>
   </div>
@@ -1938,7 +1767,7 @@ function bloquearEdicaoFinanceira(motivo) {
   aviso.id = 'avisoFinanceiroBloqueado';
   aviso.className = 'status-box danger';
   aviso.innerHTML = `
-    <span class="status-icon"><i data-lucide="lock"></i></span>
+    <span class="status-icon">🔒</span>
     <div>
       <strong>Edição financeira bloqueada</strong><br>
       ${motivo || 'Evento já possui recebimento registrado.'}
@@ -1991,11 +1820,10 @@ async function aplicarPermissaoFinanceiraEdicao() {
     if (statusFinanceiro) {
       statusFinanceiro.innerHTML = `
         <div class="status-box safe">
-          <span class="status-icon"><i data-lucide="circle-check"></i></span>
+          <span class="status-icon">🟢</span>
           <div><strong>Status Financeiro:</strong> Evento liberado para edição.</div>
         </div>
       `;
-      if (window.lucide) lucide.createIcons();
     }
   } catch (errPerm) {
     console.error('Erro permissão financeira:', errPerm);
@@ -2117,8 +1945,7 @@ function executarVerificacaoConflitosEdicao_() {
 
   verificadorExecucaoId++;
   const execucaoAtual = verificadorExecucaoId;
-  container.innerHTML = '<div class="status-box warning"><span class="status-icon"><i data-lucide="loader-circle"></i></span><div><strong>Verificando conflitos de agenda...</strong></div></div>';
-  if (window.lucide) lucide.createIcons();
+  container.innerHTML = '<div class="status-box warning">⏳ Verificando conflitos de agenda...</div>';
 
   function gerarIntervaloDatas(inicio, fim) {
     const datas = [];
@@ -2139,8 +1966,7 @@ function executarVerificacaoConflitosEdicao_() {
   const timeoutId = setTimeout(() => {
     if (execucaoAtual !== verificadorExecucaoId) return;
     timeoutDisparado = true;
-    container.innerHTML = '<div class="status-box warning"><span class="status-icon"><i data-lucide="triangle-alert"></i></span><div><strong>Não foi possível concluir a verificação agora.</strong></div></div>';
-    if (window.lucide) lucide.createIcons();
+    container.innerHTML = '<div class="status-box warning">⚠️ Não foi possível concluir a verificação agora.</div>';
   }, 10000);
 
   const finalizar = () => {
@@ -2178,26 +2004,11 @@ function renderizarConflitosEdicao(eventos) {
   if (!container) return;
 
   if (!eventos || eventos.length === 0) {
-    container.innerHTML = `
-      <div class="conflitos-wrap ok">
-        <div class="conflitos-header">
-          <i data-lucide="circle-check"></i>
-          Data disponível
-        </div>
-      </div>
-    `;
-    if (window.lucide) lucide.createIcons();
+    container.innerHTML = '<div class="status-box safe">✅ Nenhum conflito de agenda detectado</div>';
     return;
   }
 
-  let html = `
-    <div class="conflitos-wrap warn">
-      <div class="conflitos-header">
-        <i data-lucide="triangle-alert"></i>
-        Conflitos no período selecionado
-      </div>
-      <div class="conflitos-lista">
-  `;
+  let html = '<div class="status-box danger"><strong>⚠️ Conflitos de agenda detectados:</strong><div style="margin-top:8px;display:grid;gap:8px;">';
   eventos.forEach((ev) => {
     const nomeEvento = ev.nomeContratante || ev.tipoEvento || ev.observacoes || 'Evento sem título';
     const horaIni = String(ev.hora || '').trim();
@@ -2207,20 +2018,19 @@ function renderizarConflitosEdicao(eventos) {
     const local = ev.nomeLocal && ev.nomeLocal !== 'N/A' ? ev.nomeLocal : 'Local não informado';
 
     html += `
-      <div class="conflito-item">
-        <div class="conflito-top">
-          <span class="conflito-tipo">${String(ev.tipoRegistro || 'Evento')}</span>
-          <span class="conflito-meta">${formatarDataBRTextoEdicao(ev.data)}</span>
+      <div style="background:#fff;border:1px solid #f3c8c8;border-radius:8px;padding:8px 10px;">
+        <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;">
+          <strong>${String(ev.tipoRegistro || 'Evento').toUpperCase()}</strong>
+          <span>${formatarDataBRTextoEdicao(ev.data)}</span>
         </div>
-        <div class="conflito-evento">${nomeEvento}</div>
-        <div class="conflito-linha"><strong>Horário:</strong> ${faixa} • <strong>Duração:</strong> ${duracaoTxt}</div>
-        <div class="conflito-linha"><strong>Local:</strong> ${local}</div>
+        <div style="margin-top:3px;font-weight:700;">${nomeEvento}</div>
+        <div style="margin-top:2px;">Horário: ${faixa} • Duração: ${duracaoTxt}</div>
+        <div>Local: ${local}</div>
       </div>
     `;
   });
   html += '</div></div>';
   container.innerHTML = html;
-  if (window.lucide) lucide.createIcons();
 }
 
 function normalizarComparacaoTexto(v) {
@@ -2379,7 +2189,7 @@ function renderizarStatusTipoRegistro(evento) {
     if (modoConversaoReserva) {
       box.innerHTML = `
         <div class="status-box warning">
-          <span class="status-icon"><i data-lucide="refresh-cw"></i></span>
+          <span class="status-icon">🔁</span>
           <div>
             <strong>Conversão de Reserva ativa</strong><br>
             Ao salvar, esta reserva será convertida para <strong>Evento</strong> e passará a usar regras financeiras.
@@ -2390,18 +2200,17 @@ function renderizarStatusTipoRegistro(evento) {
       if (statusConversao) {
         statusConversao.innerHTML = `
           <div class="status-box warning">
-            <span class="status-icon"><i data-lucide="settings-2"></i></span>
+            <span class="status-icon">🛠️</span>
             <div><strong>Modo conversão ativo:</strong> preencha os campos necessários e salve para concluir.</div>
           </div>
         `;
       }
-      if (window.lucide) lucide.createIcons();
       return;
     }
 
     box.innerHTML = `
       <div class="status-box warning">
-        <span class="status-icon"><i data-lucide="bookmark"></i></span>
+        <span class="status-icon">📌</span>
         <div>
           <strong>Registro atual: RESERVA</strong><br>
           Reserva não participa do financeiro até conversão para evento confirmado.
@@ -2411,14 +2220,13 @@ function renderizarStatusTipoRegistro(evento) {
     `;
     if (sectionFinanceiro) sectionFinanceiro.classList.add('hidden');
     if (statusConversao) statusConversao.innerHTML = '';
-    if (window.lucide) lucide.createIcons();
     return;
   }
 
   if (tipo === 'Reunião' || tipo === 'Bloqueio') {
     box.innerHTML = `
       <div class="status-box safe">
-        <span class="status-icon"><i data-lucide="file-check"></i></span>
+        <span class="status-icon">🧾</span>
         <div>
           <strong>Registro atual: ${tipo.toUpperCase()}</strong><br>
           Este tipo não utiliza dados financeiros no sistema.
@@ -2427,7 +2235,6 @@ function renderizarStatusTipoRegistro(evento) {
     `;
     if (sectionFinanceiro) sectionFinanceiro.classList.add('hidden');
     if (statusConversao) statusConversao.innerHTML = '';
-    if (window.lucide) lucide.createIcons();
     return;
   }
 
@@ -2435,11 +2242,10 @@ function renderizarStatusTipoRegistro(evento) {
   if (statusConversao) statusConversao.innerHTML = '';
   box.innerHTML = `
     <div class="status-box safe">
-      <span class="status-icon"><i data-lucide="circle-check"></i></span>
+      <span class="status-icon">✅</span>
       <div><strong>Registro atual:</strong> ${tipo || 'Evento'}</div>
     </div>
   `;
-  if (window.lucide) lucide.createIcons();
 }
     
 async function iniciarEditarEvento() {
