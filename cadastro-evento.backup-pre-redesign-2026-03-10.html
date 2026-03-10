@@ -290,9 +290,6 @@
       --shadow-sm: 0 1px 3px rgba(10,22,40,0.06);
       --shadow-md: 0 4px 16px rgba(10,22,40,0.08);
       --shadow-lg: 0 8px 32px rgba(10,22,40,0.14);
-      --surface-0: #ffffff;
-      --surface-1: #f7f9fc;
-      --surface-2: #eef3fb;
     }
 
     * {
@@ -303,10 +300,7 @@
 
     body {
       font-family: var(--font);
-      background:
-        radial-gradient(1200px 500px at 10% -20%, rgba(58,96,152,0.12), transparent 50%),
-        radial-gradient(900px 420px at 90% -30%, rgba(212,168,83,0.14), transparent 45%),
-        var(--gray-50);
+      background: var(--gray-50);
       color: var(--gray-800);
       -webkit-font-smoothing: antialiased;
       -moz-osx-font-smoothing: grayscale;
@@ -359,7 +353,7 @@
        CONTAINER
        ============================================ */
     .container {
-      max-width: 1040px;
+      max-width: 900px;
       margin: 0 auto;
       padding: 0;
     }
@@ -370,66 +364,11 @@
 
     .form-container {
       padding: 24px 20px 32px;
-      max-width: 920px;
-      margin: 0 auto;
     }
 
     @media (min-width: 768px) {
       .form-container {
-        padding: 34px 30px 40px;
-      }
-    }
-
-    .form-intro {
-      margin-bottom: 16px;
-      background: linear-gradient(135deg, rgba(20,34,64,0.98), rgba(15,26,46,0.96));
-      border-radius: var(--radius-lg);
-      border: 1px solid rgba(255,255,255,0.06);
-      padding: 18px 18px 16px;
-      color: rgba(255,255,255,0.92);
-      box-shadow: var(--shadow-md);
-    }
-
-    .form-intro-title {
-      font-size: 18px;
-      font-weight: 800;
-      letter-spacing: -0.3px;
-      color: #fff;
-      margin-bottom: 6px;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .form-intro-sub {
-      font-size: 13px;
-      color: rgba(255,255,255,0.75);
-      margin-bottom: 12px;
-      line-height: 1.45;
-    }
-
-    .form-intro-grid {
-      display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 8px;
-    }
-
-    .form-intro-item {
-      background: rgba(255,255,255,0.07);
-      border: 1px solid rgba(255,255,255,0.1);
-      border-radius: 10px;
-      padding: 9px 10px;
-      font-size: 12px;
-      font-weight: 600;
-      color: rgba(255,255,255,0.9);
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    @media (max-width: 767px) {
-      .form-intro-grid {
-        grid-template-columns: 1fr;
+        padding: 32px;
       }
     }
 
@@ -437,25 +376,12 @@
        FORM SECTIONS
        ============================================ */
     .form-section {
-      margin-bottom: 12px;
-      background: var(--surface-0);
-      border-radius: var(--radius-lg);
+      margin-bottom: 8px;
+      background: white;
+      border-radius: var(--radius-md);
       border: 1px solid var(--gray-200);
-      padding: 22px 20px;
+      padding: 24px 20px;
       box-shadow: var(--shadow-sm);
-      position: relative;
-      overflow: hidden;
-    }
-
-    .form-section::before {
-      content: "";
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      height: 3px;
-      background: linear-gradient(90deg, var(--navy-500), var(--gold-500));
-      opacity: 0.9;
     }
 
     .form-section:last-child {
@@ -467,21 +393,21 @@
     }
 
     .section-title {
-      font-size: 16px;
-      font-weight: 800;
-      color: var(--navy-700);
-      margin-bottom: 18px;
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--navy-600);
+      margin-bottom: 20px;
       display: flex;
       align-items: center;
       gap: 10px;
-      letter-spacing: -0.25px;
+      letter-spacing: -0.2px;
     }
 
     /* ============================================
        FORM ELEMENTS
        ============================================ */
     .form-group {
-      margin-bottom: 16px;
+      margin-bottom: 18px;
     }
 
     .form-row {
@@ -524,13 +450,13 @@
 
     input, select, textarea {
       width: 100%;
-      padding: 12px 14px;
+      padding: 11px 14px;
       border: 1.5px solid var(--gray-200);
       border-radius: var(--radius-sm);
       font-size: 14px;
       font-family: var(--font);
       color: var(--gray-800);
-      background: var(--surface-0);
+      background: white;
       transition: border-color 0.2s, box-shadow 0.2s;
     }
 
@@ -565,7 +491,7 @@
       right: 5px;
       top: 50%;
       transform: translateY(-50%);
-      background: linear-gradient(135deg, var(--navy-600), var(--navy-700));
+      background: var(--navy-600);
       color: white;
       border: none;
       padding: 7px 14px;
@@ -616,13 +542,11 @@
       margin-top: 24px;
       padding-top: 20px;
       border-top: 1px solid var(--gray-200);
-      background: var(--surface-0);
-      border-radius: var(--radius-lg);
     }
 
     .btn {
       flex: 1;
-      padding: 14px 16px;
+      padding: 13px 16px;
       border: none;
       border-radius: var(--radius-sm);
       font-size: 14px;
@@ -766,9 +690,6 @@
       display: none;
       text-align: center;
       padding: 32px 20px;
-      background: var(--surface-0);
-      border-radius: var(--radius-lg);
-      border: 1px solid var(--gray-200);
     }
 
     .loading.active {
@@ -845,25 +766,6 @@
       margin-top: 10px;
       border: 1px solid rgba(212,168,83,0.2);
       line-height: 1.5;
-    }
-
-    @media (max-width: 767px) {
-      .form-section {
-        border-radius: 14px;
-        padding: 18px 14px;
-      }
-      .actions {
-        position: sticky;
-        bottom: calc(var(--nav-height) + 8px);
-        z-index: 55;
-        padding: 12px;
-        margin-top: 10px;
-        border: 1px solid var(--gray-200);
-        box-shadow: var(--shadow-md);
-      }
-      .btn {
-        font-size: 13px;
-      }
     }
 
     /* ============================================
@@ -989,17 +891,6 @@
     
     <div class="form-container">
       <form id="formEvento" onsubmit="return false;">
-        <div class="form-intro">
-          <div class="form-intro-title">Cadastro Inteligente</div>
-          <div class="form-intro-sub">
-            Fluxo unificado para Evento, Reserva, Reunião e Bloqueio com validações de agenda e regras financeiras.
-          </div>
-          <div class="form-intro-grid">
-            <div class="form-intro-item">Validação de conflito por data/hora</div>
-            <div class="form-intro-item">Regras por tipo de registro</div>
-            <div class="form-intro-item">Cadastro seguro com confirmação</div>
-          </div>
-        </div>
         
         <!-- SEÇÃO: TIPO DE REGISTRO -->
         <div class="form-section">
