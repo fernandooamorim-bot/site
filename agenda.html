@@ -3205,24 +3205,39 @@ renderizarEventosDentro(evento) {
       },
       async carregarEventosBootstrap() {
         Utils.log('Carregando eventos bootstrap da agenda...');
+        try {
+          const res = await Auth.apiCall('listarEventosBootstrap');
 
-        const res = await Auth.apiCall('listarEventosBootstrap');
+          if (!res || res.ok === false) {
+            throw new Error(res?.mensagem || 'Erro ao carregar bootstrap da agenda');
+          }
 
-        if (!res || res.ok === false) {
-          throw new Error(res?.mensagem || 'Erro ao carregar bootstrap da agenda');
+          const eventos = Array.isArray(res.eventos) ? res.eventos : [];
+          const eventosFiltrados = FiltroManager.filtrarPorPerfil(eventos);
+
+          AppState.eventos = eventosFiltrados;
+          AppState.filtrosAvancadosPopulados = false;
+          AppState.ultimaAtualizacao = Date.now();
+
+          return {
+            eventos: eventosFiltrados,
+            syncVersion: String(res.syncVersion || '')
+          };
+        } catch (err) {
+          const msg = String((err && err.message) || err || '').toUpperCase();
+          const acaoNaoExiste = msg.includes('AÇÃO_INVALIDA') || msg.includes('ACAO_INVALIDA');
+          if (!acaoNaoExiste) throw err;
+
+          // Compatibilidade com backend ainda não atualizado
+          Utils.log('Backend sem listarEventosBootstrap. Usando fallback legado.');
+          const eventos = await this.carregarEventos();
+          let syncVersion = '';
+          try {
+            const syncInfo = await this.obterAgendaSyncInfo();
+            syncVersion = String(syncInfo.version || '');
+          } catch (_) {}
+          return { eventos, syncVersion };
         }
-
-        const eventos = Array.isArray(res.eventos) ? res.eventos : [];
-        const eventosFiltrados = FiltroManager.filtrarPorPerfil(eventos);
-
-        AppState.eventos = eventosFiltrados;
-        AppState.filtrosAvancadosPopulados = false;
-        AppState.ultimaAtualizacao = Date.now();
-
-        return {
-          eventos: eventosFiltrados,
-          syncVersion: String(res.syncVersion || '')
-        };
       },
       async carregarConfiguracoes() {
         Utils.log('Carregando configurações via API...');
