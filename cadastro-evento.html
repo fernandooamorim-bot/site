@@ -766,6 +766,106 @@
     }
 
     /* ============================================
+       CONFLITOS DE AGENDA
+       ============================================ */
+    .conflitos-wrap {
+      margin-top: 10px;
+      border-radius: 12px;
+      border: 1px solid var(--gray-200);
+      background: #fff;
+      overflow: hidden;
+    }
+
+    .conflitos-wrap.ok {
+      border-color: rgba(16,185,129,0.45);
+      background: rgba(16,185,129,0.06);
+    }
+
+    .conflitos-wrap.warn {
+      border-color: rgba(245,158,11,0.55);
+      background: rgba(245,158,11,0.11);
+    }
+
+    .conflitos-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 14px;
+      font-weight: 800;
+      padding: 10px 12px;
+      color: var(--gray-800);
+      border-bottom: 1px solid rgba(148,163,184,0.2);
+    }
+
+    .conflitos-wrap.ok .conflitos-header {
+      color: #065f46;
+      border-bottom-color: rgba(16,185,129,0.25);
+    }
+
+    .conflitos-wrap.warn .conflitos-header {
+      color: #92400e;
+      border-bottom-color: rgba(245,158,11,0.25);
+    }
+
+    .conflitos-lista {
+      padding: 8px;
+      display: grid;
+      gap: 8px;
+    }
+
+    .conflito-item {
+      background: #fff;
+      border: 1px solid var(--gray-200);
+      border-radius: 10px;
+      padding: 10px;
+      box-shadow: 0 1px 0 rgba(15,23,42,0.03);
+    }
+
+    .conflito-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 6px;
+      flex-wrap: wrap;
+    }
+
+    .conflito-tipo {
+      display: inline-flex;
+      align-items: center;
+      border-radius: 999px;
+      padding: 2px 8px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.2px;
+      text-transform: uppercase;
+    }
+
+    .conflito-meta {
+      font-size: 12px;
+      color: var(--gray-600);
+      font-weight: 600;
+    }
+
+    .conflito-evento {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--gray-800);
+      margin-bottom: 4px;
+      line-height: 1.35;
+    }
+
+    .conflito-linha {
+      font-size: 12px;
+      color: var(--gray-600);
+      line-height: 1.35;
+    }
+
+    .conflito-linha strong {
+      color: var(--gray-700);
+    }
+
+    /* ============================================
        LOADING + SPINNER
        ============================================ */
     .loading {
@@ -1135,7 +1235,7 @@
           
           <!-- Alerta de conflitos de agenda -->
           <!-- Alerta de conflitos (preenchido dinamicamente) -->
-          <div id="alertaConflitos" style="display: none; margin-top: 10px;"></div>
+          <div id="alertaConflitos" style="display: none;"></div>
           
           <div id="campoProjeto" class="form-group">
             <label for="projeto">Projeto/Formação</label>
@@ -1860,23 +1960,49 @@ window.onload = function () {
       return `${dia}/${mes}/${ano}`;
     }
 
+    function escaparHtml(texto) {
+      return String(texto || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function formatarFaixaHorario(ev) {
+      const inicio = String(ev.hora || '').trim();
+      const duracaoMin = parseInt(ev.duracao, 10);
+
+      if (inicio && duracaoMin > 0) {
+        const fim = calcularHoraFinal(inicio, duracaoMin);
+        return `${inicio} → ${fim}`;
+      }
+      if (inicio) return inicio;
+      return 'Sem horário';
+    }
+
     function renderizarConflitos(eventos, intervalo) {
       const alertaDiv = document.getElementById('alertaConflitos');
 
       if (!eventos || eventos.length === 0) {
         alertaDiv.innerHTML = `
-          <div style="background:#d4edda;border:2px solid #28a745;padding:12px;border-radius:8px;text-align:center;">
-            <div style="font-size:24px;">✅</div>
-            <strong>${intervalo ? 'Período totalmente disponível' : 'Data disponível'}</strong>
+          <div class="conflitos-wrap ok">
+            <div class="conflitos-header">
+              <span>✅</span>
+              <span>${intervalo ? 'Período disponível' : 'Data disponível'}</span>
+            </div>
           </div>`;
         alertaDiv.style.display = 'block';
         return;
       }
 
       let html = `
-        <div style="background:#fff3cd;border:1px solid #ffc107;padding:12px;border-radius:8px;">
-          <strong>⚠️ Conflitos encontrados no ${intervalo ? 'período selecionado' : 'dia selecionado'}:</strong>
-          <div style="margin-top:8px;">`;
+        <div class="conflitos-wrap warn">
+          <div class="conflitos-header">
+            <span>⚠️</span>
+            <span>Conflitos no ${intervalo ? 'período selecionado' : 'dia selecionado'}</span>
+          </div>
+          <div class="conflitos-lista">`;
 
       eventos.forEach(ev => {
         const badge =
@@ -1885,16 +2011,22 @@ window.onload = function () {
           ev.tipoRegistro === 'Reunião' ? 'background:#d1ecf1;color:#0c5460' :
           'background:#f8d7da;color:#721c24';
 
+        const dataTxt = formatarDataBRTexto(ev.data);
+        const nomeEvento = ev.nomeContratante || ev.tipoEvento || ev.observacoes || 'Evento sem título';
+        const faixa = formatarFaixaHorario(ev);
+        const duracaoFmt = ev.duracao ? formatarDuracao(parseInt(ev.duracao, 10)) : '';
+        const duracaoTxt = duracaoFmt || 'N/A';
+        const localTxt = ev.nomeLocal && ev.nomeLocal !== 'N/A' ? ev.nomeLocal : 'Local não informado';
+
         html += `
-  <div style="background:#fff;padding:8px;margin:6px 0;border-radius:6px;font-size:13px;">
-    <span style="display:inline-block;padding:2px 6px;border-radius:4px;font-size:11px;font-weight:600;${badge}">
-      ${ev.tipoRegistro}
-    </span>
-    <div>
-      Conflito em <strong>${formatarDataBRTexto(ev.data)}</strong>${ev.dataFim ? ` até <strong>${formatarDataBRTexto(ev.dataFim)}</strong>` : ''}
+  <div class="conflito-item">
+    <div class="conflito-top">
+      <span class="conflito-tipo" style="${badge}">${escaparHtml(ev.tipoRegistro || 'Evento')}</span>
+      <span class="conflito-meta">${escaparHtml(dataTxt)}</span>
     </div>
-    ${ev.tipoEvento || ev.observacoes || ''}
-    ${ev.nomeLocal && ev.nomeLocal !== 'N/A' ? '<br>📍 ' + ev.nomeLocal : ''}
+    <div class="conflito-evento">${escaparHtml(nomeEvento)}</div>
+    <div class="conflito-linha"><strong>Horário:</strong> ${escaparHtml(faixa)} • <strong>Duração:</strong> ${escaparHtml(duracaoTxt)}</div>
+    <div class="conflito-linha"><strong>Local:</strong> ${escaparHtml(localTxt)}</div>
   </div>`;
       });
 
