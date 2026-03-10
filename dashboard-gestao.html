@@ -123,7 +123,7 @@
     @keyframes spin{to{transform:rotate(360deg)}}
 
     .bottom-nav{
-      position:fixed;left:0;right:0;bottom:0;height:calc(68px + 14px + env(safe-area-inset-bottom));background:var(--navy);display:flex;justify-content:space-evenly;align-items:center;border-top:1px solid rgba(255,255,255,.06);z-index:20;padding:8px 8px calc(env(safe-area-inset-bottom) + 6px);box-shadow:0 -10px 24px rgba(10,22,40,.26)
+      position:fixed;left:calc(env(safe-area-inset-left) + 10px);right:calc(env(safe-area-inset-right) + 10px);bottom:calc(env(safe-area-inset-bottom) + 8px);height:calc(68px + 8px);background:var(--navy);display:flex;justify-content:space-evenly;align-items:center;border:1px solid rgba(255,255,255,.08);z-index:20;padding:6px 6px 8px;border-radius:18px;box-shadow:0 -10px 24px rgba(10,22,40,.26)
     }
     .bnav{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;border:0;background:none;color:rgba(255,255,255,.6);font-size:11px;font-weight:600;min-width:68px;min-height:52px;padding:7px 14px;border-radius:14px}
     .bnav i{width:21px;height:21px}
