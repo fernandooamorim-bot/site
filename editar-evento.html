@@ -1595,7 +1595,7 @@
             <p class="helper-text">Alteração verifica conflitos na agenda</p>
           </div>
         </div>
-        <div class="form-group form-toggle">
+        <div class="form-group form-toggle" id="campoEventoMultiDiasEdicao">
   <div class="toggle-row">
     <label for="eventoMultiDias" class="toggle-label">
       Evento com mais de um dia
@@ -1627,7 +1627,7 @@
           
           <div class="form-group">
             <label class="label-indicator">
-              <span>Duração</span>
+              <span id="labelDuracaoEdicao">Duração</span>
               <span class="indicator indicator-free">🟢 Livre</span>
             </label>
             <select id="duracao">
@@ -1641,7 +1641,7 @@
         <div id="statusAgenda" class="status-agenda-slot"></div>
         
         <div class="form-row">
-          <div class="form-group">
+          <div class="form-group" id="campoTipoEventoEdicao">
             <label class="label-indicator">
               <span>Tipo de Evento</span>
               <span class="indicator indicator-free">🟢 Livre</span>
@@ -1651,7 +1651,7 @@
 </select>
           </div>
           
-          <div class="form-group">
+          <div class="form-group" id="campoProjetoEdicao">
             <label class="label-indicator">
               <span>Formato/Projeto</span>
               <span class="indicator indicator-free">🟢 Livre</span>
@@ -1661,37 +1661,47 @@
             </select>
           </div>
         </div>
+
+        <div class="form-group hidden" id="campoMotivoEdicao">
+          <label class="label-indicator">
+            <span id="labelMotivoEdicao">Motivo</span>
+            <span class="indicator indicator-warning">⚠️ Campo principal</span>
+          </label>
+          <input type="text" id="motivoRegistro" placeholder="Informe o motivo">
+        </div>
         
-        <div class="form-row">
-          <div class="form-group">
-            <label class="label-indicator">
-              <span>Contratante</span>
-              <span class="indicator indicator-warning">⚠️ Atualiza referência</span>
-            </label>
-            <input type="text" id="nomeContratante" placeholder="Nome do contratante">
-            <input type="hidden" id="idContratante">
-            <div id="avisoRefContratante" class="helper-text hidden"></div>
+        <div id="secaoPessoasLocalCamposEdicao">
+          <div class="form-row">
+            <div class="form-group">
+              <label class="label-indicator">
+                <span id="labelContratanteEdicao">Contratante</span>
+                <span class="indicator indicator-warning">⚠️ Atualiza referência</span>
+              </label>
+              <input type="text" id="nomeContratante" placeholder="Nome do contratante">
+              <input type="hidden" id="idContratante">
+              <div id="avisoRefContratante" class="helper-text hidden"></div>
+            </div>
+            
+            <div class="form-group" id="campoCerimonialistaEdicao">
+              <label class="label-indicator">
+                <span>Cerimonialista</span>
+                <span class="indicator indicator-free">🟢 Livre</span>
+              </label>
+              <select id="idCerimonialista">
+                <option value="">-- Sem cerimonialista --</option>
+              </select>
+            </div>
           </div>
           
           <div class="form-group">
             <label class="label-indicator">
-              <span>Cerimonialista</span>
-              <span class="indicator indicator-free">🟢 Livre</span>
+              <span id="labelLocalEdicao">Local do Evento</span>
+              <span class="indicator indicator-warning">⚠️ Atualiza referência</span>
             </label>
-            <select id="idCerimonialista">
-              <option value="">-- Sem cerimonialista --</option>
-            </select>
+            <input type="text" id="nomeLocal" placeholder="Local do evento">
+            <input type="hidden" id="idEndereco">
+            <div id="avisoRefEndereco" class="helper-text hidden"></div>
           </div>
-        </div>
-        
-        <div class="form-group">
-          <label class="label-indicator">
-            <span>Local do Evento</span>
-            <span class="indicator indicator-warning">⚠️ Atualiza referência</span>
-          </label>
-          <input type="text" id="nomeLocal" placeholder="Local do evento">
-          <input type="hidden" id="idEndereco">
-          <div id="avisoRefEndereco" class="helper-text hidden"></div>
         </div>
       </div>
       
@@ -1760,13 +1770,13 @@
       </div>
       
       <!-- DETALHES OPERACIONAIS -->
-      <div class="section">
+      <div class="section" id="secaoDetalhesAdicionaisEdicao">
         <div class="section-title">
           <i data-lucide="file-text"></i>
           Detalhes Operacionais
         </div>
         
-        <div class="form-row">
+        <div class="form-row" id="campoLookSomEdicao">
           <div class="form-group">
             <label class="label-indicator">
               <span>Look/Figurino</span>
@@ -1784,7 +1794,7 @@
           </div>
         </div>
         
-        <div class="form-group">
+        <div class="form-group" id="campoObservacoesEdicao">
           <label class="label-indicator">
             <span>Observações</span>
             <span class="indicator indicator-free">🟢 Livre</span>
@@ -2170,9 +2180,13 @@ function executarVerificacaoConflitosEdicao_() {
   const multiDias = !!document.getElementById('eventoMultiDias')?.checked;
   const dataFimCampo = document.getElementById('dataFim');
   const dataFimValida = /^\d{4}-\d{2}-\d{2}$/.test(String(dataFimCampo?.value || '').trim());
-  const dataFim = (multiDias && dataFimValida) ? dataFimCampo.value : dataInicio;
+  const tipoRegistro = String(eventoOriginal?.tipoRegistro || 'Evento').trim();
+  const usaIntervalo =
+    (tipoRegistro === 'Evento' && multiDias && dataFimValida) ||
+    (tipoRegistro === 'Bloqueio' && dataFimValida);
+  const dataFim = usaIntervalo ? dataFimCampo.value : dataInicio;
 
-  const assinatura = `${dataInicio}|${dataFim}|${multiDias ? '1' : '0'}|${eventoOriginal.id || ''}`;
+  const assinatura = `${tipoRegistro}|${dataInicio}|${dataFim}|${multiDias ? '1' : '0'}|${eventoOriginal.id || ''}`;
   if (assinatura === ultimaAssinaturaConflitoEdicao) return;
   ultimaAssinaturaConflitoEdicao = assinatura;
 
@@ -2429,6 +2443,122 @@ function ativarConversaoReserva() {
   }
 }
 
+function configurarVisibilidadeCamposPorTipoEdicao_(tipoOriginal) {
+  const tipo = String(tipoOriginal || 'Evento').trim();
+  const isEvento = tipo === 'Evento' || modoConversaoReserva;
+  const isReserva = tipo === 'Reserva' && !modoConversaoReserva;
+  const isReuniao = tipo === 'Reunião';
+  const isBloqueio = tipo === 'Bloqueio';
+
+  const campoTipoEvento = document.getElementById('campoTipoEventoEdicao');
+  const campoProjeto = document.getElementById('campoProjetoEdicao');
+  const campoMotivo = document.getElementById('campoMotivoEdicao');
+  const campoCerimonialista = document.getElementById('campoCerimonialistaEdicao');
+  const campoEventoMultiDias = document.getElementById('campoEventoMultiDiasEdicao');
+  const secaoPessoasLocal = document.getElementById('secaoPessoasLocalCamposEdicao');
+  const secaoDetalhes = document.getElementById('secaoDetalhesAdicionaisEdicao');
+  const campoLookSom = document.getElementById('campoLookSomEdicao');
+  const campoObservacoes = document.getElementById('campoObservacoesEdicao');
+  const grupoDataFim = document.getElementById('grupoDataFim');
+  const chkMultiDias = document.getElementById('eventoMultiDias');
+  const dataFimEl = document.getElementById('dataFim');
+
+  const inputTipoEvento = document.getElementById('tipoEvento');
+  const inputProjeto = document.getElementById('projeto');
+  const inputMotivo = document.getElementById('motivoRegistro');
+  const inputContratante = document.getElementById('nomeContratante');
+  const inputLocal = document.getElementById('nomeLocal');
+  const inputHora = document.getElementById('horaInicio');
+  const inputDuracao = document.getElementById('duracao');
+  const inputCerimonialista = document.getElementById('idCerimonialista');
+  const inputLook = document.getElementById('look');
+  const inputSom = document.getElementById('somResponsavel');
+  const inputObservacoes = document.getElementById('observacoes');
+
+  const labelContratante = document.getElementById('labelContratanteEdicao');
+  const labelLocal = document.getElementById('labelLocalEdicao');
+  const labelDuracao = document.getElementById('labelDuracaoEdicao');
+  const labelMotivo = document.getElementById('labelMotivoEdicao');
+
+  const exibeTipoEvento = isEvento || isReserva;
+  const exibeProjeto = isEvento || isReserva;
+  const exibeMotivo = isReserva || isReuniao || isBloqueio;
+  const exibeCerimonialista = isEvento || isReserva;
+  const exibePessoasLocal = !isBloqueio;
+  const exibeDetalhes = isEvento;
+  const exibeLookSom = isEvento;
+  const exibeObservacoes = isEvento;
+
+  if (campoTipoEvento) campoTipoEvento.classList.toggle('hidden', !exibeTipoEvento);
+  if (campoProjeto) campoProjeto.classList.toggle('hidden', !exibeProjeto);
+  if (campoMotivo) campoMotivo.classList.toggle('hidden', !exibeMotivo);
+  if (campoCerimonialista) campoCerimonialista.classList.toggle('hidden', !exibeCerimonialista);
+  if (campoEventoMultiDias) campoEventoMultiDias.classList.toggle('hidden', !isEvento);
+  if (secaoPessoasLocal) secaoPessoasLocal.classList.toggle('hidden', !exibePessoasLocal);
+  if (secaoDetalhes) secaoDetalhes.classList.toggle('hidden', !exibeDetalhes);
+  if (campoLookSom) campoLookSom.classList.toggle('hidden', !exibeLookSom);
+  if (campoObservacoes) campoObservacoes.classList.toggle('hidden', !exibeObservacoes);
+
+  if (inputTipoEvento) inputTipoEvento.disabled = !exibeTipoEvento;
+  if (inputProjeto) inputProjeto.disabled = !exibeProjeto;
+  if (inputMotivo) inputMotivo.disabled = !exibeMotivo;
+  if (inputCerimonialista) inputCerimonialista.disabled = !exibeCerimonialista;
+  if (inputLook) inputLook.disabled = !exibeLookSom;
+  if (inputSom) inputSom.disabled = !exibeLookSom;
+  if (inputObservacoes) inputObservacoes.disabled = !exibeObservacoes;
+
+  if (inputTipoEvento) inputTipoEvento.required = isEvento;
+  if (inputProjeto) inputProjeto.required = false;
+  if (inputMotivo) inputMotivo.required = !isEvento;
+  if (inputContratante) inputContratante.required = isEvento;
+  if (inputLocal) inputLocal.required = isEvento;
+  if (inputHora) inputHora.required = isEvento || isReuniao;
+  if (inputDuracao) inputDuracao.required = isEvento;
+
+  if (labelMotivo && inputMotivo) {
+    if (isReuniao) {
+      labelMotivo.textContent = 'Motivo da Reunião';
+      inputMotivo.placeholder = 'Ex: Reunião de repertório, alinhamento com cliente...';
+    } else if (isBloqueio) {
+      labelMotivo.textContent = 'Motivo do Bloqueio';
+      inputMotivo.placeholder = 'Ex: Férias, viagem, indisponibilidade...';
+    } else {
+      labelMotivo.textContent = 'Motivo/Status da Reserva';
+      inputMotivo.placeholder = 'Ex: Aguardando confirmação, proposta enviada...';
+    }
+  }
+
+  if (labelContratante) {
+    if (isEvento) labelContratante.textContent = 'Contratante';
+    else if (isReserva) labelContratante.textContent = 'Contratante (opcional)';
+    else if (isReuniao) labelContratante.textContent = 'Cliente/Pessoa (opcional)';
+    else labelContratante.textContent = 'Responsável (opcional)';
+  }
+
+  if (labelLocal) {
+    labelLocal.textContent = isEvento ? 'Local do Evento' : 'Local (opcional)';
+  }
+
+  if (labelDuracao) {
+    labelDuracao.textContent = isEvento ? 'Duração' : 'Duração (opcional)';
+  }
+
+  if (isBloqueio) {
+    if (chkMultiDias) chkMultiDias.checked = false;
+    if (grupoDataFim) grupoDataFim.classList.remove('hidden');
+  } else {
+    const deveExibirDataFim = !!(chkMultiDias && chkMultiDias.checked);
+    if (grupoDataFim) grupoDataFim.classList.toggle('hidden', !deveExibirDataFim);
+    if (!deveExibirDataFim && dataFimEl) dataFimEl.value = '';
+  }
+
+  if ((isReuniao || isBloqueio || isReserva) && inputObservacoes && inputMotivo) {
+    if (!inputMotivo.value.trim() && inputObservacoes.value.trim()) {
+      inputMotivo.value = inputObservacoes.value.trim();
+    }
+  }
+}
+
 function renderizarStatusTipoRegistro(evento) {
   const box = document.getElementById('statusTipoRegistro');
   const sectionFinanceiro = document.getElementById('sectionFinanceiro');
@@ -2436,6 +2566,7 @@ function renderizarStatusTipoRegistro(evento) {
   if (!box || !evento) return;
 
   const tipo = String(evento.tipoRegistro || 'Evento').trim();
+  configurarVisibilidadeCamposPorTipoEdicao_(tipo);
   if (tipo === 'Reserva') {
     if (modoConversaoReserva) {
       box.innerHTML = `
@@ -3194,7 +3325,10 @@ async function validarImpactoFinanceiroAntesSalvar(callback) {
       });
     }
     
-    function preencherFormulario(evento) {
+function preencherFormulario(evento) {
+  const tipoRegistroAtual = String(evento?.tipoRegistro || 'Evento').trim();
+  const ehEventoVisual = tipoRegistroAtual === 'Evento' || modoConversaoReserva;
+
   // Campos de data e hora
   document.getElementById('dataEvento').value = evento.dataEvento || '';
   document.getElementById('horaInicio').value = evento.horaInicio || '';
@@ -3225,7 +3359,8 @@ async function validarImpactoFinanceiroAntesSalvar(callback) {
   document.getElementById('valorBV').value = evento.valorBV || 0;
   document.getElementById('look').value = evento.look || '';
   document.getElementById('somResponsavel').value = evento.somResponsavel || '';
-  document.getElementById('observacoes').value = evento.observacoes || '';
+  document.getElementById('observacoes').value = ehEventoVisual ? (evento.observacoes || '') : '';
+  document.getElementById('motivoRegistro').value = !ehEventoVisual ? (evento.observacoes || '') : '';
 
   aplicarFallbackReferenciasMestre(evento);
   renderizarStatusTipoRegistro(evento);
@@ -3298,7 +3433,7 @@ async function validarImpactoFinanceiroAntesSalvar(callback) {
         nomeContratante: 'Contratante', idCerimonialista: 'Cerimonialista', nomeLocal: 'Local',
         valorTotal: 'Valor Total', idVendedor: 'Vendedor', valorBV: 'Valor BV',
         idBV: 'Parceiro BV', temNF: 'Tem NF',
-        look: 'Look', somResponsavel: 'Responsável Som', observacoes: 'Observações'
+        look: 'Look', somResponsavel: 'Responsável Som', observacoes: 'Motivo/Observações'
       };
       const impactos = {
         valorTotal: 'Comissões pendentes serão recalculadas',
@@ -3347,11 +3482,16 @@ async function validarImpactoFinanceiroAntesSalvar(callback) {
     }
     
     function coletarDadosFormulario() {
+      const tipoRegistroAtual = String(eventoOriginal?.tipoRegistro || 'Evento').trim();
+      const ehEventoVisual = tipoRegistroAtual === 'Evento' || modoConversaoReserva;
+      const observacoesFinal = ehEventoVisual
+        ? document.getElementById('observacoes').value
+        : document.getElementById('motivoRegistro').value;
+
       // Detectar se "Evento com mais de um dia" está marcado
       const multiDias = document.getElementById('eventoMultiDias')?.checked;
-      const dataFim = multiDias
-        ? document.getElementById('dataFim')?.value || ''
-        : '';
+      const dataFimDigitada = document.getElementById('dataFim')?.value || '';
+      const dataFim = (tipoRegistroAtual === 'Bloqueio' || multiDias) ? dataFimDigitada : '';
       return {
         dataEvento: document.getElementById('dataEvento').value,
         dataFim: dataFim,
@@ -3373,9 +3513,9 @@ async function validarImpactoFinanceiroAntesSalvar(callback) {
         valorBV: parseFloat(document.getElementById('valorBV').value) || 0,
         idBV: document.getElementById('idBV').value,
         temNF: document.getElementById('temNF').value,
-        look: document.getElementById('look').value,
-        somResponsavel: document.getElementById('somResponsavel').value,
-        observacoes: document.getElementById('observacoes').value,
+        look: ehEventoVisual ? document.getElementById('look').value : '',
+        somResponsavel: ehEventoVisual ? document.getElementById('somResponsavel').value : '',
+        observacoes: observacoesFinal,
         converterReserva: modoConversaoReserva ? true : false
       };
     }
@@ -3388,6 +3528,7 @@ async function validarImpactoFinanceiroAntesSalvar(callback) {
       if (!dados.idVendedor) erros.push('Selecione o Vendedor responsável.');
       if (!dados.nomeContratante) erros.push('Informe o Contratante.');
       if (!dados.nomeLocal) erros.push('Informe o Local.');
+      if (!dados.observacoes) erros.push('Informe o Motivo/Status da Reserva.');
       if (erros.length) {
         mostrarAlerta('Conversão de reserva incompleta: ' + erros.join(' '), 'error');
         return false;
