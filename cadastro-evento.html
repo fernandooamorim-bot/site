@@ -776,6 +776,10 @@
       overflow: hidden;
     }
 
+    #alertaConflitos {
+      margin-bottom: 12px;
+    }
+
     .conflitos-wrap.ok {
       border-color: rgba(16,185,129,0.45);
       background: rgba(16,185,129,0.06);
@@ -795,6 +799,12 @@
       padding: 10px 12px;
       color: var(--gray-800);
       border-bottom: 1px solid rgba(148,163,184,0.2);
+    }
+
+    .conflitos-header i {
+      width: 16px;
+      height: 16px;
+      flex-shrink: 0;
     }
 
     .conflitos-wrap.ok .conflitos-header {
@@ -859,10 +869,20 @@
       font-size: 12px;
       color: var(--gray-600);
       line-height: 1.35;
+      display: flex;
+      align-items: center;
+      gap: 6px;
     }
 
     .conflito-linha strong {
       color: var(--gray-700);
+    }
+
+    .conflito-linha i {
+      width: 13px;
+      height: 13px;
+      color: var(--gray-500);
+      flex-shrink: 0;
     }
 
     /* ============================================
@@ -1988,18 +2008,19 @@ window.onload = function () {
         alertaDiv.innerHTML = `
           <div class="conflitos-wrap ok">
             <div class="conflitos-header">
-              <span>✅</span>
+              <i data-lucide="check-circle"></i>
               <span>${intervalo ? 'Período disponível' : 'Data disponível'}</span>
             </div>
           </div>`;
         alertaDiv.style.display = 'block';
+        if (window.lucide) lucide.createIcons();
         return;
       }
 
       let html = `
         <div class="conflitos-wrap warn">
           <div class="conflitos-header">
-            <span>⚠️</span>
+            <i data-lucide="alert-triangle"></i>
             <span>Conflitos no ${intervalo ? 'período selecionado' : 'dia selecionado'}</span>
           </div>
           <div class="conflitos-lista">`;
@@ -2025,14 +2046,15 @@ window.onload = function () {
       <span class="conflito-meta">${escaparHtml(dataTxt)}</span>
     </div>
     <div class="conflito-evento">${escaparHtml(nomeEvento)}</div>
-    <div class="conflito-linha"><strong>Horário:</strong> ${escaparHtml(faixa)} • <strong>Duração:</strong> ${escaparHtml(duracaoTxt)}</div>
-    <div class="conflito-linha"><strong>Local:</strong> ${escaparHtml(localTxt)}</div>
+    <div class="conflito-linha"><i data-lucide="clock-3"></i><span><strong>Horário:</strong> ${escaparHtml(faixa)} • <strong>Duração:</strong> ${escaparHtml(duracaoTxt)}</span></div>
+    <div class="conflito-linha"><i data-lucide="map-pin"></i><span><strong>Local:</strong> ${escaparHtml(localTxt)}</span></div>
   </div>`;
       });
 
       html += '</div></div>';
       alertaDiv.innerHTML = html;
       alertaDiv.style.display = 'block';
+      if (window.lucide) lucide.createIcons();
     }
     
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
