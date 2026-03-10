@@ -869,21 +869,12 @@
       font-size: 12px;
       color: var(--gray-600);
       line-height: 1.35;
-      display: flex;
-      align-items: center;
-      gap: 6px;
     }
 
     .conflito-linha strong {
       color: var(--gray-700);
     }
 
-    .conflito-linha i {
-      width: 13px;
-      height: 13px;
-      color: var(--gray-500);
-      flex-shrink: 0;
-    }
 
     /* ============================================
        LOADING + SPINNER
@@ -1866,8 +1857,9 @@ window.onload = function () {
       const horaInicioMinutos = horas * 60 + minutos;
       const horaFinalMinutos = horaInicioMinutos + duracaoMinutos;
       
-      const horaFinal = Math.floor(horaFinalMinutos / 60);
-      const minutoFinal = horaFinalMinutos % 60;
+      const totalNoDia = ((horaFinalMinutos % (24 * 60)) + (24 * 60)) % (24 * 60);
+      const horaFinal = Math.floor(totalNoDia / 60);
+      const minutoFinal = totalNoDia % 60;
       
       return `${String(horaFinal).padStart(2, '0')}:${String(minutoFinal).padStart(2, '0')}`;
     }
@@ -2046,8 +2038,8 @@ window.onload = function () {
       <span class="conflito-meta">${escaparHtml(dataTxt)}</span>
     </div>
     <div class="conflito-evento">${escaparHtml(nomeEvento)}</div>
-    <div class="conflito-linha"><i data-lucide="clock-3"></i><span><strong>Horário:</strong> ${escaparHtml(faixa)} • <strong>Duração:</strong> ${escaparHtml(duracaoTxt)}</span></div>
-    <div class="conflito-linha"><i data-lucide="map-pin"></i><span><strong>Local:</strong> ${escaparHtml(localTxt)}</span></div>
+    <div class="conflito-linha"><strong>Horário:</strong> ${escaparHtml(faixa)} • <strong>Duração:</strong> ${escaparHtml(duracaoTxt)}</div>
+    <div class="conflito-linha"><strong>Local:</strong> ${escaparHtml(localTxt)}</div>
   </div>`;
       });
 
