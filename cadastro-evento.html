@@ -1819,6 +1819,8 @@ window.onload = function () {
 
     // ID global para execuções do verificador de conflitos
     let verificadorExecucaoId = 0;
+    let verificadorDebounceTimer = null;
+    let ultimaAssinaturaConflito = '';
     
     /**
      * Calcula hora final baseado na hora de início e duração
@@ -1875,88 +1877,121 @@ window.onload = function () {
     }
     
     function verificarConflitos() {
-      // Incrementa o ID de execução para esta chamada
-      verificadorExecucaoId++;
-      const execucaoAtual = verificadorExecucaoId;
-      // Limpa visual do alerta no início da execução
-      document.getElementById('alertaConflitos').style.display = 'none';
+      // Debounce evita chamadas instáveis durante seleção de data no mobile
+      if (verificadorDebounceTimer) clearTimeout(verificadorDebounceTimer);
+      verificadorDebounceTimer = setTimeout(executarVerificacaoConflitos_, 220);
+    }
 
-      const dataInicio = document.getElementById('dataEvento').value;
+    function executarVerificacaoConflitos_() {
+      const alertaConflitos = document.getElementById('alertaConflitos');
+      const dataInicio = String(document.getElementById('dataEvento').value || '').trim();
       const dataFimCampo = document.getElementById('dataFim');
-      // Nova lógica para usaIntervalo
+      const dataFimValor = String(dataFimCampo?.value || '').trim();
       const tipoRegistro = document.getElementById('tipoRegistro').value;
-      const usaIntervalo =
-        (tipoRegistro === 'Evento' &&
-         document.getElementById('eventoMultiDias')?.checked &&
-         dataFimCampo?.value) ||
-        (tipoRegistro === 'Bloqueio' && dataFimCampo?.value);
-      // Blindagem: Se for reunião, nunca considerar dataFim
-      if (tipoRegistro === 'Reunião') {
+      const eventoMultiDias = !!document.getElementById('eventoMultiDias')?.checked;
+
+      // Blindagem: reunião nunca usa dataFim
+      if (tipoRegistro === 'Reunião' && dataFimCampo) {
         dataFimCampo.value = '';
       }
 
-      if (!dataInicio) {
-        document.getElementById('alertaConflitos').style.display = 'none';
+      // Só verifica quando data estiver completa (YYYY-MM-DD)
+      const dataValida = /^\d{4}-\d{2}-\d{2}$/.test(dataInicio);
+      if (!dataValida) {
+        alertaConflitos.style.display = 'none';
+        ultimaAssinaturaConflito = '';
         return;
       }
 
-      // Função auxiliar para gerar datas entre início e fim
+      const usaIntervalo =
+        (tipoRegistro === 'Evento' && eventoMultiDias && /^\d{4}-\d{2}-\d{2}$/.test(dataFimValor)) ||
+        (tipoRegistro === 'Bloqueio' && /^\d{4}-\d{2}-\d{2}$/.test(dataFimValor));
+
+      const assinaturaAtual = `${tipoRegistro}|${dataInicio}|${usaIntervalo ? dataFimValor : ''}|${eventoMultiDias ? '1' : '0'}`;
+      if (assinaturaAtual === ultimaAssinaturaConflito) return;
+      ultimaAssinaturaConflito = assinaturaAtual;
+
+      // Incrementa o ID de execução para esta chamada
+      verificadorExecucaoId++;
+      const execucaoAtual = verificadorExecucaoId;
+
+      // Limpa visual no início
+      alertaConflitos.style.display = 'none';
+
       function gerarIntervaloDatas(inicio, fim) {
         const datas = [];
         let atual = new Date(inicio + 'T12:00:00');
         const final = new Date(fim + 'T12:00:00');
-
         while (atual <= final) {
-          const d = atual.toISOString().slice(0, 10);
-          datas.push(d);
+          datas.push(atual.toISOString().slice(0, 10));
           atual.setDate(atual.getDate() + 1);
         }
         return datas;
       }
 
       const datasParaVerificar = usaIntervalo
-        ? gerarIntervaloDatas(dataInicio, dataFimCampo.value)
+        ? gerarIntervaloDatas(dataInicio, dataFimValor)
         : [dataInicio];
 
       loading('Verificando agenda...');
 
+      let finalizado = false;
+      const finalizar = () => {
+        if (finalizado) return;
+        finalizado = true;
+        if (execucaoAtual === verificadorExecucaoId) fecharLoading();
+      };
+
+      // Timeout de segurança para nunca travar em loading infinito
+      const timeoutId = setTimeout(() => {
+        if (execucaoAtual !== verificadorExecucaoId) return;
+        finalizar();
+        alertaConflitos.innerHTML = `
+          <div class="conflitos-wrap warn">
+            <div class="conflitos-header">
+              <i data-lucide="alert-circle"></i>
+              <span>Não foi possível concluir a verificação agora</span>
+            </div>
+          </div>`;
+        alertaConflitos.style.display = 'block';
+        if (window.lucide) lucide.createIcons();
+      }, 10000);
+
       let conflitosEncontrados = [];
       let chamadasConcluidas = 0;
 
-      datasParaVerificar.forEach(data => {
+      const concluirChamada = () => {
+        chamadasConcluidas++;
+        if (chamadasConcluidas === datasParaVerificar.length) {
+          clearTimeout(timeoutId);
+          finalizar();
+          if (execucaoAtual === verificadorExecucaoId) {
+            renderizarConflitos(conflitosEncontrados, datasParaVerificar.length > 1);
+          }
+        }
+      };
+
+      datasParaVerificar.forEach((data) => {
         Auth.apiCall('buscarEventosPorData', { data })
-          .then(eventos => {
-            if (execucaoAtual !== verificadorExecucaoId) return;
+          .then((eventos) => {
+            if (execucaoAtual !== verificadorExecucaoId) {
+              concluirChamada();
+              return;
+            }
+
             if (eventos && eventos.length > 0) {
-              eventos.forEach(ev => {
-                const chave =
-                  ev.id + '|' +
-                  (ev.dataFim ? ev.data + '_' + ev.dataFim : ev.data);
-
-                const jaExiste = conflitosEncontrados.some(c =>
-                  (c.id + '|' +
-                    (c.dataFim ? c.data + '_' + c.dataFim : c.data)
-                  ) === chave
+              eventos.forEach((ev) => {
+                const chave = ev.id + '|' + (ev.dataFim ? ev.data + '_' + ev.dataFim : ev.data);
+                const jaExiste = conflitosEncontrados.some((c) =>
+                  (c.id + '|' + (c.dataFim ? c.data + '_' + c.dataFim : c.data)) === chave
                 );
-
-                if (!jaExiste) {
-                  conflitosEncontrados.push({ ...ev, dataVerificada: data });
-                }
+                if (!jaExiste) conflitosEncontrados.push({ ...ev, dataVerificada: data });
               });
             }
-
-            chamadasConcluidas++;
-            if (chamadasConcluidas === datasParaVerificar.length) {
-              fecharLoading();
-              renderizarConflitos(conflitosEncontrados, datasParaVerificar.length > 1);
-            }
+            concluirChamada();
           })
           .catch(() => {
-            if (execucaoAtual !== verificadorExecucaoId) return;
-            chamadasConcluidas++;
-            if (chamadasConcluidas === datasParaVerificar.length) {
-              fecharLoading();
-            }
+            concluirChamada();
           });
       });
     }
