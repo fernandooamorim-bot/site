@@ -1734,7 +1734,7 @@
               <span>Valor Total (R$)</span>
               <span class="indicator indicator-critical">🔴 Crítico</span>
             </label>
-            <input type="number" id="valorTotal" step="0.01" min="0">
+            <input type="text" id="valorTotal" inputmode="decimal" autocomplete="off" placeholder="0,00">
             <p class="helper-text">⚠️ Recalcula comissões se houver pendentes</p>
           </div>
           
@@ -1754,7 +1754,7 @@
               <span>Valor BV (R$)</span>
               <span class="indicator indicator-critical">🔴 Crítico</span>
             </label>
-            <input type="number" id="valorBV" step="0.01" min="0">
+            <input type="text" id="valorBV" inputmode="decimal" autocomplete="off" placeholder="0,00">
           </div>
           
           <div class="form-group">
@@ -3368,8 +3368,8 @@ function preencherFormulario(evento) {
   setValueSafe('temNF', evento.temNF || 'NÃO');
 
   // Campos simples
-  document.getElementById('valorTotal').value = evento.valorTotal || 0;
-  document.getElementById('valorBV').value = evento.valorBV || 0;
+  document.getElementById('valorTotal').value = formatarNumeroBREdicao_(Number(evento.valorTotal || 0), 2);
+  document.getElementById('valorBV').value = formatarNumeroBREdicao_(Number(evento.valorBV || 0), 2);
   document.getElementById('look').value = evento.look || '';
   document.getElementById('somResponsavel').value = evento.somResponsavel || '';
   document.getElementById('observacoes').value = ehEventoVisual ? (evento.observacoes || '') : '';
@@ -3493,6 +3493,87 @@ function preencherFormulario(evento) {
       if (!resultado.avisos?.length && !resultado.conflitos?.length) html = '<div class="validation-item">✅ Sem conflitos detectados</div>';
       resumo.innerHTML = html;
     }
+
+    function parseNumeroFinanceiroEdicao_(raw, opts = {}) {
+      if (raw === null || raw === undefined) return null;
+      if (typeof raw === 'number') return Number.isFinite(raw) ? raw : null;
+      let s = String(raw).trim();
+      if (!s) return null;
+      if (/[A-Za-z\u00C0-\u024F]/.test(s)) return null;
+
+      s = s
+        .replace(/\s+/g, '')
+        .replace(/R\$/gi, '')
+        .replace(/%/g, '')
+        .replace(/[^\d,.\-]/g, '');
+
+      if (!s || s === '-' || s === ',' || s === '.') return null;
+
+      const comma = s.includes(',');
+      const dot = s.includes('.');
+      if (comma && dot) {
+        const lastComma = s.lastIndexOf(',');
+        const lastDot = s.lastIndexOf('.');
+        if (lastComma > lastDot) {
+          s = s.replace(/\./g, '').replace(',', '.');
+        } else {
+          s = s.replace(/,/g, '');
+        }
+      } else if (comma) {
+        const parts = s.split(',');
+        const dec = parts[parts.length - 1] || '';
+        if (parts.length > 2 || dec.length > 2) {
+          s = parts.join('');
+        } else {
+          s = parts[0] + '.' + dec;
+        }
+      } else if (dot) {
+        const parts = s.split('.');
+        const dec = parts[parts.length - 1] || '';
+        if (parts.length > 2 || dec.length > 2) {
+          s = parts.join('');
+        }
+      }
+
+      const n = Number(s);
+      if (!Number.isFinite(n)) return null;
+      if (opts.allowNegative !== true && n < 0) return null;
+      if (opts.allowZero === false && n <= 0) return null;
+      return typeof opts.decimals === 'number' ? Number(n.toFixed(opts.decimals)) : n;
+    }
+
+    function formatarNumeroBREdicao_(n, decimals = 2) {
+      return Number(n).toLocaleString('pt-BR', {
+        minimumFractionDigits: decimals,
+        maximumFractionDigits: decimals
+      });
+    }
+
+    function sanitizarEntradaFinanceiraEdicaoInput_(e) {
+      e.target.value = String(e.target.value || '').replace(/[^\d,.\-]/g, '');
+    }
+
+    function formatarCampoFinanceiroEdicaoBlur_(e) {
+      const parsed = parseNumeroFinanceiroEdicao_(e.target.value, {
+        allowNegative: false,
+        allowZero: true,
+        decimals: 2
+      });
+      if (parsed === null) return;
+      e.target.value = formatarNumeroBREdicao_(parsed, 2);
+    }
+
+    function configurarMascarasFinanceirasEdicao_() {
+      const campos = ['valorTotal', 'valorBV'];
+      campos.forEach((id) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.removeEventListener('input', sanitizarEntradaFinanceiraEdicaoInput_);
+        el.removeEventListener('blur', formatarCampoFinanceiroEdicaoBlur_);
+        el.addEventListener('input', sanitizarEntradaFinanceiraEdicaoInput_);
+        el.addEventListener('blur', formatarCampoFinanceiroEdicaoBlur_);
+      });
+    }
     
     function coletarDadosFormulario() {
       const tipoRegistroAtual = String(eventoOriginal?.tipoRegistro || 'Evento').trim();
@@ -3505,6 +3586,16 @@ function preencherFormulario(evento) {
       const multiDias = document.getElementById('eventoMultiDias')?.checked;
       const dataFimDigitada = document.getElementById('dataFim')?.value || '';
       const dataFim = (tipoRegistroAtual === 'Bloqueio' || multiDias) ? dataFimDigitada : '';
+      const valorTotalParsed = parseNumeroFinanceiroEdicao_(document.getElementById('valorTotal').value, {
+        allowNegative: false,
+        allowZero: false,
+        decimals: 2
+      });
+      const valorBVParsed = parseNumeroFinanceiroEdicao_(document.getElementById('valorBV').value, {
+        allowNegative: false,
+        allowZero: true,
+        decimals: 2
+      });
       return {
         dataEvento: document.getElementById('dataEvento').value,
         dataFim: dataFim,
@@ -3521,9 +3612,9 @@ function preencherFormulario(evento) {
         nomeLocalEditado: document.getElementById('nomeLocal').value,
         nomeContratanteFallback: eventoOriginal?.nomeContratanteAtual || '',
         nomeLocalFallback: eventoOriginal?.nomeLocalAtual || '',
-        valorTotal: parseFloat(document.getElementById('valorTotal').value) || 0,
+        valorTotal: valorTotalParsed || 0,
         idVendedor: document.getElementById('idVendedor').value,
-        valorBV: parseFloat(document.getElementById('valorBV').value) || 0,
+        valorBV: valorBVParsed || 0,
         idBV: document.getElementById('idBV').value,
         temNF: document.getElementById('temNF').value,
         look: ehEventoVisual ? document.getElementById('look').value : '',
@@ -3696,6 +3787,7 @@ function preencherFormulario(evento) {
   
 window.addEventListener('load', async () => {
   try {
+    configurarMascarasFinanceirasEdicao_();
     if (!window.Auth) throw new Error('AUTH_NOT_LOADED');
     const email = localStorage.getItem('auth_email');
     const session = localStorage.getItem('auth_session');

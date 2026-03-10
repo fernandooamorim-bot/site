@@ -1342,7 +1342,7 @@
           <div class="form-row">
             <div class="form-group">
               <label for="valorTotal" class="required">Valor Total do Evento</label>
-              <input type="number" id="valorTotal" step="0.01" placeholder="0.00">
+              <input type="text" id="valorTotal" inputmode="decimal" autocomplete="off" placeholder="0,00">
             </div>
             
             <div class="form-group">
@@ -1366,7 +1366,7 @@
             
             <div class="form-group" id="campoValorComissao">
               <label for="comissaoValor">Valor/Percentual</label>
-              <input type="number" id="comissaoValor" step="0.1" min="0" max="100" placeholder="Ex: 10 para 10%, 12 para 12%">
+              <input type="text" id="comissaoValor" inputmode="decimal" autocomplete="off" placeholder="Ex: 10,00%">
             </div>
           </div>
           
@@ -1385,7 +1385,7 @@
           
           <div class="form-group">
             <label for="valorBV">Valor BV</label>
-            <input type="number" id="valorBV" step="0.01" placeholder="0.00">
+            <input type="text" id="valorBV" inputmode="decimal" autocomplete="off" placeholder="0,00">
           </div>
           
           <!-- NOTA FISCAL -->
@@ -1700,6 +1700,7 @@ window.onload = function () {
   carregarDados();
   alterarTipoRegistro();
   alterarTipoComissao();
+  configurarMascarasFinanceirasCadastro_();
 
   try {
     const email  = localStorage.getItem('auth_email');
@@ -2203,13 +2204,111 @@ window.onload = function () {
     function alterarTipoComissao() {
       const tipo = document.getElementById('comissaoTipo').value;
       const campoValor = document.getElementById('campoValorComissao');
+      const campoComissao = document.getElementById('comissaoValor');
       
       if (tipo === 'Padrão') {
         campoValor.style.display = 'none';
-        document.getElementById('comissaoValor').value = '';
+        campoComissao.value = '';
       } else {
         campoValor.style.display = 'block';
       }
+
+      if (campoComissao) {
+        if (tipo === 'Percentual') {
+          campoComissao.dataset.moneyMode = 'percent';
+          campoComissao.placeholder = 'Ex: 10,00%';
+        } else if (tipo === 'Fixo') {
+          campoComissao.dataset.moneyMode = 'money';
+          campoComissao.placeholder = 'Ex: 1.500,00';
+        } else {
+          campoComissao.dataset.moneyMode = 'percent';
+          campoComissao.placeholder = 'Ex: 10,00%';
+        }
+      }
+    }
+
+    function parseNumeroFinanceiro(raw, opts = {}) {
+      if (raw === null || raw === undefined) return null;
+      if (typeof raw === 'number') return Number.isFinite(raw) ? raw : null;
+      let s = String(raw).trim();
+      if (!s) return null;
+      if (/[A-Za-z\u00C0-\u024F]/.test(s)) return null;
+
+      s = s
+        .replace(/\s+/g, '')
+        .replace(/R\$/gi, '')
+        .replace(/%/g, '')
+        .replace(/[^\d,.\-]/g, '');
+
+      if (!s || s === '-' || s === ',' || s === '.') return null;
+
+      const comma = s.includes(',');
+      const dot = s.includes('.');
+
+      if (comma && dot) {
+        const lastComma = s.lastIndexOf(',');
+        const lastDot = s.lastIndexOf('.');
+        if (lastComma > lastDot) {
+          s = s.replace(/\./g, '').replace(',', '.');
+        } else {
+          s = s.replace(/,/g, '');
+        }
+      } else if (comma) {
+        const parts = s.split(',');
+        const dec = parts[parts.length - 1] || '';
+        if (parts.length > 2 || dec.length > 2) {
+          s = parts.join('');
+        } else {
+          s = parts[0] + '.' + dec;
+        }
+      } else if (dot) {
+        const parts = s.split('.');
+        const dec = parts[parts.length - 1] || '';
+        if (parts.length > 2 || dec.length > 2) {
+          s = parts.join('');
+        }
+      }
+
+      const n = Number(s);
+      if (!Number.isFinite(n)) return null;
+      if (opts.allowNegative !== true && n < 0) return null;
+      if (opts.allowZero === false && n <= 0) return null;
+      return typeof opts.decimals === 'number' ? Number(n.toFixed(opts.decimals)) : n;
+    }
+
+    function formatarNumeroBR(n, decimals = 2) {
+      return Number(n).toLocaleString('pt-BR', {
+        minimumFractionDigits: decimals,
+        maximumFractionDigits: decimals
+      });
+    }
+
+    function sanitizarEntradaFinanceiraInput_(e) {
+      e.target.value = String(e.target.value || '').replace(/[^\d,.\-]/g, '');
+    }
+
+    function formatarCampoFinanceiroBlur_(e) {
+      const el = e.target;
+      const modo = el.dataset.moneyMode || 'money';
+      const parsed = parseNumeroFinanceiro(el.value, { allowNegative: false, allowZero: true, decimals: 2 });
+      if (parsed === null) return;
+      if (modo === 'percent') {
+        el.value = `${formatarNumeroBR(parsed, 2)}%`;
+      } else {
+        el.value = formatarNumeroBR(parsed, 2);
+      }
+    }
+
+    function configurarMascarasFinanceirasCadastro_() {
+      const campos = ['valorTotal', 'valorBV', 'comissaoValor'];
+      campos.forEach((id) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.removeEventListener('input', sanitizarEntradaFinanceiraInput_);
+        el.removeEventListener('blur', formatarCampoFinanceiroBlur_);
+        el.addEventListener('input', sanitizarEntradaFinanceiraInput_);
+        el.addEventListener('blur', formatarCampoFinanceiroBlur_);
+      });
     }
     
     function carregarDados() {
@@ -2583,15 +2682,45 @@ if ((tipoRegistro === 'Evento' || tipoRegistro === 'Reunião' || tipoRegistro ==
 }
       // EVENTO
       if (tipoRegistro === 'Evento') {
+        const valorTotalParsed = parseNumeroFinanceiro(document.getElementById('valorTotal').value, {
+          allowNegative: false,
+          allowZero: false,
+          decimals: 2
+        });
+        if (!(valorTotalParsed > 0)) {
+          alert('Informe um Valor Total válido (ex: 15000 ou 15.000,00).');
+          return;
+        }
+
+        const valorBVParsed = parseNumeroFinanceiro(document.getElementById('valorBV').value, {
+          allowNegative: false,
+          allowZero: true,
+          decimals: 2
+        });
+
+        const tipoComissao = document.getElementById('comissaoTipo').value;
+        let comissaoValorParsed = null;
+        if (tipoComissao === 'Fixo' || tipoComissao === 'Percentual') {
+          comissaoValorParsed = parseNumeroFinanceiro(document.getElementById('comissaoValor').value, {
+            allowNegative: false,
+            allowZero: true,
+            decimals: 2
+          });
+          if (comissaoValorParsed === null) {
+            alert('Informe um Valor/Percentual de comissão válido.');
+            return;
+          }
+        }
+
         dados.tipoEvento = document.getElementById('tipoEvento').value;
         dados.projeto = document.getElementById('projeto').value;
         dados.idCerimonialista = document.getElementById('idCerimonialista').value || null;
-        dados.valorTotal = parseFloat(document.getElementById('valorTotal').value);
+        dados.valorTotal = valorTotalParsed;
         dados.idVendedor = document.getElementById('idVendedor').value;
-        dados.comissaoTipo = document.getElementById('comissaoTipo').value;
-        dados.comissaoValor = document.getElementById('comissaoValor').value || null;
+        dados.comissaoTipo = tipoComissao;
+        dados.comissaoValor = comissaoValorParsed;
         dados.idBV = document.getElementById('idBV').value || null;
-        dados.valorBV = parseFloat(document.getElementById('valorBV').value) || 0;
+        dados.valorBV = valorBVParsed || 0;
         dados.temNF = document.getElementById('temNF').checked;
         dados.look = '';
         dados.somResponsavel = '';

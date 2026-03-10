@@ -1234,7 +1234,7 @@ function renderEstorno(){
       <input id="valorOriginal" readonly>
 
       <label>Valor do estorno</label>
-      <input type="number" id="valorEstorno">
+      <input type="text" id="valorEstorno" inputmode="decimal" autocomplete="off" placeholder="0,00">
 
       <label>Motivo do estorno</label>
       <select id="motivoEstorno">
@@ -1248,6 +1248,7 @@ function renderEstorno(){
       <button class="btn danger" onclick="submitEstorno()">🔴 Confirmar Estorno</button>
     </div>
   `;
+  aplicarMascaraMonetariaPorIds_(['valorEstorno']);
 }
 function submitEstorno(){
   const btn = event?.target;
@@ -1309,7 +1310,7 @@ function renderRecebimento(){
     <div id="evSug" class="autocomplete"></div>
 
     <label>Valor</label>
-    <input type="number" id="valor" oninput="avaliarValorRecebimento(this.value)">
+    <input type="text" id="valor" inputmode="decimal" autocomplete="off" oninput="avaliarValorRecebimento(this.value)">
 
     <label>Data do Registro</label>
     <input type="date" id="data" readonly value="${hojeLocalISO()}">
@@ -1336,6 +1337,7 @@ function renderRecebimento(){
 
     <button class="btn primary" onclick="submitRecebimento()">Registrar Recebimento</button>
   `;
+  aplicarMascaraMonetariaPorIds_(['valor']);
 }
 
 /* ================= COMISSAO ================= */
@@ -1569,7 +1571,7 @@ function renderCamposSaida() {
     const valorSugerido = Number(ultimoResumoFinanceiro?.valorBV || 0);
     box.innerHTML = `
       <label>Valor</label>
-      <input type="number" id="valorSaida" step="0.01" value="${valorSugerido > 0 ? valorSugerido.toFixed(2) : ''}">
+      <input type="text" id="valorSaida" inputmode="decimal" autocomplete="off" value="${valorSugerido > 0 ? Number(valorSugerido).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}) : ''}">
 
       <label>Data</label>
       <input type="date" id="dataSaida" value="${hojeLocalISO()}" readonly>
@@ -1593,12 +1595,13 @@ function renderCamposSaida() {
         ℹ️ Valor sugerido pelo cadastro do evento: R$ ${valorSugerido.toFixed(2)} (você pode ajustar se necessário).
       </div>
     `;
+    aplicarMascaraMonetariaPorIds_(['valorSaida']);
   }
 
   if (tipo === 'FOLHA_EVENTO') {
     box.innerHTML = `
       <label>Valor da folha</label>
-      <input type="number" id="valorSaida">
+      <input type="text" id="valorSaida" inputmode="decimal" autocomplete="off" placeholder="0,00">
 
       <label>Descrição detalhada</label>
       <textarea id="obsSaida" placeholder="Ex: Banda, som, transporte, alimentação..."></textarea>
@@ -1609,6 +1612,7 @@ function renderCamposSaida() {
         ℹ️ Este valor será somado aos custos totais do evento.
       </div>
     `;
+    aplicarMascaraMonetariaPorIds_(['valorSaida']);
   }
 }
 
@@ -2253,8 +2257,8 @@ function selecionarRecebimentoParaEstorno(r){
     formEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
   document.getElementById('idRecebimento').value = receb.id;
-  document.getElementById('valorOriginal').value = Number(receb.valor).toFixed(2);
-  document.getElementById('valorEstorno').value = Number(receb.valor).toFixed(2);
+  document.getElementById('valorOriginal').value = formatarMoedaBrInput_(Number(receb.valor || 0));
+  document.getElementById('valorEstorno').value = formatarMoedaBrInput_(Number(receb.valor || 0));
 
   resumo.innerHTML = `
     <div><strong>Evento:</strong> ${receb.nomeEvento}</div>
@@ -2686,45 +2690,96 @@ function hojeLocalISO() {
   return `${yyyy}-${mm}-${dd}`;
 }
 
-function parseValorSeguro(raw) {
-  if (raw === null || raw === undefined) return null;
+function formatarMoedaBrInput_(n) {
+  return Number(n).toLocaleString('pt-BR', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  });
+}
 
-  // If already a number, validate directly
+function sanitizarCampoMonetarioInput_(e) {
+  e.target.value = String(e.target.value || '').replace(/[^\d,.\-]/g, '');
+}
+
+function formatarCampoMonetarioBlur_(e) {
+  const parsed = parseValorSeguro(e.target.value, { allowZero: true });
+  if (parsed === null) return;
+  e.target.value = formatarMoedaBrInput_(parsed);
+}
+
+function aplicarMascaraMonetariaPorIds_(ids) {
+  (ids || []).forEach((id) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.removeEventListener('input', sanitizarCampoMonetarioInput_);
+    el.removeEventListener('blur', formatarCampoMonetarioBlur_);
+    el.addEventListener('input', sanitizarCampoMonetarioInput_);
+    el.addEventListener('blur', formatarCampoMonetarioBlur_);
+  });
+}
+
+function parseValorSeguro(raw, opts = {}) {
+  if (raw === null || raw === undefined) return null;
+  const allowZero = opts.allowZero === true;
+  const allowNegative = opts.allowNegative === true;
+
   if (typeof raw === 'number') {
-    return raw > 0 ? raw : null;
+    if (!Number.isFinite(raw)) return null;
+    if (!allowNegative && raw < 0) return null;
+    if (!allowZero && raw <= 0) return null;
+    return Number(raw.toFixed(2));
   }
 
   if (typeof raw !== 'string') return null;
-
   let v = raw.trim();
-
   if (!v) return null;
+  if (/[A-Za-z\u00C0-\u024F]/.test(v)) return null;
 
-  // Remove spaces
-  v = v.replace(/\s/g, '');
+  v = v
+    .replace(/\s/g, '')
+    .replace(/R\$/gi, '')
+    .replace(/%/g, '')
+    .replace(/[^\d,.\-]/g, '');
 
-  // If format contains both "." and ","
-  // Assume "." is thousand separator and "," is decimal
-  if (v.includes('.') && v.includes(',')) {
-    v = v.replace(/\./g, '').replace(',', '.');
+  if (!v || v === '-' || v === ',' || v === '.') return null;
+
+  const comma = v.includes(',');
+  const dot = v.includes('.');
+
+  if (comma && dot) {
+    const lastComma = v.lastIndexOf(',');
+    const lastDot = v.lastIndexOf('.');
+    if (lastComma > lastDot) {
+      v = v.replace(/\./g, '').replace(',', '.');
+    } else {
+      v = v.replace(/,/g, '');
+    }
+  } else if (comma) {
+    const parts = v.split(',');
+    const dec = parts[parts.length - 1] || '';
+    if (parts.length > 2 || dec.length > 2) {
+      v = parts.join('');
+    } else {
+      v = parts[0] + '.' + dec;
+    }
+  } else if (dot) {
+    const parts = v.split('.');
+    const dec = parts[parts.length - 1] || '';
+    if (parts.length > 2 || dec.length > 2) {
+      v = parts.join('');
+    }
   }
-  // If only comma, treat as decimal separator
-  else if (v.includes(',')) {
-    v = v.replace(',', '.');
-  }
-  // If only dot, keep as decimal separator (do nothing)
 
   const n = Number(v);
-
-  if (isNaN(n) || n <= 0) return null;
-
-  // Force two decimal precision (currency safety)
+  if (!Number.isFinite(n)) return null;
+  if (!allowNegative && n < 0) return null;
+  if (!allowZero && n <= 0) return null;
   return Number(n.toFixed(2));
 }
 
 function avaliarValorRecebimento(valorDigitado){
-  const v = Number(valorDigitado);
-  if (isNaN(v) || !ultimoResumoFinanceiro) return;
+  const v = parseValorSeguro(valorDigitado, { allowZero: true });
+  if (v === null || !ultimoResumoFinanceiro) return;
 
   let aviso = '';
 
