@@ -1875,82 +1875,30 @@ function toggleDataFimEdicao() {
   verificarConflitosEdicao();
 }
 
-function ligarListenersConflitoEdicao_() {
-  ['dataEvento', 'dataFim', 'horaInicio', 'duracao'].forEach(id => {
-    const el = document.getElementById(id);
-    if (!el) return;
-    el.removeEventListener('change', verificarConflitosEdicao);
-    el.addEventListener('change', verificarConflitosEdicao);
-  });
-}
-
 
 let verificadorExecucaoId = 0;
-let verificadorDebounceTimerEdicao = null;
-let ultimaAssinaturaConflitoEdicao = '';
-
-function formatarDataBRTextoEdicao(dataISO) {
-  if (!dataISO) return '';
-  if (dataISO.includes('/')) return dataISO;
-  const p = String(dataISO).split('-');
-  if (p.length !== 3) return String(dataISO);
-  return `${p[2]}/${p[1]}/${p[0]}`;
-}
-
-function calcularHoraFinalEdicao(horaInicio, duracaoMin) {
-  const m = String(horaInicio || '').match(/^(\d{1,2}):(\d{2})$/);
-  if (!m || !(duracaoMin > 0)) return '';
-  const h = Number(m[1]);
-  const mm = Number(m[2]);
-  const total = (h * 60) + mm + Number(duracaoMin || 0);
-  const wrap = ((total % (24 * 60)) + (24 * 60)) % (24 * 60);
-  const hf = String(Math.floor(wrap / 60)).padStart(2, '0');
-  const mf = String(wrap % 60).padStart(2, '0');
-  return `${hf}:${mf}`;
-}
-
-function formatarDuracaoEdicao(minutos) {
-  const m = Number(minutos || 0);
-  if (!m || m <= 0) return 'N/A';
-  const h = Math.floor(m / 60);
-  const mm = m % 60;
-  return mm ? `${h}h${mm}` : `${h}h`;
-}
 
 function verificarConflitosEdicao() {
-  if (verificadorDebounceTimerEdicao) clearTimeout(verificadorDebounceTimerEdicao);
-  verificadorDebounceTimerEdicao = setTimeout(executarVerificacaoConflitosEdicao_, 220);
-}
-
-function executarVerificacaoConflitosEdicao_() {
   if (!eventoOriginal) return;
-  const container = document.getElementById('statusAgenda');
-  if (!container) return;
 
-  const dataInicio = String(document.getElementById('dataEvento')?.value || '').trim();
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(dataInicio)) {
-    container.innerHTML = '';
-    ultimaAssinaturaConflitoEdicao = '';
+  const dataInicio = document.getElementById('dataEvento')?.value;
+  if (!dataInicio) {
+    renderizarConflitosEdicao([]);
     return;
   }
 
-  const multiDias = !!document.getElementById('eventoMultiDias')?.checked;
+  const multiDias = document.getElementById('eventoMultiDias')?.checked;
   const dataFimCampo = document.getElementById('dataFim');
-  const dataFimValida = /^\d{4}-\d{2}-\d{2}$/.test(String(dataFimCampo?.value || '').trim());
-  const dataFim = (multiDias && dataFimValida) ? dataFimCampo.value : dataInicio;
-
-  const assinatura = `${dataInicio}|${dataFim}|${multiDias ? '1' : '0'}|${eventoOriginal.id || ''}`;
-  if (assinatura === ultimaAssinaturaConflitoEdicao) return;
-  ultimaAssinaturaConflitoEdicao = assinatura;
+  const dataFim = multiDias && dataFimCampo?.value ? dataFimCampo.value : dataInicio;
 
   verificadorExecucaoId++;
   const execucaoAtual = verificadorExecucaoId;
-  container.innerHTML = '<div class="status-box warning">⏳ Verificando conflitos de agenda...</div>';
 
   function gerarIntervaloDatas(inicio, fim) {
     const datas = [];
     let atual = new Date(inicio + 'T12:00:00');
     const final = new Date(fim + 'T12:00:00');
+
     while (atual <= final) {
       datas.push(atual.toISOString().slice(0, 10));
       atual.setDate(atual.getDate() + 1);
@@ -1959,43 +1907,40 @@ function executarVerificacaoConflitosEdicao_() {
   }
 
   const datasParaVerificar = gerarIntervaloDatas(dataInicio, dataFim);
+
   let conflitos = [];
   let concluidas = 0;
-  let timeoutDisparado = false;
 
-  const timeoutId = setTimeout(() => {
-    if (execucaoAtual !== verificadorExecucaoId) return;
-    timeoutDisparado = true;
-    container.innerHTML = '<div class="status-box warning">⚠️ Não foi possível concluir a verificação agora.</div>';
-  }, 10000);
+  datasParaVerificar.forEach(data => {
+    Auth.apiCall('buscarEventosPorData', {
+      data: data
+    })
+    .then(eventos => {
+      if (execucaoAtual !== verificadorExecucaoId) return;
 
-  const finalizar = () => {
-    concluidas++;
-    if (concluidas !== datasParaVerificar.length) return;
-    clearTimeout(timeoutId);
-    if (execucaoAtual !== verificadorExecucaoId || timeoutDisparado) return;
-    renderizarConflitosEdicao(conflitos);
-  };
-
-  datasParaVerificar.forEach((data) => {
-    Auth.apiCall('buscarEventosPorData', { data })
-      .then((eventos) => {
-        if (execucaoAtual !== verificadorExecucaoId) return finalizar();
-        if (Array.isArray(eventos)) {
-          eventos.forEach((ev) => {
-            if (String(ev.id) === String(eventoOriginal.id)) return;
+      if (Array.isArray(eventos)) {
+        eventos.forEach(ev => {
+          if (String(ev.id) !== String(eventoOriginal.id)) {
             const chave = ev.id + '|' + ev.data + '|' + (ev.dataFim || '');
             if (!conflitos.some(c => c.__chave === chave)) {
               conflitos.push({ ...ev, __chave: chave });
             }
-          });
-        }
-        finalizar();
-      })
-      .catch((err) => {
-        console.error('Erro ao verificar conflitos:', err);
-        finalizar();
-      });
+          }
+        });
+      }
+
+      concluidas++;
+      if (concluidas === datasParaVerificar.length) {
+        renderizarConflitosEdicao(conflitos);
+      }
+    })
+    .catch(err => {
+      console.error('Erro ao verificar conflitos:', err);
+      concluidas++;
+      if (concluidas === datasParaVerificar.length) {
+        renderizarConflitosEdicao(conflitos);
+      }
+    });
   });
 }
 
@@ -2004,32 +1949,28 @@ function renderizarConflitosEdicao(eventos) {
   if (!container) return;
 
   if (!eventos || eventos.length === 0) {
-    container.innerHTML = '<div class="status-box safe">✅ Nenhum conflito de agenda detectado</div>';
+    container.innerHTML =
+      '<div class="status-box safe">🟢 Nenhum conflito de agenda detectado</div>';
     return;
   }
 
-  let html = '<div class="status-box danger"><strong>⚠️ Conflitos de agenda detectados:</strong><div style="margin-top:8px;display:grid;gap:8px;">';
-  eventos.forEach((ev) => {
-    const nomeEvento = ev.nomeContratante || ev.tipoEvento || ev.observacoes || 'Evento sem título';
-    const horaIni = String(ev.hora || '').trim();
-    const duracaoTxt = formatarDuracaoEdicao(ev.duracao);
-    const horaFim = calcularHoraFinalEdicao(horaIni, Number(ev.duracao || 0));
-    const faixa = horaIni ? `${horaIni}${horaFim ? ' → ' + horaFim : ''}` : 'Sem horário';
-    const local = ev.nomeLocal && ev.nomeLocal !== 'N/A' ? ev.nomeLocal : 'Local não informado';
+  let html = `
+    <div class="status-box danger">
+      <strong>⚠️ Conflitos de agenda detectados:</strong>
+      <ul style="margin-top:8px;">
+  `;
 
+  eventos.forEach(ev => {
     html += `
-      <div style="background:#fff;border:1px solid #f3c8c8;border-radius:8px;padding:8px 10px;">
-        <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;">
-          <strong>${String(ev.tipoRegistro || 'Evento').toUpperCase()}</strong>
-          <span>${formatarDataBRTextoEdicao(ev.data)}</span>
-        </div>
-        <div style="margin-top:3px;font-weight:700;">${nomeEvento}</div>
-        <div style="margin-top:2px;">Horário: ${faixa} • Duração: ${duracaoTxt}</div>
-        <div>Local: ${local}</div>
-      </div>
+      <li>
+        ${ev.tipoRegistro || 'Evento'} —
+        ${ev.data}${ev.dataFim ? ' até ' + ev.dataFim : ''}
+        ${ev.nomeLocal ? '📍 ' + ev.nomeLocal : ''}
+      </li>
     `;
   });
-  html += '</div></div>';
+
+  html += '</ul></div>';
   container.innerHTML = html;
 }
 
@@ -2186,55 +2127,23 @@ function renderizarStatusTipoRegistro(evento) {
 
   const tipo = String(evento.tipoRegistro || 'Evento').trim();
   if (tipo === 'Reserva') {
-    if (modoConversaoReserva) {
-      box.innerHTML = `
-        <div class="status-box warning">
-          <span class="status-icon">🔁</span>
-          <div>
-            <strong>Conversão de Reserva ativa</strong><br>
-            Ao salvar, esta reserva será convertida para <strong>Evento</strong> e passará a usar regras financeiras.
-          </div>
-        </div>
-      `;
-      if (sectionFinanceiro) sectionFinanceiro.classList.remove('hidden');
-      if (statusConversao) {
-        statusConversao.innerHTML = `
-          <div class="status-box warning">
-            <span class="status-icon">🛠️</span>
-            <div><strong>Modo conversão ativo:</strong> preencha os campos necessários e salve para concluir.</div>
-          </div>
-        `;
-      }
-      return;
-    }
-
     box.innerHTML = `
       <div class="status-box warning">
         <span class="status-icon">📌</span>
         <div>
           <strong>Registro atual: RESERVA</strong><br>
           Reserva não participa do financeiro até conversão para evento confirmado.
-          ${modoConversaoReserva ? '' : '<br><button class="btn btn-primary" style="margin-top:10px;padding:8px 12px;" onclick="ativarConversaoReserva()">Iniciar conversão para Evento</button>'}
+          ${modoConversaoReserva ? '' : '<br><button class="btn btn-primary" style="margin-top:10px;padding:8px 12px;" onclick="ativarConversaoReserva()">Converter em Evento</button>'}
         </div>
       </div>
     `;
-    if (sectionFinanceiro) sectionFinanceiro.classList.add('hidden');
-    if (statusConversao) statusConversao.innerHTML = '';
-    return;
-  }
 
-  if (tipo === 'Reunião' || tipo === 'Bloqueio') {
-    box.innerHTML = `
-      <div class="status-box safe">
-        <span class="status-icon">🧾</span>
-        <div>
-          <strong>Registro atual: ${tipo.toUpperCase()}</strong><br>
-          Este tipo não utiliza dados financeiros no sistema.
-        </div>
-      </div>
-    `;
-    if (sectionFinanceiro) sectionFinanceiro.classList.add('hidden');
-    if (statusConversao) statusConversao.innerHTML = '';
+    if (!modoConversaoReserva && sectionFinanceiro) {
+      sectionFinanceiro.classList.add('hidden');
+    }
+    if (!modoConversaoReserva && statusConversao) {
+      statusConversao.innerHTML = '';
+    }
     return;
   }
 
@@ -2278,8 +2187,6 @@ async function iniciarEditarEvento() {
       preencherFormulario(eventoAtual);
       renderizarStatusTipoRegistro(eventoAtual);
       await aplicarPermissaoFinanceiraEdicao();
-      ligarListenersConflitoEdicao_();
-      verificarConflitosEdicao();
 
       aplicarSkeletonFormulario(false);
       esconderLoadingGlobal();
@@ -2582,36 +2489,6 @@ function executarAutocompleteContratante(termo) {
 
       list.appendChild(loadingDiv);
     }
-
-    function parseDataBRResultado_(dataStr) {
-      const m = String(dataStr || '').match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
-      if (!m) return null;
-      const d = new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1]), 12, 0, 0, 0);
-      return isNaN(d.getTime()) ? null : d;
-    }
-
-    function horaParaMinutosResultado_(hora) {
-      const m = String(hora || '').match(/^(\d{1,2}):(\d{2})$/);
-      if (!m) return 99 * 60;
-      const h = Number(m[1]);
-      const mm = Number(m[2]);
-      if (isNaN(h) || isNaN(mm)) return 99 * 60;
-      return (h * 60) + mm;
-    }
-
-    function ordenarResultadosBusca_(eventos) {
-      return (eventos || []).slice().sort((a, b) => {
-        const da = parseDataBRResultado_(a?.dataFormatada);
-        const db = parseDataBRResultado_(b?.dataFormatada);
-        if (da && db && da.getTime() !== db.getTime()) return da - db;
-        if (da && !db) return -1;
-        if (!da && db) return 1;
-        const ha = horaParaMinutosResultado_(a?.horaInicio);
-        const hb = horaParaMinutosResultado_(b?.horaInicio);
-        if (ha !== hb) return ha - hb;
-        return String(a?.id || '').localeCompare(String(b?.id || ''));
-      });
-    }
     
     // MOSTRAR RESULTADOS
     function mostrarResultados(eventos) {
@@ -2635,32 +2512,23 @@ function executarAutocompleteContratante(termo) {
     return;
   }
 
-  // fluxo normal (ordenado cronologicamente)
-  const ordenados = ordenarResultadosBusca_(eventos);
-  count.textContent = `${ordenados.length} registro(s) encontrado(s)`;
+  // fluxo normal (mantém seu layout)
+  count.textContent = `${eventos.length} evento(s) encontrado(s)`;
   list.innerHTML = '';
 
-  ordenados.forEach(evento => {
+  eventos.forEach(evento => {
     const card = document.createElement('div');
     card.className = 'result-card';
-
-    const tipoRegistro = String(evento.tipoRegistro || 'Evento').trim();
-    const tipoEvento = String(evento.tipoEvento || '').trim() || tipoRegistro.toUpperCase();
-    const horaTxt = String(evento.horaInicio || '').trim();
-    const duracaoNum = Number(evento.duracao || 0);
-    const duracaoTxt = duracaoNum > 0 ? (duracaoNum % 60 === 0 ? `${Math.floor(duracaoNum / 60)}h` : `${Math.floor(duracaoNum / 60)}h${duracaoNum % 60}`) : '';
-    const localTxt = String(evento.local || '').trim();
 
     card.innerHTML = `
       <div class="result-id">${evento.id}</div>
 
       <div class="result-main">
-        ${evento.contratante}
+        ${evento.tipoEvento} — ${evento.contratante}
       </div>
 
       <div class="result-details">
-        <div class="result-detail">📅 ${evento.dataFormatada}${horaTxt ? ' • ' + horaTxt : ''}${duracaoTxt ? ' • ' + duracaoTxt : ''}</div>
-        <div class="result-detail">🏷️ ${tipoRegistro} • ${tipoEvento}${localTxt ? ' • ' + localTxt : ''}</div>
+        <div class="result-detail">📅 ${evento.dataFormatada}</div>
         <div class="result-detail">
           💰 R$ ${Number(evento.valor || 0).toLocaleString('pt-BR', {
             minimumFractionDigits: 2
@@ -2721,9 +2589,19 @@ function executarAutocompleteContratante(termo) {
 
       await aplicarPermissaoFinanceiraEdicao();
 
-      // Conflitos de agenda: listeners únicos + verificação inicial
-      ligarListenersConflitoEdicao_();
-      verificarConflitosEdicao();
+      // ============================
+      // FASE 5 — CONFLITOS DE AGENDA
+      // ============================
+      setTimeout(() => {
+        ['dataEvento', 'dataFim', 'horaInicio', 'duracao'].forEach(id => {
+          const el = document.getElementById(id);
+          if (el) {
+            el.removeEventListener('change', verificarConflitosEdicao);
+            el.addEventListener('change', verificarConflitosEdicao);
+          }
+        });
+        verificarConflitosEdicao();
+      }, 200);
 
       if (dropdownsEssenciaisProntos()) {
         preencherFormulario(eventoAtual);
