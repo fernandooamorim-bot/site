@@ -1202,9 +1202,10 @@
             <div class="form-group">
               <label for="dataEvento" class="required">Data</label>
               <input type="date" id="dataEvento" required onchange="verificarConflitos()">
+              <div id="alertaConflitos" style="display: none;"></div>
 
               <!-- EVENTO: múltiplos dias (MESMO PADRÃO DA DURAÇÃO DO BLOQUEIO) -->
-             <div id="campoEventoMultiDias"
+              <div id="campoEventoMultiDias"
      class="checkbox-group">
   <label class="toggle-switch">
     <input type="checkbox"
@@ -1214,6 +1215,12 @@
     <span class="toggle-text">Evento com mais de um dia</span>
   </label>
 </div>
+
+              <!-- Campo Data Fim (Evento multi-dia / Bloqueio) -->
+              <div id="campoDataFim" class="form-group" style="display: none; margin-top: 8px;">
+                <label for="dataFim">Data Fim (opcional)</label>
+                <input type="date" id="dataFim" onchange="verificarConflitos()">
+              </div>
             </div>
             
             <div class="form-group">
@@ -1237,16 +1244,6 @@
               </select>
             </div>
           </div>
-          
-          <!-- Campo Data Fim (só para bloqueios) -->
-          <div id="campoDataFim" class="form-group" style="display: none;">
-            <label for="dataFim">Data Fim (opcional)</label>
-            <input type="date" id="dataFim" onchange="verificarConflitos()">
-          </div>
-          
-          <!-- Alerta de conflitos de agenda -->
-          <!-- Alerta de conflitos (preenchido dinamicamente) -->
-          <div id="alertaConflitos" style="display: none;"></div>
           
           <div id="campoProjeto" class="form-group">
             <label for="projeto">Projeto/Formação</label>
