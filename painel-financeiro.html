@@ -135,27 +135,28 @@
 
     .bottom-nav {
       position: fixed; bottom: 0; left: 0; right: 0;
-      height: var(--nav-height); background: var(--nav-navy-800);
+      height: calc(var(--nav-height) + 14px + env(safe-area-inset-bottom)); background: var(--nav-navy-800);
       border-top: 1px solid rgba(255,255,255,0.06);
-      display: flex; align-items: center; justify-content: space-around;
-      z-index: 200; padding-bottom: env(safe-area-inset-bottom);
+      display: flex; align-items: center; justify-content: space-evenly;
+      z-index: 200; padding: 8px 8px calc(env(safe-area-inset-bottom) + 6px);
+      box-shadow: 0 -10px 24px rgba(10,22,40,0.26);
       font-family: var(--nav-font);
     }
 
     .bnav-item {
-      display: flex; flex-direction: column; align-items: center; gap: 3px;
-      padding: 8px 14px; border-radius: var(--nav-radius-md);
+      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+      padding: 7px 14px; min-height: 52px; min-width: 68px; border-radius: 14px;
       cursor: pointer; -webkit-tap-highlight-color: transparent;
       text-decoration: none; border: none; background: none; transition: all 0.2s;
     }
     .bnav-item i { width: 22px; height: 22px; color: rgba(255,255,255,0.55); transition: color 0.2s; }
-    .bnav-item span { font-family: var(--nav-font); font-size: 10px; font-weight: 600; color: rgba(255,255,255,0.55); transition: color 0.2s; }
+    .bnav-item span { font-family: var(--nav-font); font-size: 11px; font-weight: 600; color: rgba(255,255,255,0.55); transition: color 0.2s; line-height: 1; }
     .bnav-item.active i, .bnav-item:hover i { color: var(--nav-gold-400); }
     .bnav-item.active span, .bnav-item:hover span { color: var(--nav-gold-400); }
     .bnav-item.active { background: rgba(212,168,83,0.08); }
 
     @media (min-width: 768px) { .bottom-nav { display: none; } body { padding-bottom: 0 !important; } }
-    @media (max-width: 767px) { body { padding-bottom: calc(var(--nav-height) + 16px) !important; } }
+    @media (max-width: 767px) { body { padding-bottom: calc(var(--nav-height) + env(safe-area-inset-bottom) + 24px) !important; } }
   </style>
 
   <style>
