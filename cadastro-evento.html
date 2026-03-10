@@ -427,9 +427,50 @@
       text-overflow: ellipsis;
     }
 
+    .tipo-registro-select-wrap {
+      display: none;
+    }
+
+    .tipo-chips {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 4px;
+    }
+
+    .tipo-chip {
+      border: 1px solid var(--gray-200);
+      background: var(--surface-0);
+      color: var(--gray-700);
+      border-radius: 999px;
+      padding: 9px 10px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s;
+      letter-spacing: -0.1px;
+      white-space: nowrap;
+    }
+
+    .tipo-chip:hover {
+      border-color: var(--navy-400);
+      color: var(--navy-700);
+      background: var(--surface-2);
+    }
+
+    .tipo-chip.active {
+      background: linear-gradient(135deg, rgba(30,58,95,0.1), rgba(212,168,83,0.12));
+      border-color: rgba(30,58,95,0.35);
+      color: var(--navy-700);
+      box-shadow: inset 0 0 0 1px rgba(30,58,95,0.08);
+    }
+
     @media (max-width: 767px) {
       .form-intro-grid {
         grid-template-columns: 1fr;
+      }
+      .tipo-chips {
+        grid-template-columns: 1fr 1fr;
       }
     }
 
@@ -1009,13 +1050,21 @@
           </div>
           
           <div class="form-group">
-            <label for="tipoRegistro" class="required">O que deseja cadastrar?</label>
-            <select id="tipoRegistro" required onchange="alterarTipoRegistro()">
-              <option value="Evento">Evento (com dados financeiros)</option>
-              <option value="Reserva">Reserva (pré-agendamento sem financeiro)</option>
-              <option value="Reunião">Reunião (sem cobrança)</option>
-              <option value="Bloqueio">Bloqueio de Data (férias, etc)</option>
-            </select>
+            <label class="required">O que deseja cadastrar?</label>
+            <div class="tipo-registro-select-wrap">
+              <select id="tipoRegistro" required onchange="alterarTipoRegistro()">
+                <option value="Evento">Evento (com dados financeiros)</option>
+                <option value="Reserva">Reserva (pré-agendamento sem financeiro)</option>
+                <option value="Reunião">Reunião (sem cobrança)</option>
+                <option value="Bloqueio">Bloqueio de Data (férias, etc)</option>
+              </select>
+            </div>
+            <div class="tipo-chips" id="tipoRegistroChips" role="tablist" aria-label="Tipo de registro">
+              <button type="button" class="tipo-chip active" data-value="Evento" onclick="selecionarTipoRegistroChip('Evento')">Evento</button>
+              <button type="button" class="tipo-chip" data-value="Reserva" onclick="selecionarTipoRegistroChip('Reserva')">Reserva</button>
+              <button type="button" class="tipo-chip" data-value="Reunião" onclick="selecionarTipoRegistroChip('Reunião')">Reunião</button>
+              <button type="button" class="tipo-chip" data-value="Bloqueio" onclick="selecionarTipoRegistroChip('Bloqueio')">Bloqueio</button>
+            </div>
           </div>
           
           <div id="infoBloqueio" class="info-badge" style="display: none;">
@@ -1488,7 +1537,7 @@
     let parceirosBV = [];
     
     // Inicialização
- window.onload = function () {
+window.onload = function () {
   carregarDados();
   alterarTipoRegistro();
   alterarTipoComissao();
@@ -1511,11 +1560,26 @@
     console.error('Erro ao obter usuário logado:', e);
   }
 };
+
+    function sincronizarTipoRegistroChips(tipo) {
+      const chips = document.querySelectorAll('#tipoRegistroChips .tipo-chip');
+      chips.forEach((chip) => {
+        chip.classList.toggle('active', chip.dataset.value === tipo);
+      });
+    }
+
+    function selecionarTipoRegistroChip(tipo) {
+      const select = document.getElementById('tipoRegistro');
+      if (!select) return;
+      select.value = tipo;
+      alterarTipoRegistro();
+    }
     
     // Alternar tipo de registro
     function alterarTipoRegistro() {
       const tipo = document.getElementById('tipoRegistro').value;
       const indicator = document.getElementById('tipoIndicator');
+      sincronizarTipoRegistroChips(tipo);
       
       // Atualiza indicador
       indicator.textContent = tipo.toUpperCase();
