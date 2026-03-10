@@ -508,6 +508,14 @@
       font-weight: 700;
       color: var(--navy-600);
       letter-spacing: -0.2px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .results-title i {
+      width: 16px;
+      height: 16px;
     }
 
     .results-count {
@@ -527,7 +535,6 @@
       border: 1px solid var(--gray-200);
       border-radius: var(--radius-md);
       padding: 16px;
-      cursor: pointer;
       transition: all 0.2s;
       box-shadow: var(--shadow-sm);
     }
@@ -541,8 +548,36 @@
       font-size: 11px;
       color: var(--gray-400);
       font-family: 'SF Mono', 'Fira Code', monospace;
-      margin-bottom: 6px;
       font-weight: 500;
+    }
+
+    .result-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 8px;
+      flex-wrap: wrap;
+    }
+
+    .result-tags {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .result-tag {
+      display: inline-flex;
+      align-items: center;
+      border-radius: 999px;
+      padding: 2px 9px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.2px;
+      text-transform: uppercase;
+      background: rgba(30,58,95,0.08);
+      color: var(--navy-600);
     }
 
     .result-main {
@@ -554,12 +589,11 @@
     }
 
     .result-details {
-      display: flex;
-      gap: 16px;
+      display: grid;
+      gap: 6px;
       font-size: 13px;
       color: var(--gray-500);
       margin-bottom: 12px;
-      flex-wrap: wrap;
     }
 
     .result-detail {
@@ -571,10 +605,11 @@
     .result-actions {
       display: flex;
       gap: 8px;
+      justify-content: flex-end;
     }
 
     .btn-card {
-      padding: 7px 14px;
+      padding: 9px 14px;
       border: none;
       border-radius: 6px;
       font-size: 12px;
@@ -582,6 +617,9 @@
       font-family: var(--font);
       cursor: pointer;
       transition: all 0.2s;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
     }
 
     .btn-edit {
@@ -591,6 +629,11 @@
 
     .btn-edit:hover {
       background: var(--navy-500);
+    }
+
+    .btn-card i {
+      width: 13px;
+      height: 13px;
     }
 
     .btn-view {
@@ -1334,11 +1377,11 @@
     padding-top: 4px;
   }
 
-  .toggle-buttons {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 8px;
-  }
+      .toggle-buttons {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+      }
 
   .toggle-btn {
     justify-content: center;
@@ -1353,9 +1396,24 @@
     margin-bottom: 14px;
   }
 
-  .status-agenda-slot {
-    margin-top: 0;
-  }
+      .status-agenda-slot {
+        margin-top: 0;
+      }
+
+      .results-header {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 4px;
+      }
+
+      .result-actions {
+        justify-content: stretch;
+      }
+
+      .btn-card {
+        width: 100%;
+        justify-content: center;
+      }
 }
   </style>
 </head>
@@ -1500,10 +1558,13 @@
         
       </div>
       
-      <!-- RESULTADOS DA BUSCA -->
+        <!-- RESULTADOS DA BUSCA -->
       <div id="resultsSection" class="results-section">
         <div class="results-header">
-          <div class="results-title">Resultados da Busca</div>
+          <div class="results-title">
+            <i data-lucide="list-filter"></i>
+            Resultados da Busca
+          </div>
           <div class="results-count" id="resultsCount"></div>
         </div>
         <div id="resultsList" class="results-list"></div>
@@ -2808,7 +2869,7 @@ function executarAutocompleteContratante(termo) {
     }
     
     // MOSTRAR RESULTADOS
-    function mostrarResultados(eventos) {
+function mostrarResultados(eventos) {
   const section = document.getElementById('resultsSection');
   const list = document.getElementById('resultsList');
   const count = document.getElementById('resultsCount');
@@ -2819,6 +2880,7 @@ function executarAutocompleteContratante(termo) {
   if (!Array.isArray(eventos)) {
     list.innerHTML = '<div class="empty-state">Erro ao buscar eventos.</div>';
     count.textContent = '';
+    if (window.lucide) lucide.createIcons();
     return;
   }
 
@@ -2826,6 +2888,7 @@ function executarAutocompleteContratante(termo) {
   if (eventos.length === 0) {
     list.innerHTML = '<div class="empty-state">Nenhum evento encontrado para esse filtro.</div>';
     count.textContent = '0 resultados';
+    if (window.lucide) lucide.createIcons();
     return;
   }
 
@@ -2845,20 +2908,26 @@ function executarAutocompleteContratante(termo) {
     const duracaoTxt = duracaoNum > 0 ? (duracaoNum % 60 === 0 ? `${Math.floor(duracaoNum / 60)}h` : `${Math.floor(duracaoNum / 60)}h${duracaoNum % 60}`) : '';
     const localTxt = String(evento.local || '').trim();
 
+    const temFinanceiro = tipoRegistro === 'Evento' || tipoRegistro === 'Reserva';
     card.innerHTML = `
-      <div class="result-id">${evento.id}</div>
+      <div class="result-top">
+        <div class="result-tags">
+          <span class="result-tag">${tipoRegistro}</span>
+          <span class="result-id">${evento.id}</span>
+        </div>
+      </div>
 
       <div class="result-main">
         ${evento.contratante}
       </div>
 
       <div class="result-details">
-        <div class="result-detail">📅 ${evento.dataFormatada}${horaTxt ? ' • ' + horaTxt : ''}${duracaoTxt ? ' • ' + duracaoTxt : ''}</div>
-        <div class="result-detail">🏷️ ${tipoRegistro} • ${tipoEvento}${localTxt ? ' • ' + localTxt : ''}</div>
+        <div class="result-detail">${evento.dataFormatada}${horaTxt ? ' • ' + horaTxt : ''}${duracaoTxt ? ' • ' + duracaoTxt : ''}</div>
+        <div class="result-detail">${tipoEvento}${localTxt ? ' • ' + localTxt : ''}</div>
         <div class="result-detail">
-          💰 R$ ${Number(evento.valor || 0).toLocaleString('pt-BR', {
+          ${temFinanceiro ? 'R$ ' + Number(evento.valor || 0).toLocaleString('pt-BR', {
             minimumFractionDigits: 2
-          })}
+          }) : 'Sem dados financeiros'}
         </div>
       </div>
 
@@ -2866,13 +2935,15 @@ function executarAutocompleteContratante(termo) {
         <button
           class="btn-card btn-edit"
           onclick="selecionarEvento('${evento.id}')">
-          ✏️ Editar Evento
+          <i data-lucide="pencil-line"></i>
+          Editar Registro
         </button>
       </div>
     `;
 
     list.appendChild(card);
   });
+  if (window.lucide) lucide.createIcons();
 }
     
     // SELECIONAR EVENTO PARA EDIÇÃO
