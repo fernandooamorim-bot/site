@@ -648,6 +648,24 @@
   </div>
 
   <script>
+    let __pageLeaving = false;
+
+    function marcarSaindo_() {
+      __pageLeaving = true;
+    }
+
+    window.addEventListener('pagehide', marcarSaindo_);
+    window.addEventListener('beforeunload', marcarSaindo_);
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden') marcarSaindo_();
+    });
+    document.addEventListener('click', (ev) => {
+      const alvo = ev.target && ev.target.closest
+        ? ev.target.closest('a[href],button[onclick*="location.href"]')
+        : null;
+      if (alvo) marcarSaindo_();
+    }, true);
+
     let processingInterval_ = null;
 
     function normalizarPerfil(perfil) {
@@ -951,6 +969,8 @@
         }
       } catch (err) {
         console.error('Falha de autenticação:', err);
+        const msg = String((err && err.message) || err || '');
+        if (__pageLeaving || /abort|aborted|canceled|cancelled/i.test(msg)) return;
         alert('Sessão inválida. Faça login novamente.');
         window.location.href = 'index.html';
       } finally {
