@@ -1637,17 +1637,40 @@
       document.getElementById('overlay').classList.add('active');
     }
 
+    function escapeHtmlSimples_(s) {
+      return String(s == null ? '' : s)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function irPosCadastro_(destino) {
+      if (destino === 'agenda') {
+        window.location.href = 'agenda.html';
+        return;
+      }
+      if (destino === 'novo') {
+        window.location.href = 'cadastro-evento.html';
+        return;
+      }
+      window.location.href = 'index.html';
+    }
+
     function sucesso(titulo, msg, callback) {
       document.getElementById('spinner').style.display = 'none';
       document.getElementById('overlayText').innerHTML = `
-        <div style="font-size:50px;margin-bottom:15px;">✅</div>
-        <h3 style="color:#4caf50;margin-bottom:10px;font-size:18px;">${titulo}</h3>
-        <p style="color:#666;font-size:14px;">${msg}</p>
+        <div style="font-size:46px;margin-bottom:10px;">✅</div>
+        <h3 style="color:#10b981;margin:0 0 8px 0;font-size:18px;">${escapeHtmlSimples_(titulo)}</h3>
+        <p style="color:#64748b;font-size:14px;margin:0 0 14px 0;">${escapeHtmlSimples_(msg || '')}</p>
+        <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
+          <button type="button" class="btn btn-primary" style="min-width:150px;max-width:100%;flex:1 1 150px;" onclick="irPosCadastro_('agenda')">📅 Ver agenda</button>
+          <button type="button" class="btn btn-secondary" style="min-width:150px;max-width:100%;flex:1 1 150px;" onclick="irPosCadastro_('novo')">➕ Cadastrar outro</button>
+        </div>
+        <button type="button" class="btn" style="margin-top:10px;background:#0f1a2e;color:#fff;min-width:140px;" onclick="irPosCadastro_('menu')">🏠 Menu</button>
       `;
-      setTimeout(() => {
-        fecharLoading();
-        if (callback) callback();
-      }, 1000);
+      if (callback) callback();
     }
 
     function fecharLoading() {
@@ -2736,9 +2759,7 @@ if ((tipoRegistro === 'Evento' || tipoRegistro === 'Reunião' || tipoRegistro ==
       Auth.apiCall('criarEvento', dados)
         .then(resultado => {
           if (resultado && resultado.sucesso) {
-            sucesso('Registro criado!', resultado.mensagem, () => {
-              window.location.href = 'agenda.html';
-            });
+            sucesso('Registro criado!', resultado.mensagem || 'Cadastro salvo com sucesso.');
           } else {
             fecharLoading();
             alert('❌ ' + (resultado.mensagem || 'Erro ao salvar'));
