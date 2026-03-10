@@ -138,7 +138,7 @@
       height: calc(var(--nav-height) + env(safe-area-inset-bottom)); background: var(--nav-navy-800);
       border-top: 1px solid rgba(255,255,255,0.08);
       display: flex; align-items: flex-start; justify-content: space-evenly;
-      z-index: 200; padding: 6px 8px calc(env(safe-area-inset-bottom) + 8px);
+      z-index: 200; padding: 2px 8px calc(env(safe-area-inset-bottom) + 12px);
       border-radius: 0;
       font-family: var(--nav-font);
     }
@@ -149,8 +149,8 @@
       cursor: pointer; -webkit-tap-highlight-color: transparent;
       text-decoration: none; border: none; background: none; transition: all 0.2s;
     }
-    .bnav-item i, .bnav-item svg { width: 22px; height: 22px; color: rgba(255,255,255,0.55); stroke: currentColor; fill: none; transition: color 0.2s; }
-    .bnav-item span { font-family: var(--nav-font); font-size: 11px; font-weight: 600; color: rgba(255,255,255,0.55); transition: color 0.2s; line-height: 1; }
+    .bnav-item i, .bnav-item svg { width: 22px; height: 22px; color: rgba(255,255,255,0.82); stroke: currentColor; fill: none; transition: color 0.2s; }
+    .bnav-item span { font-family: var(--nav-font); font-size: 11px; font-weight: 600; color: rgba(255,255,255,0.82); transition: color 0.2s; line-height: 1; }
     .bnav-item.active i, .bnav-item:hover i { color: var(--nav-gold-400); }
     .bnav-item.active span, .bnav-item:hover span { color: var(--nav-gold-400); }
     .bnav-item.active { background: rgba(212,168,83,0.08); }
