@@ -901,6 +901,17 @@
       color: var(--gray-700);
     }
 
+    .btn-danger {
+      background: #fff1f2;
+      color: #b42318;
+      border: 1px solid #fecdd3;
+    }
+
+    .btn-danger:hover {
+      background: #ffe4e6;
+      border-color: #fda4af;
+    }
+
     .actions {
       margin-top: 24px;
       text-align: center;
@@ -1819,6 +1830,7 @@
       <!-- AÇÕES -->
       <div class="actions">
         <button class="btn btn-secondary" onclick="voltarParaBusca()">Voltar para Busca</button>
+        <button class="btn btn-danger" onclick="pedirCancelamentoRegistro()">Cancelar Registro</button>
         <button class="btn btn-primary" onclick="validarEMostrarResumo()">
           Salvar Alterações
         </button>
@@ -3714,6 +3726,46 @@ function preencherFormulario(evento) {
     
     function abrirModal() {
       document.getElementById('modalConfirmacao').classList.add('show');
+    }
+
+    async function pedirCancelamentoRegistro() {
+      if (!eventoOriginal || !eventoOriginal.id) {
+        mostrarAlerta('Selecione um registro antes de cancelar.', 'error');
+        return;
+      }
+
+      const motivoRaw = prompt('Informe o motivo do cancelamento:');
+      if (motivoRaw === null) return;
+      const motivo = String(motivoRaw || '').trim();
+      if (!motivo) {
+        mostrarAlerta('Informe um motivo para cancelar o registro.', 'error');
+        return;
+      }
+
+      if (!confirm('Confirmar cancelamento deste registro?')) return;
+
+      mostrarLoadingGlobal('Cancelando registro...');
+      travarAcoes(true);
+      try {
+        const resp = await Auth.apiCall('cancelarEvento', {
+          idEvento: eventoOriginal.id,
+          motivo: motivo
+        });
+
+        if (!resp || !resp.sucesso) {
+          throw new Error(resp?.mensagem || 'Não foi possível cancelar o registro.');
+        }
+
+        mostrarAlerta('Registro cancelado com sucesso. Redirecionando para agenda...', 'success');
+        setTimeout(() => {
+          window.location.href = 'agenda.html';
+        }, 900);
+      } catch (err) {
+        mostrarAlerta('Erro ao cancelar: ' + (err?.message || err), 'error');
+      } finally {
+        esconderLoadingGlobal();
+        travarAcoes(false);
+      }
     }
     
     function fecharModal() {

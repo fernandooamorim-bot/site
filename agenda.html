@@ -959,6 +959,17 @@
       background: var(--navy-700);
     }
 
+    .btn-action.danger {
+      background: #fff1f2;
+      color: #b42318;
+      border-color: #fecdd3;
+    }
+
+    .btn-action.danger:hover {
+      background: #ffe4e6;
+      border-color: #fda4af;
+    }
+
     /* ============================================
        MODAL
        ============================================ */
@@ -2429,6 +2440,9 @@ criarCardEvento(evento) {
                 🔄 Converter em Evento
               </button>
             ` : ''}
+            <button class="btn-action danger" onclick="cancelarRegistro('${evento.id}'); event.stopPropagation();">
+              ⛔ Cancelar
+            </button>
           </div>
         ` : ''}
       </div>
@@ -3762,6 +3776,40 @@ renderizarEventosDentro(evento) {
       if (!id) return;
       localStorage.setItem('editar_evento_id_ref', id);
       window.location.href = `editar-evento.html?id=${encodeURIComponent(id)}&converter=1`;
+    }
+
+    async function cancelarRegistro(eventoId) {
+      const id = String(eventoId || '').trim();
+      if (!id) return;
+
+      const motivoRaw = prompt('Informe o motivo do cancelamento:');
+      if (motivoRaw === null) return;
+      const motivo = String(motivoRaw || '').trim();
+      if (!motivo) {
+        alert('Informe um motivo para cancelar o registro.');
+        return;
+      }
+
+      if (!confirm('Confirmar cancelamento deste registro?')) return;
+
+      try {
+        const res = await Auth.apiCall('cancelarEvento', { idEvento: id, motivo });
+        if (!res || !res.sucesso) {
+          alert(res?.mensagem || 'Não foi possível cancelar o registro.');
+          return;
+        }
+
+        UI.showToast('Registro cancelado com sucesso.', 'success', 1800);
+
+        // Força recarga sem depender do cache.
+        AppState.cache = { timestamp: 0, dados: null, syncVersion: '' };
+        AgendaController.limparCachePersistente();
+        await AgendaController.carregarEventosComCache();
+        AgendaController.atualizarFiltrosAnuaisRapidos();
+        FiltroManager.aplicarFiltroRapido(AppState.filtroAtivo || 'proximos');
+      } catch (err) {
+        alert('Erro ao cancelar: ' + ((err && err.message) ? err.message : err));
+      }
     }
 
     function irParaHome() {
