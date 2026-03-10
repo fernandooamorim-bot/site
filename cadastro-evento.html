@@ -689,6 +689,9 @@
       z-index: 1000;
       align-items: center;
       justify-content: center;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      -webkit-overflow-scrolling: touch;
     }
 
     .modal.active {
@@ -704,6 +707,11 @@
       max-height: 85vh;
       overflow-y: auto;
       box-shadow: var(--shadow-lg);
+    }
+
+    body.modal-open {
+      overflow: hidden;
+      touch-action: none;
     }
 
     .modal-header {
@@ -989,7 +997,7 @@
       textarea {
         min-height: 96px;
       }
-      .actions {
+      #formEvento > .actions {
         position: sticky;
         bottom: calc(var(--nav-height) + 8px);
         z-index: 55;
@@ -997,6 +1005,25 @@
         margin-top: 10px;
         border: 1px solid var(--gray-200);
         box-shadow: var(--shadow-md);
+      }
+      .modal {
+        align-items: flex-start;
+        padding: 10px 12px;
+      }
+      .modal-content {
+        width: 100%;
+        max-height: calc(100dvh - 20px);
+        margin: 0 auto;
+      }
+      .modal .actions {
+        position: static;
+        bottom: auto;
+        z-index: auto;
+        padding: 0;
+        margin-top: 16px;
+        box-shadow: none;
+        border: 0;
+        border-top: 1px solid var(--gray-200);
       }
       .btn {
         font-size: 13px;
@@ -2281,12 +2308,19 @@ window.onload = function () {
     }
     
     // Modais (código mantido do anterior)
+    function atualizarEstadoScrollModal_() {
+      const existeModalAtivo = document.querySelector('.modal.active');
+      document.body.classList.toggle('modal-open', !!existeModalAtivo);
+    }
+
     function abrirModal(id) {
       document.getElementById(id).classList.add('active');
+      atualizarEstadoScrollModal_();
     }
     
     function fecharModal(id) {
       document.getElementById(id).classList.remove('active');
+      atualizarEstadoScrollModal_();
     }
     
     function abrirModalContratante() {
