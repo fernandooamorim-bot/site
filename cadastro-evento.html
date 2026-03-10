@@ -1661,15 +1661,24 @@
     function sucesso(titulo, msg, callback) {
       document.getElementById('spinner').style.display = 'none';
       document.getElementById('overlayText').innerHTML = `
-        <div style="font-size:46px;margin-bottom:10px;">✅</div>
+        <div style="display:flex;justify-content:center;margin-bottom:10px;">
+          <i data-lucide="circle-check" style="width:46px;height:46px;color:#10b981;"></i>
+        </div>
         <h3 style="color:#10b981;margin:0 0 8px 0;font-size:18px;">${escapeHtmlSimples_(titulo)}</h3>
         <p style="color:#64748b;font-size:14px;margin:0 0 14px 0;">${escapeHtmlSimples_(msg || '')}</p>
         <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
-          <button type="button" class="btn btn-primary" style="min-width:150px;max-width:100%;flex:1 1 150px;" onclick="irPosCadastro_('agenda')">📅 Ver agenda</button>
-          <button type="button" class="btn btn-secondary" style="min-width:150px;max-width:100%;flex:1 1 150px;" onclick="irPosCadastro_('novo')">➕ Cadastrar outro</button>
+          <button type="button" class="btn btn-primary" style="min-width:150px;max-width:100%;flex:1 1 150px;display:inline-flex;align-items:center;justify-content:center;gap:6px;" onclick="irPosCadastro_('agenda')">
+            <i data-lucide="calendar-days" style="width:16px;height:16px;"></i> Ver agenda
+          </button>
+          <button type="button" class="btn btn-secondary" style="min-width:150px;max-width:100%;flex:1 1 150px;display:inline-flex;align-items:center;justify-content:center;gap:6px;" onclick="irPosCadastro_('novo')">
+            <i data-lucide="plus-circle" style="width:16px;height:16px;"></i> Cadastrar outro
+          </button>
         </div>
-        <button type="button" class="btn" style="margin-top:10px;background:#0f1a2e;color:#fff;min-width:140px;" onclick="irPosCadastro_('menu')">🏠 Menu</button>
+        <button type="button" class="btn" style="margin-top:10px;background:#0f1a2e;color:#fff;min-width:140px;display:inline-flex;align-items:center;justify-content:center;gap:6px;" onclick="irPosCadastro_('menu')">
+          <i data-lucide="house" style="width:16px;height:16px;"></i> Menu
+        </button>
       `;
+      if (window.lucide) window.lucide.createIcons();
       if (callback) callback();
     }
 

@@ -1459,6 +1459,9 @@
     <div id="alertContainer"></div>
 <div id="successCard" class="hidden success-overlay">
   <div class="success-card">
+    <div style="display:flex;justify-content:center;margin-bottom:8px;">
+      <i data-lucide="circle-check" style="width:42px;height:42px;color:#10b981;"></i>
+    </div>
     <h3 style="margin-bottom:4px;">Evento atualizado com sucesso</h3>
 
     <p style="margin:12px 0;color:#555;font-size:14px;">
@@ -1466,9 +1469,15 @@
     </p>
 
     <div style="margin-top:16px;display:flex;gap:10px;flex-wrap:wrap;justify-content:center;">
-      <button class="btn btn-secondary" onclick="window.location.reload()">✏️ Editar outro</button>
-      <button class="btn btn-secondary" onclick="window.location.href='agenda.html'">📅 Ver agenda</button>
-      <button class="btn btn-primary" onclick="window.location.href='index.html'">🏠 Menu</button>
+      <button class="btn btn-secondary" style="display:inline-flex;align-items:center;justify-content:center;gap:6px;" onclick="window.location.reload()">
+        <i data-lucide="pencil-line" style="width:16px;height:16px;"></i> Editar outro
+      </button>
+      <button class="btn btn-secondary" style="display:inline-flex;align-items:center;justify-content:center;gap:6px;" onclick="window.location.href='agenda.html'">
+        <i data-lucide="calendar-days" style="width:16px;height:16px;"></i> Ver agenda
+      </button>
+      <button class="btn btn-primary" style="display:inline-flex;align-items:center;justify-content:center;gap:6px;" onclick="window.location.href='index.html'">
+        <i data-lucide="house" style="width:16px;height:16px;"></i> Menu
+      </button>
     </div>
   </div>
 </div>
