@@ -1008,12 +1008,12 @@
       }
       .modal {
         align-items: flex-start;
-        padding: 10px 12px;
+        padding: max(14px, env(safe-area-inset-top)) 12px 12px;
       }
       .modal-content {
         width: 100%;
-        max-height: calc(100dvh - 20px);
-        margin: 0 auto;
+        max-height: calc(100dvh - 28px - env(safe-area-inset-top));
+        margin: clamp(8px, 6vh, 40px) auto 0;
       }
       .modal .actions {
         position: static;
