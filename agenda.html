@@ -3197,6 +3197,27 @@ renderizarEventosDentro(evento) {
 
         return eventosFiltrados;
       },
+      async carregarEventosBootstrap() {
+        Utils.log('Carregando eventos bootstrap da agenda...');
+
+        const res = await Auth.apiCall('listarEventosBootstrap');
+
+        if (!res || res.ok === false) {
+          throw new Error(res?.mensagem || 'Erro ao carregar bootstrap da agenda');
+        }
+
+        const eventos = Array.isArray(res.eventos) ? res.eventos : [];
+        const eventosFiltrados = FiltroManager.filtrarPorPerfil(eventos);
+
+        AppState.eventos = eventosFiltrados;
+        AppState.filtrosAvancadosPopulados = false;
+        AppState.ultimaAtualizacao = Date.now();
+
+        return {
+          eventos: eventosFiltrados,
+          syncVersion: String(res.syncVersion || '')
+        };
+      },
       async carregarConfiguracoes() {
         Utils.log('Carregando configurações via API...');
 
@@ -3345,20 +3366,14 @@ renderizarEventosDentro(evento) {
       return AppState.cache.dados;
     }
 
-    // Carrega do backend
-    Utils.log('🌐 Carregando do backend');
-    const eventos = await this.carregarEventos();
+	    // Carrega do backend
+	    Utils.log('🌐 Carregando do backend');
+	    const bootstrap = await this.carregarEventosBootstrap();
+	    const eventos = bootstrap.eventos || [];
+	    const syncVersion = String(bootstrap.syncVersion || '');
 
-    let syncVersion = '';
-    try {
-      const syncInfo = await this.obterAgendaSyncInfo();
-      syncVersion = String(syncInfo.version || '');
-    } catch (e) {
-      Utils.error('Não foi possível obter versão de sync após carga completa:', e);
-    }
-
-    // Atualiza cache
-    AppState.cache = {
+	    // Atualiza cache
+	    AppState.cache = {
       timestamp: Date.now(),
       dados: eventos,
       syncVersion: syncVersion
