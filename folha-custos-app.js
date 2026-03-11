@@ -26,6 +26,16 @@ let passagemDeSomPorMusico = {};
 let servicosDisponiveis = [];
 let categoriasServicos = [];
 let CURRENT_USER_EMAIL = '';
+let loadingMessageTimer = null;
+let loadingMessageIndex = 0;
+
+const LOADING_MESSAGES = [
+  'Verificando sessão...',
+  'Validando acesso...',
+  'Carregando folha de custos...',
+  'Sincronizando dados...',
+  'Preparando ambiente...'
+];
 
 // ═══════════════════════════════════════════════════════════
 // INICIALIZAÇÃO
@@ -34,7 +44,7 @@ let CURRENT_USER_EMAIL = '';
 document.addEventListener('DOMContentLoaded', async function() {
   console.log('🚀 Iniciando sistema...');
   
-  showLoading('Verificando sessão...');
+  showLoading();
 
   setupEventListeners();
   if (window.lucide) window.lucide.createIcons();
@@ -57,7 +67,6 @@ document.addEventListener('DOMContentLoaded', async function() {
 
     CURRENT_USER_EMAIL = String(auth.user.email || localStorage.getItem('auth_email') || '').trim();
     if (auth.user.nome) localStorage.setItem('auth_nome', String(auth.user.nome));
-    updateLoadingMessage('Carregando dados...');
     await carregarDados();
     hideLoading();
     showApp();
@@ -162,11 +171,17 @@ function showLoading(message = 'Carregando...') {
   const screen = document.getElementById('loading-screen');
   if (screen) {
     screen.classList.remove('hidden');
-    updateLoadingMessage(message);
+    if (typeof message === 'string' && message.trim()) {
+      stopLoadingMessageRotation_();
+      updateLoadingMessage(message);
+    } else {
+      startLoadingMessageRotation_();
+    }
   }
 }
 
 function hideLoading() {
+  stopLoadingMessageRotation_();
   const screen = document.getElementById('loading-screen');
   if (screen) {
     screen.classList.add('hidden');
@@ -177,6 +192,23 @@ function updateLoadingMessage(message) {
   const elem = document.getElementById('loading-message');
   if (elem) {
     elem.textContent = message;
+  }
+}
+
+function startLoadingMessageRotation_() {
+  stopLoadingMessageRotation_();
+  loadingMessageIndex = 0;
+  updateLoadingMessage(LOADING_MESSAGES[loadingMessageIndex]);
+  loadingMessageTimer = setInterval(() => {
+    loadingMessageIndex = (loadingMessageIndex + 1) % LOADING_MESSAGES.length;
+    updateLoadingMessage(LOADING_MESSAGES[loadingMessageIndex]);
+  }, 1400);
+}
+
+function stopLoadingMessageRotation_() {
+  if (loadingMessageTimer) {
+    clearInterval(loadingMessageTimer);
+    loadingMessageTimer = null;
   }
 }
 
