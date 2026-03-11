@@ -228,7 +228,7 @@
     /* ============================================
        MAIN CONTENT AREA
        ============================================ */
-    .filtros,
+    .filtros-shell,
     .modo-visual,
     .lista {
       max-width: 1100px;
@@ -239,7 +239,7 @@
     }
 
     @media (min-width: 768px) {
-      .filtros, .modo-visual, .lista {
+      .filtros-shell, .modo-visual, .lista {
         padding-left: 32px;
         padding-right: 32px;
       }
@@ -248,12 +248,85 @@
     /* ============================================
        FILTROS (filter buttons)
        ============================================ */
+    .filtros-shell {
+      margin-top: 24px;
+      margin-bottom: 10px;
+      display: grid;
+      gap: 10px;
+    }
+
+    .filtros-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .filtros-extra {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .filtros-extra .input-busca {
+      min-width: 260px;
+      max-width: 360px;
+      width: 100%;
+      border: 1px solid var(--gray-200);
+      border-radius: 10px;
+      padding: 9px 12px;
+      font-size: 13px;
+      color: var(--gray-700);
+      background: #fff;
+      outline: none;
+    }
+
+    .filtros-extra .input-busca:focus {
+      border-color: var(--navy-400);
+      box-shadow: 0 0 0 3px rgba(30,58,95,0.12);
+    }
+
+    .filtros-extra .select-ordenacao {
+      border: 1px solid var(--gray-200);
+      border-radius: 10px;
+      padding: 9px 12px;
+      font-size: 13px;
+      color: var(--gray-700);
+      background: #fff;
+      min-width: 180px;
+    }
+
     .filtros {
       display: flex;
       gap: 8px;
-      margin-top: 24px;
-      margin-bottom: 12px;
       flex-wrap: wrap;
+      margin: 0;
+    }
+
+    .filtros-secundarios {
+      display: none;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 2px;
+    }
+
+    .filtros-secundarios.is-open {
+      display: flex;
+    }
+
+    .filtro-secundario-toggle {
+      padding-left: 12px;
+      padding-right: 12px;
+    }
+
+    .filtro-secundario-toggle i,
+    .filtro-secundario-toggle svg {
+      margin-right: 0;
+      margin-left: 6px;
+      vertical-align: -2px;
     }
 
     .modo-visual {
@@ -558,12 +631,39 @@
       border: 1px solid var(--gray-200);
     }
 
+    .btn.filter-active {
+      border-color: var(--navy-500);
+      box-shadow: inset 0 0 0 1px rgba(30,58,95,0.15);
+      color: var(--navy-700);
+      font-weight: 700;
+    }
+
     .btn:hover {
       opacity: 0.9;
       transform: translateY(-1px);
     }
 
     @media (max-width: 767px) {
+      .filtros-shell {
+        margin-top: 20px;
+      }
+
+      .filtros-top {
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      .filtros-extra {
+        width: 100%;
+        justify-content: stretch;
+      }
+
+      .filtros-extra .input-busca,
+      .filtros-extra .select-ordenacao {
+        min-width: 0;
+        width: 100%;
+      }
+
       .filtros {
         display: grid;
         grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -580,6 +680,15 @@
 
       .filtros .btn[data-filtro="PENDENCIA_RECEBIMENTO"] {
         grid-column: 1 / -1;
+      }
+
+      .filtros-secundarios {
+        display: none;
+      }
+
+      .filtros-secundarios.is-open {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
       }
 
       .modo-visual {
@@ -717,22 +826,37 @@
   <p>Visão consolidada • Pendências • Alertas automáticos</p>
 </header>
 
-<div class="filtros">
-  <button id="filtro-TODOS" data-filtro="TODOS" class="btn secondary" onclick="aplicarFiltro('TODOS')">Todos <span class="muted" id="filtro-count-TODOS"></span></button>
-  <button id="filtro-CRITICOS" data-filtro="CRITICOS" class="btn warning" onclick="aplicarFiltro('CRITICOS')">🚨 Críticos <span class="muted" id="filtro-count-CRITICOS"></span></button>
-  <button id="filtro-COM_DIVERGENCIA" data-filtro="COM_DIVERGENCIA" class="btn warning" onclick="aplicarFiltro('COM_DIVERGENCIA')">🧩 Divergências <span class="muted" id="filtro-count-COM_DIVERGENCIA"></span></button>
-  <button id="filtro-AVISO_RECEBIDO_MAIOR" data-filtro="AVISO_RECEBIDO_MAIOR" class="btn secondary" onclick="aplicarFiltro('AVISO_RECEBIDO_MAIOR')">ℹ️ Recebido maior <span class="muted" id="filtro-count-AVISO_RECEBIDO_MAIOR"></span></button>
-  <button id="filtro-SEM_RECEBIMENTO" data-filtro="SEM_RECEBIMENTO" class="btn warning" onclick="aplicarFiltro('SEM_RECEBIMENTO')">🔴 Sem recebimento <span class="muted" id="filtro-count-SEM_RECEBIMENTO"></span></button>
-  <button id="filtro-RECEBIMENTO_PARCIAL" data-filtro="RECEBIMENTO_PARCIAL" class="btn warning" onclick="aplicarFiltro('RECEBIMENTO_PARCIAL')">🟠 Recebimento parcial <span class="muted" id="filtro-count-RECEBIMENTO_PARCIAL"></span></button>
-  <button id="filtro-PENDENCIA_RECEBIMENTO" data-filtro="PENDENCIA_RECEBIMENTO" class="btn warning" onclick="aplicarFiltro('PENDENCIA_RECEBIMENTO')">💰 Pendência de recebimento <span class="muted" id="filtro-count-PENDENCIA_RECEBIMENTO"></span></button>
-  <button id="filtro-QUITADO_BV_PENDENTE" data-filtro="QUITADO_BV_PENDENTE" class="btn warning" onclick="aplicarFiltro('QUITADO_BV_PENDENTE')">💥 Quitado + BV pendente <span class="muted" id="filtro-count-QUITADO_BV_PENDENTE"></span></button>
-  <button id="filtro-COMISSAO_PENDENTE" data-filtro="COMISSAO_PENDENTE" class="btn warning" onclick="aplicarFiltro('COMISSAO_PENDENTE')">💼 Comissão pendente <span class="muted" id="filtro-count-COMISSAO_PENDENTE"></span></button>
-  <button id="filtro-COMISSAO_PROBLEMA" data-filtro="COMISSAO_PROBLEMA" class="btn warning" onclick="aplicarFiltro('COMISSAO_PROBLEMA')">🚨 Problema de comissão <span class="muted" id="filtro-count-COMISSAO_PROBLEMA"></span></button>
-  <button id="filtro-LEGADO" data-filtro="LEGADO" class="btn secondary" onclick="aplicarFiltro('LEGADO')">📦 Legado <span class="muted" id="filtro-count-LEGADO"></span></button>
-  <button id="filtro-OK" data-filtro="OK" class="btn success" onclick="aplicarFiltro('OK')">✅ Sem pendências <span class="muted" id="filtro-count-OK"></span></button>
-</div>
-<div id="filtrosExtraBar" style="max-width:1100px;margin:0 auto 10px;padding:0 20px;display:flex;justify-content:flex-end;">
-  <button id="btnMaisFiltros" class="btn secondary" style="display:none" onclick="alternarMaisFiltros()">Mais filtros</button>
+<div class="filtros-shell">
+  <div class="filtros-top">
+    <div class="filtros">
+      <button id="filtro-TODOS" data-filtro="TODOS" class="btn secondary" onclick="aplicarFiltro('TODOS')">Todos <span class="muted" id="filtro-count-TODOS"></span></button>
+      <button id="filtro-CRITICOS" data-filtro="CRITICOS" class="btn warning" onclick="aplicarFiltro('CRITICOS')">🚨 Críticos <span class="muted" id="filtro-count-CRITICOS"></span></button>
+      <button id="filtro-PENDENCIA_RECEBIMENTO" data-filtro="PENDENCIA_RECEBIMENTO" class="btn warning" onclick="aplicarFiltro('PENDENCIA_RECEBIMENTO')">💰 Pendência de recebimento <span class="muted" id="filtro-count-PENDENCIA_RECEBIMENTO"></span></button>
+      <button id="filtro-SEM_RECEBIMENTO" data-filtro="SEM_RECEBIMENTO" class="btn warning" onclick="aplicarFiltro('SEM_RECEBIMENTO')">🔴 Sem recebimento <span class="muted" id="filtro-count-SEM_RECEBIMENTO"></span></button>
+      <button id="filtro-RECEBIMENTO_PARCIAL" data-filtro="RECEBIMENTO_PARCIAL" class="btn warning" onclick="aplicarFiltro('RECEBIMENTO_PARCIAL')">🟠 Recebimento parcial <span class="muted" id="filtro-count-RECEBIMENTO_PARCIAL"></span></button>
+      <button id="filtro-OK" data-filtro="OK" class="btn success" onclick="aplicarFiltro('OK')">✅ Sem pendências <span class="muted" id="filtro-count-OK"></span></button>
+    </div>
+    <div class="filtros-extra">
+      <input id="filtroBusca" class="input-busca" type="search" placeholder="Buscar por evento, cliente ou ID..." aria-label="Buscar no painel financeiro">
+      <select id="ordenacaoLista" class="select-ordenacao" aria-label="Ordenação da lista">
+        <option value="PRIORIDADE">Ordenar: Prioridade</option>
+        <option value="DATA_ASC">Data: mais antiga</option>
+        <option value="DATA_DESC">Data: mais recente</option>
+        <option value="VALOR_DESC">Valor: maior primeiro</option>
+      </select>
+      <button id="btnMaisFiltros" class="btn secondary filtro-secundario-toggle" onclick="alternarMaisFiltros()">
+        Mais filtros <i data-lucide="chevron-down"></i>
+      </button>
+    </div>
+  </div>
+  <div id="filtrosSecundarios" class="filtros-secundarios">
+    <button id="filtro-COM_DIVERGENCIA" data-filtro="COM_DIVERGENCIA" class="btn warning" onclick="aplicarFiltro('COM_DIVERGENCIA')">🧩 Divergências <span class="muted" id="filtro-count-COM_DIVERGENCIA"></span></button>
+    <button id="filtro-AVISO_RECEBIDO_MAIOR" data-filtro="AVISO_RECEBIDO_MAIOR" class="btn secondary" onclick="aplicarFiltro('AVISO_RECEBIDO_MAIOR')">ℹ️ Recebido maior <span class="muted" id="filtro-count-AVISO_RECEBIDO_MAIOR"></span></button>
+    <button id="filtro-QUITADO_BV_PENDENTE" data-filtro="QUITADO_BV_PENDENTE" class="btn warning" onclick="aplicarFiltro('QUITADO_BV_PENDENTE')">💥 Quitado + BV pendente <span class="muted" id="filtro-count-QUITADO_BV_PENDENTE"></span></button>
+    <button id="filtro-COMISSAO_PENDENTE" data-filtro="COMISSAO_PENDENTE" class="btn warning" onclick="aplicarFiltro('COMISSAO_PENDENTE')">💼 Comissão pendente <span class="muted" id="filtro-count-COMISSAO_PENDENTE"></span></button>
+    <button id="filtro-COMISSAO_PROBLEMA" data-filtro="COMISSAO_PROBLEMA" class="btn warning" onclick="aplicarFiltro('COMISSAO_PROBLEMA')">🚨 Problema de comissão <span class="muted" id="filtro-count-COMISSAO_PROBLEMA"></span></button>
+    <button id="filtro-LEGADO" data-filtro="LEGADO" class="btn secondary" onclick="aplicarFiltro('LEGADO')">📦 Legado <span class="muted" id="filtro-count-LEGADO"></span></button>
+  </div>
 </div>
 <div class="modo-visual">
   <button id="btnModoDetalhado" class="btn secondary" onclick="setModoVisual('CARDS')">🧾 Detalhado</button>
@@ -750,6 +874,8 @@
   let listaFiltradaAtual = null;
   let MOSTRAR_TODOS_FILTROS_MOBILE = false;
   let PERFIL_ATUAL_NORM = '';
+  let BUSCA_TEXTO = '';
+  let ORDENACAO_ATUAL = 'PRIORIDADE';
 
   function normalizarPerfil_(perfil) {
     return String(perfil || '')
@@ -850,21 +976,27 @@
     return lista;
   }
 
-  function isMobileViewport() {
-    return window.matchMedia('(max-width: 767px)').matches;
-  }
-
   function alternarMaisFiltros() {
     MOSTRAR_TODOS_FILTROS_MOBILE = !MOSTRAR_TODOS_FILTROS_MOBILE;
-    atualizarContadoresFiltros();
+    atualizarBotaoMaisFiltros();
   }
 
   function atualizarBotaoMaisFiltros() {
     const btn = document.getElementById('btnMaisFiltros');
-    const bar = document.getElementById('filtrosExtraBar');
-    if (!btn || !bar) return;
+    const secundarios = document.getElementById('filtrosSecundarios');
+    if (!btn || !secundarios) return;
 
-    const filtrosComZero = [
+    secundarios.classList.toggle('is-open', !!MOSTRAR_TODOS_FILTROS_MOBILE);
+    btn.innerHTML = MOSTRAR_TODOS_FILTROS_MOBILE
+      ? 'Menos filtros <i data-lucide="chevron-up"></i>'
+      : 'Mais filtros <i data-lucide="chevron-down"></i>';
+
+    if (window.lucide) window.lucide.createIcons();
+  }
+
+  function atualizarEstadoFiltrosAtivos() {
+    const filtros = [
+      'TODOS',
       'CRITICOS',
       'COM_DIVERGENCIA',
       'AVISO_RECEBIDO_MAIOR',
@@ -876,17 +1008,48 @@
       'COMISSAO_PROBLEMA',
       'LEGADO',
       'OK'
-    ].filter(tipo => filtrarListaPorTipo(EVENTOS_CACHE, tipo).length === 0);
+    ];
+    filtros.forEach(tipo => {
+      const btn = document.getElementById('filtro-' + tipo);
+      if (!btn) return;
+      btn.classList.toggle('filter-active', FILTRO_ATUAL === tipo);
+    });
+  }
 
-    if (!isMobileViewport() || filtrosComZero.length === 0) {
-      bar.style.display = 'none';
-      btn.style.display = 'none';
-      return;
+  function normalizarBuscaTexto(valor) {
+    return String(valor || '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .trim();
+  }
+
+  function aplicarBuscaLista(listaBase) {
+    const termo = normalizarBuscaTexto(BUSCA_TEXTO);
+    if (!termo) return Array.isArray(listaBase) ? [...listaBase] : [];
+    const lista = Array.isArray(listaBase) ? listaBase : [];
+    return lista.filter(evento => {
+      const id = evento?.idEvento || evento?.id || '';
+      const nome = evento?.nomeEvento || '';
+      const contratante = evento?.nomeContratante || evento?.cliente || evento?.contratante || '';
+      const tipo = evento?.tipoEvento || '';
+      const texto = normalizarBuscaTexto(`${id} ${nome} ${contratante} ${tipo}`);
+      return texto.includes(termo);
+    });
+  }
+
+  function aplicarOrdenacaoLista(listaBase) {
+    const lista = Array.isArray(listaBase) ? [...listaBase] : [];
+    if (ORDENACAO_ATUAL === 'DATA_ASC') {
+      return lista.sort((a, b) => parseDataParaOrdem(a?.dataEvento) - parseDataParaOrdem(b?.dataEvento));
     }
-
-    bar.style.display = 'flex';
-    btn.style.display = 'inline-flex';
-    btn.textContent = MOSTRAR_TODOS_FILTROS_MOBILE ? 'Menos filtros' : 'Mais filtros';
+    if (ORDENACAO_ATUAL === 'DATA_DESC') {
+      return lista.sort((a, b) => parseDataParaOrdem(b?.dataEvento) - parseDataParaOrdem(a?.dataEvento));
+    }
+    if (ORDENACAO_ATUAL === 'VALOR_DESC') {
+      return lista.sort((a, b) => Number(b?.valorContrato || 0) - Number(a?.valorContrato || 0));
+    }
+    return ordenarListaFinanceira(lista);
   }
 
   function temSomenteAlertaInformativo(evento) {
@@ -1068,19 +1231,20 @@
       if (countEl) countEl.textContent = `(${count})`;
       if (btnEl && tipo !== 'TODOS') {
         const shouldDisable = count === 0 && FILTRO_ATUAL !== tipo;
-        const shouldHide = isMobileViewport() && !MOSTRAR_TODOS_FILTROS_MOBILE && count === 0 && FILTRO_ATUAL !== tipo;
-        btnEl.style.display = shouldHide ? 'none' : '';
         btnEl.disabled = shouldDisable;
         btnEl.style.opacity = shouldDisable ? '0.55' : '1';
         btnEl.style.cursor = shouldDisable ? 'not-allowed' : 'pointer';
       }
     });
     atualizarBotaoMaisFiltros();
+    atualizarEstadoFiltrosAtivos();
   }
 
   function aplicarFiltro(tipo, recarregar = true) {
     FILTRO_ATUAL = tipo;
-    const lista = filtrarListaPorTipo(EVENTOS_CACHE, tipo);
+    const listaTipo = filtrarListaPorTipo(EVENTOS_CACHE, tipo);
+    const listaBusca = aplicarBuscaLista(listaTipo);
+    const lista = aplicarOrdenacaoLista(listaBusca);
 
     listaFiltradaAtual = lista;
     atualizarContadoresFiltros();
@@ -1457,6 +1621,21 @@
 window.addEventListener('load', async () => {
   console.log('🚀 painel-financeiro.html iniciado (frontend externo)');
   await detectarPerfilAtual_();
+  const buscaEl = document.getElementById('filtroBusca');
+  if (buscaEl) {
+    buscaEl.addEventListener('input', () => {
+      BUSCA_TEXTO = buscaEl.value || '';
+      aplicarFiltro(FILTRO_ATUAL, false);
+    });
+  }
+  const ordenacaoEl = document.getElementById('ordenacaoLista');
+  if (ordenacaoEl) {
+    ordenacaoEl.addEventListener('change', () => {
+      ORDENACAO_ATUAL = ordenacaoEl.value || 'PRIORIDADE';
+      aplicarFiltro(FILTRO_ATUAL, false);
+    });
+  }
+  atualizarBotaoMaisFiltros();
   carregarPainel();
   window.addEventListener('resize', () => atualizarContadoresFiltros());
 });
