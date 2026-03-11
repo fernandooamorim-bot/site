@@ -28,6 +28,8 @@ let categoriasServicos = [];
 let CURRENT_USER_EMAIL = '';
 let loadingMessageTimer = null;
 let loadingMessageIndex = 0;
+const FOLHA_CACHE_KEY = 'folhaCustos:dataCache:v1';
+const FOLHA_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutos
 
 const LOADING_MESSAGES = [
   'Verificando sessão...',
@@ -167,7 +169,7 @@ function setupEventListeners() {
 // GERENCIAMENTO DE TELAS
 // ═══════════════════════════════════════════════════════════
 
-function showLoading(message = 'Carregando...') {
+function showLoading(message) {
   const screen = document.getElementById('loading-screen');
   if (screen) {
     screen.classList.remove('hidden');
@@ -248,62 +250,142 @@ async function carregarDados() {
   try {
     console.log('📥 Carregando dados do sistema...');
     console.time('⏱️ Tempo total de carregamento');
-    
-    // CORREÇÃO: Carregar TUDO em paralelo (4x mais rápido!)
-    const [configData, musicosData, pacotesData, servicosData] = await Promise.all([
-      apiPost('getConfiguracoes', {}),
+
+    const cache = lerCacheFolhaCustos_();
+    const cacheValido = cacheFolhaValido_(cache);
+    const cacheExpirado = cacheExpirado_(cache);
+
+    if (cacheValido) {
+      aplicarDadosBaseFolha_(cache.configuracoes, cache.musicos, cache.pacotes, cache.servicosTerceirizados);
+      stopLoadingMessageRotation_();
+      updateLoadingMessage('Validando atualizações...');
+    }
+
+    const configAtual = await apiPost('getConfiguracoes', {});
+    const assinaturaAtual = assinaturaConfig_(configAtual);
+    const assinaturaCache = cacheValido ? String(cache.configHash || '') : '';
+    const configMudou = !cacheValido || assinaturaAtual !== assinaturaCache;
+
+    if (!configMudou && !cacheExpirado) {
+      console.log('✅ Cache da Folha válido e configuração inalterada.');
+      console.timeEnd('⏱️ Tempo total de carregamento');
+      return;
+    }
+
+    stopLoadingMessageRotation_();
+    updateLoadingMessage(configMudou ? 'Configuração alterada. Atualizando dados...' : 'Sincronizando dados...');
+
+    const [musicosData, pacotesData, servicosData] = await Promise.all([
       apiPost('getMusicos', {}),
       apiPost('getPacotes', {}),
       apiPost('getServicos', {})
     ]);
-    
-  console.timeEnd('⏱️ Tempo total de carregamento');
-    
-    // ✅ ATRIBUIR DADOS PRIMEIRO (ORDEM CORRETA!)
-    configuracoes = configData;
-    musicos = musicosData;
-    pacotes = pacotesData;
-    servicosTerceirizados = servicosData;
-    
-    console.log('✅ Configurações carregadas:', configuracoes);
-    console.log('✅ Músicos carregados:', musicos.length);
-    console.log('✅ Pacotes carregados:', pacotes.length);
-    console.log('✅ Serviços carregados:', servicosTerceirizados.length);
-    
-    // ✅ AGORA SIM: Atualizar valores globais
-    if (configuracoes && configuracoes.valorPassagemDeSom) {
-      valorPassagemDeSom = configuracoes.valorPassagemDeSom;
-    }
-    
-    // ✅ ATUALIZAR BADGES COM VALORES GLOBAIS
-    if (configuracoes && configuracoes.adicionalForaCidade) {
-      const badgeAdicional = document.getElementById('adicional-valor');
-      if (badgeAdicional) {
-        badgeAdicional.textContent = configuracoes.adicionalForaCidade.toFixed(0);
-      }
-    }
-    
-    if (configuracoes && configuracoes.valorPassagemDeSom) {
-      const badgePassagem = document.getElementById('passagem-valor');
-      if (badgePassagem) {
-        badgePassagem.textContent = configuracoes.valorPassagemDeSom.toFixed(0);
-      }
-    }
-    
-    // ✅ Renderizar serviços completos (sem categoria)
-    if (servicosTerceirizados && servicosTerceirizados.length > 0) {
-      servicosDisponiveis = servicosTerceirizados;
-      renderizarServicosCompletos();
-    }
-    
-    // Renderizar interface
-    renderPacotes(); // ← NOVO: Renderizar pacotes dinamicamente
-    renderMusicos();
+
+    aplicarDadosBaseFolha_(configAtual, musicosData, pacotesData, servicosData);
+    salvarCacheFolhaCustos_(configAtual, musicosData, pacotesData, servicosData, assinaturaAtual);
+
+    console.timeEnd('⏱️ Tempo total de carregamento');
     
   } catch (error) {
     console.error('❌ Erro ao carregar dados:', error);
     throw error;
   }
+}
+
+function aplicarDadosBaseFolha_(configData, musicosData, pacotesData, servicosData) {
+  configuracoes = configData || {};
+  musicos = Array.isArray(musicosData) ? musicosData : [];
+  pacotes = Array.isArray(pacotesData) ? pacotesData : [];
+  servicosTerceirizados = Array.isArray(servicosData) ? servicosData : [];
+
+  console.log('✅ Configurações carregadas:', configuracoes);
+  console.log('✅ Músicos carregados:', musicos.length);
+  console.log('✅ Pacotes carregados:', pacotes.length);
+  console.log('✅ Serviços carregados:', servicosTerceirizados.length);
+
+  if (configuracoes && configuracoes.valorPassagemDeSom) {
+    valorPassagemDeSom = configuracoes.valorPassagemDeSom;
+  }
+
+  if (configuracoes && configuracoes.adicionalForaCidade) {
+    const badgeAdicional = document.getElementById('adicional-valor');
+    if (badgeAdicional) badgeAdicional.textContent = configuracoes.adicionalForaCidade.toFixed(0);
+  }
+
+  if (configuracoes && configuracoes.valorPassagemDeSom) {
+    const badgePassagem = document.getElementById('passagem-valor');
+    if (badgePassagem) badgePassagem.textContent = configuracoes.valorPassagemDeSom.toFixed(0);
+  }
+
+  if (servicosTerceirizados && servicosTerceirizados.length > 0) {
+    servicosDisponiveis = servicosTerceirizados;
+    renderizarServicosCompletos();
+  }
+
+  renderPacotes();
+  renderMusicos();
+}
+
+function lerCacheFolhaCustos_() {
+  try {
+    const raw = localStorage.getItem(FOLHA_CACHE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch (_) {
+    return null;
+  }
+}
+
+function cacheFolhaValido_(cache) {
+  return !!(
+    cache &&
+    cache.ts &&
+    cache.configuracoes &&
+    Array.isArray(cache.musicos) &&
+    Array.isArray(cache.pacotes) &&
+    Array.isArray(cache.servicosTerceirizados)
+  );
+}
+
+function cacheExpirado_(cache) {
+  if (!cache || !cache.ts) return true;
+  return (Date.now() - Number(cache.ts)) > FOLHA_CACHE_TTL_MS;
+}
+
+function salvarCacheFolhaCustos_(configData, musicosData, pacotesData, servicosData, configHash) {
+  try {
+    localStorage.setItem(FOLHA_CACHE_KEY, JSON.stringify({
+      ts: Date.now(),
+      configHash: String(configHash || ''),
+      configuracoes: configData || {},
+      musicos: Array.isArray(musicosData) ? musicosData : [],
+      pacotes: Array.isArray(pacotesData) ? pacotesData : [],
+      servicosTerceirizados: Array.isArray(servicosData) ? servicosData : []
+    }));
+  } catch (e) {
+    console.warn('Falha ao salvar cache da Folha:', e);
+  }
+}
+
+function assinaturaConfig_(cfg) {
+  try {
+    return JSON.stringify(normalizarObjetoParaHash_(cfg || {}));
+  } catch (_) {
+    return '';
+  }
+}
+
+function normalizarObjetoParaHash_(value) {
+  if (Array.isArray(value)) {
+    return value.map(normalizarObjetoParaHash_);
+  }
+  if (value && typeof value === 'object') {
+    const sorted = {};
+    Object.keys(value).sort().forEach((k) => {
+      sorted[k] = normalizarObjetoParaHash_(value[k]);
+    });
+    return sorted;
+  }
+  return value;
 }
 
 // ═══════════════════════════════════════════════════════════
