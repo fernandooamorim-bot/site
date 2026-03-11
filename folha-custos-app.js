@@ -282,28 +282,55 @@ async function carregarDados() {
       updateLoadingMessage('Validando atualizações...');
     }
 
-    const configAtual = await apiPost('getConfiguracoes', {});
-    const assinaturaAtual = assinaturaConfig_(configAtual);
-    const assinaturaCache = cacheValido ? String(cache.configHash || '') : '';
-    const configMudou = !cacheValido || assinaturaAtual !== assinaturaCache;
-
-    if (!configMudou && !cacheExpirado) {
-      console.log('✅ Cache da Folha válido e configuração inalterada.');
-      console.timeEnd('⏱️ Tempo total de carregamento');
-      return;
-    }
-
-    stopLoadingMessageRotation_();
-    updateLoadingMessage(configMudou ? 'Configuração alterada. Atualizando dados...' : 'Sincronizando dados...');
-
-    const [musicosData, pacotesData, servicosData] = await Promise.all([
+    const [configAtual, musicosData, pacotesData, servicosData] = await Promise.all([
+      apiPost('getConfiguracoes', {}),
       apiPost('getMusicos', {}),
       apiPost('getPacotes', {}),
       apiPost('getServicos', {})
     ]);
 
+    const assinaturaAtualConfig = assinaturaConfig_(configAtual);
+    const assinaturaAtualMusicos = assinaturaConfig_(musicosData);
+    const assinaturaAtualPacotes = assinaturaConfig_(pacotesData);
+    const assinaturaAtualServicos = assinaturaConfig_(servicosData);
+
+    const assinaturaCacheConfig = cacheValido ? String(cache.configHash || '') : '';
+    const assinaturaCacheMusicos = cacheValido ? String(cache.musicosHash || '') : '';
+    const assinaturaCachePacotes = cacheValido ? String(cache.pacotesHash || '') : '';
+    const assinaturaCacheServicos = cacheValido ? String(cache.servicosHash || '') : '';
+
+    const dadosBaseMudaram = (
+      !cacheValido ||
+      assinaturaAtualConfig !== assinaturaCacheConfig ||
+      assinaturaAtualMusicos !== assinaturaCacheMusicos ||
+      assinaturaAtualPacotes !== assinaturaCachePacotes ||
+      assinaturaAtualServicos !== assinaturaCacheServicos
+    );
+
+    if (!dadosBaseMudaram && !cacheExpirado) {
+      console.log('✅ Cache da Folha válido e dados base inalterados.');
+      console.timeEnd('⏱️ Tempo total de carregamento');
+      return;
+    }
+
+    stopLoadingMessageRotation_();
+    updateLoadingMessage(
+      dadosBaseMudaram
+        ? 'Dados atualizados na planilha. Sincronizando...'
+        : 'Sincronizando dados...'
+    );
+
     aplicarDadosBaseFolha_(configAtual, musicosData, pacotesData, servicosData);
-    salvarCacheFolhaCustos_(configAtual, musicosData, pacotesData, servicosData, assinaturaAtual);
+    salvarCacheFolhaCustos_(
+      configAtual,
+      musicosData,
+      pacotesData,
+      servicosData,
+      assinaturaAtualConfig,
+      assinaturaAtualMusicos,
+      assinaturaAtualPacotes,
+      assinaturaAtualServicos
+    );
 
     console.timeEnd('⏱️ Tempo total de carregamento');
     
@@ -372,11 +399,23 @@ function cacheExpirado_(cache) {
   return (Date.now() - Number(cache.ts)) > FOLHA_CACHE_TTL_MS;
 }
 
-function salvarCacheFolhaCustos_(configData, musicosData, pacotesData, servicosData, configHash) {
+function salvarCacheFolhaCustos_(
+  configData,
+  musicosData,
+  pacotesData,
+  servicosData,
+  configHash,
+  musicosHash,
+  pacotesHash,
+  servicosHash
+) {
   try {
     localStorage.setItem(FOLHA_CACHE_KEY, JSON.stringify({
       ts: Date.now(),
       configHash: String(configHash || ''),
+      musicosHash: String(musicosHash || ''),
+      pacotesHash: String(pacotesHash || ''),
+      servicosHash: String(servicosHash || ''),
       configuracoes: configData || {},
       musicos: Array.isArray(musicosData) ? musicosData : [],
       pacotes: Array.isArray(pacotesData) ? pacotesData : [],
