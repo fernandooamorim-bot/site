@@ -20,6 +20,7 @@
   <title>Agenda de Eventos • FA Produções</title>
   <script src="https://accounts.google.com/gsi/client" async defer></script>
   <script src="auth.js" defer></script>
+  <script src="status-formatters.js" defer></script>
 
   <!-- Lucide Icons -->
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js" defer></script>
@@ -1545,9 +1546,10 @@
           <label class="filter-label">Status</label>
           <select class="filter-select" id="filterStatus">
             <option value="">Todos os status</option>
-            <option value="Pendente">Pendente</option>
-            <option value="Pago">Pago</option>
-            <option value="Parcial">Parcialmente Pago</option>
+            <option value="EM_ABERTO">Em aberto</option>
+            <option value="PARCIAL">Parcial</option>
+            <option value="QUITADO">Quitado</option>
+            <option value="N/A">Não se aplica</option>
           </select>
         </div>
         <div class="filter-group">
@@ -1913,25 +1915,51 @@ if (!AUTH.email || !AUTH.session) {
         }
       },
 
+      getStatusCode(status, evento) {
+        const opts = evento && typeof evento === 'object'
+          ? {
+              valorRecebido: evento.valorRecebido,
+              valorPendente: evento.valorPendente,
+              valorTotal: evento.valor
+            }
+          : {};
+        if (window.StatusFormatters && typeof window.StatusFormatters.normalizeStatusRecebimento === 'function') {
+          return window.StatusFormatters.normalizeStatusRecebimento(status, opts);
+        }
+        const s = String(status || '').trim().toUpperCase();
+        if (s === 'PAGO' || s === 'PROCESSADO') return 'QUITADO';
+        if (s === 'ABERTO' || s === 'PENDENTE') return 'EM_ABERTO';
+        return s || 'EM_ABERTO';
+      },
+
       getStatusBadge(status) {
+        if (window.StatusFormatters && typeof window.StatusFormatters.badgeClassStatusRecebimento === 'function') {
+          return window.StatusFormatters.badgeClassStatusRecebimento(this.getStatusCode(status));
+        }
         const badges = {
           'Pendente': 'status-pendente',
           'Pago': 'status-pago',
           'Parcial': 'status-parcial',
-          'Parcialmente Pago': 'status-parcial'
+          'Parcialmente Pago': 'status-parcial',
+          'EM_ABERTO': 'status-pendente',
+          'QUITADO': 'status-pago'
         };
-
         return badges[status] || 'status-pendente';
       },
 
       getStatusLabel(status) {
+        if (window.StatusFormatters && typeof window.StatusFormatters.labelStatusRecebimento === 'function') {
+          return window.StatusFormatters.labelStatusRecebimento(this.getStatusCode(status));
+        }
         const labels = {
           'Pendente': 'Pendente',
           'Pago': 'Pago',
           'Parcial': 'Parcial',
-          'Parcialmente Pago': 'Parcial'
+          'Parcialmente Pago': 'Parcial',
+          'EM_ABERTO': 'Em aberto',
+          'QUITADO': 'Quitado',
+          'N/A': 'Não se aplica'
         };
-
         return labels[status] || status;
       },
 calcularDiasIntervalo(dataInicio, dataFim) {
@@ -2209,7 +2237,7 @@ calcularDiasIntervalo(dataInicio, dataFim) {
           ? `${evento.hora || '-'} → ${evento.horaFim}${evento.duracao ? ` (${evento.duracao})` : ''}`
           : `${evento.hora || '-'}${evento.duracao ? ` (${evento.duracao})` : ''}`;
         const valor = evento.valor || evento.valor === 0 ? Utils.formatarMoeda(Number(evento.valor) || 0) : '-';
-        const status = evento.status || '-';
+        const status = Utils.getStatusLabel(evento.status || '-');
 
         return `
           <tr class="${classe}">
@@ -2394,7 +2422,7 @@ criarCardEvento(evento) {
 
   if (podeVerValor && evento.tipo === 'Evento') {
     addDetalhe('Valor Total', evento.valor ? Utils.formatarMoeda(evento.valor) : '-');
-    addDetalhe('Status Financeiro', evento.status || '-');
+    addDetalhe('Status Financeiro', Utils.getStatusLabel(evento.status || '-'));
   }
 
   const conflitosHtml = temConflitos
@@ -2914,7 +2942,7 @@ renderizarEventosDentro(evento) {
 
           // Filtro de status
           if (status) {
-            eventosFiltrados = eventosFiltrados.filter(e => e.status === status);
+            eventosFiltrados = eventosFiltrados.filter(e => Utils.getStatusCode(e.status, e) === status);
           }
 
           // Filtro de local
@@ -3196,7 +3224,7 @@ renderizarEventosDentro(evento) {
             e.cerimonialista || '',
             e.look || '',
             e.somResponsavel || '',
-            e.status || '',
+            Utils.getStatusCode(e.status, e) || '',
             e.valor || 0,
             e.observacoes || ''
           ]);

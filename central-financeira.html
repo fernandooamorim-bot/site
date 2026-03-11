@@ -24,6 +24,7 @@
 
   <!-- Auth padrão do sistema -->
   <script src="auth.js"></script>
+  <script src="status-formatters.js"></script>
 
   <!-- Lucide Icons -->
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js" defer></script>
@@ -2150,7 +2151,14 @@ async function selectEvento(ev){
   }
 
   let extraHtml = '';
-  let statusFinal = fin.statusRecebimento || '—';
+  let statusFinal = (window.StatusFormatters && typeof window.StatusFormatters.labelStatusRecebimento === 'function')
+    ? window.StatusFormatters.labelStatusRecebimento(fin.statusRecebimento, {
+        valorRecebido: vr,
+        valorPendente: vp,
+        valorTotal: vt,
+        detailed: true
+      })
+    : (fin.statusRecebimento || '—');
 
   if (vp < 0) {
     const excedente = Math.abs(vp);
@@ -2159,7 +2167,7 @@ async function selectEvento(ev){
         ⚠️ Valor pago a mais: R$ ${excedente.toFixed(2)}
       </div>
     `;
-    statusFinal = 'QUITADO (com excedente)';
+    statusFinal = 'Quitado (com excedente)';
   }
 
   const valorBV = Number(fin.valorBV || 0);
