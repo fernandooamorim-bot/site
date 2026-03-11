@@ -252,28 +252,26 @@
       margin-top: 24px;
       margin-bottom: 10px;
       display: grid;
-      gap: 10px;
+      gap: 8px;
     }
 
-    .filtros-top {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 10px;
-      flex-wrap: wrap;
+    .filtros-label {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.35px;
+      text-transform: uppercase;
+      color: var(--gray-500);
+      margin-top: 2px;
     }
 
     .filtros-extra {
-      display: flex;
-      align-items: center;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 220px;
       gap: 8px;
-      flex-wrap: wrap;
-      justify-content: flex-end;
+      align-items: center;
     }
 
     .filtros-extra .input-busca {
-      min-width: 260px;
-      max-width: 360px;
       width: 100%;
       border: 1px solid var(--gray-200);
       border-radius: 10px;
@@ -296,7 +294,7 @@
       font-size: 13px;
       color: var(--gray-700);
       background: #fff;
-      min-width: 180px;
+      width: 100%;
     }
 
     .filtros {
@@ -310,7 +308,12 @@
       display: none;
       gap: 8px;
       flex-wrap: wrap;
+      margin-top: 2px;
       margin-bottom: 2px;
+      padding: 10px;
+      border: 1px solid var(--gray-200);
+      border-radius: 12px;
+      background: linear-gradient(180deg, #fbfcff 0%, #f5f7fb 100%);
     }
 
     .filtros-secundarios.is-open {
@@ -648,14 +651,9 @@
         margin-top: 20px;
       }
 
-      .filtros-top {
-        flex-direction: column;
-        align-items: stretch;
-      }
-
       .filtros-extra {
         width: 100%;
-        justify-content: stretch;
+        grid-template-columns: 1fr;
       }
 
       .filtros-extra .input-busca,
@@ -827,27 +825,27 @@
 </header>
 
 <div class="filtros-shell">
-  <div class="filtros-top">
-    <div class="filtros">
-      <button id="filtro-TODOS" data-filtro="TODOS" class="btn secondary" onclick="aplicarFiltro('TODOS')">Todos <span class="muted" id="filtro-count-TODOS"></span></button>
-      <button id="filtro-CRITICOS" data-filtro="CRITICOS" class="btn warning" onclick="aplicarFiltro('CRITICOS')">🚨 Críticos <span class="muted" id="filtro-count-CRITICOS"></span></button>
-      <button id="filtro-PENDENCIA_RECEBIMENTO" data-filtro="PENDENCIA_RECEBIMENTO" class="btn warning" onclick="aplicarFiltro('PENDENCIA_RECEBIMENTO')">💰 Pendência de recebimento <span class="muted" id="filtro-count-PENDENCIA_RECEBIMENTO"></span></button>
-      <button id="filtro-SEM_RECEBIMENTO" data-filtro="SEM_RECEBIMENTO" class="btn warning" onclick="aplicarFiltro('SEM_RECEBIMENTO')">🔴 Sem recebimento <span class="muted" id="filtro-count-SEM_RECEBIMENTO"></span></button>
-      <button id="filtro-RECEBIMENTO_PARCIAL" data-filtro="RECEBIMENTO_PARCIAL" class="btn warning" onclick="aplicarFiltro('RECEBIMENTO_PARCIAL')">🟠 Recebimento parcial <span class="muted" id="filtro-count-RECEBIMENTO_PARCIAL"></span></button>
-      <button id="filtro-OK" data-filtro="OK" class="btn success" onclick="aplicarFiltro('OK')">✅ Sem pendências <span class="muted" id="filtro-count-OK"></span></button>
-    </div>
-    <div class="filtros-extra">
-      <input id="filtroBusca" class="input-busca" type="search" placeholder="Buscar por evento, cliente ou ID..." aria-label="Buscar no painel financeiro">
-      <select id="ordenacaoLista" class="select-ordenacao" aria-label="Ordenação da lista">
-        <option value="PRIORIDADE">Ordenar: Prioridade</option>
-        <option value="DATA_ASC">Data: mais antiga</option>
-        <option value="DATA_DESC">Data: mais recente</option>
-        <option value="VALOR_DESC">Valor: maior primeiro</option>
-      </select>
-      <button id="btnMaisFiltros" class="btn secondary filtro-secundario-toggle" onclick="alternarMaisFiltros()">
-        Mais filtros <i data-lucide="chevron-down"></i>
-      </button>
-    </div>
+  <div class="filtros-label">Filtros principais</div>
+  <div class="filtros">
+    <button id="filtro-TODOS" data-filtro="TODOS" class="btn secondary" onclick="aplicarFiltro('TODOS')">Todos <span class="muted" id="filtro-count-TODOS"></span></button>
+    <button id="filtro-CRITICOS" data-filtro="CRITICOS" class="btn warning" onclick="aplicarFiltro('CRITICOS')">🚨 Críticos <span class="muted" id="filtro-count-CRITICOS"></span></button>
+    <button id="filtro-PENDENCIA_RECEBIMENTO" data-filtro="PENDENCIA_RECEBIMENTO" class="btn warning" onclick="aplicarFiltro('PENDENCIA_RECEBIMENTO')">💰 Pendência de recebimento <span class="muted" id="filtro-count-PENDENCIA_RECEBIMENTO"></span></button>
+    <button id="filtro-SEM_RECEBIMENTO" data-filtro="SEM_RECEBIMENTO" class="btn warning" onclick="aplicarFiltro('SEM_RECEBIMENTO')">🔴 Sem recebimento <span class="muted" id="filtro-count-SEM_RECEBIMENTO"></span></button>
+    <button id="filtro-RECEBIMENTO_PARCIAL" data-filtro="RECEBIMENTO_PARCIAL" class="btn warning" onclick="aplicarFiltro('RECEBIMENTO_PARCIAL')">🟠 Recebimento parcial <span class="muted" id="filtro-count-RECEBIMENTO_PARCIAL"></span></button>
+    <button id="filtro-OK" data-filtro="OK" class="btn success" onclick="aplicarFiltro('OK')">✅ Sem pendências <span class="muted" id="filtro-count-OK"></span></button>
+    <button id="btnMaisFiltros" class="btn secondary filtro-secundario-toggle" onclick="alternarMaisFiltros()">
+      Mais filtros <i data-lucide="chevron-down"></i>
+    </button>
+  </div>
+  <div class="filtros-label">Refino</div>
+  <div class="filtros-extra">
+    <input id="filtroBusca" class="input-busca" type="search" placeholder="Buscar por evento, cliente ou ID..." aria-label="Buscar no painel financeiro">
+    <select id="ordenacaoLista" class="select-ordenacao" aria-label="Ordenação da lista">
+      <option value="PRIORIDADE">Ordenar: Prioridade</option>
+      <option value="DATA_ASC">Data: mais antiga</option>
+      <option value="DATA_DESC">Data: mais recente</option>
+      <option value="VALOR_DESC">Valor: maior primeiro</option>
+    </select>
   </div>
   <div id="filtrosSecundarios" class="filtros-secundarios">
     <button id="filtro-COM_DIVERGENCIA" data-filtro="COM_DIVERGENCIA" class="btn warning" onclick="aplicarFiltro('COM_DIVERGENCIA')">🧩 Divergências <span class="muted" id="filtro-count-COM_DIVERGENCIA"></span></button>
@@ -876,6 +874,14 @@
   let PERFIL_ATUAL_NORM = '';
   let BUSCA_TEXTO = '';
   let ORDENACAO_ATUAL = 'PRIORIDADE';
+  const FILTROS_SECUNDARIOS = new Set([
+    'COM_DIVERGENCIA',
+    'AVISO_RECEBIDO_MAIOR',
+    'QUITADO_BV_PENDENTE',
+    'COMISSAO_PENDENTE',
+    'COMISSAO_PROBLEMA',
+    'LEGADO'
+  ]);
 
   function normalizarPerfil_(perfil) {
     return String(perfil || '')
@@ -1242,6 +1248,9 @@
 
   function aplicarFiltro(tipo, recarregar = true) {
     FILTRO_ATUAL = tipo;
+    if (FILTROS_SECUNDARIOS.has(tipo)) {
+      MOSTRAR_TODOS_FILTROS_MOBILE = true;
+    }
     const listaTipo = filtrarListaPorTipo(EVENTOS_CACHE, tipo);
     const listaBusca = aplicarBuscaLista(listaTipo);
     const lista = aplicarOrdenacaoLista(listaBusca);
