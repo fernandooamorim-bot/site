@@ -61,8 +61,9 @@ document.addEventListener('DOMContentLoaded', async function() {
       .replace(/[\u0300-\u036f]/g, '')
       .trim()
       .toLowerCase();
-    if (perfil !== 'proprietario') {
-      alert('Área disponível apenas para Proprietário.');
+    const permitido = (perfil === 'proprietario' || perfil === 'producao');
+    if (!permitido) {
+      alert('Área disponível apenas para Proprietário e Produção.');
       window.location.href = 'index.html';
       return;
     }

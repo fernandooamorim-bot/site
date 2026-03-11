@@ -1472,8 +1472,9 @@
    */
   function aplicarPermissoes(user) {
     var perfilNorm = normalizarPerfil(user.perfil);
+    var perfilRestritoAgenda = (perfilNorm === 'musico' || perfilNorm === 'producao');
 
-    if (user.perfil === 'Músico') {
+    if (perfilRestritoAgenda) {
     ocultar('cardNovoEvento');
     ocultar('cardEditarEvento');
     ocultar('cardCentralFinanceira');
@@ -1481,7 +1482,6 @@
     ocultar('cardDashboardGestao');
     ocultar('cardGerarAgenda');
     ocultar('cardOrcamento');
-    ocultar('cardFolhaCustos');
     ocultar('cardPrecificadorShow');
     
 
@@ -1489,8 +1489,9 @@
     ocultar('bnavEditarEvento');
     }
 
-    // Card de Folha de Custos é exclusivo do Proprietário.
-    if (perfilNorm !== 'proprietario') {
+    // Card de Folha de Custos é para Proprietário e Produção.
+    const podeFolhaCustos = (perfilNorm === 'proprietario') || (perfilNorm === 'producao');
+    if (!podeFolhaCustos) {
       ocultar('cardFolhaCustos');
     }
 

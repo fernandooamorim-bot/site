@@ -1699,6 +1699,13 @@ if (!AUTH.email || !AUTH.session) {
       if (!AppState.usuario) return false;
       return normalizarPerfilAgenda_(AppState.usuario.perfil) === 'musico';
     }
+    function isProducao() {
+      if (!AppState.usuario) return false;
+      return normalizarPerfilAgenda_(AppState.usuario.perfil) === 'producao';
+    }
+    function isPerfilRestritoAgenda() {
+      return isMusico() || isProducao();
+    }
 
     function isGestorAgenda() {
       if (!AppState.usuario || !AppState.usuario.perfil) return false;
@@ -2738,6 +2745,19 @@ renderizarEventosDentro(evento) {
       return eventos;
     }
 
+    if (isProducao()) {
+      Utils.log('Produção: mostrando Evento/Bloqueio/Reserva e ocultando Reunião');
+      return eventos.filter(e => {
+        const tipo = String(e?.tipo || '').trim().toLowerCase();
+        return (
+          tipo === 'evento' ||
+          tipo === 'bloqueio' ||
+          tipo === 'reserva' ||
+          tipo.includes('reserva')
+        );
+      });
+    }
+
     // Músicos veem APENAS Eventos
     Utils.log('Músico: filtrando apenas tipo Evento');
     return eventos.filter(e => e.tipo === 'Evento');
@@ -2867,6 +2887,14 @@ renderizarEventosDentro(evento) {
             if (!data) return false;
             data.setHours(0, 0, 0, 0);
             return data >= hoje && data <= limiteMusico;
+          });
+        }
+        if (isProducao()) {
+          eventosFiltrados = eventosFiltrados.filter(e => {
+            const data = Utils.parseData(e.data);
+            if (!data) return false;
+            data.setHours(0, 0, 0, 0);
+            return data >= hoje;
           });
         }
 
@@ -3036,7 +3064,7 @@ renderizarEventosDentro(evento) {
           AgendaController.setupEventListeners();
 
           // 5. Aplica filtro padrão da CONFIG
-          const filtroPadrao = isMusico()
+          const filtroPadrao = isPerfilRestritoAgenda()
             ? 'proximos'
             : (AppState.config.AGENDA_FILTRO_PADRAO || 'todos');
           Utils.log('Aplicando filtro padrão:', filtroPadrao);
@@ -3102,7 +3130,7 @@ renderizarEventosDentro(evento) {
           AppState.ultimaAtualizacao = AppState.cache.timestamp || Date.now();
           this.atualizarFiltrosAnuaisRapidos();
 
-          const filtroPadrao = isMusico()
+          const filtroPadrao = isPerfilRestritoAgenda()
             ? 'proximos'
             : (AppState.config.AGENDA_FILTRO_PADRAO || 'proximos');
           FiltroManager.aplicarFiltroRapido(filtroPadrao);
@@ -3141,7 +3169,7 @@ renderizarEventosDentro(evento) {
 
         AppState.modoVisualizacao = 'cards';
         if (viewToolbar) viewToolbar.classList.remove('show');
-        if (!isMusico()) return;
+        if (!isPerfilRestritoAgenda()) return;
 
         const botaoTodos = document.querySelector('[data-filter="todos"]');
         if (botaoTodos) botaoTodos.style.display = 'none';
@@ -3419,7 +3447,7 @@ renderizarEventosDentro(evento) {
       this.salvarCachePersistente();
       this.atualizarFiltrosAnuaisRapidos();
 
-      const filtro = AppState.filtroAtivo || (isMusico() ? 'proximos' : 'todos');
+      const filtro = AppState.filtroAtivo || (isPerfilRestritoAgenda() ? 'proximos' : 'todos');
       FiltroManager.aplicarFiltroRapido(filtro);
       if (this.configBool('AGENDA_CACHE_NOTIFY_UPDATE', true)) {
         UI.showToast('Agenda atualizada com sucesso.', 'success', 1800);
@@ -3762,7 +3790,7 @@ renderizarEventosDentro(evento) {
               // Recarrega
               await AgendaController.carregarEventosComCache();
               AgendaController.atualizarFiltrosAnuaisRapidos();
-              const filtroPadrao = isMusico()
+              const filtroPadrao = isPerfilRestritoAgenda()
                 ? 'proximos'
                 : (AppState.config.AGENDA_FILTRO_PADRAO || 'todos');
               FiltroManager.aplicarFiltroRapido(filtroPadrao);
