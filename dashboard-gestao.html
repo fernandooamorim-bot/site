@@ -581,6 +581,7 @@
         dataEvento: dataInfo?.label || String(evento?.dataEvento || ''),
         anoEvento: dataInfo?.ano || null,
         mesEvento: dataInfo?.mes || null,
+        diaEvento: dataInfo?.dia || null,
         recebido: totalRecebido,
         saidas: saidas,
         liquido: liquido
@@ -615,7 +616,12 @@
 
       const nomesMes = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
       const html = mesesComDados.sort((a, b) => a - b).map((mes, idx) => {
-        const lista = meses[mes].sort((a, b) => b.liquido - a.liquido);
+        const lista = meses[mes].sort((a, b) => {
+          const da = Number(a?.diaEvento || 0);
+          const db = Number(b?.diaEvento || 0);
+          if (da !== db) return da - db;
+          return String(a?.nomeEvento || '').localeCompare(String(b?.nomeEvento || ''), 'pt-BR');
+        });
         const totalRecebido = lista.reduce((s, x) => s + x.recebido, 0);
         const totalSaidas = lista.reduce((s, x) => s + x.saidas, 0);
         const totalLiquido = lista.reduce((s, x) => s + x.liquido, 0);
