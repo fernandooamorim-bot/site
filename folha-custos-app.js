@@ -1,0 +1,1629 @@
+/**
+ * ═══════════════════════════════════════════════════════════
+ * APLICAÇÃO PRINCIPAL - FOLHA DE CUSTOS (CORRIGIDO PARA CORS)
+ * Banda Fernando Amorim
+ * ═══════════════════════════════════════════════════════════
+ */
+
+// ═══════════════════════════════════════════════════════════
+// VARIÁVEIS GLOBAIS
+// ═══════════════════════════════════════════════════════════
+
+let configuracoes = null;
+let musicos = [];
+let pacotes = [];
+let servicosTerceirizados = [];
+let musicosSelecionados = new Map();
+let terceirizadosAtivos = [];
+let musicoEmAjuste = null;
+let relatorioAtual = null; // Armazena relatório gerado
+// Passagem de Som
+let passagemDeSomAtiva = false;
+let valorPassagemDeSom = 50;
+let passagemDeSomPorMusico = {};
+
+// Serviços Globalizados
+let servicosDisponiveis = [];
+let categoriasServicos = [];
+let CURRENT_USER_EMAIL = '';
+
+// ═══════════════════════════════════════════════════════════
+// INICIALIZAÇÃO
+// ═══════════════════════════════════════════════════════════
+
+document.addEventListener('DOMContentLoaded', async function() {
+  console.log('🚀 Iniciando sistema...');
+  
+  showLoading('Verificando sessão...');
+
+  setupEventListeners();
+  
+  try {
+    if (!window.Auth) throw new Error('AUTH_NOT_LOADED');
+    const auth = await Auth.apiCall('verificarUsuario');
+    if (!auth || !auth.ok || !auth.user) throw new Error('NOT_AUTH');
+
+    const perfil = String(auth.user.perfil || '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .trim()
+      .toLowerCase();
+    if (perfil !== 'proprietario') {
+      alert('Área disponível apenas para Proprietário.');
+      window.location.href = 'index.html';
+      return;
+    }
+
+    CURRENT_USER_EMAIL = String(auth.user.email || localStorage.getItem('auth_email') || '').trim();
+    if (auth.user.nome) localStorage.setItem('auth_nome', String(auth.user.nome));
+    updateLoadingMessage('Carregando dados...');
+    await carregarDados();
+    hideLoading();
+    showApp();
+  } catch (error) {
+    console.error('❌ Erro na inicialização:', error);
+    alert('Sessão inválida. Faça login novamente.');
+    window.location.href = 'index.html';
+  }
+});
+
+// ═══════════════════════════════════════════════════════════
+// EVENT LISTENERS
+// ═══════════════════════════════════════════════════════════
+
+function setupEventListeners() {
+  const btnLogout = document.getElementById('btn-logout');
+  if (btnLogout) {
+    btnLogout.addEventListener('click', () => Auth.logout());
+  }
+  
+  const eventoForaCidade = document.getElementById('evento-fora-cidade');
+  if (eventoForaCidade) {
+    eventoForaCidade.addEventListener('change', function() {
+      const badge = document.getElementById('adicional-info');
+      if (this.checked) {
+        badge.classList.remove('hidden');
+      } else {
+        badge.classList.add('hidden');
+      }
+
+      // 🔄 Força re-render dos cards para remover "Extra Fora da Cidade"
+      renderMusicos();
+      recalcular();
+    });
+
+    // Event listener para passagem de som
+    const passagemCheckbox = document.getElementById('passagem-de-som-checkbox');
+    if (passagemCheckbox) {
+      passagemCheckbox.addEventListener('change', function() {
+        passagemDeSomAtiva = this.checked;
+        if (this.checked) {
+          musicosSelecionados.forEach((_, musicoId) => {
+            if (!(musicoId in passagemDeSomPorMusico)) {
+              passagemDeSomPorMusico[musicoId] = true;
+            }
+          });
+        } else {
+          passagemDeSomPorMusico = {};
+        }
+        const badge = document.getElementById('passagem-info');
+        if (this.checked) {
+          badge.classList.remove('hidden');
+          adicionarCheckboxesPassagemNosCards();
+        } else {
+          badge.classList.add('hidden');
+          removerCheckboxesPassagemDosCards();
+        }
+        recalcular();
+      });
+    }
+  }
+  
+  const tiposPdf = document.querySelectorAll('input[name="tipo-pdf"]');
+  tiposPdf.forEach(radio => {
+    radio.addEventListener('change', function() {
+      const eventoUnico = document.getElementById('pdf-evento-unico');
+      const periodo = document.getElementById('pdf-periodo');
+      
+      if (this.value === 'evento') {
+        eventoUnico.classList.remove('hidden');
+        periodo.classList.add('hidden');
+      } else {
+        eventoUnico.classList.add('hidden');
+        periodo.classList.remove('hidden');
+      }
+    });
+  });
+  
+  const adicionalExtra = document.getElementById('modal-adicional-extra');
+  if (adicionalExtra) {
+    adicionalExtra.addEventListener('input', atualizarTotalModal);
+  }
+
+  // 🔁 NOVO: atualizar resumo ao digitar nome e data do evento
+  const nomeEventoInput = document.getElementById('evento-nome');
+  const dataEventoInput = document.getElementById('evento-data');
+
+  if (nomeEventoInput) {
+    nomeEventoInput.addEventListener('input', recalcular);
+  }
+
+  if (dataEventoInput) {
+    dataEventoInput.addEventListener('change', recalcular);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// GERENCIAMENTO DE TELAS
+// ═══════════════════════════════════════════════════════════
+
+function showLoading(message = 'Carregando...') {
+  const screen = document.getElementById('loading-screen');
+  if (screen) {
+    screen.classList.remove('hidden');
+    updateLoadingMessage(message);
+  }
+}
+
+function hideLoading() {
+  const screen = document.getElementById('loading-screen');
+  if (screen) {
+    screen.classList.add('hidden');
+  }
+}
+
+function updateLoadingMessage(message) {
+  const elem = document.getElementById('loading-message');
+  if (elem) {
+    elem.textContent = message;
+  }
+}
+
+function showApp() {
+  document.getElementById('loading-screen').classList.add('hidden');
+  document.getElementById('app-screen').classList.remove('hidden');
+  
+  const emailAtual = CURRENT_USER_EMAIL || localStorage.getItem('auth_email') || '';
+  const nomeAtual = String(localStorage.getItem('auth_nome') || '').trim();
+  const emailElem = document.getElementById('user-email');
+  if (emailElem) emailElem.textContent = emailAtual;
+
+  const ghName = document.getElementById('ghName');
+  if (ghName) ghName.textContent = nomeAtual ? nomeAtual.split(' ')[0] : 'Usuário';
+
+  const ghAvatar = document.getElementById('ghAvatar');
+  if (ghAvatar) {
+    if (!nomeAtual) {
+      ghAvatar.textContent = 'US';
+    } else {
+      const partes = nomeAtual.split(' ').filter(Boolean);
+      ghAvatar.textContent = partes.length >= 2
+        ? (partes[0][0] + partes[partes.length - 1][0]).toUpperCase()
+        : nomeAtual.slice(0, 2).toUpperCase();
+    }
+  }
+
+  if (window.lucide) window.lucide.createIcons();
+}
+
+// ═══════════════════════════════════════════════════════════
+// CARREGAMENTO DE DADOS
+// ═══════════════════════════════════════════════════════════
+
+
+async function carregarDados() {
+  try {
+    console.log('📥 Carregando dados do sistema...');
+    console.time('⏱️ Tempo total de carregamento');
+    
+    // CORREÇÃO: Carregar TUDO em paralelo (4x mais rápido!)
+    const [configData, musicosData, pacotesData, servicosData] = await Promise.all([
+      apiPost('getConfiguracoes', {}),
+      apiPost('getMusicos', {}),
+      apiPost('getPacotes', {}),
+      apiPost('getServicos', {})
+    ]);
+    
+  console.timeEnd('⏱️ Tempo total de carregamento');
+    
+    // ✅ ATRIBUIR DADOS PRIMEIRO (ORDEM CORRETA!)
+    configuracoes = configData;
+    musicos = musicosData;
+    pacotes = pacotesData;
+    servicosTerceirizados = servicosData;
+    
+    console.log('✅ Configurações carregadas:', configuracoes);
+    console.log('✅ Músicos carregados:', musicos.length);
+    console.log('✅ Pacotes carregados:', pacotes.length);
+    console.log('✅ Serviços carregados:', servicosTerceirizados.length);
+    
+    // ✅ AGORA SIM: Atualizar valores globais
+    if (configuracoes && configuracoes.valorPassagemDeSom) {
+      valorPassagemDeSom = configuracoes.valorPassagemDeSom;
+    }
+    
+    // ✅ ATUALIZAR BADGES COM VALORES GLOBAIS
+    if (configuracoes && configuracoes.adicionalForaCidade) {
+      const badgeAdicional = document.getElementById('adicional-valor');
+      if (badgeAdicional) {
+        badgeAdicional.textContent = configuracoes.adicionalForaCidade.toFixed(0);
+      }
+    }
+    
+    if (configuracoes && configuracoes.valorPassagemDeSom) {
+      const badgePassagem = document.getElementById('passagem-valor');
+      if (badgePassagem) {
+        badgePassagem.textContent = configuracoes.valorPassagemDeSom.toFixed(0);
+      }
+    }
+    
+    // ✅ Renderizar serviços completos (sem categoria)
+    if (servicosTerceirizados && servicosTerceirizados.length > 0) {
+      servicosDisponiveis = servicosTerceirizados;
+      renderizarServicosCompletos();
+    }
+    
+    // Renderizar interface
+    renderPacotes(); // ← NOVO: Renderizar pacotes dinamicamente
+    renderMusicos();
+    
+  } catch (error) {
+    console.error('❌ Erro ao carregar dados:', error);
+    throw error;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// FORMATAÇÃO DE DATA
+// ═══════════════════════════════════════════════════════════
+
+function formatarDataCompleta(dataString) {
+  const data = new Date(dataString);
+  
+  const dias = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
+  const diaSemana = dias[data.getDay()];
+  
+  const dia = String(data.getDate()).padStart(2, '0');
+  const mes = String(data.getMonth() + 1).padStart(2, '0');
+  const ano = data.getFullYear();
+  
+  return `${dia}/${mes}/${ano} (${diaSemana})`;
+}
+
+function formatarDataSimples(dataString) {
+  const data = new Date(dataString);
+  
+  const dia = String(data.getDate()).padStart(2, '0');
+  const mes = String(data.getMonth() + 1).padStart(2, '0');
+  const ano = data.getFullYear();
+  
+  return `${dia}/${mes}/${ano}`;
+}
+
+function limparDados() {
+  configuracoes = null;
+  musicos = [];
+  pacotes = [];
+  servicosTerceirizados = [];
+  musicosSelecionados.clear();
+  terceirizadosAtivos = [];
+}
+
+// ═══════════════════════════════════════════════════════════
+// REQUISIÇÕES À API - USANDO POST PARA TUDO (CORS FIX)
+// ═══════════════════════════════════════════════════════════
+
+async function apiPost(action, data = {}) {
+  try {
+    console.log(`📡 API POST: ${action}`);
+
+    // Compatibilidade com chamadas antigas do frontend legado.
+    let externalAction = action;
+    let payload = Object.assign({}, data || {});
+
+    if (action === 'gerarPDF') {
+      externalAction = 'gerarPDFRelatorio';
+      const dataEvento = String((data && data.data && data.data.data) || '').trim();
+      payload = {
+        dataInicio: dataEvento,
+        dataFim: dataEvento,
+        tipo: 'detalhado'
+      };
+    } else if (action === 'gerarPDFPeriodo') {
+      externalAction = 'gerarPDFRelatorio';
+      payload = {
+        dataInicio: String((data && data.data && data.data.dataInicio) || '').trim(),
+        dataFim: String((data && data.data && data.data.dataFim) || '').trim(),
+        tipo: 'detalhado'
+      };
+    }
+
+    const resp = await Auth.apiCall('folhaCustosProxy', {
+      externalAction: externalAction,
+      payload: payload
+    });
+
+    if (!resp || resp.sucesso !== true) {
+      throw new Error(resp?.mensagem || resp?.error || 'Falha na integração com Folha de Custos');
+    }
+
+    const result = resp.data || {};
+    if (result.error) throw new Error(result.error);
+
+    // Compatibilidade de resposta com fluxo legado (espera result.url).
+    if (result.success && !result.url && result.downloadUrl) {
+      result.url = result.downloadUrl;
+    }
+
+    return result;
+  } catch (error) {
+    console.error('❌ Erro na requisição:', error);
+    throw error;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// RENDERIZAÇÃO DE MÚSICOS
+// ═══════════════════════════════════════════════════════════
+
+function renderMusicos() {
+  const container = document.getElementById('musicos-container');
+  if (!container) return;
+  
+  container.innerHTML = '';
+  
+  if (!musicos || musicos.length === 0) {
+    container.innerHTML = '<p class="info-text">Nenhum músico cadastrado</p>';
+    return;
+  }
+  
+  musicos.forEach(musico => {
+    const card = createMusicoCard(musico);
+    container.appendChild(card);
+  });
+}
+
+function createMusicoCard(musico) {
+  const div = document.createElement('div');
+  div.className = 'musico-card';
+  div.dataset.musicoId = musico.id;
+  
+  const selecionado = musicosSelecionados.has(musico.id);
+  const dados = selecionado ? musicosSelecionados.get(musico.id) : null;
+  
+  if (selecionado) {
+    div.classList.add('selected');
+  }
+  
+  if (dados && dados.ajuste) {
+    div.classList.add('has-adjustment');
+  }
+  
+  const valorBase = musico.valorBase || 0;
+  const adicionalAuto = calcularAdicionalAutomatico();
+  const adicionalExtra = (dados && dados.ajuste) ? (dados.ajuste.adicionalExtra || 0) : 0;
+  const passagem = musicoTemPassagem(musico.id) ? valorPassagemDeSom : 0;  // ← NOVO
+  const total = valorBase + adicionalAuto + adicionalExtra + passagem;  // ← ATUALIZADO
+  
+  div.innerHTML = `
+    <div class="musico-header">
+      <div class="musico-info">
+        <div class="musico-nome">${musico.nome}</div>
+        <div class="musico-funcao">${musico.funcao}</div>
+      </div>
+      <input type="checkbox" 
+             class="musico-checkbox" 
+             ${selecionado ? 'checked' : ''}
+             onchange="toggleMusico('${musico.id}')">
+    </div>
+    
+    ${selecionado ? `
+      <div class="musico-valores">
+        <div class="valor-row">
+          <span class="valor-label">Valor Base</span>
+          <span class="valor-amount">R$ ${valorBase.toFixed(2)}</span>
+        </div>
+        ${adicionalAuto > 0 ? `
+          <div class="valor-row">
+            <span class="valor-label">Extra Fora da Cidade</span>
+            <span class="valor-amount">R$ ${adicionalAuto.toFixed(2)}</span>
+          </div>
+        ` : ''}
+        ${passagem > 0 ? `
+          <div class="valor-row">
+            <span class="valor-label">Passagem de Som</span>
+            <span class="valor-amount">R$ ${passagem.toFixed(2)}</span>
+          </div>
+        ` : ''}
+        ${adicionalExtra > 0 ? `
+          <div class="valor-row">
+            <span class="valor-label">Adicional Extra</span>
+            <span class="valor-amount">R$ ${adicionalExtra.toFixed(2)}</span>
+          </div>
+        ` : ''}
+        <div class="valor-row valor-total-row">
+          <span class="valor-label">Total</span>
+          <span class="valor-amount">R$ ${total.toFixed(2)}</span>
+        </div>
+      </div>
+      
+      <!-- ✅ PASSAGEM DE SOM: Inline no card -->
+      ${passagemDeSomAtiva ? `
+        <div class="passagem-som-checkbox">
+          <label>
+            <input 
+              type="checkbox" 
+              id="passagem-${musico.id}" 
+              ${passagemDeSomPorMusico[musico.id] !== false ? 'checked' : ''}
+              onchange="togglePassagemMusico('${musico.id}')"
+            >
+            <span class="passagem-som-label">🎵 Passagem de Som</span>
+            <span class="passagem-som-valor">+R$ ${valorPassagemDeSom.toFixed(2)}</span>
+          </label>
+        </div>
+      ` : ''}
+      
+      
+      <div class="musico-actions">
+        <button class="btn-adjust" onclick="abrirAjusteMusico('${musico.id}')">
+          ⚙ Ajustar Valores
+        </button>
+      </div>
+      
+      ${dados && dados.ajuste && dados.ajuste.justificativa ? `
+        <div class="adjustment-badge" title="${dados.ajuste.justificativa}">⚠️</div>
+      ` : ''}
+    ` : ''}
+  `;
+  
+  return div;
+}
+
+// ═══════════════════════════════════════════════════════════
+// GERENCIAMENTO DE MÚSICOS
+// ═══════════════════════════════════════════════════════════
+
+function toggleMusico(musicoId) {
+  if (musicosSelecionados.has(musicoId)) {
+    musicosSelecionados.delete(musicoId);
+  } else {
+    const musico = musicos.find(m => m.id === musicoId);
+    if (musico) {
+      musicosSelecionados.set(musicoId, {
+        musico: musico,
+        ajuste: null
+      });
+    }
+  }
+  
+  renderMusicos();
+  recalcular();
+  
+  // ✅ NOVO: Se passagem de som está ativa, adicionar checkbox no novo músico
+  if (passagemDeSomAtiva && !musicosSelecionados.has(musicoId)) {
+    // Pequeno delay para garantir que o card foi renderizado
+    setTimeout(() => {
+      adicionarCheckboxesPassagemNosCards();
+    }, 100);
+  }
+}
+
+function aplicarPacote(tipoPacote) {
+  const pacote = pacotes.find(p => p.tipo === tipoPacote);
+  
+  if (!pacote) {
+    alert(`Pacote "${tipoPacote}" não encontrado`);
+    return;
+  }
+  
+  musicosSelecionados.clear();
+  
+  pacote.musicos.forEach(musicoId => {
+    const musico = musicos.find(m => m.id === musicoId);
+    if (musico) {
+      musicosSelecionados.set(musicoId, {
+        musico: musico,
+        ajuste: null
+      });
+    }
+  });
+  
+  renderMusicos();
+  recalcular();
+}
+
+function limparMusicos() {
+  musicosSelecionados.clear();
+  renderMusicos();
+  recalcular();
+}
+
+// ═══════════════════════════════════════════════════════════
+// MODAL DE AJUSTE DE MÚSICO
+// ═══════════════════════════════════════════════════════════
+
+function abrirAjusteMusico(musicoId) {
+  const dados = musicosSelecionados.get(musicoId);
+  if (!dados) return;
+  
+  musicoEmAjuste = musicoId;
+  const musico = dados.musico;
+  const ajuste = dados.ajuste || {};
+  
+  document.getElementById('modal-musico-nome').textContent = musico.nome;
+  document.getElementById('modal-musico-funcao').textContent = musico.funcao;
+  
+  const valorBase = musico.valorBase || 0;
+  const adicionalAuto = calcularAdicionalAutomatico();
+  
+  document.getElementById('modal-valor-base').textContent = `R$ ${valorBase.toFixed(2)}`;
+  document.getElementById('modal-adicional-auto').textContent = adicionalAuto > 0 
+    ? `R$ ${adicionalAuto.toFixed(2)}` 
+    : '-';
+  
+  document.getElementById('modal-adicional-extra').value = ajuste.adicionalExtra || '';
+  document.getElementById('modal-justificativa').value = ajuste.justificativa || '';
+  
+  atualizarTotalModal();
+  
+  abrirModal('modal-ajustar');
+}
+
+function atualizarTotalModal() {
+  if (!musicoEmAjuste) return;
+  
+  const dados = musicosSelecionados.get(musicoEmAjuste);
+  if (!dados) return;
+  
+  const valorBase = dados.musico.valorBase || 0;
+  const adicionalAuto = calcularAdicionalAutomatico();
+  const adicionalExtra = parseFloat(document.getElementById('modal-adicional-extra').value) || 0;
+  
+  const total = valorBase + adicionalAuto + adicionalExtra;
+  
+  document.getElementById('modal-total-final').textContent = `R$ ${total.toFixed(2)}`;
+}
+
+function salvarAjusteMusico() {
+  if (!musicoEmAjuste) return;
+  
+  const adicionalExtra = parseFloat(document.getElementById('modal-adicional-extra').value) || 0;
+  const justificativa = document.getElementById('modal-justificativa').value.trim();
+  
+  if (adicionalExtra > 0 && !justificativa) {
+    alert('Por favor, informe a justificativa para o adicional extra');
+    return;
+  }
+  
+  const dados = musicosSelecionados.get(musicoEmAjuste);
+  if (!dados) return;
+  
+  if (adicionalExtra > 0 || justificativa) {
+    dados.ajuste = {
+      adicionalExtra: adicionalExtra,
+      justificativa: justificativa
+    };
+  } else {
+    dados.ajuste = null;
+  }
+  
+  musicosSelecionados.set(musicoEmAjuste, dados);
+  
+  fecharModal('modal-ajustar');
+  musicoEmAjuste = null;
+  renderMusicos();
+  recalcular();
+}
+
+// ═══════════════════════════════════════════════════════════
+// CUSTOS TERCEIRIZADOS
+// ═══════════════════════════════════════════════════════════
+
+function adicionarTerceirizado() {
+  const id = Date.now().toString();
+  terceirizadosAtivos.push({
+    id: id,
+    nome: '',
+    categoria: '',
+    valor: 0
+  });
+  renderTerceirizados();
+}
+
+function removerTerceirizado(id) {
+  terceirizadosAtivos = terceirizadosAtivos.filter(t => t.id !== id);
+  renderTerceirizados();
+  recalcular();
+}
+
+function renderTerceirizados() {
+  const container = document.getElementById('terceirizados-container');
+  if (!container) return;
+  
+  container.innerHTML = '';
+  
+  terceirizadosAtivos.forEach(item => {
+    const div = document.createElement('div');
+    div.className = 'terceirizado-item';
+    div.innerHTML = `
+      <div class="form-group">
+        <label>Serviço</label>
+        <input type="text" 
+               value="${item.nome}" 
+               oninput="atualizarTerceirizado('${item.id}', 'nome', this.value)"
+               placeholder="Ex: Transporte">
+      </div>
+      
+      <div class="form-group">
+        <label>Categoria</label>
+        <select onchange="atualizarTerceirizado('${item.id}', 'categoria', this.value)">
+          <option value="">Selecione...</option>
+          <option value="Som" ${item.categoria === 'Som' ? 'selected' : ''}>Som</option>
+          <option value="Luz" ${item.categoria === 'Luz' ? 'selected' : ''}>Luz</option>
+          <option value="Transporte" ${item.categoria === 'Transporte' ? 'selected' : ''}>Transporte</option>
+          <option value="Alimentação" ${item.categoria === 'Alimentação' ? 'selected' : ''}>Alimentação</option>
+          <option value="Hospedagem" ${item.categoria === 'Hospedagem' ? 'selected' : ''}>Hospedagem</option>
+          <option value="Outros" ${item.categoria === 'Outros' ? 'selected' : ''}>Outros</option>
+        </select>
+      </div>
+      
+      <div class="form-group">
+        <label>Valor (R$)</label>
+        <input type="number" 
+               value="${item.valor}" 
+               oninput="atualizarTerceirizado('${item.id}', 'valor', parseFloat(this.value) || 0)"
+               placeholder="0.00"
+               step="0.01"
+               min="0">
+      </div>
+      
+      <button class="btn-remove" onclick="removerTerceirizado('${item.id}')">✖</button>
+    `;
+    container.appendChild(div);
+  });
+}
+
+function atualizarTerceirizado(id, campo, valor) {
+  const item = terceirizadosAtivos.find(t => t.id === id);
+  if (item) {
+    item[campo] = valor;
+    recalcular();
+  }
+}
+
+// Continuação do app.js corrigido
+
+// ═══════════════════════════════════════════════════════════
+// CÁLCULOS
+// ═══════════════════════════════════════════════════════════
+
+function calcularAdicionalAutomatico() {
+  const eventoForaCidade = document.getElementById('evento-fora-cidade');
+  if (!eventoForaCidade || !eventoForaCidade.checked) {
+    return 0;
+  }
+  
+  return configuracoes ? (configuracoes.adicionalForaCidade || 0) : 0;
+}
+
+// ═══════════════════════════════════════════════════════════
+// PASSAGEM DE SOM
+// ═══════════════════════════════════════════════════════════
+
+function adicionarCheckboxesPassagemNosCards() {
+  // ✅ SIMPLIFICADO: Apenas re-renderizar os cards
+  // Os checkboxes já aparecem inline no HTML do card
+  if (musicosSelecionados.size > 0) {
+    renderMusicos();
+  }
+}
+
+function removerCheckboxesPassagemDosCards() {
+  // ✅ SIMPLIFICADO: Apenas re-renderizar os cards
+  renderMusicos();
+}
+
+function removerCheckboxesPassagemDosCards() {
+  // ✅ SIMPLIFICADO: Apenas re-renderizar os cards
+  renderMusicos();
+}
+
+function togglePassagemMusico(musicoId) {
+  const checkbox = document.getElementById(`passagem-${musicoId}`);
+  if (!checkbox) return;
+
+  passagemDeSomPorMusico[musicoId] = checkbox.checked;
+
+  // 🔄 força atualizar visual do card
+  renderMusicos();
+  recalcular();
+}
+
+function musicoTemPassagem(musicoId) {
+  if (!passagemDeSomAtiva) return false;
+  if (passagemDeSomPorMusico[musicoId] === false) return false;
+  return true;
+}
+
+// ═══════════════════════════════════════════════════════════
+// SERVIÇOS GLOBALIZADOS
+// ═══════════════════════════════════════════════════════════
+
+function renderizarServicosCompletos() {
+  // ✅ NOVO: Renderizar TODOS os serviços direto (sem categoria)
+  const selectNome = document.getElementById('select-nome-servico');
+  if (!selectNome) return;
+  
+  selectNome.innerHTML = '<option value="">Selecione o serviço...</option>';
+  
+  // Listar TODOS os serviços
+  servicosDisponiveis.forEach(servico => {
+    const option = document.createElement('option');
+    option.value = servico.nome;
+    option.textContent = `${servico.nome} (${servico.categoria})`;
+    selectNome.appendChild(option);
+  });
+  
+  // Adicionar opção "Novo"
+  const optionNovo = document.createElement('option');
+  optionNovo.value = '__NOVO__';
+  optionNovo.textContent = '+ Adicionar Novo Serviço';
+  selectNome.appendChild(optionNovo);
+  
+  selectNome.disabled = false;
+  
+  selectNome.onchange = function() {
+    if (this.value === '__NOVO__') {
+      const nomeNovo = prompt('Nome do novo serviço:');
+      if (nomeNovo && nomeNovo.trim()) {
+        const categoria = prompt('Categoria do serviço:', 'Outros');
+        if (categoria) {
+          salvarNovoServico(categoria, nomeNovo.trim());
+        }
+      } else {
+        this.value = '';
+      }
+    }
+  };
+}
+function onCategoriaSelecionada() {
+  const selectCategoria = document.getElementById('select-categoria-servico');
+  const selectNome = document.getElementById('select-nome-servico');
+  
+  if (!selectCategoria || !selectNome) return;
+  
+  const categoria = selectCategoria.value;
+  
+  if (!categoria) {
+    selectNome.innerHTML = '<option value="">Selecione categoria primeiro...</option>';
+    selectNome.disabled = true;
+    return;
+  }
+  
+  const servicosFiltrados = servicosDisponiveis.filter(s => s.categoria === categoria);
+  
+  selectNome.innerHTML = '<option value="">Selecione o serviço...</option>';
+  
+  servicosFiltrados.forEach(servico => {
+    const option = document.createElement('option');
+    option.value = servico.nome;
+    option.textContent = servico.nome;
+    selectNome.appendChild(option);
+  });
+  
+  const optionNovo = document.createElement('option');
+  optionNovo.value = '__NOVO__';
+  optionNovo.textContent = '+ Adicionar Novo Serviço';
+  selectNome.appendChild(optionNovo);
+  
+  selectNome.disabled = false;
+  
+  selectNome.onchange = function() {
+    if (this.value === '__NOVO__') {
+      const nomeNovo = prompt('Nome do novo serviço:');
+      if (nomeNovo && nomeNovo.trim()) {
+        salvarNovoServico(categoria, nomeNovo.trim());
+      } else {
+        this.value = '';
+      }
+    }
+  };
+}
+
+async function salvarNovoServico(categoria, nome) {
+  try {
+    showLoading('Salvando novo serviço...');
+    
+    const resultado = await apiPost('salvarNovoServico', {
+      categoria: categoria,
+      nome: nome
+    });
+    
+    hideLoading();
+    
+    if (resultado.success) {
+      alert(`✅ Serviço "${nome}" adicionado com sucesso!`);
+      servicosDisponiveis.push(resultado.servico);
+      onCategoriaSelecionada();
+    } else {
+      throw new Error(resultado.message || 'Erro ao salvar');
+    }
+    
+  } catch (error) {
+    hideLoading();
+    console.error('❌ Erro ao salvar serviço:', error);
+    alert('Erro ao salvar serviço: ' + error.message);
+  }
+}
+
+function adicionarServicoSelecionado() {
+  const selectNome = document.getElementById('select-nome-servico');
+  const inputValor = document.getElementById('input-valor-servico');
+  
+  const nome = selectNome.value;
+  const valor = parseFloat(inputValor.value) || 0;
+  
+  if (!nome || nome === '__NOVO__') {
+    alert('⚠️ Selecione o serviço');
+    return;
+  }
+  
+  if (valor <= 0) {
+    alert('⚠️ Informe um valor válido');
+    return;
+  }
+  
+  // Buscar categoria do serviço selecionado
+  const servico = servicosDisponiveis.find(s => s.nome === nome);
+  const categoria = servico ? servico.categoria : 'Outros';
+  
+  const id = Date.now().toString();
+  terceirizadosAtivos.push({
+    id: id,
+    nome: nome,
+    categoria: categoria,
+    valor: valor
+  });
+  
+  selectNome.value = '';
+  inputValor.value = '';
+  
+  renderTerceirizados();
+  recalcular();
+}
+
+function recalcular() {
+  const adicionalAuto = calcularAdicionalAutomatico();
+  
+  let totalMusicos = 0;
+  let totalAdicionaisAuto = 0;
+  let totalAdicionaisExtras = 0;
+  let totalPassagem = 0;  // ← NOVO
+  let countMusicos = 0;
+  
+  musicosSelecionados.forEach((dados, musicoId) => {
+    const valorBase = dados.musico.valorBase || 0;
+    const adicionalExtra = (dados.ajuste && dados.ajuste.adicionalExtra) || 0;
+    const passagem = musicoTemPassagem(musicoId) ? valorPassagemDeSom : 0;  // ← NOVO
+    
+    totalMusicos += valorBase;
+    totalAdicionaisAuto += adicionalAuto;
+    totalAdicionaisExtras += adicionalExtra;
+    totalPassagem += passagem;  // ← NOVO
+    countMusicos++;
+    
+    // ✅ ATUALIZAR DISPLAY NO CARD
+    const card = document.querySelector(`[data-musico-id="${musicoId}"]`);
+    if (card && card.classList.contains('selected')) {
+      const total = valorBase + adicionalAuto + adicionalExtra + passagem;
+      const totalSpan = card.querySelector('.valor-total-row .valor-amount');
+      if (totalSpan) {
+        totalSpan.textContent = `R$ ${total.toFixed(2)}`;
+      }
+    }
+  });
+  
+  const totalAdicionais = totalAdicionaisAuto + totalAdicionaisExtras + totalPassagem;  // ← ATUALIZADO
+  
+  const totalTerceirizados = terceirizadosAtivos.reduce((sum, item) => sum + (item.valor || 0), 0);
+  
+  const custoTotal = totalMusicos + totalAdicionais + totalTerceirizados;
+  
+  document.getElementById('total-musicos').textContent = `R$ ${totalMusicos.toFixed(2)}`;
+  document.getElementById('detalhes-musicos').textContent = `${countMusicos} músico${countMusicos !== 1 ? 's' : ''}`;
+  
+  document.getElementById('total-adicionais').textContent = `R$ ${totalAdicionais.toFixed(2)}`;
+  
+  // ✅ DETALHAMENTO COMPLETO COM PASSAGEM
+  let detalhamento = [];
+  if (totalAdicionaisAuto > 0) {
+    detalhamento.push(`R$ ${totalAdicionaisAuto.toFixed(2)} foraCidade`);
+  }
+  if (totalAdicionaisExtras > 0) {
+    detalhamento.push(`R$ ${totalAdicionaisExtras.toFixed(2)} extras`);
+  }
+  if (totalPassagem > 0) {
+    detalhamento.push(`R$ ${totalPassagem.toFixed(2)} passagemSom`);
+  }
+  
+  document.getElementById('detalhes-adicionais').textContent = 
+    detalhamento.length > 0 ? detalhamento.join(' + ') : '-';
+  
+  document.getElementById('total-terceirizados').textContent = `R$ ${totalTerceirizados.toFixed(2)}`;
+  document.getElementById('detalhes-terceirizados').textContent = `${terceirizadosAtivos.length} item${terceirizadosAtivos.length !== 1 ? 's' : ''}`;
+  
+  document.getElementById('custo-total').textContent = `R$ ${custoTotal.toFixed(2)}`;
+  
+  if (custoTotal > 0) {
+    gerarResumoTextual();
+    document.getElementById('resumo-textual').classList.remove('hidden');
+  } else {
+    document.getElementById('resumo-textual').classList.add('hidden');
+  }
+}
+
+function gerarResumoTextual() {
+  const eventoForaCidade = document.getElementById('evento-fora-cidade').checked;
+  const adicionalAuto = calcularAdicionalAutomatico();
+
+  let resumo = '';
+
+  // ===============================
+  // CABEÇALHO
+  // ===============================
+  // CABEÇALHO DO EVENTO (não bloqueia o resumo)
+let tituloEvento = 'FOLHA DE CUSTO';
+
+try {
+  const nome = document.querySelector('#evento-nome')?.value?.trim();
+  const data = document.querySelector('#evento-data')?.value;
+
+  if (nome && data) {
+    tituloEvento = `${nome} - ${formatarDataSimples(data)} | FOLHA DE CUSTO`;
+  } else if (nome) {
+    tituloEvento = `${nome} | FOLHA DE CUSTO`;
+  }
+} catch (e) {
+  // nunca bloqueia o resumo
+}
+
+resumo += tituloEvento + '\n\n';
+
+  // ===============================
+  // RESUMO FINANCEIRO
+  // ===============================
+  resumo += `💰 RESUMO FINANCEIRO\n\n`;
+
+  // MÚSICOS (cachê base)
+  const totalMusicosBase = Array.from(musicosSelecionados.values())
+    .reduce((sum, dados) => sum + (dados.musico.valorBase || 0), 0);
+
+  resumo += `MÚSICOS\n`;
+  resumo += `• Cachês dos Músicos (${musicosSelecionados.size} cachês) – R$ ${totalMusicosBase.toFixed(2)}\n\n`;
+
+ // ===============================
+// ADICIONAL MÚSICOS
+// ===============================
+
+let linhasAdicionais = [];
+
+// Evento fora da cidade
+if (eventoForaCidade) {
+  linhasAdicionais.push(
+    `• Evento Fora da Cidade (${musicosSelecionados.size} × R$ ${adicionalAuto.toFixed(2)}) – R$ ${(musicosSelecionados.size * adicionalAuto).toFixed(2)}`
+  );
+}
+
+// Passagem de som
+let qtdPassagens = 0;
+let totalPassagens = 0;
+
+if (passagemDeSomAtiva) {
+  qtdPassagens = Array.from(musicosSelecionados.keys())
+    .filter(id => musicoTemPassagem(id)).length;
+
+  if (qtdPassagens > 0) {
+    totalPassagens = qtdPassagens * valorPassagemDeSom;
+    linhasAdicionais.push(
+      `• Passagem de Som (${qtdPassagens} × R$ ${valorPassagemDeSom.toFixed(2)}) – R$ ${totalPassagens.toFixed(2)}`
+    );
+  }
+}
+
+// Adicionais extras individuais
+const extrasDetalhe = Array.from(musicosSelecionados.values())
+  .filter(dados => dados.ajuste && dados.ajuste.adicionalExtra > 0);
+
+if (extrasDetalhe.length > 0) {
+  const totalExtrasIndividuais = extrasDetalhe.reduce(
+    (sum, dados) => sum + dados.ajuste.adicionalExtra,
+    0
+  );
+
+  linhasAdicionais.push(
+    `• Ajustes Extras Individuais (${extrasDetalhe.length} músico${extrasDetalhe.length > 1 ? 's' : ''}) – R$ ${totalExtrasIndividuais.toFixed(2)}`
+  );
+}
+
+// Renderização única, limpa e padronizada
+if (linhasAdicionais.length > 0) {
+  resumo += `ADICIONAL MÚSICOS\n`;
+  resumo += linhasAdicionais.join('\n') + '\n\n';
+}
+
+  // ===============================
+  // CUSTOS OPERACIONAIS
+  // ===============================
+  const totalTerceirizados = terceirizadosAtivos.reduce(
+    (sum, item) => sum + (item.valor || 0),
+    0
+  );
+
+  if (terceirizadosAtivos.length > 0) {
+    resumo += `CUSTOS OPERACIONAIS\n`;
+    terceirizadosAtivos.forEach(item => {
+      resumo += `• ${item.nome} (${item.categoria}) – R$ ${item.valor.toFixed(2)}\n`;
+    });
+    resumo += `\n`;
+  }
+
+  // ===============================
+  // TOTAIS
+  // ===============================
+  const totalExtras = Array.from(musicosSelecionados.values())
+    .reduce((sum, dados) => sum + ((dados.ajuste && dados.ajuste.adicionalExtra) || 0), 0);
+
+  const totalAdicionais = (eventoForaCidade ? adicionalAuto * musicosSelecionados.size : 0)
+    + totalExtras
+    + totalPassagens;
+
+  const totalMusicosCompleto = totalMusicosBase + totalAdicionais;
+  const custoTotal = totalMusicosCompleto + totalTerceirizados;
+
+  resumo += `CUSTO TOTAL MÚSICOS: R$ ${totalMusicosCompleto.toFixed(2)}\n`;
+  resumo += `CUSTO TOTAL OPERACIONAL: R$ ${totalTerceirizados.toFixed(2)}\n`;
+  resumo += `CUSTO TOTAL DO EVENTO: R$ ${custoTotal.toFixed(2)}\n\n`;
+
+  // ===============================
+  // MÚSICOS (DETALHE)
+  // ===============================
+  resumo += `👥 MÚSICOS (${musicosSelecionados.size})\n\n`;
+
+  musicosSelecionados.forEach((dados, musicoId) => {
+    const musico = dados.musico;
+    const valorBase = musico.valorBase || 0;
+    const adicionalExtra = (dados.ajuste && dados.ajuste.adicionalExtra) || 0;
+    const passagem = musicoTemPassagem(musicoId) ? valorPassagemDeSom : 0;
+    const total = valorBase + (eventoForaCidade ? adicionalAuto : 0) + adicionalExtra + passagem;
+
+    resumo += `• ${musico.nome} (${musico.funcao}) – R$ ${total.toFixed(2)}\n`;
+
+    let detalhes = [];
+    detalhes.push(`Cachê: R$ ${valorBase.toFixed(2)}`);
+    if (eventoForaCidade) detalhes.push(`ForaCidade: R$ ${adicionalAuto.toFixed(2)}`);
+    if (passagem > 0) detalhes.push(`PassagemSom: R$ ${passagem.toFixed(2)}`);
+    if (adicionalExtra > 0) detalhes.push(`Extra: R$ ${adicionalExtra.toFixed(2)}`);
+
+    resumo += `  ${detalhes.join(' | ')}\n\n`;
+  });
+
+  document.getElementById('resumo-texto').textContent = resumo;
+}
+
+// ═══════════════════════════════════════════════════════════
+// SALVAR FOLHA DE CUSTO
+// ═══════════════════════════════════════════════════════════
+
+async function salvarFolhaCusto() {
+  const eventoData = document.getElementById('evento-data').value;
+  const eventoNome = document.getElementById('evento-nome').value.trim();
+  
+  if (!eventoData) {
+    alert('Por favor, informe a data do evento');
+    return;
+  }
+  
+  if (!eventoNome) {
+    alert('Por favor, informe o nome/local do evento');
+    return;
+  }
+  
+  if (musicosSelecionados.size === 0) {
+    alert('Por favor, selecione pelo menos um músico');
+    return;
+  }
+  
+  const eventoForaCidade = document.getElementById('evento-fora-cidade').checked;
+  const adicionalAuto = calcularAdicionalAutomatico();
+  
+  const musicosData = Array.from(musicosSelecionados.values()).map(dados => {
+    const passagem = musicoTemPassagem(dados.musico.id) ? valorPassagemDeSom : 0;  // ← NOVO
+    
+    return {
+      id: dados.musico.id,
+      nome: dados.musico.nome,
+      funcao: dados.musico.funcao,
+      valorBase: dados.musico.valorBase,
+      adicionalAutomatico: adicionalAuto,
+      adicionalExtra: (dados.ajuste && dados.ajuste.adicionalExtra) || 0,
+      adicionalPassagem: passagem,  // ← NOVO
+      adicionalMotivo: passagem > 0 ? 'Passagem de Som' : '',  // ← NOVO
+      justificativa: (dados.ajuste && dados.ajuste.justificativa) || '',
+      total: (dados.musico.valorBase || 0) + adicionalAuto + ((dados.ajuste && dados.ajuste.adicionalExtra) || 0) + passagem  // ← ATUALIZADO
+    };
+  });
+  
+  const totalMusicos = musicosData.reduce((sum, m) => sum + (m.valorBase || 0), 0);
+  const totalAdicionais = musicosData.reduce((sum, m) => 
+    sum + (m.adicionalAutomatico || 0) + (m.adicionalExtra || 0) + (m.adicionalPassagem || 0), 0);
+  const totalTerceirizados = terceirizadosAtivos.reduce((sum, item) => sum + (item.valor || 0), 0);
+  const custoTotal = totalMusicos + totalAdicionais + totalTerceirizados;
+  
+  const folhaCusto = {
+    id: Date.now().toString(),
+    data: eventoData,
+    nomeEvento: eventoNome,
+    foraCidade: eventoForaCidade,
+    musicos: musicosData,
+    terceirizados: terceirizadosAtivos,
+    totais: {
+      musicos: totalMusicos,
+      adicionais: totalAdicionais,
+      terceirizados: totalTerceirizados,
+      geral: custoTotal
+    },
+
+     passagemDeSom: passagemDeSomAtiva ? {  // ← NOVO
+      ativa: true,
+      valorPorPessoa: valorPassagemDeSom,
+      participantes: musicosData.filter(m => m.adicionalPassagem > 0).map(m => m.id),
+      totalGasto: musicosData.reduce((sum, m) => sum + (m.adicionalPassagem || 0), 0)
+    } : null,
+
+    resumo: document.getElementById('resumo-texto').textContent,
+    criadoPor: CURRENT_USER_EMAIL || localStorage.getItem('auth_email') || '',
+    criadoEm: new Date().toISOString()
+  };
+  
+  try {
+    showLoading('Salvando folha de custo...');
+    
+    const resultado = await apiPost('salvarFolhaCusto', { data: folhaCusto });
+    
+    hideLoading();
+    
+    if (resultado.success) {
+      alert('✅ Folha de custo salva com sucesso!');
+      
+      if (confirm('Deseja criar uma nova folha de custo?')) {
+        limparFormulario();
+      }
+    } else {
+      throw new Error(resultado.message || 'Erro ao salvar');
+    }
+    
+  } catch (error) {
+    hideLoading();
+    console.error('❌ Erro ao salvar:', error);
+    alert('Erro ao salvar folha de custo. Tente novamente.');
+  }
+}
+
+function limparFormulario() {
+  document.getElementById('evento-data').value = '';
+  document.getElementById('evento-nome').value = '';
+  document.getElementById('evento-fora-cidade').checked = false;
+  document.getElementById('adicional-info').classList.add('hidden');
+  // Limpar passagem de som
+  document.getElementById('passagem-de-som-checkbox').checked = false;
+  document.getElementById('passagem-info').classList.add('hidden');
+  passagemDeSomAtiva = false;
+  removerCheckboxesPassagemDosCards();
+  passagemDeSomPorMusico = {};
+  musicosSelecionados.clear();
+  terceirizadosAtivos = [];
+  
+  renderMusicos();
+  renderTerceirizados();
+  recalcular();
+}
+
+// ═══════════════════════════════════════════════════════════
+// EXPORTAR PDF
+// ═══════════════════════════════════════════════════════════
+
+function abrirExportarPDF() {
+  abrirModal('modal-pdf');
+}
+
+async function gerarPDF() {
+  const tipoPdf = document.querySelector('input[name="tipo-pdf"]:checked').value;
+  
+  if (tipoPdf === 'evento') {
+    await gerarPDFEvento();
+  } else {
+    await gerarPDFPeriodo();
+  }
+}
+
+async function gerarPDFEvento() {
+  if (musicosSelecionados.size === 0) {
+    alert('Por favor, calcule uma folha de custo antes de exportar');
+    return;
+  }
+  
+  try {
+    fecharModal('modal-pdf');
+    showLoading('Gerando PDF...');
+    
+    const eventoData = document.getElementById('evento-data').value;
+    const eventoNome = document.getElementById('evento-nome').value;
+    
+    const resultado = await apiPost('gerarPDF', {
+      data: {
+        data: eventoData,
+        nome: eventoNome,
+        resumo: document.getElementById('resumo-texto').textContent
+      }
+    });
+    
+    hideLoading();
+    
+    if (resultado.success && resultado.url) {
+      window.open(resultado.url, '_blank');
+    } else {
+      throw new Error('URL do PDF não retornada');
+    }
+    
+  } catch (error) {
+    hideLoading();
+    console.error('❌ Erro ao gerar PDF:', error);
+    alert('Erro ao gerar PDF. Tente novamente.');
+  }
+}
+
+async function gerarPDFPeriodo() {
+  const dataInicio = document.getElementById('pdf-data-inicio').value;
+  const dataFim = document.getElementById('pdf-data-fim').value;
+  
+  if (!dataInicio || !dataFim) {
+    alert('Por favor, informe as datas de início e fim');
+    return;
+  }
+  
+  try {
+    fecharModal('modal-pdf');
+    showLoading('Gerando PDF do período...');
+    
+    const resultado = await apiPost('gerarPDFPeriodo', {
+      data: {
+        dataInicio: dataInicio,
+        dataFim: dataFim
+      }
+    });
+    
+    hideLoading();
+    
+    if (resultado.success && resultado.url) {
+      window.open(resultado.url, '_blank');
+    } else {
+      throw new Error('URL do PDF não retornada');
+    }
+    
+  } catch (error) {
+    hideLoading();
+    console.error('❌ Erro ao gerar PDF:', error);
+    alert('Erro ao gerar PDF. Tente novamente.');
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// GERENCIAMENTO DE MODAIS
+// ═══════════════════════════════════════════════════════════
+
+function abrirModal(modalId) {
+  const modal = document.getElementById(modalId);
+  if (modal) {
+    modal.classList.add('active');
+    document.body.style.overflow = 'hidden';
+  }
+}
+
+function fecharModal(modalId) {
+  const modal = document.getElementById(modalId);
+  if (modal) {
+    modal.classList.remove('active');
+    document.body.style.overflow = '';
+  }
+}
+
+
+document.addEventListener('click', function(e) {
+  if (e.target.classList.contains('modal-overlay')) {
+    const modal = e.target.closest('.modal');
+    if (modal) {
+      fecharModal(modal.id);
+    }
+  }
+});
+
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') {
+    const modals = document.querySelectorAll('.modal.active');
+    modals.forEach(modal => {
+      fecharModal(modal.id);
+    });
+  }
+  
+});
+
+function renderPacotes() {
+  const container = document.getElementById('pacotes-container');
+  if (!container) {
+    console.warn('⚠️ Container de pacotes não encontrado');
+    return;
+  }
+  
+  container.innerHTML = '';
+  
+  if (!pacotes || pacotes.length === 0) {
+    console.warn('⚠️ Nenhum pacote disponível');
+    return;
+  }
+  
+  // Ícones padrão para pacotes (pode customizar na planilha depois)
+  const icones = {
+    'completa': '🎸',
+    'reduzida': '🎹',
+    'trio': '🎤',
+    'duo': '🎵',
+    'solo': '🎤'
+  };
+  
+  // Renderizar cada pacote da planilha
+  pacotes.forEach(pacote => {
+    const btn = document.createElement('button');
+    btn.className = 'btn-quick';
+    btn.onclick = () => aplicarPacote(pacote.tipo);
+    
+    const icone = icones[pacote.tipo] || '🎵'; // Ícone padrão se não encontrar
+    
+    btn.innerHTML = `
+      <span class="btn-icon">${icone}</span>
+      ${pacote.nome}
+    `;
+    
+    container.appendChild(btn);
+  });
+  
+  // Adicionar botão "Limpar" no final
+  const btnLimpar = document.createElement('button');
+  btnLimpar.className = 'btn-quick btn-clear';
+  btnLimpar.onclick = limparMusicos;
+  btnLimpar.innerHTML = `
+    <span class="btn-icon">✖</span>
+    Limpar
+  `;
+  container.appendChild(btnLimpar);
+  
+  console.log(`✅ ${pacotes.length} pacotes renderizados`);
+}
+
+function abrirGerarRelatorio() {
+  // Define data padrão como mês atual
+  const hoje = new Date();
+  const primeiroDia = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+  const ultimoDia = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0);
+  
+  document.getElementById('relatorio-data-inicio').value = primeiroDia.toISOString().split('T')[0];
+  document.getElementById('relatorio-data-fim').value = ultimoDia.toISOString().split('T')[0];
+  
+  abrirModal('modal-gerar-relatorio');
+}
+
+/**
+ * Gera relatório (chama API)
+ */
+async function gerarRelatorio() {
+  const dataInicio = document.getElementById('relatorio-data-inicio').value;
+  const dataFim = document.getElementById('relatorio-data-fim').value;
+  
+  // CORREÇÃO: Pegar tipo de relatório selecionado
+  const tipoRadios = document.getElementsByName('tipo-relatorio');
+  let tipo = 'detalhado'; // padrão
+  
+  for (const radio of tipoRadios) {
+    if (radio.checked) {
+      tipo = radio.value;
+      break;
+    }
+  }
+  
+  if (!dataInicio || !dataFim) {
+    alert('Por favor, informe as datas de início e fim');
+    return;
+  }
+  
+  try {
+    fecharModal('modal-gerar-relatorio');
+    showLoading('Gerando relatório...');
+    
+    // CORREÇÃO: Enviar tipo junto com as datas
+    const resultado = await apiPost('gerarPreviewPDF', {
+      dataInicio: dataInicio,
+      dataFim: dataFim,
+      tipo: tipo  // ← NOVO PARÂMETRO!
+    });
+    
+    hideLoading();
+    
+    if (resultado.success && resultado.resumo) {
+      // Armazenar dados do relatório
+      relatorioAtual = {
+        dataInicio: dataInicio,
+        dataFim: dataFim,
+        tipo: tipo,  // ← ARMAZENAR TIPO
+        resumo: resultado.resumo,
+        totalEventos: resultado.totalEventos
+      };
+      
+      // Mostrar relatório
+      exibirRelatorio();
+    } else {
+      throw new Error(resultado.message || 'Erro ao gerar relatório');
+    }
+    
+  } catch (error) {
+    hideLoading();
+    console.error('❌ Erro ao gerar relatório:', error);
+    alert('Erro ao gerar relatório: ' + error.message);
+  }
+}
+
+/**
+ * Exibe relatório no modal
+ */
+function exibirRelatorio() {
+  if (!relatorioAtual) return;
+  
+  const modal = document.getElementById('modal-exibir-relatorio');
+  const titulo = document.getElementById('relatorio-titulo');
+  const conteudo = document.getElementById('relatorio-conteudo');
+  
+  // Atualizar título
+  titulo.textContent = `Relatório - ${relatorioAtual.dataInicio} a ${relatorioAtual.dataFim}`;
+  
+  // Atualizar conteúdo
+  conteudo.textContent = relatorioAtual.resumo;
+  
+  // Abrir modal
+  abrirModal('modal-exibir-relatorio');
+}
+
+/**
+ * Copia relatório para área de transferência
+ */
+async function copiarRelatorio() {
+  if (!relatorioAtual || !relatorioAtual.resumo) {
+    alert('Nenhum relatório disponível para copiar');
+    return;
+  }
+  
+  try {
+    await navigator.clipboard.writeText(relatorioAtual.resumo);
+    
+    // Feedback visual
+    const btn = event.target;
+    const textoOriginal = btn.textContent;
+    btn.textContent = '✅ Copiado!';
+    btn.disabled = true;
+    
+    setTimeout(() => {
+      btn.textContent = textoOriginal;
+      btn.disabled = false;
+    }, 2000);
+    
+    
+    console.log('✅ Relatório copiado para área de transferência');
+    
+  } catch (error) {
+    console.error('❌ Erro ao copiar:', error);
+    // Fallback: selecionar texto
+    const textarea = document.createElement('textarea');
+    textarea.value = relatorioAtual.resumo;
+    textarea.style.position = 'fixed';
+    textarea.style.opacity = '0';
+    document.body.appendChild(textarea);
+    textarea.select();
+    
+    try {
+      document.execCommand('copy');
+      alert('Relatório copiado!');
+    } catch (err) {
+      alert('Erro ao copiar. Por favor, selecione e copie manualmente (Ctrl+A, Ctrl+C)');
+    }
+    
+    document.body.removeChild(textarea);
+  }
+}
+
+/**
+ * Baixa relatório em PDF
+ */
+
+async function baixarRelatorioPDF() {
+  if (!relatorioAtual) {
+    alert('Nenhum relatório gerado');
+    return;
+  }
+  
+  try {
+    showLoading('Gerando PDF para download...');
+    
+    // CORREÇÃO: Usar apiPost (POST) ao invés de fetch
+    const resultado = await apiPost('gerarPDFRelatorio', {
+      dataInicio: relatorioAtual.dataInicio,
+      dataFim: relatorioAtual.dataFim,
+      tipo: relatorioAtual.tipo
+    });
+    
+    hideLoading();
+    
+    if (resultado.success && resultado.downloadUrl) {
+  window.open(resultado.downloadUrl, '_blank');
+  
+  // ✅ Feedback diferente se veio do cache
+  if (resultado.fromCache) {
+    alert('✅ PDF encontrado!\n\nArquivo: ' + resultado.fileName + '\n\n💡 Usando PDF existente (não duplicou)');
+  } else {
+    alert('✅ PDF gerado!\n\nArquivo: ' + resultado.fileName + '\n\nO download deve iniciar automaticamente.');
+  }
+} else {
+      throw new Error(resultado.message || 'Erro ao gerar PDF');
+    }
+    
+  } catch (error) {
+    hideLoading();
+    console.error('❌ Erro ao baixar PDF:', error);
+    alert('Erro ao gerar PDF: ' + error.message);
+  }
+}
+
+/**
+ * Abre relatório no Google Drive
+ */
+
+async function abrirRelatorioDrive() {
+  if (!relatorioAtual) {
+    alert('Nenhum relatório gerado');
+    return;
+  }
+  
+  try {
+    showLoading('Gerando PDF e abrindo no Drive...');
+    
+    // CORREÇÃO: Usar apiPost (POST) ao invés de fetch
+    const resultado = await apiPost('abrirPDFDrive', {
+      dataInicio: relatorioAtual.dataInicio,
+      dataFim: relatorioAtual.dataFim,
+      tipo: relatorioAtual.tipo
+    });
+    
+    hideLoading();
+    
+    if (resultado.success && resultado.driveUrl) {
+      // Abrir Drive em nova aba
+      window.open(resultado.driveUrl, '_blank');
+      
+      // Feedback
+      alert('✅ PDF gerado e aberto no Drive!\n\nArquivo: ' + resultado.fileName);
+    } else {
+      throw new Error(resultado.message || 'Erro ao abrir no Drive');
+    }
+    
+  } catch (error) {
+    hideLoading();
+    console.error('❌ Erro ao abrir no Drive:', error);
+    alert('Erro ao abrir no Drive: ' + error.message);
+  }
+}
