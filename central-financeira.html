@@ -1919,12 +1919,12 @@ function renderListaFiscalizacao_(lista) {
           ${ev?.metadados?.legado ? '<span class="fiscal-tag">📦 LEGADO</span>' : ''}
         </div>
         <div class="fiscal-actions">
-          ${podeGerenciarCompleto ? `<button class="btn secondary" onclick="abrirEdicaoEventoFinanceiro_('${escaparAttr_(idEvento)}')">Editar</button>` : ''}
-          ${podeGerenciarCompleto ? `<button class="btn secondary" onclick="abrirSaidasEventoFinanceiro_('${escaparAttr_(idEvento)}','${escaparAttr_(contratante)}','${escaparAttr_(nomeEvento)}')">Saídas</button>` : ''}
+          <button class="btn secondary" onclick="abrirEdicaoEventoFinanceiro_('${escaparAttr_(idEvento)}')">Editar</button>
+          <button class="btn secondary" onclick="abrirSaidasEventoFinanceiro_('${escaparAttr_(idEvento)}','${escaparAttr_(contratante)}','${escaparAttr_(nomeEvento)}')">Saídas</button>
           ${podeGerenciarCompleto ? `<button class="btn primary" onclick="reconciliarEventoFinanceiro_('${escaparAttr_(idEvento)}')">Reconciliar</button>` : ''}
-          ${podePagarBV
+          ${(podeGerenciarCompleto && podePagarBV)
             ? `<button class="btn danger" onclick="processarBVEventoFinanceiro_('${escaparAttr_(idEvento)}', ${bvValor})">Processar BV</button>`
-            : '<button class="btn secondary" disabled style="opacity:.6">BV OK</button>'}
+            : (podePagarBV ? '' : '<button class="btn secondary" disabled style="opacity:.6">BV OK</button>')}
         </div>
       </div>
     `;
@@ -1998,6 +1998,7 @@ async function processarBVEventoFinanceiro_(idEvento, valorBV) {
     const resp = await Auth.apiCall('apiRegistrarSaidaEvento', {
       tipoOperacao: 'SAIDA_EVENTO',
       tipoSaida: 'BV_EVENTO',
+      autoFiscalizacao: 'TRUE',
       idEvento: idEvento,
       valor: Number(valorBV || 0),
       dataSaida: hojeLocalISO(),

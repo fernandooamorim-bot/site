@@ -277,135 +277,242 @@
        CARDS (detailed view)
        ============================================ */
     .card {
-      background: white;
+      background: linear-gradient(180deg, #ffffff 0%, #fcfdff 100%);
       border-radius: var(--radius-md);
-      padding: 18px;
+      padding: 16px;
       box-shadow: var(--shadow-sm);
       border: 1px solid var(--gray-200);
       border-left: 4px solid var(--gray-300);
+      display: grid;
+      gap: 12px;
     }
 
     .card.ok { border-left-color: var(--success); }
     .card.alerta { border-left-color: var(--warning); }
     .card.erro { border-left-color: var(--danger); }
 
-    .card-header {
+    .card-head {
       display: flex;
-      justify-content: space-between;
-      gap: 10px;
       align-items: flex-start;
+      justify-content: space-between;
+      gap: 14px;
+    }
+
+    .card-title-wrap {
+      min-width: 0;
     }
 
     .titulo {
-      font-weight: 700;
-      color: var(--gray-800);
-      font-size: 15px;
-      letter-spacing: -0.2px;
+      font-weight: 800;
+      color: var(--gray-900);
+      font-size: 27px;
+      letter-spacing: -0.35px;
+      line-height: 1.2;
     }
 
     .data {
       font-size: 12px;
+      color: var(--gray-500);
+      margin-top: 4px;
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .data i,
+    .data svg {
+      width: 12px;
+      height: 12px;
       color: var(--gray-400);
-      margin-top: 3px;
-      font-weight: 500;
     }
 
     .valor {
-      font-weight: 700;
-      font-size: 15px;
-      color: var(--navy-600);
+      font-weight: 800;
+      font-size: 27px;
+      color: var(--navy-700);
       white-space: nowrap;
+      letter-spacing: -0.2px;
     }
 
-    .linha {
-      margin-top: 8px;
-      font-size: 13px;
+    .kpis {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .kpi {
+      border: 1px solid var(--gray-200);
+      border-radius: 10px;
+      padding: 8px 10px;
+      background: #fff;
+      min-height: 58px;
       display: flex;
-      justify-content: space-between;
-      color: var(--gray-600);
+      flex-direction: column;
+      justify-content: center;
+      gap: 3px;
     }
 
-    .linha strong {
-      color: var(--gray-800);
-    }
-
-    .status {
-      margin-top: 10px;
-      font-size: 12px;
+    .kpi span {
+      font-size: 11px;
+      color: var(--gray-500);
       font-weight: 700;
-      letter-spacing: 0.2px;
+      letter-spacing: 0.15px;
       text-transform: uppercase;
     }
 
-    .status.ok { color: var(--success); }
-    .status.alerta { color: var(--warning); }
-    .status.erro { color: var(--danger); }
+    .kpi strong {
+      font-size: 15px;
+      color: var(--gray-900);
+      letter-spacing: -0.15px;
+    }
+
+    .card-meta {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .meta-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      font-size: 13px;
+      color: var(--gray-600);
+      background: rgba(148, 163, 184, 0.08);
+      border-radius: 8px;
+      padding: 7px 10px;
+    }
+
+    .meta-item strong {
+      color: var(--gray-800);
+      font-weight: 700;
+    }
+
+    .status {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      width: fit-content;
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.2px;
+      text-transform: uppercase;
+      border: 1px solid transparent;
+      background: var(--gray-100);
+    }
+
+    .status.ok { color: #047857; border-color: #a7f3d0; background: #ecfdf5; }
+    .status.alerta { color: #b45309; border-color: #fde68a; background: #fffbeb; }
+    .status.erro { color: #b91c1c; border-color: #fecaca; background: #fef2f2; }
+    .status i,
+    .status svg {
+      width: 12px;
+      height: 12px;
+      margin-right: 0;
+    }
 
     .alertas {
-      margin-top: 8px;
       font-size: 12px;
       color: #92400e;
-      font-weight: 500;
+      font-weight: 600;
       line-height: 1.5;
       padding: 8px 10px;
       background: rgba(245,158,11,0.06);
-      border-radius: 6px;
+      border: 1px solid #fde68a;
+      border-radius: 8px;
     }
 
     .acoes {
-      margin-top: 14px;
-      display: flex;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
       gap: 8px;
-      flex-wrap: wrap;
     }
 
     /* ============================================
        COMISSAO BOX (inside cards)
        ============================================ */
     .comissao-box {
-      margin-top: 12px;
       padding: 12px;
       border-radius: var(--radius-sm);
-      background: var(--gray-50);
+      background: linear-gradient(180deg, #f8fbff 0%, #f4f7fb 100%);
       border: 1px solid var(--gray-200);
       font-size: 13px;
+      display: grid;
+      gap: 10px;
+    }
+
+    .comissao-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .comissao-title {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-weight: 800;
+      color: var(--gray-800);
+    }
+
+    .comissao-title i,
+    .comissao-title svg {
+      width: 14px;
+      height: 14px;
+      color: var(--navy-500);
     }
 
     .comissao-grid {
       display: grid;
       grid-template-columns: repeat(4, 1fr);
-      gap: 6px;
-      margin-top: 8px;
+      gap: 8px;
     }
 
     .comissao-item {
-      text-align: center;
+      text-align: left;
+      background: #fff;
+      border: 1px solid var(--gray-200);
+      border-radius: 8px;
+      padding: 8px;
+      min-height: 58px;
     }
 
     .comissao-item span {
       display: block;
       font-size: 11px;
-      color: var(--gray-400);
-      font-weight: 500;
+      color: var(--gray-500);
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.15px;
     }
 
     .comissao-item strong {
-      font-size: 13px;
-      color: var(--gray-800);
+      font-size: 14px;
+      color: var(--gray-900);
+      letter-spacing: -0.15px;
     }
 
     .comissao-status {
-      margin-top: 8px;
-      font-weight: 700;
+      font-weight: 800;
       font-size: 12px;
+      border-radius: 999px;
+      border: 1px solid transparent;
+      padding: 6px 10px;
+      width: fit-content;
+      background: #fff;
     }
 
     .comissao-status.OK,
-    .comissao-status.QUITADO { color: var(--success); }
+    .comissao-status.QUITADO { color: #047857; border-color: #a7f3d0; background: #ecfdf5; }
     .comissao-status.PARCIAL,
     .comissao-status.PENDENTE,
-    .comissao-status.AGUARDANDO { color: var(--warning); }
-    .comissao-status.ERRO { color: var(--danger); }
+    .comissao-status.AGUARDANDO { color: #b45309; border-color: #fde68a; background: #fffbeb; }
+    .comissao-status.ERRO { color: #b91c1c; border-color: #fecaca; background: #fef2f2; }
 
     /* ============================================
        BUTTONS
@@ -420,6 +527,14 @@
       cursor: pointer;
       transition: all 0.2s;
       letter-spacing: -0.1px;
+    }
+
+    .btn i,
+    .btn svg {
+      width: 13px;
+      height: 13px;
+      vertical-align: -2px;
+      margin-right: 6px;
     }
 
     .btn.primary {
@@ -475,6 +590,28 @@
 
       .modo-visual .btn {
         width: 100%;
+      }
+
+      .card {
+        padding: 14px;
+      }
+
+      .card-head {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      .valor {
+        font-size: 23px;
+      }
+
+      .kpis,
+      .card-meta {
+        grid-template-columns: 1fr;
+      }
+
+      .comissao-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
       }
     }
 
@@ -612,6 +749,30 @@
   let MODO_VISUAL = 'CARDS';
   let listaFiltradaAtual = null;
   let MOSTRAR_TODOS_FILTROS_MOBILE = false;
+  let PERFIL_ATUAL_NORM = '';
+
+  function normalizarPerfil_(perfil) {
+    return String(perfil || '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .toLowerCase();
+  }
+
+  function ehSocioAdmin_() {
+    return PERFIL_ATUAL_NORM === 'socio' || PERFIL_ATUAL_NORM === 'administrador' || PERFIL_ATUAL_NORM === 'admin';
+  }
+
+  async function detectarPerfilAtual_() {
+    try {
+      const auth = await Auth.apiCall('verificarUsuario');
+      const perfil = String(auth?.user?.perfil || localStorage.getItem('auth_perfil') || '');
+      PERFIL_ATUAL_NORM = normalizarPerfil_(perfil);
+      return;
+    } catch (_) {}
+    PERFIL_ATUAL_NORM = normalizarPerfil_(localStorage.getItem('auth_perfil') || '');
+  }
 
   const ALERTAS_LABEL = {
     EVENTO_OCORREU_SEM_RECEBIMENTO: 'Evento já ocorreu e não teve recebimento',
@@ -1023,6 +1184,7 @@
     });
 
     container.appendChild(table);
+    if (window.lucide) window.lucide.createIcons();
   }
 
   function renderCards(lista) {
@@ -1035,6 +1197,7 @@
     }
 
     lista.forEach(ev => container.appendChild(criarCard(ev)));
+    if (window.lucide) window.lucide.createIcons();
   }
 
   function criarCard(evento) {
@@ -1110,29 +1273,35 @@
     const contratanteSeguro = escaparHtml(contratante);
     const tipoEventoSeguro = escaparHtml(tipoEvento);
     const idEventoSeguro = escaparHtml(idEvento);
+    const podeExecutarRecebimento = !ehSocioAdmin_();
+    const podeExecutarSaidaFolha = !ehSocioAdmin_();
+    const podeExecutarReconciliacao = !ehSocioAdmin_();
 
     card.innerHTML = `
-      <div class="card-header">
-        <div>
+      <div class="card-head">
+        <div class="card-title-wrap">
           <div class="titulo">${formatarData(evento.dataEvento)} - ${contratanteSeguro}</div>
-          <div class="data">${idEventoSeguro} • ${tipoEventoSeguro}</div>
+          <div class="data"><i data-lucide="hash"></i> ${idEventoSeguro} • ${tipoEventoSeguro}</div>
         </div>
         <div class="valor">R$ ${formatarValor(evento.valorContrato)}</div>
       </div>
 
-      <div class="linha">
-        <span>Recebido</span>
-        <strong>R$ ${formatarValor(evento.totalRecebido)}</strong>
-      </div>
-
-      <div class="linha">
-        <span>Saldo a Receber</span>
-        <strong>R$ ${formatarValor(evento.valorPendente)}</strong>
+      <div class="kpis">
+        <div class="kpi">
+          <span>Recebido</span>
+          <strong>R$ ${formatarValor(evento.totalRecebido)}</strong>
+        </div>
+        <div class="kpi">
+          <span>Saldo a Receber</span>
+          <strong>R$ ${formatarValor(evento.valorPendente)}</strong>
+        </div>
       </div>
 
       ${evento.comissao && evento.comissao.existe ? `
         <div class="comissao-box">
-          <strong>💼 Comissão do Vendedor</strong>
+          <div class="comissao-header">
+            <div class="comissao-title"><i data-lucide="badge-dollar-sign"></i> Comissão do Vendedor</div>
+          </div>
 
           <div class="comissao-grid">
             <div class="comissao-item">
@@ -1157,12 +1326,12 @@
             ${(() => {
               switch (evento.comissao.status) {
                 case 'NA': return 'Comissão: Não aplicável';
-                case 'AGUARDANDO': return 'ℹ️ Comissão será gerada conforme os recebimentos';
-                case 'PARCIAL': return 'ℹ️ Comissão parcialmente gerada';
-                case 'PENDENTE': return '⚠️ Comissão pendente de pagamento';
+                case 'AGUARDANDO': return 'Comissão aguardando recebimentos';
+                case 'PARCIAL': return 'Comissão parcialmente gerada';
+                case 'PENDENTE': return 'Comissão pendente de pagamento';
                 case 'OK':
-                case 'QUITADO': return '✅ Comissão quitada';
-                case 'ERRO': return '🚨 Problema grave na comissão';
+                case 'QUITADO': return 'Comissão quitada';
+                case 'ERRO': return 'Problema grave na comissão';
                 default: return 'Status de comissão desconhecido';
               }
             })()}
@@ -1170,18 +1339,19 @@
         </div>
       ` : ''}
 
-      <div class="linha">
-        <span>BV</span>
-        <strong>${escaparHtml(evento.bv?.status || 'N/A')}</strong>
-      </div>
-
-      <div class="linha">
-        <span>Nota Fiscal</span>
-        <strong>${escaparHtml(evento.nf?.status || 'N/A')}</strong>
+      <div class="card-meta">
+        <div class="meta-item">
+          <span>BV</span>
+          <strong>${escaparHtml(evento.bv?.status || 'N/A')}</strong>
+        </div>
+        <div class="meta-item">
+          <span>Nota Fiscal</span>
+          <strong>${escaparHtml(evento.nf?.status || 'N/A')}</strong>
+        </div>
       </div>
 
       <div class="status ${statusSeguro}">
-        Status: ${statusSeguro.toUpperCase()}
+        <i data-lucide="shield-alert"></i> Status: ${statusSeguro.toUpperCase()}
       </div>
 
       ${alertasFinanceiros.length ? `<div class="alertas"><strong>💰 Financeiro:</strong> ${alertasFinanceiros.join(' • ')}</div>` : ''}
@@ -1191,11 +1361,11 @@
       ${evento?.metadados?.legado ? `<div class="alertas"><strong>📦 Origem:</strong> Legado</div>` : ''}
 
       <div class="acoes">
-        <button class="btn secondary" onclick="irEditar('${idEvento}')">Editar</button>
-        ${evento.acoes?.podeReceber ? `<button class="btn success" onclick="irReceber('${idEvento}')">Receber</button>` : ''}
-        ${evento.acoes?.podePagarBV ? `<button class="btn warning" onclick="irPagarBV('${idEvento}')">Pagar BV</button>` : ''}
-        ${evento.acoes?.podeRegistrarFolha ? `<button class="btn secondary" onclick="irCustos('${idEvento}')">Registrar Custos</button>` : ''}
-        ${divergencias.length ? `<button class="btn warning" onclick="reconciliarEvento('${idEvento}')">Reconciliar</button>` : ''}
+        <button class="btn secondary" onclick="irEditar('${idEvento}')"><i data-lucide="pencil"></i>Editar</button>
+        ${(podeExecutarRecebimento && evento.acoes?.podeReceber) ? `<button class="btn success" onclick="irReceber('${idEvento}')"><i data-lucide="wallet"></i>Receber</button>` : ''}
+        ${evento.acoes?.podePagarBV ? `<button class="btn warning" onclick="irPagarBV('${idEvento}')"><i data-lucide="hand-coins"></i>Pagar BV</button>` : ''}
+        ${(podeExecutarSaidaFolha && evento.acoes?.podeRegistrarFolha) ? `<button class="btn secondary" onclick="irCustos('${idEvento}')"><i data-lucide="receipt-text"></i>Registrar Custos</button>` : ''}
+        ${(podeExecutarReconciliacao && divergencias.length) ? `<button class="btn warning" onclick="reconciliarEvento('${idEvento}')"><i data-lucide="shield-check"></i>Reconciliar</button>` : ''}
       </div>
     `;
 
@@ -1237,6 +1407,10 @@
   }
 
   function irReceber(id) {
+    if (ehSocioAdmin_()) {
+      alert('Ação permitida apenas para Proprietário.');
+      return;
+    }
     window.location.href = 'central-financeira.html?mode=recebimento&idEvento=' + encodeURIComponent(id || '');
   }
 
@@ -1245,6 +1419,10 @@
   }
 
   function irCustos(id) {
+    if (ehSocioAdmin_()) {
+      alert('Ação permitida apenas para Proprietário.');
+      return;
+    }
     window.location.href = 'central-financeira.html?mode=obrigacao&acao=folha&idEvento=' + encodeURIComponent(id || '');
   }
 
@@ -1253,6 +1431,10 @@
   }
 
   async function reconciliarEvento(id) {
+    if (ehSocioAdmin_()) {
+      alert('Ação permitida apenas para Proprietário.');
+      return;
+    }
     if (!id) return;
     if (!confirm('Reconciliar espelho financeiro deste evento?')) return;
     try {
@@ -1272,8 +1454,9 @@
 
   
 
-window.addEventListener('load', () => {
+window.addEventListener('load', async () => {
   console.log('🚀 painel-financeiro.html iniciado (frontend externo)');
+  await detectarPerfilAtual_();
   carregarPainel();
   window.addEventListener('resize', () => atualizarContadoresFiltros());
 });
