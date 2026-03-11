@@ -1933,18 +1933,8 @@ if (!AUTH.email || !AUTH.session) {
       },
 
       getStatusBadge(status) {
-        if (window.StatusFormatters && typeof window.StatusFormatters.badgeClassStatusRecebimento === 'function') {
-          return window.StatusFormatters.badgeClassStatusRecebimento(this.getStatusCode(status));
-        }
-        const badges = {
-          'Pendente': 'status-pendente',
-          'Pago': 'status-pago',
-          'Parcial': 'status-parcial',
-          'Parcialmente Pago': 'status-parcial',
-          'EM_ABERTO': 'status-pendente',
-          'QUITADO': 'status-pago'
-        };
-        return badges[status] || 'status-pendente';
+        // Mantém o padrão visual anterior da agenda: um único estilo de cor para status financeiro.
+        return 'status-pendente';
       },
 
       getStatusLabel(status) {
