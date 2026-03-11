@@ -1232,6 +1232,13 @@
             <label for="motivo" class="required">Motivo</label>
             <input type="text" id="motivo" placeholder="">
           </div>
+
+          <div id="campoProjeto" class="form-group">
+            <label for="projeto">Projeto/Formação</label>
+            <select id="projeto">
+              <option value="">Carregando...</option>
+            </select>
+          </div>
           
           <div class="form-row-3">
             <div class="form-group">
@@ -1278,13 +1285,6 @@
                 <option value="">Carregando...</option>
               </select>
             </div>
-          </div>
-          
-          <div id="campoProjeto" class="form-group">
-            <label for="projeto">Projeto/Formação</label>
-            <select id="projeto">
-              <option value="">Carregando...</option>
-            </select>
           </div>
         </div>
         
@@ -2206,7 +2206,7 @@ window.onload = function () {
       const campoValor = document.getElementById('campoValorComissao');
       const campoComissao = document.getElementById('comissaoValor');
       
-      if (tipo === 'Padrão') {
+      if (tipo === 'Padrão' || tipo === 'Sem Comissão') {
         campoValor.style.display = 'none';
         campoComissao.value = '';
       } else {
