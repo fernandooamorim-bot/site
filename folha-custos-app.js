@@ -338,10 +338,16 @@ async function apiPost(action, data = {}) {
       };
     }
 
-    const resp = await Auth.apiCall('folhaCustosProxy', {
-      externalAction: externalAction,
-      payload: payload
-    });
+    const resp = await Auth.apiCall(
+      'folhaCustosProxy',
+      Object.assign(
+        {
+          externalAction: externalAction,
+          payloadJson: JSON.stringify(payload || {})
+        },
+        payload || {}
+      )
+    );
 
     if (!resp || resp.sucesso !== true) {
       throw new Error(resp?.mensagem || resp?.error || 'Falha na integração com Folha de Custos');
