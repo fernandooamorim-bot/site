@@ -1145,7 +1145,7 @@
           <div class="nav-card-footer">
             <span class="access-badge restricted">
               <i data-lucide="shield"></i>
-              Proprietário e Administrador
+              Somente Proprietário
             </span>
           </div>
         </div>
@@ -1233,7 +1233,7 @@
           <div class="nav-card-footer">
             <span class="access-badge restricted">
               <i data-lucide="shield"></i>
-              Somente Proprietário
+              Proprietário e Produção
             </span>
           </div>
         </div>
@@ -1473,6 +1473,7 @@
   function aplicarPermissoes(user) {
     var perfilNorm = normalizarPerfil(user.perfil);
     var perfilRestritoAgenda = (perfilNorm === 'musico' || perfilNorm === 'producao');
+    var perfilSocioAdmin = isPerfilSocioOuAdmin(user.perfil);
 
     if (perfilRestritoAgenda) {
     ocultar('cardNovoEvento');
@@ -1487,6 +1488,11 @@
 
     ocultar('bnavNovoEvento');
     ocultar('bnavEditarEvento');
+    }
+
+    // Sócio/Admin não acessa mais Painel Financeiro.
+    if (perfilSocioAdmin) {
+      ocultar('cardPainelFinanceiro');
     }
 
     // Card de Folha de Custos é para Proprietário e Produção.
