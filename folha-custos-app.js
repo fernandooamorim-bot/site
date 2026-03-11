@@ -352,8 +352,14 @@ async function apiPost(action, data = {}) {
     if (!resp || resp.sucesso !== true) {
       throw new Error(resp?.mensagem || resp?.error || 'Falha na integração com Folha de Custos');
     }
+    if (resp.debug && resp.debug.endpointUtilizado) {
+      console.log('[FolhaCustosProxy] endpoint:', resp.debug.endpointUtilizado);
+    }
 
     const result = resp.data || {};
+    if (resp.debug && resp.debug.endpointUtilizado) {
+      result.__debugEndpoint = resp.debug.endpointUtilizado;
+    }
     if (result.error) {
       let mensagem = String(result.error || '');
       if (
@@ -401,6 +407,42 @@ async function diagnosticarFolhasInvalidas_() {
   } catch (e) {
     console.warn('Falha no diagnóstico de folhas inválidas:', e);
     return [];
+  }
+}
+
+function parseDataFolhaLocal_(valor) {
+  if (valor === null || typeof valor === 'undefined') return null;
+  const txt = String(valor).trim();
+  if (!txt) return null;
+  if (/^\d{2}\/\d{2}\/\d{4}$/.test(txt)) {
+    const p = txt.split('/');
+    const d = new Date(Number(p[2]), Number(p[1]) - 1, Number(p[0]));
+    return isNaN(d.getTime()) ? null : d;
+  }
+  const d = new Date(txt);
+  return isNaN(d.getTime()) ? null : d;
+}
+
+async function diagnosticarPeriodoSemEventos_(dataInicio, dataFim) {
+  try {
+    const folhas = await apiPost('getFolhasCusto', {});
+    const lista = Array.isArray(folhas) ? folhas : [];
+    const inicio = parseDataFolhaLocal_(dataInicio);
+    const fim = parseDataFolhaLocal_(dataFim);
+    if (!inicio || !fim) {
+      return { totalFolhas: lista.length, noPeriodo: 0 };
+    }
+    inicio.setHours(0, 0, 0, 0);
+    fim.setHours(23, 59, 59, 999);
+    let noPeriodo = 0;
+    lista.forEach((f) => {
+      const d = parseDataFolhaLocal_(f && f.data);
+      if (!d) return;
+      if (d >= inicio && d <= fim) noPeriodo += 1;
+    });
+    return { totalFolhas: lista.length, noPeriodo: noPeriodo };
+  } catch (_) {
+    return { totalFolhas: 0, noPeriodo: 0 };
   }
 }
 
@@ -1506,7 +1548,8 @@ async function gerarRelatorio() {
         dataFim: dataFim,
         tipo: tipo,  // ← ARMAZENAR TIPO
         resumo: resultado.resumo,
-        totalEventos: resultado.totalEventos
+        totalEventos: resultado.totalEventos,
+        endpoint: resultado.__debugEndpoint || ''
       };
       
       // Mostrar relatório
@@ -1519,6 +1562,14 @@ async function gerarRelatorio() {
     hideLoading();
     console.error('❌ Erro ao gerar relatório:', error);
     const msg = String(error && error.message ? error.message : error);
+    if (msg.toLowerCase().indexOf('nenhum evento encontrado no período') !== -1) {
+      const diag = await diagnosticarPeriodoSemEventos_(dataInicio, dataFim);
+      const extra = diag.noPeriodo > 0
+        ? `\n\nDiagnóstico: existem ${diag.noPeriodo} folha(s) no período localmente. Isso indica divergência de endpoint/configuração do app externo.`
+        : `\n\nDiagnóstico: não há folhas no período selecionado (total geral: ${diag.totalFolhas}).`;
+      alert('Erro ao gerar relatório: ' + msg + extra);
+      return;
+    }
     if (msg === 'RELATORIO_DADOS_INVALIDOS') {
       const invalidas = await diagnosticarFolhasInvalidas_();
       if (invalidas.length) {
