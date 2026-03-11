@@ -69,9 +69,30 @@ document.addEventListener('DOMContentLoaded', async function() {
 
     CURRENT_USER_EMAIL = String(auth.user.email || localStorage.getItem('auth_email') || '').trim();
     if (auth.user.nome) localStorage.setItem('auth_nome', String(auth.user.nome));
-    await carregarDados();
-    hideLoading();
-    showApp();
+
+    const cacheBoot = lerCacheFolhaCustos_();
+    const podeInstantBoot = cacheFolhaValido_(cacheBoot);
+
+    if (podeInstantBoot) {
+      stopLoadingMessageRotation_();
+      updateLoadingMessage('Abrindo versão em cache...');
+      aplicarDadosBaseFolha_(
+        cacheBoot.configuracoes,
+        cacheBoot.musicos,
+        cacheBoot.pacotes,
+        cacheBoot.servicosTerceirizados
+      );
+      hideLoading();
+      showApp();
+
+      carregarDados().catch((syncError) => {
+        console.warn('Falha ao sincronizar dados em background:', syncError);
+      });
+    } else {
+      await carregarDados();
+      hideLoading();
+      showApp();
+    }
   } catch (error) {
     console.error('❌ Erro na inicialização:', error);
     alert('Sessão inválida. Faça login novamente.');
