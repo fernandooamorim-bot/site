@@ -720,6 +720,11 @@
       background: rgba(30,58,95,0.08);
       color: var(--navy-700);
     }
+    .evento-icon .evento-icon-glyph {
+      width: 16px;
+      height: 16px;
+      stroke-width: 2.2;
+    }
 
     .evento-card.bloqueio .evento-icon {
       background: rgba(239,68,68,0.12);
@@ -2341,16 +2346,16 @@ criarCardEvento(evento) {
   const podeEditarRegistro = !!podeEditar && !ehCancelado;
 
   let classeExtra = '';
-  let icone = '🎵';
+  let iconeLucide = 'music-2';
   if (evento.tipo === 'Bloqueio') {
     classeExtra = 'bloqueio';
-    icone = '🚫';
+    iconeLucide = 'ban';
   } else if (evento.tipo === 'Reunião') {
     classeExtra = 'reuniao';
-    icone = '📅';
+    iconeLucide = 'calendar';
   } else if (evento.tipo === 'Reserva') {
     classeExtra = 'reserva';
-    icone = '📌';
+    iconeLucide = 'bookmark';
   }
 
   const dataResumo = evento.dataFim
@@ -2436,7 +2441,7 @@ criarCardEvento(evento) {
 
   return `
     <article class="evento-card ${classificacao} ${classeExtra}" data-evento-id="${evento.id}" onclick="UI.toggleDetalhesCard(this)">
-      <div class="evento-icon">${icone}</div>
+      <div class="evento-icon"><i data-lucide="${iconeLucide}" class="evento-icon-glyph"></i></div>
 
       <div class="evento-main">
         <div class="evento-topline">
@@ -2539,6 +2544,7 @@ criarCardEvento(evento) {
     `;
 
     container.innerHTML = html;
+    if (window.lucide) window.lucide.createIcons();
 
     // Debug info (apenas se habilitado).
     if (AppState.virtualizacao.debug) {
@@ -2563,6 +2569,7 @@ criarCardEvento(evento) {
     html += '</div>';
 
     container.innerHTML = html;
+    if (window.lucide) window.lucide.createIcons();
   },
   mostrarDebugVirtualizacao(start, end, total) {
   // Remove info anterior
