@@ -348,7 +348,16 @@ async function apiPost(action, data = {}) {
     }
 
     const result = resp.data || {};
-    if (result.error) throw new Error(result.error);
+    if (result.error) {
+      let mensagem = String(result.error || '');
+      if (
+        action === 'gerarPreviewPDF' &&
+        mensagem.indexOf("Cannot read properties of undefined (reading 'toString')") !== -1
+      ) {
+        mensagem = 'RELATORIO_DADOS_INVALIDOS';
+      }
+      throw new Error(mensagem);
+    }
 
     // Compatibilidade de resposta com fluxo legado (espera result.url).
     if (result.success && !result.url && result.downloadUrl) {
@@ -359,6 +368,33 @@ async function apiPost(action, data = {}) {
   } catch (error) {
     console.error('❌ Erro na requisição:', error);
     throw error;
+  }
+}
+
+function dataFolhaValida_(valor) {
+  if (valor === null || typeof valor === 'undefined') return false;
+  const txt = String(valor).trim();
+  if (!txt || txt.toLowerCase() === 'undefined' || txt.toLowerCase() === 'null') return false;
+  const dt = new Date(valor);
+  if (!isNaN(dt.getTime())) return true;
+  return /^\d{2}\/\d{2}\/\d{4}$/.test(txt) || /^\d{4}-\d{2}-\d{2}$/.test(txt);
+}
+
+async function diagnosticarFolhasInvalidas_() {
+  try {
+    const folhas = await apiPost('getFolhasCusto', {});
+    const lista = Array.isArray(folhas) ? folhas : [];
+    return lista
+      .filter(f => !dataFolhaValida_(f && f.data))
+      .slice(0, 10)
+      .map(f => ({
+        id: String((f && f.id) || '-'),
+        nomeEvento: String((f && f.nomeEvento) || 'Sem nome'),
+        data: String((f && f.data) || '')
+      }));
+  } catch (e) {
+    console.warn('Falha no diagnóstico de folhas inválidas:', e);
+    return [];
   }
 }
 
@@ -1476,7 +1512,23 @@ async function gerarRelatorio() {
   } catch (error) {
     hideLoading();
     console.error('❌ Erro ao gerar relatório:', error);
-    alert('Erro ao gerar relatório: ' + error.message);
+    const msg = String(error && error.message ? error.message : error);
+    if (msg === 'RELATORIO_DADOS_INVALIDOS') {
+      const invalidas = await diagnosticarFolhasInvalidas_();
+      if (invalidas.length) {
+        const linhas = invalidas
+          .map(x => `• ${x.id} | ${x.nomeEvento} | data: ${x.data || 'vazia'}`)
+          .join('\n');
+        alert(
+          'Não foi possível gerar o relatório porque existem folhas com DATA inválida no sistema externo.\n\n' +
+          'Corrija a coluna de data dessas folhas e tente novamente:\n\n' + linhas
+        );
+        return;
+      }
+      alert('Não foi possível gerar o relatório: há dados de folha com data inválida no sistema externo.');
+      return;
+    }
+    alert('Erro ao gerar relatório: ' + msg);
   }
 }
 
