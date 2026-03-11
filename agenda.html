@@ -562,6 +562,45 @@
       flex-direction: column;
       gap: 8px;
     }
+    .eventos-list-agrupada {
+      gap: 14px;
+    }
+    .cards-mes-grupo {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .cards-mes-titulo {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      background: linear-gradient(90deg, #eef3ff 0%, #f7f9fe 100%);
+      color: var(--navy-700);
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.6px;
+      text-transform: uppercase;
+      border: 1px solid var(--gray-200);
+      border-radius: 10px;
+      padding: 8px 10px;
+    }
+    .cards-mes-count {
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--gray-600);
+      background: #ffffff;
+      border: 1px solid var(--gray-200);
+      border-radius: var(--radius-full);
+      padding: 2px 8px;
+      text-transform: none;
+      letter-spacing: 0;
+    }
+    .cards-mes-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
 
     .agenda-planilha {
       display: flex;
@@ -749,9 +788,9 @@
       display: flex;
       align-items: center;
       gap: 6px;
-      font-size: 12px;
-      color: var(--gray-500);
-      margin-bottom: 2px;
+      font-size: 11px;
+      color: var(--gray-400);
+      margin-bottom: 4px;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -766,10 +805,10 @@
     }
 
     .evento-titulo {
-      font-size: 14px;
-      font-weight: 700;
-      color: var(--gray-800);
-      line-height: 1.25;
+      font-size: 15px;
+      font-weight: 800;
+      color: #16213a;
+      line-height: 1.22;
       flex: 1;
       min-width: 0;
       white-space: nowrap;
@@ -798,8 +837,8 @@
       align-items: center;
       justify-content: space-between;
       gap: 8px;
-      font-size: 12px;
-      color: var(--gray-600);
+      font-size: 11px;
+      color: var(--gray-500);
     }
 
     .evento-local {
@@ -936,6 +975,40 @@
       display: flex;
       gap: 8px;
       margin-top: 2px;
+    }
+    .evento-actions .btn-action {
+      padding: 6px 10px;
+      border-width: 1px;
+      font-size: 11px;
+      font-weight: 700;
+      border-radius: 9px;
+      background: #f8fafc;
+      color: #374151;
+      border-color: #dbe3ef;
+      box-shadow: none;
+    }
+    .evento-actions .btn-action:hover {
+      background: #f1f5f9;
+      border-color: #cbd5e1;
+      transform: translateY(-1px);
+    }
+    .evento-actions .btn-action.primary {
+      background: #eaf0ff;
+      color: #1f3a8a;
+      border-color: #bfdbfe;
+    }
+    .evento-actions .btn-action.primary:hover {
+      background: #dbeafe;
+      border-color: #93c5fd;
+    }
+    .evento-actions .btn-action.danger {
+      background: #fff5f6;
+      color: #b42318;
+      border-color: #fecdd3;
+    }
+    .evento-actions .btn-action.danger:hover {
+      background: #ffe9ec;
+      border-color: #fda4af;
     }
 
     .btn-action {
@@ -2474,15 +2547,18 @@ criarCardEvento(evento) {
         ${podeEditarRegistro ? `
           <div class="evento-actions">
             <button class="btn-action primary" onclick="editarEvento('${evento.id}'); event.stopPropagation();">
-              ✏️ Editar Evento
+              <i data-lucide="pencil" style="width:13px;height:13px"></i>
+              Editar
             </button>
             ${evento.tipo === 'Reserva' ? `
               <button class="btn-action btn-secondary" onclick="converterReserva('${evento.id}'); event.stopPropagation();">
-                🔄 Converter em Evento
+                <i data-lucide="refresh-ccw" style="width:13px;height:13px"></i>
+                Converter
               </button>
             ` : ''}
             <button class="btn-action danger" onclick="cancelarRegistro('${evento.id}'); event.stopPropagation();">
-              ⛔ Cancelar
+              <i data-lucide="ban" style="width:13px;height:13px"></i>
+              Cancelar
             </button>
           </div>
         ` : ''}
@@ -2559,11 +2635,36 @@ criarCardEvento(evento) {
     Utils.log('Renderizando normalmente:', eventos.length);
 
     const container = document.getElementById('eventosContainer');
-
-    let html = '<div class="eventos-list">';
+    const grupos = {};
 
     eventos.forEach(evento => {
-      html += this.criarCardEvento(evento);
+      const chave = this.obterChaveMesAno(evento.data) || 'sem-data';
+      if (!grupos[chave]) grupos[chave] = [];
+      grupos[chave].push(evento);
+    });
+
+    const chavesOrdenadas = Object.keys(grupos).sort((a, b) => {
+      if (a === 'sem-data') return 1;
+      if (b === 'sem-data') return -1;
+      return a.localeCompare(b);
+    });
+
+    let html = '<div class="eventos-list eventos-list-agrupada">';
+    chavesOrdenadas.forEach(chave => {
+      const labelMes = chave === 'sem-data' ? 'Sem data definida' : this.obterLabelMesAno(chave);
+      const lista = grupos[chave] || [];
+      const cards = lista.map(evento => this.criarCardEvento(evento)).join('');
+      html += `
+        <section class="cards-mes-grupo">
+          <div class="cards-mes-titulo">
+            <span>${labelMes}</span>
+            <span class="cards-mes-count">${lista.length} evento${lista.length !== 1 ? 's' : ''}</span>
+          </div>
+          <div class="cards-mes-list">
+            ${cards}
+          </div>
+        </section>
+      `;
     });
 
     html += '</div>';
