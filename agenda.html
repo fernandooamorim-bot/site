@@ -1487,6 +1487,7 @@
       <button class="filter-btn" data-filter="proximos7">Próximos 7 dias</button>
       <button class="filter-btn" data-filter="mesAtual">Mês Atual</button>
       <button class="filter-btn" data-filter="todos">Todos</button>
+      <button class="filter-btn" data-filter="cancelados" id="btnFiltroCancelados" style="display:none;">Cancelados</button>
     </div>
 
     <button class="mobile-more-options" id="mobileMoreOptions" aria-expanded="false">
@@ -2305,6 +2306,9 @@ criarCardEvento(evento) {
   const podeVerValor = AppState.usuario && ehPerfilGestorAgenda_(AppState.usuario.perfil);
   const podeVerObservacaoInterna = AppState.usuario && ehPerfilGestorAgenda_(AppState.usuario.perfil);
   const podeEditar = AppState.usuario && ehPerfilGestorAgenda_(AppState.usuario.perfil);
+  const statusGeral = String(evento.statusGeral || 'ATIVO').trim().toUpperCase();
+  const ehCancelado = statusGeral === 'CANCELADO';
+  const podeEditarRegistro = !!podeEditar && !ehCancelado;
 
   let classeExtra = '';
   let icone = '🎵';
@@ -2419,6 +2423,7 @@ criarCardEvento(evento) {
         <div class="evento-bottomline">
           <span class="evento-local">${evento.local || 'Local não informado'}</span>
           <span>
+            ${ehCancelado ? `<span class="status-badge status-reserva">Cancelado</span>` : ''}
             ${statusLabel ? `<span class="status-badge ${statusClass}">${statusLabel}</span>` : ''}
             ${temConflitos ? `<span class="conflict-badge">⚠ ${evento.eventosDentro.length} conflito${evento.eventosDentro.length > 1 ? 's' : ''}</span>` : ''}
           </span>
@@ -2430,7 +2435,7 @@ criarCardEvento(evento) {
       <div class="evento-details">
         ${detalhes.length ? `<div class="evento-detail-grid">${detalhes.join('')}</div>` : ''}
         ${conflitosHtml}
-        ${podeEditar ? `
+        ${podeEditarRegistro ? `
           <div class="evento-actions">
             <button class="btn-action primary" onclick="editarEvento('${evento.id}'); event.stopPropagation();">
               ✏️ Editar Evento
@@ -2727,6 +2732,12 @@ renderizarEventosDentro(evento) {
 
         let eventosFiltrados = [...AppState.eventos];
 
+        if (tipo !== 'cancelados') {
+          eventosFiltrados = eventosFiltrados.filter(e =>
+            String(e.statusGeral || 'ATIVO').trim().toUpperCase() !== 'CANCELADO'
+          );
+        }
+
         switch (tipo) {
           case 'todos':
             // LIMITE PARA FILTRO "TODOS"
@@ -2812,6 +2823,12 @@ renderizarEventosDentro(evento) {
             });
             break;
 
+          case 'cancelados':
+            eventosFiltrados = eventosFiltrados.filter(e => {
+              return String(e.statusGeral || 'ATIVO').trim().toUpperCase() === 'CANCELADO';
+            });
+            break;
+
           default:
             if (typeof tipo === 'string' && /^ano_\d{4}$/.test(tipo)) {
               const anoAlvo = Number(tipo.replace('ano_', ''));
@@ -2858,6 +2875,10 @@ renderizarEventosDentro(evento) {
           const busca = (document.getElementById('filterBusca')?.value || '').toLowerCase();
 
           let eventosFiltrados = [...AppState.eventos];
+
+          eventosFiltrados = eventosFiltrados.filter(e =>
+            String(e.statusGeral || 'ATIVO').trim().toUpperCase() !== 'CANCELADO'
+          );
 
           // Filtro de data início
           if (dataInicio) {
@@ -3086,11 +3107,14 @@ renderizarEventosDentro(evento) {
       aplicarRestricoesPerfil() {
         const viewToolbar = document.getElementById('viewToolbar');
         const btnMobileMore = document.getElementById('mobileMoreOptions');
+        const btnFiltroCancelados = document.getElementById('btnFiltroCancelados');
         if (isGestorAgenda()) {
+          if (btnFiltroCancelados) btnFiltroCancelados.style.display = 'inline-flex';
           if (viewToolbar) viewToolbar.classList.add('show');
           UI.atualizarEstadoControlesMobile_();
           return;
         }
+        if (btnFiltroCancelados) btnFiltroCancelados.style.display = 'none';
 
         AppState.modoVisualizacao = 'cards';
         if (viewToolbar) viewToolbar.classList.remove('show');
@@ -3206,8 +3230,9 @@ renderizarEventosDentro(evento) {
 
       async carregarEventos() {
         Utils.log('Carregando eventos via API...');
+        const incluirCancelados = isGestorAgenda();
 
-        const res = await Auth.apiCall('listarEventos');
+        const res = await Auth.apiCall('listarEventos', { incluirCancelados });
 
         if (!res || res.ok === false) {
           throw new Error(res?.mensagem || 'Erro ao carregar eventos');
@@ -3225,8 +3250,9 @@ renderizarEventosDentro(evento) {
       },
       async carregarEventosBootstrap() {
         Utils.log('Carregando eventos bootstrap da agenda...');
+        const incluirCancelados = isGestorAgenda();
         try {
-          const res = await Auth.apiCall('listarEventosBootstrap');
+          const res = await Auth.apiCall('listarEventosBootstrap', { incluirCancelados });
 
           if (!res || res.ok === false) {
             throw new Error(res?.mensagem || 'Erro ao carregar bootstrap da agenda');
@@ -3496,7 +3522,8 @@ renderizarEventosDentro(evento) {
       'hoje': 'Hoje',
       'proximos7': 'Próximos 7',
       'mesAtual': 'Mês Atual',
-      'todos': 'Todos'
+      'todos': 'Todos',
+      'cancelados': 'Cancelados'
     };
 
     const textoEsperado = mapeamento[filtro];
