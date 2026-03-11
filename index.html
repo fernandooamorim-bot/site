@@ -1238,6 +1238,28 @@
           </div>
         </div>
 
+        <!-- Card: Precificador de Show -->
+        <div class="nav-card anim-in anim-d5" id="cardPrecificadorShow" onclick="abrir('precificadorShow')">
+          <div class="nav-card-top">
+            <div class="nav-card-icon navy">
+              <i data-lucide="calculator"></i>
+            </div>
+            <div class="nav-card-arrow">
+              <i data-lucide="arrow-right"></i>
+            </div>
+          </div>
+          <div class="nav-card-body">
+            <div class="nav-card-title">Precificador de Show</div>
+            <div class="nav-card-desc">Calcule preço mínimo, margem de negociação e custos operacionais por evento.</div>
+          </div>
+          <div class="nav-card-footer">
+            <span class="access-badge restricted">
+              <i data-lucide="shield"></i>
+              Proprietário e Administrador
+            </span>
+          </div>
+        </div>
+
       </div>
     </main>
 
@@ -1460,6 +1482,7 @@
     ocultar('cardGerarAgenda');
     ocultar('cardOrcamento');
     ocultar('cardFolhaCustos');
+    ocultar('cardPrecificadorShow');
     
 
     ocultar('bnavNovoEvento');
@@ -1469,6 +1492,12 @@
     // Card de Folha de Custos é exclusivo do Proprietário.
     if (perfilNorm !== 'proprietario') {
       ocultar('cardFolhaCustos');
+    }
+
+    // Card de Precificador de Show é para Proprietário e Administrador/Sócio.
+    const podePrecificador = (perfilNorm === 'proprietario') || isPerfilSocioOuAdmin(user.perfil);
+    if (!podePrecificador) {
+      ocultar('cardPrecificadorShow');
     }
 
     // Administrador mantém acesso à Central Financeira com regras internas da tela.
@@ -1523,7 +1552,8 @@
       dashboardGestao: './dashboard-gestao.html',
       gerarAgenda: './GerarAgenda.html',
       orcamentoForm: './form-orcamento.html',
-      folhaCustos: './folha-custos.html'
+      folhaCustos: './folha-custos.html',
+      precificadorShow: './precificador-show.html'
     };
 
     var destino = rotas[pagina];

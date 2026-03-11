@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+  <meta name="theme-color" content="#0f1a2e"/>
+  <meta name="application-name" content="Sistema Super Agenda"/>
+  <meta name="apple-mobile-web-app-title" content="Super Agenda"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+  <meta name="mobile-web-app-capable" content="yes"/>
+  <meta name="msapplication-TileColor" content="#0f1a2e"/>
+  <link rel="manifest" href="site.webmanifest"/>
+  <link rel="icon" type="image/x-icon" href="img/favicon.ico"/>
+  <link rel="icon" type="image/png" sizes="16x16" href="img/favicon-16.png"/>
+  <link rel="icon" type="image/png" sizes="32x32" href="img/favicon-32.png"/>
+  <link rel="icon" type="image/png" sizes="48x48" href="img/favicon-48.png"/>
+  <link rel="icon" type="image/png" sizes="96x96" href="img/favicon-96x96.png"/>
+  <link rel="apple-touch-icon" sizes="180x180" href="img/apple-touch-icon.png"/>
+
+  <title>Precificador de Show - Banda Fernando Amorim</title>
+  <meta name="description" content="Sistema de precificação para shows da Banda Fernando Amorim">
+
+  <script src="auth.js?v=20260311b" defer></script>
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js" defer></script>
+
+  <link rel="stylesheet" href="precificador-show.css?v=20260311a">
+  <style>
+    :root {
+      --navy-800: #0f1a2e;
+      --navy-600: #1e3a5f;
+      --gold-400: #e0bc6a;
+      --gray-200: #d9e0ed;
+      --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      --nav-height: 68px;
+    }
+
+    body {
+      padding-top: 0;
+      padding-bottom: 90px;
+    }
+
+    .global-header {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: var(--navy-800);
+      color: #fff;
+      padding: 12px 16px;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      min-height: var(--nav-height);
+    }
+
+    .global-header-brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      text-decoration: none;
+      color: inherit;
+      cursor: pointer;
+    }
+
+    .global-header-back {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(212,168,83,0.10);
+    }
+
+    .global-header-back i { width: 18px; height: 18px; color: var(--gold-400); }
+
+    .global-header-title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 19px;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      color: #ffffff;
+    }
+
+    .global-header-title i { width: 20px; height: 20px; color: var(--gold-400); }
+
+    .global-header-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .global-header-user {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 4px 8px 4px 4px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,0.08);
+      background: rgba(255,255,255,0.06);
+    }
+
+    .global-header-avatar {
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--navy-600), rgba(58,96,152,0.8));
+      color: var(--gold-400);
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .global-header-name {
+      font-size: 12px;
+      font-weight: 600;
+      color: rgba(255,255,255,0.92);
+      max-width: 110px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .global-header-logout {
+      width: 34px;
+      height: 34px;
+      border: 1px solid rgba(255,255,255,0.10);
+      border-radius: 8px;
+      background: rgba(255,255,255,0.06);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+    }
+
+    .global-header-logout i,
+    .global-header-logout svg {
+      width: 18px;
+      height: 18px;
+      color: rgba(255,255,255,0.95);
+      stroke: currentColor;
+    }
+
+    .bottom-nav {
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      height: calc(80px + env(safe-area-inset-bottom));
+      background: var(--navy-800);
+      display: flex;
+      justify-content: space-evenly;
+      align-items: flex-start;
+      border-top: 1px solid rgba(255,255,255,0.08);
+      z-index: 90;
+      padding: 0 8px calc(env(safe-area-inset-bottom) + 16px);
+    }
+
+    .bnav-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      border: 0;
+      background: none;
+      color: rgba(255,255,255,0.9);
+      font-size: 11px;
+      font-weight: 600;
+      min-width: 62px;
+      min-height: 52px;
+      padding: 2px 10px 8px;
+      border-radius: 14px;
+      cursor: pointer;
+    }
+
+    .bnav-item i,
+    .bnav-item svg {
+      width: 21px;
+      height: 21px;
+      color: currentColor;
+      stroke: currentColor;
+      fill: none;
+    }
+
+    .bnav-item.active {
+      color: var(--gold-400);
+      background: rgba(212,168,83,0.08);
+    }
+
+    .app-main { padding-top: 12px; }
+
+    .page-head {
+      margin-bottom: 16px;
+      padding: 8px 4px;
+    }
+
+    .page-head h1 {
+      font-size: 1.25rem;
+      color: #1a1a1a;
+      margin-bottom: 4px;
+      font-weight: 700;
+    }
+
+    .page-head p {
+      font-size: 0.9rem;
+      color: #666;
+    }
+
+    @media (min-width: 768px) {
+      .bottom-nav { display: none; }
+      body { padding-bottom: 0; }
+    }
+  </style>
+</head>
+<body>
+  <div class="global-header">
+    <a class="global-header-brand" onclick="window.location.href='index.html'" title="Voltar ao Início">
+      <div class="global-header-back"><i data-lucide="arrow-left"></i></div>
+      <div class="global-header-title"><i data-lucide="calculator"></i><span>Precificador de Show</span></div>
+    </a>
+    <div class="global-header-actions">
+      <div class="global-header-user">
+        <div class="global-header-avatar" id="ghAvatar">--</div>
+        <div class="global-header-name" id="ghName">Usuário</div>
+      </div>
+      <button class="global-header-logout" id="btn-logout" title="Sair">
+        <i data-lucide="log-out"></i>
+      </button>
+    </div>
+  </div>
+
+  <div id="loading-screen" class="loading-screen">
+    <div class="loading-container">
+      <div class="loading-icon">
+        <i data-lucide="music-2"></i>
+      </div>
+      <div class="loading-content">
+        <div class="loading-spinner"><div class="spinner"></div></div>
+        <div class="loading-text" id="loading-message">Iniciando...</div>
+        <div class="loading-subtext">FA Produções • Sistema</div>
+      </div>
+    </div>
+  </div>
+
+  <div id="app-screen" class="app-screen hidden">
+    <main class="app-main">
+      <div class="container">
+        <div class="page-head">
+          <h1>Precificador de Show</h1>
+          <p>Calcule valor mínimo, faixas de negociação e custos operacionais.</p>
+        </div>
+
+        <span id="user-email" class="hidden"></span>
+
+        <div class="content">
+          <div class="section">
+            <div class="section-title">👥 Produção do Show</div>
+            <div class="section-subtitle">Selecione os músicos necessários para o show</div>
+
+            <div class="selection-buttons">
+              <button class="btn-selection" onclick="selecionarTodos()">Selecionar Todos</button>
+              <button class="btn-selection" onclick="selecionarBandaCompleta()">Banda Completa</button>
+              <button class="btn-selection" onclick="selecionarBandaReduzida()">Banda Reduzida</button>
+              <button class="btn-selection" onclick="limparSelecao()">Limpar Seleção</button>
+            </div>
+
+            <div class="checkbox-group" id="musicos-list">
+              <div class="loading-skeleton" id="musicos-loading">
+                <div class="skeleton-item"></div>
+                <div class="skeleton-item"></div>
+                <div class="skeleton-item"></div>
+                <div class="skeleton-item"></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="section">
+            <div class="section-title">🚐 Custos Terceirizados</div>
+            <div class="section-subtitle">Digite os valores específicos deste evento</div>
+            <div class="input-group-list" id="terceirizados-list"></div>
+          </div>
+
+          <div class="section">
+            <div class="section-title">💼 Configurações Comerciais</div>
+            <div class="comercial-options">
+
+              <div class="option-row" id="bv-row">
+                <div class="toggle-switch">
+                  <label class="switch">
+                    <input type="checkbox" id="bv-ativo">
+                    <span class="slider"></span>
+                  </label>
+                  <span>BV (Indicação)</span>
+                </div>
+                <div class="input-group">
+                  <select id="bv-tipo">
+                    <option value="percentual">Percentual</option>
+                    <option value="fixo">Valor Fixo</option>
+                  </select>
+                  <input type="number" class="input-small" id="bv-valor" value="10" min="0" step="0.5">
+                  <span id="bv-unidade">%</span>
+                </div>
+              </div>
+
+              <div class="option-row" id="nf-row">
+                <div class="toggle-switch">
+                  <label class="switch">
+                    <input type="checkbox" id="nf-ativo">
+                    <span class="slider"></span>
+                  </label>
+                  <span>Nota Fiscal</span>
+                </div>
+                <div class="input-group">
+                  <input type="number" class="input-small" id="nf-valor" value="7" min="0" max="100" step="0.5">
+                  <span>%</span>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+          <button class="btn-primary" onclick="calcular()" id="btn-calcular">
+            🧮 CALCULAR PREÇO MÍNIMO
+          </button>
+
+          <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p>Calculando...</p>
+          </div>
+
+          <div class="erro" id="erro">
+            <strong>⚠️ </strong><span id="erro-mensagem"></span>
+          </div>
+
+          <div class="resultado" id="resultado">
+            <div class="resultado-header">
+              <div class="resultado-titulo">💰 Valor Mínimo do Show</div>
+              <div class="resultado-valor-principal" id="valor-final">R$ 0,00</div>
+              <div class="resultado-alerta">
+                ⚠️ Este é o valor MÍNIMO para manter o padrão de entrega do show.
+              </div>
+            </div>
+
+            <div class="margem-negociacao" id="margem-negociacao">
+              <div class="margem-titulo">🎯 Faixas de Negociação</div>
+              <div class="margem-barra">
+                <div class="margem-indicador minimo">
+                  <div class="margem-label">Mínimo</div>
+                  <div class="margem-valor" id="margem-valor-minimo">R$ 0</div>
+                </div>
+                <div class="margem-indicador bom">
+                  <div class="margem-label">Bom</div>
+                  <div class="margem-valor" id="margem-valor-bom">R$ 0</div>
+                  <div class="margem-percentual" id="margem-percent-bom">+0%</div>
+                </div>
+                <div class="margem-indicador otimo">
+                  <div class="margem-label">Ótimo</div>
+                  <div class="margem-valor" id="margem-valor-otimo">R$ 0</div>
+                  <div class="margem-percentual" id="margem-percent-otimo">+0%</div>
+                </div>
+              </div>
+              <div class="margem-linha">
+                <div class="margem-track"></div>
+                <div class="margem-zona zona-minimo"></div>
+                <div class="margem-zona zona-bom"></div>
+                <div class="margem-zona zona-otimo"></div>
+              </div>
+            </div>
+
+            <div class="breakdown" id="breakdown-comissoes">
+              <div class="breakdown-titulo">💵 Comissões sobre o Valor Bruto</div>
+              <div class="breakdown-item">
+                <span class="breakdown-label">Comissão Fernando</span>
+                <span class="breakdown-valor" id="bd-comissao-fernando">R$ 0,00</span>
+              </div>
+              <div class="breakdown-item">
+                <span class="breakdown-label">Comissão Sócio</span>
+                <span class="breakdown-valor" id="bd-comissao-socio">R$ 0,00</span>
+              </div>
+              <div class="breakdown-item">
+                <span class="breakdown-label">Caixa da Banda</span>
+                <span class="breakdown-valor" id="bd-caixa-banda">R$ 0,00</span>
+              </div>
+            </div>
+
+            <div class="breakdown">
+              <div class="breakdown-titulo">🎵 Custos Operacionais</div>
+              <div class="breakdown-item">
+                <span class="breakdown-label">Custos Produção</span>
+                <span class="breakdown-valor" id="bd-musicos">R$ 0,00</span>
+              </div>
+              <div class="breakdown-item">
+                <span class="breakdown-label">Custos Terceirizados</span>
+                <span class="breakdown-valor" id="bd-terceirizados">R$ 0,00</span>
+              </div>
+              <div class="breakdown-item" id="bd-bv-row" style="display:none;">
+                <span class="breakdown-label">BV (Indicação)</span>
+                <span class="breakdown-valor" id="bd-bv">R$ 0,00</span>
+              </div>
+              <div class="breakdown-item" id="bd-nf-row" style="display:none;">
+                <span class="breakdown-label">Nota Fiscal</span>
+                <span class="breakdown-valor" id="bd-nf">R$ 0,00</span>
+              </div>
+            </div>
+
+            <div class="destaque-fernando" id="destaque-fernando">
+              <div class="destaque-fernando-label" id="destaque-label">✨ Comissão Fernando</div>
+              <div class="destaque-fernando-valor" id="destaque-valor">R$ 0,00</div>
+            </div>
+
+            <div class="acoes">
+              <button class="btn-secondary" onclick="salvarHistorico()">💾 Salvar no Histórico</button>
+              <button class="btn-secondary" onclick="novaSimulacao()">🔄 Nova Simulação</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <nav class="bottom-nav">
+    <button class="bnav-item" onclick="window.location.href='index.html'">
+      <i data-lucide="layout-grid"></i>
+      <span>Início</span>
+    </button>
+    <button class="bnav-item" onclick="window.location.href='agenda.html'">
+      <i data-lucide="calendar-days"></i>
+      <span>Agenda</span>
+    </button>
+    <button class="bnav-item active" onclick="window.location.href='precificador-show.html'">
+      <i data-lucide="calculator"></i>
+      <span>Precificador</span>
+    </button>
+    <button class="bnav-item" onclick="window.location.href='central-financeira.html'">
+      <i data-lucide="wallet"></i>
+      <span>Financeiro</span>
+    </button>
+  </nav>
+
+  <script src="precificador-show-app.js?v=20260311a"></script>
+</body>
+</html>
