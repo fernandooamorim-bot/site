@@ -680,9 +680,28 @@
 
     .fiscal-toolbar {
       display: grid;
-      grid-template-columns: 1fr 220px 220px;
+      grid-template-columns: minmax(300px, 1.5fr) minmax(190px, 1fr) minmax(230px, auto);
       gap: 10px;
       margin-bottom: 12px;
+      align-items: end;
+    }
+    .fiscal-toolbar > * {
+      min-width: 0;
+    }
+    .fiscal-toolbar input,
+    .fiscal-toolbar select {
+      margin-top: 0;
+    }
+    .fiscal-toolbar-actions {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+    }
+    .fiscal-toolbar-actions .btn {
+      margin-top: 0;
+      width: 100%;
+      min-width: 0;
+      padding: 11px 10px;
     }
     .fiscal-lista {
       display: grid;
@@ -764,6 +783,9 @@
       .fiscal-toolbar {
         grid-template-columns: 1fr;
       }
+      .fiscal-toolbar-actions {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
       .fiscal-actions {
         grid-template-columns: repeat(2, minmax(0, 1fr));
       }
@@ -783,6 +805,12 @@
         top: auto;
         max-height: none;
         overflow: visible;
+      }
+    }
+
+    @media (max-width: 560px) {
+      .fiscal-toolbar-actions {
+        grid-template-columns: 1fr;
       }
     }
 
@@ -1706,9 +1734,9 @@ function renderFiscalizacao() {
         <option value="SEM_FOLHA">Sem folha</option>
         <option value="LEGADO">Somente legado</option>
       </select>
-      <div style="display:flex;gap:8px">
-        <button type="button" class="btn secondary" style="margin-top:0" onclick="carregarFiscalizacao_(true)">Atualizar</button>
-        <button type="button" class="btn primary" style="margin-top:0" onclick="executarAuditoriaFiscalizacao_()">Auditar</button>
+      <div class="fiscal-toolbar-actions">
+        <button type="button" class="btn secondary" onclick="carregarFiscalizacao_(true)">Atualizar</button>
+        <button type="button" class="btn primary" onclick="executarAuditoriaFiscalizacao_()">Auditar</button>
       </div>
     </div>
     <div id="listaFiscalizacao" class="fiscal-lista">
@@ -1867,6 +1895,7 @@ function renderListaFiscalizacao_(lista) {
     const idEvento = String(ev.idEvento || '');
     const dataEvento = formatarDataFiscalizacao_(ev.dataEvento);
     const tipoEvento = escaparHtml_(String(ev.tipoEvento || extrairTipoEventoFiscalizacao_(ev.nomeEvento) || 'Evento'));
+    const podeGerenciarCompleto = ehProprietario_();
 
     return `
       <div class="${cardClasse}">
@@ -1890,9 +1919,9 @@ function renderListaFiscalizacao_(lista) {
           ${ev?.metadados?.legado ? '<span class="fiscal-tag">📦 LEGADO</span>' : ''}
         </div>
         <div class="fiscal-actions">
-          <button class="btn secondary" onclick="abrirEdicaoEventoFinanceiro_('${escaparAttr_(idEvento)}')">Editar</button>
-          <button class="btn secondary" onclick="abrirSaidasEventoFinanceiro_('${escaparAttr_(idEvento)}','${escaparAttr_(contratante)}','${escaparAttr_(nomeEvento)}')">Saídas</button>
-          <button class="btn primary" onclick="reconciliarEventoFinanceiro_('${escaparAttr_(idEvento)}')">Reconciliar</button>
+          ${podeGerenciarCompleto ? `<button class="btn secondary" onclick="abrirEdicaoEventoFinanceiro_('${escaparAttr_(idEvento)}')">Editar</button>` : ''}
+          ${podeGerenciarCompleto ? `<button class="btn secondary" onclick="abrirSaidasEventoFinanceiro_('${escaparAttr_(idEvento)}','${escaparAttr_(contratante)}','${escaparAttr_(nomeEvento)}')">Saídas</button>` : ''}
+          ${podeGerenciarCompleto ? `<button class="btn primary" onclick="reconciliarEventoFinanceiro_('${escaparAttr_(idEvento)}')">Reconciliar</button>` : ''}
           ${podePagarBV
             ? `<button class="btn danger" onclick="processarBVEventoFinanceiro_('${escaparAttr_(idEvento)}', ${bvValor})">Processar BV</button>`
             : '<button class="btn secondary" disabled style="opacity:.6">BV OK</button>'}
