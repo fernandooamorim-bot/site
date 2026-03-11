@@ -37,6 +37,7 @@ document.addEventListener('DOMContentLoaded', async function() {
   showLoading('Verificando sessão...');
 
   setupEventListeners();
+  if (window.lucide) window.lucide.createIcons();
   
   try {
     if (!window.Auth) throw new Error('AUTH_NOT_LOADED');
