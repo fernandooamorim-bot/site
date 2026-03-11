@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Folha de Custos | FA Produções</title>
+  <link rel="stylesheet" href="global-header.css">
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="auth.js"></script>
+  <style>
+    :root {
+      --bg: #f3f5f9;
+      --card: #ffffff;
+      --line: #e4e8f0;
+      --text: #1f2937;
+      --muted: #6b7280;
+      --brand: #10213f;
+      --brand2: #1f3d72;
+      --ok: #16a34a;
+      --warn: #f59e0b;
+      --danger: #ef4444;
+      --radius: 14px;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+    .container {
+      max-width: 1160px;
+      margin: 0 auto;
+      padding: 20px;
+      display: grid;
+      gap: 14px;
+    }
+    .hero {
+      background: linear-gradient(140deg, var(--brand), var(--brand2));
+      color: #fff;
+      border-radius: var(--radius);
+      padding: 18px;
+      border: 1px solid rgba(255,255,255,0.16);
+    }
+    .hero h1 {
+      margin: 0 0 6px 0;
+      font-size: 22px;
+      letter-spacing: -0.3px;
+    }
+    .hero p {
+      margin: 0;
+      color: rgba(255,255,255,0.9);
+      font-size: 14px;
+    }
+    .toolbar {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .btn {
+      border: 1px solid transparent;
+      border-radius: 10px;
+      padding: 10px 14px;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+    }
+    .btn.primary {
+      color: #fff;
+      background: linear-gradient(140deg, #1d4ed8, #1e40af);
+    }
+    .btn.secondary {
+      color: #334155;
+      background: #eef2f8;
+      border-color: #dbe2ee;
+    }
+    .btn.warn {
+      color: #fff;
+      background: linear-gradient(140deg, #f59e0b, #d97706);
+    }
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+    }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 14px;
+    }
+    .card h2 {
+      margin: 0 0 10px 0;
+      font-size: 16px;
+      letter-spacing: -0.2px;
+    }
+    .muted { color: var(--muted); }
+    .kv {
+      display: grid;
+      grid-template-columns: 170px 1fr;
+      gap: 8px;
+      font-size: 13px;
+      margin-bottom: 7px;
+    }
+    .kv .k { color: var(--muted); }
+    .status {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      border: 1px solid transparent;
+      border-radius: 999px;
+      padding: 5px 10px;
+      font-size: 12px;
+      font-weight: 800;
+      width: fit-content;
+    }
+    .status.ok { color: #166534; background: #ecfdf5; border-color: #bbf7d0; }
+    .status.warn { color: #92400e; background: #fffbeb; border-color: #fde68a; }
+    .status.err { color: #991b1b; background: #fef2f2; border-color: #fecaca; }
+    .list {
+      display: grid;
+      gap: 8px;
+      max-height: 360px;
+      overflow: auto;
+      padding-right: 2px;
+    }
+    .item {
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 10px;
+      background: #fafcff;
+    }
+    .row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .name { font-weight: 700; }
+    .value { font-weight: 800; color: #0f172a; }
+    .meta {
+      margin-top: 4px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .preview-controls {
+      display: grid;
+      grid-template-columns: 1fr 1fr 170px auto;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    .input, .select {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 9px 11px;
+      font-size: 13px;
+      color: var(--text);
+      background: #fff;
+    }
+    .preview-box {
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: #fbfcff;
+      padding: 10px;
+      min-height: 130px;
+      max-height: 320px;
+      overflow: auto;
+      white-space: pre-wrap;
+      font-size: 12px;
+      line-height: 1.45;
+    }
+    @media (max-width: 980px) {
+      .grid { grid-template-columns: 1fr; }
+      .preview-controls { grid-template-columns: 1fr; }
+      .kv { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="global-header">
+    <a class="global-header-brand" onclick="window.location.href='index.html'" title="Voltar ao Início">
+      <div class="global-header-back"><i data-lucide="arrow-left"></i></div>
+      <div class="global-header-title"><i data-lucide="calculator"></i><span>Folha de Custos</span></div>
+    </a>
+    <div class="global-header-actions">
+      <div class="global-header-user">
+        <div class="global-header-avatar" id="ghAvatar">--</div>
+        <div class="global-header-name" id="ghName">Usuário</div>
+      </div>
+      <button class="global-header-logout" onclick="Auth.logout()" title="Sair"><i data-lucide="log-out"></i></button>
+    </div>
+  </div>
+
+  <div class="container">
+    <section class="hero">
+      <h1>Integração Folha de Custos</h1>
+      <p>Conexão segura com o utilitário externo de cálculo, relatórios e histórico de folhas.</p>
+    </section>
+
+    <div class="toolbar">
+      <button class="btn primary" id="btnAbrirExterno"><i data-lucide="external-link"></i>Abrir Sistema Completo</button>
+      <button class="btn secondary" id="btnAtualizar"><i data-lucide="refresh-cw"></i>Atualizar Integração</button>
+      <button class="btn warn" id="btnGerarPdfDrive"><i data-lucide="file-output"></i>Gerar PDF no Drive</button>
+    </div>
+
+    <div class="grid">
+      <section class="card">
+        <h2>Conectividade</h2>
+        <div id="statusConexao" class="status warn"><i data-lucide="wifi-off"></i>Validando integração...</div>
+        <div style="margin-top:10px">
+          <div class="kv"><div class="k">Versão externa</div><div id="cfgVersao">-</div></div>
+          <div class="kv"><div class="k">Passagem de Som</div><div id="cfgPassagem">-</div></div>
+          <div class="kv"><div class="k">Adicional Fora Cidade</div><div id="cfgForaCidade">-</div></div>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Últimas Folhas</h2>
+        <div class="muted" id="resumoFolhas" style="margin-bottom:8px">Carregando...</div>
+        <div id="listaFolhas" class="list"></div>
+      </section>
+    </div>
+
+    <section class="card">
+      <h2>Prévia de Relatório</h2>
+      <div class="preview-controls">
+        <input id="dataInicio" class="input" type="date" aria-label="Data início">
+        <input id="dataFim" class="input" type="date" aria-label="Data fim">
+        <select id="tipoRelatorio" class="select" aria-label="Tipo relatório">
+          <option value="resumido">Resumido</option>
+          <option value="detalhado">Detalhado</option>
+        </select>
+        <button class="btn secondary" id="btnPreview"><i data-lucide="file-search"></i>Gerar Prévia</button>
+      </div>
+      <div id="previewBox" class="preview-box muted">Selecione um período e clique em "Gerar Prévia".</div>
+    </section>
+  </div>
+
+  <script>
+    const FOLHA_CUSTOS_EXTERNAL_URL = 'https://script.google.com/macros/s/AKfycbz80MmKhqx7DHg2HBWwrznJ4qGHdfWUhCubppjKkxgfbRrjFP5yCCb04J6QJI1sFxrh/exec';
+
+    function normalizarPerfil_(perfil) {
+      return String(perfil || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .trim()
+        .toLowerCase();
+    }
+
+    function perfilEhProprietario_(perfil) {
+      return normalizarPerfil_(perfil) === 'proprietario';
+    }
+
+    function setStatusConexao_(tipo, texto, icone) {
+      const el = document.getElementById('statusConexao');
+      if (!el) return;
+      el.className = 'status ' + (tipo || 'warn');
+      el.innerHTML = `<i data-lucide="${icone || 'wifi'}"></i>${texto || ''}`;
+      if (window.lucide) window.lucide.createIcons();
+    }
+
+    async function proxyFolha_(externalAction, payload) {
+      const resp = await Auth.apiCall('folhaCustosProxy', {
+        externalAction: externalAction,
+        payload: payload || {}
+      });
+      if (!resp || resp.sucesso !== true) {
+        throw new Error(resp?.mensagem || resp?.error || 'Falha na integração com Folha de Custos');
+      }
+      return resp.data;
+    }
+
+    function fmtMoeda_(v) {
+      return Number(v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+    }
+
+    function fmtDataPt_(raw) {
+      if (!raw) return '-';
+      if (typeof raw === 'string' && raw.includes('/')) return raw;
+      const d = new Date(raw);
+      if (isNaN(d.getTime())) return String(raw);
+      return d.toLocaleDateString('pt-BR');
+    }
+
+    function preencherHeaderUsuario_() {
+      const nome = String(localStorage.getItem('auth_nome') || '').trim();
+      const ghName = document.getElementById('ghName');
+      const ghAvatar = document.getElementById('ghAvatar');
+      if (ghName) ghName.textContent = nome ? nome.split(' ')[0] : 'Usuário';
+      if (ghAvatar) {
+        if (!nome) {
+          ghAvatar.textContent = 'US';
+          return;
+        }
+        const partes = nome.split(' ').filter(Boolean);
+        ghAvatar.textContent = partes.length >= 2
+          ? (partes[0][0] + partes[partes.length - 1][0]).toUpperCase()
+          : nome.slice(0, 2).toUpperCase();
+      }
+    }
+
+    function renderFolhas_(folhas) {
+      const list = document.getElementById('listaFolhas');
+      const resumo = document.getElementById('resumoFolhas');
+      if (!list || !resumo) return;
+      const arr = Array.isArray(folhas) ? folhas : [];
+      resumo.textContent = `${arr.length} folha(s) encontrada(s).`;
+
+      if (!arr.length) {
+        list.innerHTML = '<div class="muted">Nenhuma folha cadastrada no utilitário externo.</div>';
+        return;
+      }
+
+      const ultimas = arr.slice(-10).reverse();
+      list.innerHTML = ultimas.map(f => `
+        <div class="item">
+          <div class="row">
+            <div class="name">${String(f.nomeEvento || '-')}</div>
+            <div class="value">${fmtMoeda_(f.custoTotal)}</div>
+          </div>
+          <div class="meta">${fmtDataPt_(f.data)} • ${Number(f.qtdMusicos || 0)} músico(s) • ${f.foraCidade ? 'Fora da cidade' : 'Na cidade'}</div>
+        </div>
+      `).join('');
+    }
+
+    async function carregarIntegracao_() {
+      setStatusConexao_('warn', 'Validando integração...', 'wifi');
+      const [cfg, folhas] = await Promise.all([
+        proxyFolha_('getConfiguracoes', {}),
+        proxyFolha_('getFolhasCusto', {})
+      ]);
+
+      document.getElementById('cfgVersao').textContent = String(cfg?.versao || cfg?.VERSION || 'N/A');
+      document.getElementById('cfgPassagem').textContent = fmtMoeda_(cfg?.valorPassagemDeSom || 0);
+      document.getElementById('cfgForaCidade').textContent = fmtMoeda_(cfg?.adicionalForaCidade || 0);
+      renderFolhas_(folhas);
+      setStatusConexao_('ok', 'Integração ativa', 'wifi');
+    }
+
+    async function gerarPreview_() {
+      const inicio = String(document.getElementById('dataInicio').value || '').trim();
+      const fim = String(document.getElementById('dataFim').value || '').trim();
+      const tipo = String(document.getElementById('tipoRelatorio').value || 'resumido').trim();
+      const box = document.getElementById('previewBox');
+
+      if (!inicio || !fim) {
+        box.textContent = 'Informe data de início e fim.';
+        box.classList.add('muted');
+        return;
+      }
+
+      box.textContent = 'Gerando prévia...';
+      box.classList.add('muted');
+
+      try {
+        const data = await proxyFolha_('gerarPreviewPDF', {
+          dataInicio: inicio,
+          dataFim: fim,
+          tipo: tipo
+        });
+
+        if (!data || data.success !== true) {
+          box.textContent = data?.message || 'Não foi possível gerar a prévia.';
+          return;
+        }
+
+        box.textContent = String(data.resumo || '');
+        box.classList.remove('muted');
+      } catch (err) {
+        box.textContent = 'Erro ao gerar prévia: ' + (err.message || err);
+      }
+    }
+
+    async function gerarPdfDrive_() {
+      const inicio = String(document.getElementById('dataInicio').value || '').trim();
+      const fim = String(document.getElementById('dataFim').value || '').trim();
+      const tipo = String(document.getElementById('tipoRelatorio').value || 'resumido').trim();
+      if (!inicio || !fim) {
+        alert('Informe data de início e fim para gerar PDF no Drive.');
+        return;
+      }
+      try {
+        const data = await proxyFolha_('abrirPDFDrive', {
+          dataInicio: inicio,
+          dataFim: fim,
+          tipo: tipo
+        });
+        if (!data || data.success !== true || !data.driveUrl) {
+          throw new Error(data?.message || 'Falha ao gerar PDF no Drive.');
+        }
+        window.open(data.driveUrl, '_blank', 'noopener,noreferrer');
+      } catch (err) {
+        alert('Erro ao gerar PDF no Drive: ' + (err.message || err));
+      }
+    }
+
+    async function bootstrap_() {
+      try {
+        if (window.lucide) window.lucide.createIcons();
+
+        const auth = await Auth.apiCall('verificarUsuario');
+        if (!auth || !auth.ok || !auth.user) throw new Error('NOT_AUTH');
+        if (!perfilEhProprietario_(auth.user.perfil)) {
+          alert('Área disponível apenas para Proprietário.');
+          window.location.href = 'index.html';
+          return;
+        }
+
+        localStorage.setItem('auth_nome', String(auth.user.nome || localStorage.getItem('auth_nome') || ''));
+        preencherHeaderUsuario_();
+
+        const hoje = new Date();
+        const inicioMes = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+        document.getElementById('dataInicio').value = inicioMes.toISOString().slice(0, 10);
+        document.getElementById('dataFim').value = hoje.toISOString().slice(0, 10);
+
+        document.getElementById('btnAbrirExterno').addEventListener('click', function () {
+          window.open(FOLHA_CUSTOS_EXTERNAL_URL, '_blank', 'noopener,noreferrer');
+        });
+        document.getElementById('btnAtualizar').addEventListener('click', async function () {
+          try {
+            await carregarIntegracao_();
+          } catch (err) {
+            setStatusConexao_('err', 'Falha na integração', 'wifi-off');
+            alert('Erro ao atualizar integração: ' + (err.message || err));
+          }
+        });
+        document.getElementById('btnPreview').addEventListener('click', gerarPreview_);
+        document.getElementById('btnGerarPdfDrive').addEventListener('click', gerarPdfDrive_);
+
+        await carregarIntegracao_();
+      } catch (err) {
+        console.error(err);
+        alert('Sessão inválida ou sem permissão. Faça login novamente.');
+        window.location.href = 'index.html';
+      }
+    }
+
+    window.addEventListener('load', bootstrap_);
+  </script>
+</body>
+</html>

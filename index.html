@@ -1216,6 +1216,28 @@
           </div>
         </div>
 
+        <!-- Card: Folha de Custos -->
+        <div class="nav-card anim-in anim-d5" id="cardFolhaCustos" onclick="abrir('folhaCustos')">
+          <div class="nav-card-top">
+            <div class="nav-card-icon navy">
+              <i data-lucide="calculator"></i>
+            </div>
+            <div class="nav-card-arrow">
+              <i data-lucide="arrow-right"></i>
+            </div>
+          </div>
+          <div class="nav-card-body">
+            <div class="nav-card-title">Folha de Custos</div>
+            <div class="nav-card-desc">Integração com utilitário externo para cálculo de custos e relatórios por período.</div>
+          </div>
+          <div class="nav-card-footer">
+            <span class="access-badge restricted">
+              <i data-lucide="shield"></i>
+              Somente Proprietário
+            </span>
+          </div>
+        </div>
+
       </div>
     </main>
 
@@ -1427,6 +1449,8 @@
    * ============================================
    */
   function aplicarPermissoes(user) {
+    var perfilNorm = normalizarPerfil(user.perfil);
+
     if (user.perfil === 'Músico') {
     ocultar('cardNovoEvento');
     ocultar('cardEditarEvento');
@@ -1435,10 +1459,16 @@
     ocultar('cardDashboardGestao');
     ocultar('cardGerarAgenda');
     ocultar('cardOrcamento');
+    ocultar('cardFolhaCustos');
     
 
     ocultar('bnavNovoEvento');
     ocultar('bnavEditarEvento');
+    }
+
+    // Card de Folha de Custos é exclusivo do Proprietário.
+    if (perfilNorm !== 'proprietario') {
+      ocultar('cardFolhaCustos');
     }
 
     // Administrador mantém acesso à Central Financeira com regras internas da tela.
@@ -1492,7 +1522,8 @@
       painelFinanceiro: './painel-financeiro.html',
       dashboardGestao: './dashboard-gestao.html',
       gerarAgenda: './GerarAgenda.html',
-      orcamentoForm: './form-orcamento.html'
+      orcamentoForm: './form-orcamento.html',
+      folhaCustos: './folha-custos.html'
     };
 
     var destino = rotas[pagina];
