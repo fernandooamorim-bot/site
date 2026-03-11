@@ -1921,7 +1921,6 @@ if (!AUTH.email || !AUTH.session) {
           return 'futuro';
         }
       },
-
       getStatusCode(status, evento) {
         const opts = evento && typeof evento === 'object'
           ? {
@@ -2384,7 +2383,8 @@ criarCardEvento(evento) {
     : (isLegado
       ? (evento.contratante || `${evento.tipoEvento || evento.tipo || '-'}`)
       : `${evento.tipoEvento || evento.tipo || '-'}${evento.contratante ? ' - ' + evento.contratante : ''}`);
-  const exibirStatusNoCard = evento.tipo === 'Evento' || evento.tipo === 'Reserva';
+  const exibirStatusFinanceiroNoCard = (evento.tipo === 'Evento') && !isProducao();
+  const exibirStatusNoCard = exibirStatusFinanceiroNoCard || evento.tipo === 'Reserva';
   const statusLabel = evento.tipo === 'Reserva'
     ? 'Reserva'
     : (exibirStatusNoCard && evento.status ? Utils.getStatusLabel(evento.status) : '');
