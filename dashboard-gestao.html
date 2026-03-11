@@ -108,6 +108,15 @@
     .auditoria-hint.ok{color:#0d8a5d}
     .auditoria-hint.warn{color:#9a6d08}
     .auditoria-content{padding:10px;display:grid;gap:8px}
+    .auditoria-top5{padding:0 10px 10px;display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .auditoria-top5-card{border:1px solid var(--line);border-radius:10px;background:#fff;padding:10px}
+    .auditoria-top5-card h4{font-size:12px;color:var(--muted);margin-bottom:8px}
+    .auditoria-top5-list{display:grid;gap:6px}
+    .auditoria-top5-row{display:flex;justify-content:space-between;gap:8px;font-size:12px;border:1px solid var(--line);border-radius:8px;padding:7px 8px;background:#fcfdff}
+    .auditoria-top5-row .ev{font-weight:700;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .auditoria-top5-row .mrg{font-weight:800}
+    .auditoria-top5-row .mrg.pos{color:#0d8a5d}
+    .auditoria-top5-row .mrg.neg{color:#9f1d1d}
     .auditoria-mes{border:1px solid var(--line);border-radius:10px;background:#fff;overflow:hidden}
     .auditoria-mes > summary{list-style:none;cursor:pointer;padding:10px 12px;background:linear-gradient(90deg,#f5f8ff 0%,#fbfcff 100%);display:flex;align-items:center;justify-content:space-between;gap:10px}
     .auditoria-mes > summary::-webkit-details-marker{display:none}
@@ -116,14 +125,22 @@
     .auditoria-pill{font-size:11px;font-weight:700;border-radius:999px;padding:2px 8px;border:1px solid var(--line);background:#fff;color:var(--muted)}
     .auditoria-pill.pos{color:#0d8a5d;border-color:#b7ebd5;background:#effcf5}
     .auditoria-pill.neg{color:#9f1d1d;border-color:#fecaca;background:#fff1f2}
+    .auditoria-pill.warn{color:#9a6d08;border-color:#f3ddb2;background:#fff7e8}
+    .auditoria-pill.ok{color:#0d8a5d;border-color:#b7ebd5;background:#effcf5}
     .auditoria-list{padding:10px;display:grid;gap:6px}
-    .auditoria-row{display:grid;grid-template-columns:104px 1fr 118px 118px 118px;gap:8px;align-items:center;border:1px solid var(--line);border-radius:8px;padding:8px 10px;background:#fff}
+    .auditoria-row{display:grid;grid-template-columns:104px 1fr 110px 110px 110px 112px 120px;gap:8px;align-items:center;border:1px solid var(--line);border-radius:8px;padding:8px 10px;background:#fff}
     .auditoria-row.head{background:#f8faff;font-weight:800;color:var(--muted)}
     .auditoria-row .dt{font-size:12px;color:#4b5563;font-weight:700;white-space:nowrap}
+    .auditoria-row .ev-wrap{min-width:0;display:grid;gap:4px}
     .auditoria-row .ev{min-width:0;font-size:12px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .auditoria-alerts{display:flex;gap:4px;flex-wrap:wrap}
+    .auditoria-alert{font-size:10px;font-weight:700;border-radius:999px;padding:1px 6px;border:1px solid #f3ddb2;background:#fff7e8;color:#9a6d08}
     .auditoria-row .num{font-size:12px;text-align:right;font-weight:700;color:var(--text)}
     .auditoria-row .num.neg{color:#9f1d1d}
     .auditoria-row .num.pos{color:#0d8a5d}
+    .auditoria-row .status{justify-self:end;font-size:11px;font-weight:800;border-radius:999px;padding:3px 8px;border:1px solid var(--line)}
+    .auditoria-row .status.ok{background:#effcf5;color:#0d8a5d;border-color:#b7ebd5}
+    .auditoria-row .status.warn{background:#fff7e8;color:#9a6d08;border-color:#f3ddb2}
     .row{border:1px solid var(--line);border-radius:10px;padding:10px;background:#fff}
     .row-top{display:flex;justify-content:space-between;gap:8px}
     .row .name{font-size:13px;font-weight:700}
@@ -166,7 +183,7 @@
     @media (max-width:1100px){.kpis{grid-template-columns:repeat(3,minmax(0,1fr))}}
     @media (max-width:1280px){.split{grid-template-columns:1fr 1fr}}
     @media (max-width:980px){.metric-grid{grid-template-columns:1fr}}
-    @media (max-width:980px){.auditoria-row{grid-template-columns:78px 1fr 90px 90px 90px;font-size:11px}}
+    @media (max-width:980px){.auditoria-top5{grid-template-columns:1fr}.auditoria-row{grid-template-columns:78px 1fr 88px 88px 88px 84px 98px;font-size:11px}}
     @media (max-width:860px){.grid{grid-template-columns:1fr}.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.split{grid-template-columns:1fr}}
     @media (min-width:768px){.bottom-nav{display:none}.container{padding-bottom:20px}}
     .hidden{display:none !important}
@@ -255,9 +272,10 @@
               <button id="btnAuditoriaMensal" class="btn outline" onclick="toggleAuditoriaMensal()">Ver auditoria mensal por evento</button>
               <button id="btnRefreshAuditoriaMensal" class="btn outline hidden" onclick="refreshAuditoriaMensal()">Atualizar auditoria</button>
             </div>
-            <div id="auditoriaHint" class="auditoria-hint">Sob demanda: não carrega automaticamente ao abrir a dashboard.</div>
+            <div id="auditoriaHint" class="auditoria-hint">Sob demanda: margem realizada (somente eventos já ocorridos).</div>
           </div>
           <div id="auditoriaContent" class="auditoria-content hidden"></div>
+          <div id="auditoriaTop5" class="auditoria-top5 hidden"></div>
         </div>
       </div>
 
@@ -314,6 +332,10 @@
     function hideLoading(){document.getElementById('loading').classList.remove('active');}
 
     function fmt(v){return Number(v || 0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});}
+    function fmtPct(v){
+      if (v === null || typeof v === 'undefined' || !Number.isFinite(Number(v))) return 'N/A';
+      return `${Number(v).toFixed(1)}%`;
+    }
     function dataPtBr(d){
       if (!d) return '';
       const dt = new Date(d);
@@ -363,6 +385,20 @@
       }
       return null;
     }
+    function dataInfoToDate(info) {
+      if (!info || !info.ano || !info.mes || !info.dia) return null;
+      const d = new Date(info.ano, info.mes - 1, info.dia, 12, 0, 0, 0);
+      if (isNaN(d.getTime())) return null;
+      d.setHours(0, 0, 0, 0);
+      return d;
+    }
+    function eventoJaOcorreu(info) {
+      const data = dataInfoToDate(info);
+      if (!data) return false;
+      const hoje = new Date();
+      hoje.setHours(0, 0, 0, 0);
+      return data <= hoje;
+    }
     function lerCacheAuditoria() {
       try {
         const raw = localStorage.getItem(AUDITORIA_CACHE_KEY);
@@ -391,6 +427,13 @@
       el.textContent = String(msg || '');
       el.classList.remove('ok', 'warn');
       if (cls) el.classList.add(cls);
+    }
+    function eventoTemAlerta(evento, codigo) {
+      const alertas = Array.isArray(evento?.alertas) ? evento.alertas : [];
+      return alertas.includes(codigo);
+    }
+    function normalizarStatus(s) {
+      return String(s || '').trim().toUpperCase();
     }
 
     function montarAnos() {
@@ -575,6 +618,41 @@
       const folhaPago = num(evento?.custos?.folha?.valor || evento?.folha?.valor || evento?.folhaCustoValor);
       const saidas = comissaoPago + bvPago + nfPago + folhaPago;
       const liquido = totalRecebido - saidas;
+      const pendencias = [];
+      if (valorContrato > 0 && totalRecebido + 0.01 < valorContrato) pendencias.push('Recebimento incompleto');
+      const statusComissao = normalizarStatus(evento?.comissao?.status);
+      if (statusComissao === 'PENDENTE' || statusComissao === 'PARCIAL' || statusComissao === 'AGUARDANDO' || statusComissao === 'ERRO') {
+        pendencias.push('Comissão pendente');
+      }
+      if (
+        eventoTemAlerta(evento, 'FOLHA_NAO_REGISTRADA') ||
+        eventoTemAlerta(evento, 'DUPLICIDADE_FOLHA_PROCESSADA') ||
+        evento?.acoes?.podeRegistrarFolha
+      ) {
+        pendencias.push('Folha pendente');
+      }
+      const statusBv = normalizarStatus(evento?.bv?.status);
+      if (
+        statusBv === 'PENDENTE' ||
+        statusBv === 'AGUARDANDO' ||
+        eventoTemAlerta(evento, 'BV_PENDENTE') ||
+        eventoTemAlerta(evento, 'EVENTO_QUITADO_COM_BV_PENDENTE') ||
+        evento?.acoes?.podePagarBV
+      ) {
+        pendencias.push('BV pendente');
+      }
+      const statusNf = normalizarStatus(evento?.nf?.status);
+      if (
+        statusNf === 'PENDENTE' ||
+        statusNf === 'AGUARDANDO' ||
+        eventoTemAlerta(evento, 'EVENTO_QUITADO_COM_NF_PENDENTE')
+      ) {
+        pendencias.push('NF pendente');
+      }
+      const pendenciasUnicas = Array.from(new Set(pendencias));
+      const margemRecebido = totalRecebido > 0 ? (liquido / totalRecebido) * 100 : null;
+      const margemContratado = valorContrato > 0 ? (liquido / valorContrato) * 100 : null;
+      const statusValidacao = pendenciasUnicas.length ? 'PROVISORIA' : 'VALIDADA';
       return {
         idEvento: String(evento?.idEvento || evento?.id || ''),
         nomeEvento: String(evento?.nomeEvento || 'Evento'),
@@ -582,17 +660,55 @@
         anoEvento: dataInfo?.ano || null,
         mesEvento: dataInfo?.mes || null,
         diaEvento: dataInfo?.dia || null,
+        ocorrido: eventoJaOcorreu(dataInfo),
+        contratado: valorContrato,
         recebido: totalRecebido,
         saidas: saidas,
-        liquido: liquido
+        liquido: liquido,
+        margemRecebido: margemRecebido,
+        margemContratado: margemContratado,
+        statusValidacao: statusValidacao,
+        pendencias: pendenciasUnicas
       };
+    }
+
+    function renderTopMargens(linhas) {
+      const box = document.getElementById('auditoriaTop5');
+      if (!box) return;
+      const base = (Array.isArray(linhas) ? linhas : []).filter(x => Number.isFinite(Number(x?.margemRecebido)));
+      if (!base.length) {
+        box.innerHTML = `<div class="empty" style="margin-top:0;grid-column:1/-1">Sem base suficiente para ranking de margens.</div>`;
+        return;
+      }
+      const maiores = [...base].sort((a, b) => Number(b.margemRecebido) - Number(a.margemRecebido)).slice(0, 5);
+      const menores = [...base].sort((a, b) => Number(a.margemRecebido) - Number(b.margemRecebido)).slice(0, 5);
+
+      const montarLista = (lista, cls) => lista.map(x => `
+        <div class="auditoria-top5-row">
+          <span class="ev" title="${x.nomeEvento}">${x.nomeEvento}</span>
+          <span class="mrg ${cls}">${fmtPct(x.margemRecebido)}${x.statusValidacao === 'PROVISORIA' ? ' • P' : ''}</span>
+        </div>
+      `).join('');
+
+      box.innerHTML = `
+        <div class="auditoria-top5-card">
+          <h4>Top 5 maiores margens (s/ recebido)</h4>
+          <div class="auditoria-top5-list">${montarLista(maiores, 'pos')}</div>
+        </div>
+        <div class="auditoria-top5-card">
+          <h4>Top 5 menores margens (s/ recebido)</h4>
+          <div class="auditoria-top5-list">${montarLista(menores, 'neg')}</div>
+        </div>
+      `;
     }
 
     function renderAuditoriaMensal(eventos, ano) {
       const box = document.getElementById('auditoriaContent');
+      const topBox = document.getElementById('auditoriaTop5');
       if (!box) return;
       const meses = {};
       for (let mes = 1; mes <= 12; mes++) meses[mes] = [];
+      const linhasAno = [];
 
       (Array.isArray(eventos) ? eventos : []).forEach(ev => {
         const linha = montarLinhaAuditoriaEvento(ev);
@@ -600,9 +716,11 @@
         const anoEvento = linha.anoEvento;
         if (!mes || mes < 1 || mes > 12) return;
         if (Number(anoEvento) !== Number(ano)) return;
+        if (!linha.ocorrido) return;
         const statusGeral = String(ev?.statusGeral || '').toUpperCase();
         if (statusGeral === 'CANCELADO') return;
         meses[mes].push(linha);
+        linhasAno.push(linha);
       });
 
       const mesesComDados = Object.keys(meses)
@@ -611,6 +729,8 @@
 
       if (!mesesComDados.length) {
         box.innerHTML = `<div class="empty" style="margin-top:0">Sem eventos para auditoria no ano ${ano}.</div>`;
+        if (topBox) topBox.innerHTML = '';
+        setAuditoriaHint(`Sem eventos realizados para auditoria em ${ano}.`, 'warn');
         return;
       }
 
@@ -625,13 +745,32 @@
         const totalRecebido = lista.reduce((s, x) => s + x.recebido, 0);
         const totalSaidas = lista.reduce((s, x) => s + x.saidas, 0);
         const totalLiquido = lista.reduce((s, x) => s + x.liquido, 0);
+        const totalContratado = lista.reduce((s, x) => s + x.contratado, 0);
+        const margemMesRecebido = totalRecebido > 0 ? (totalLiquido / totalRecebido) * 100 : null;
+        const margemMesContratado = totalContratado > 0 ? (totalLiquido / totalContratado) * 100 : null;
+        const qtdProvisorio = lista.filter(x => x.statusValidacao === 'PROVISORIA').length;
+        const qtdValidado = lista.length - qtdProvisorio;
+        const mesStatusCls = qtdProvisorio > 0 ? 'warn' : 'ok';
+        const mesStatusLabel = qtdProvisorio > 0 ? `Provisória (${qtdProvisorio})` : `Validada (${qtdValidado})`;
+        const pendMes = {
+          receb: lista.filter(x => x.pendencias.includes('Recebimento incompleto')).length,
+          folha: lista.filter(x => x.pendencias.includes('Folha pendente')).length,
+          comissao: lista.filter(x => x.pendencias.includes('Comissão pendente')).length,
+          bv: lista.filter(x => x.pendencias.includes('BV pendente')).length,
+          nf: lista.filter(x => x.pendencias.includes('NF pendente')).length
+        };
         const rows = lista.map(x => `
           <div class="auditoria-row">
             <div class="dt">${x.dataEvento || '-'}</div>
-            <div class="ev" title="${x.nomeEvento}">${x.nomeEvento}</div>
+            <div class="ev-wrap">
+              <div class="ev" title="${x.nomeEvento}">${x.nomeEvento}</div>
+              ${x.pendencias.length ? `<div class="auditoria-alerts">${x.pendencias.map(p => `<span class="auditoria-alert">${p}</span>`).join('')}</div>` : ''}
+            </div>
             <div class="num">${fmt(x.recebido)}</div>
             <div class="num">${fmt(x.saidas)}</div>
             <div class="num ${x.liquido < 0 ? 'neg' : 'pos'}">${fmt(x.liquido)}</div>
+            <div class="num ${x.margemRecebido !== null && x.margemRecebido < 0 ? 'neg' : 'pos'}">${fmtPct(x.margemRecebido)} / ${fmtPct(x.margemContratado)}</div>
+            <div class="status ${x.statusValidacao === 'PROVISORIA' ? 'warn' : 'ok'}">${x.statusValidacao === 'PROVISORIA' ? 'Provisória' : 'Validada'}</div>
           </div>
         `).join('');
 
@@ -644,6 +783,10 @@
                 <span class="auditoria-pill">Recebido ${fmt(totalRecebido)}</span>
                 <span class="auditoria-pill">Saídas ${fmt(totalSaidas)}</span>
                 <span class="auditoria-pill ${totalLiquido < 0 ? 'neg' : 'pos'}">Líquido ${fmt(totalLiquido)}</span>
+                <span class="auditoria-pill ${margemMesRecebido !== null && margemMesRecebido < 0 ? 'neg' : 'pos'}">Mrg R ${fmtPct(margemMesRecebido)}</span>
+                <span class="auditoria-pill ${margemMesContratado !== null && margemMesContratado < 0 ? 'neg' : 'pos'}">Mrg C ${fmtPct(margemMesContratado)}</span>
+                <span class="auditoria-pill ${mesStatusCls}">${mesStatusLabel}</span>
+                ${(pendMes.receb + pendMes.folha + pendMes.comissao + pendMes.bv + pendMes.nf) > 0 ? `<span class="auditoria-pill warn">Pendências R:${pendMes.receb} F:${pendMes.folha} C:${pendMes.comissao} BV:${pendMes.bv} NF:${pendMes.nf}</span>` : ''}
               </div>
             </summary>
             <div class="auditoria-list">
@@ -653,6 +796,8 @@
                 <div class="num">Recebido</div>
                 <div class="num">Saídas</div>
                 <div class="num">Líquido</div>
+                <div class="num">Margem (R/C)</div>
+                <div class="num">Status</div>
               </div>
               ${rows}
             </div>
@@ -661,6 +806,8 @@
       }).join('');
 
       box.innerHTML = html;
+      if (topBox) renderTopMargens(linhasAno);
+      setAuditoriaHint(`Auditoria realizada de ${ano}: ${linhasAno.length} evento(s) já ocorridos.`, 'ok');
     }
 
     async function carregarAuditoriaMensal(force = false) {
@@ -680,7 +827,6 @@
         auditoriaState.ano = ano;
         auditoriaState.eventos = cache.eventos;
         renderAuditoriaMensal(auditoriaState.eventos, ano);
-        setAuditoriaHint('Auditoria carregada do cache local.', 'ok');
         return;
       }
 
@@ -707,18 +853,21 @@
 
     async function toggleAuditoriaMensal() {
       const box = document.getElementById('auditoriaContent');
+      const topBox = document.getElementById('auditoriaTop5');
       const btn = document.getElementById('btnAuditoriaMensal');
       const btnRefresh = document.getElementById('btnRefreshAuditoriaMensal');
       if (!box || !btn) return;
       const abrindo = box.classList.contains('hidden');
       if (!abrindo) {
         box.classList.add('hidden');
+        if (topBox) topBox.classList.add('hidden');
         btn.textContent = 'Ver auditoria mensal por evento';
         if (btnRefresh) btnRefresh.classList.add('hidden');
-        setAuditoriaHint('Sob demanda: não carrega automaticamente ao abrir a dashboard.');
+        setAuditoriaHint('Sob demanda: margem realizada (somente eventos já ocorridos).');
         return;
       }
       box.classList.remove('hidden');
+      if (topBox) topBox.classList.remove('hidden');
       btn.textContent = 'Ocultar auditoria mensal';
       if (btnRefresh) btnRefresh.classList.remove('hidden');
       await carregarAuditoriaMensal(false);
