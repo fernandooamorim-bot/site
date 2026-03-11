@@ -1487,7 +1487,6 @@
       <button class="filter-btn" data-filter="proximos7">Próximos 7 dias</button>
       <button class="filter-btn" data-filter="mesAtual">Mês Atual</button>
       <button class="filter-btn" data-filter="todos">Todos</button>
-      <button class="filter-btn" data-filter="cancelados" id="btnFiltroCancelados" style="display:none;">Cancelados</button>
     </div>
 
     <button class="mobile-more-options" id="mobileMoreOptions" aria-expanded="false">
@@ -1565,6 +1564,13 @@
             <option value="Reserva">Reservas</option>
             <option value="Bloqueio">Bloqueios</option>
             <option value="Reunião">Reuniões</option>
+          </select>
+        </div>
+        <div class="filter-group" id="filterStatusGeralGroup" style="display: none;">
+          <label class="filter-label">Situação do Registro</label>
+          <select class="filter-select" id="filterStatusGeral">
+            <option value="">Ativos (padrão)</option>
+            <option value="CANCELADO">Cancelados</option>
           </select>
         </div>
         <div class="filter-group">
@@ -2732,11 +2738,9 @@ renderizarEventosDentro(evento) {
 
         let eventosFiltrados = [...AppState.eventos];
 
-        if (tipo !== 'cancelados') {
-          eventosFiltrados = eventosFiltrados.filter(e =>
-            String(e.statusGeral || 'ATIVO').trim().toUpperCase() !== 'CANCELADO'
-          );
-        }
+        eventosFiltrados = eventosFiltrados.filter(e =>
+          String(e.statusGeral || 'ATIVO').trim().toUpperCase() !== 'CANCELADO'
+        );
 
         switch (tipo) {
           case 'todos':
@@ -2823,12 +2827,6 @@ renderizarEventosDentro(evento) {
             });
             break;
 
-          case 'cancelados':
-            eventosFiltrados = eventosFiltrados.filter(e => {
-              return String(e.statusGeral || 'ATIVO').trim().toUpperCase() === 'CANCELADO';
-            });
-            break;
-
           default:
             if (typeof tipo === 'string' && /^ano_\d{4}$/.test(tipo)) {
               const anoAlvo = Number(tipo.replace('ano_', ''));
@@ -2871,14 +2869,20 @@ renderizarEventosDentro(evento) {
           const tipoEvento = document.getElementById('filterTipoEvento')?.value || '';
           const tipoRegistro = document.getElementById('filterTipoRegistro')?.value || '';
           const status = document.getElementById('filterStatus')?.value || '';
+          const statusGeral = document.getElementById('filterStatusGeral')?.value || '';
           const local = document.getElementById('filterLocal')?.value || '';
           const busca = (document.getElementById('filterBusca')?.value || '').toLowerCase();
 
           let eventosFiltrados = [...AppState.eventos];
-
-          eventosFiltrados = eventosFiltrados.filter(e =>
-            String(e.statusGeral || 'ATIVO').trim().toUpperCase() !== 'CANCELADO'
-          );
+          if (statusGeral === 'CANCELADO') {
+            eventosFiltrados = eventosFiltrados.filter(e =>
+              String(e.statusGeral || 'ATIVO').trim().toUpperCase() === 'CANCELADO'
+            );
+          } else {
+            eventosFiltrados = eventosFiltrados.filter(e =>
+              String(e.statusGeral || 'ATIVO').trim().toUpperCase() !== 'CANCELADO'
+            );
+          }
 
           // Filtro de data início
           if (dataInicio) {
@@ -2961,6 +2965,7 @@ renderizarEventosDentro(evento) {
           'filterTipoEvento',
           'filterTipoRegistro',
           'filterStatus',
+          'filterStatusGeral',
           'filterLocal',
           'filterBusca'
         ];
@@ -3107,14 +3112,14 @@ renderizarEventosDentro(evento) {
       aplicarRestricoesPerfil() {
         const viewToolbar = document.getElementById('viewToolbar');
         const btnMobileMore = document.getElementById('mobileMoreOptions');
-        const btnFiltroCancelados = document.getElementById('btnFiltroCancelados');
+        const filterStatusGeralGroup = document.getElementById('filterStatusGeralGroup');
         if (isGestorAgenda()) {
-          if (btnFiltroCancelados) btnFiltroCancelados.style.display = 'inline-flex';
+          if (filterStatusGeralGroup) filterStatusGeralGroup.style.display = 'flex';
           if (viewToolbar) viewToolbar.classList.add('show');
           UI.atualizarEstadoControlesMobile_();
           return;
         }
-        if (btnFiltroCancelados) btnFiltroCancelados.style.display = 'none';
+        if (filterStatusGeralGroup) filterStatusGeralGroup.style.display = 'none';
 
         AppState.modoVisualizacao = 'cards';
         if (viewToolbar) viewToolbar.classList.remove('show');
@@ -3522,8 +3527,7 @@ renderizarEventosDentro(evento) {
       'hoje': 'Hoje',
       'proximos7': 'Próximos 7',
       'mesAtual': 'Mês Atual',
-      'todos': 'Todos',
-      'cancelados': 'Cancelados'
+      'todos': 'Todos'
     };
 
     const textoEsperado = mapeamento[filtro];
