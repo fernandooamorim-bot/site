@@ -267,7 +267,7 @@
         <div class="meta-config">
           <span class="sub">Meta % padrão:</span>
           <input id="metaPctInput" type="number" min="0" max="200" step="1" />
-          <button class="btn outline" onclick="aplicarMetaPercentual()">Aplicar</button>
+          <button id="metaPctBtn" class="btn outline" onclick="aplicarMetaPercentual()">Aplicar</button>
         </div>
         <div class="meta-grid">
           <div class="meta-item"><div class="k">Base (Ano anterior)</div><div id="metaBaseAnterior" class="v">R$ 0,00</div></div>
@@ -401,7 +401,6 @@
     let dashboardData = null;
     const AUDITORIA_CACHE_KEY = 'dashboard:auditoriaMensal:v1';
     const AUDITORIA_CACHE_TTL_MS = 10 * 60 * 1000;
-    const META_PCT_STORAGE_KEY = 'dashboard:metaPct';
     const META_PCT_PADRAO = 30;
     const META_CACHE_KEY = 'dashboard:metaAnoAnterior:v1';
     const INSIGHTS_CACHE_KEY = 'dashboard:insightsComerciais:v1';
@@ -415,7 +414,10 @@
     const metaState = {
       ano: null,
       baseAnterior: 0,
-      carregado: false
+      carregado: false,
+      metaPct: META_PCT_PADRAO,
+      podeEditar: false,
+      configCarregada: false
     };
 
     function showLoading(txt){document.getElementById('loadingText').textContent = txt || 'Processando...';document.getElementById('loading').classList.add('active');}
@@ -518,22 +520,41 @@
       el.classList.remove('ok', 'warn');
       if (cls) el.classList.add(cls);
     }
-    function obterMetaPercentual() {
-      const raw = Number(localStorage.getItem(META_PCT_STORAGE_KEY));
-      if (Number.isFinite(raw) && raw >= 0 && raw <= 200) return raw;
-      return META_PCT_PADRAO;
+    async function carregarMetaConfigGlobal(force = false) {
+      if (!force && metaState.configCarregada) return;
+      try {
+        const resp = await Auth.apiCall('obterMetaAnualDashboard');
+        if (resp && resp.sucesso === true) {
+          const pct = Number(resp.metaPct);
+          metaState.metaPct = Number.isFinite(pct) ? Math.max(0, Math.min(200, pct)) : META_PCT_PADRAO;
+          metaState.podeEditar = !!resp.podeEditar;
+          metaState.configCarregada = true;
+          return;
+        }
+      } catch (e) {
+        console.error('Falha ao carregar meta global do dashboard:', e);
+      }
+      metaState.metaPct = META_PCT_PADRAO;
+      metaState.podeEditar = false;
+      metaState.configCarregada = true;
     }
-    function setMetaPercentual(v) {
-      const n = Number(v);
-      if (!Number.isFinite(n)) return;
-      const safe = Math.max(0, Math.min(200, Math.round(n)));
-      localStorage.setItem(META_PCT_STORAGE_KEY, String(safe));
-    }
-    function aplicarMetaPercentual() {
+    async function aplicarMetaPercentual() {
       const input = document.getElementById('metaPctInput');
       const val = Number(input?.value);
-      setMetaPercentual(val);
-      renderMetaAnual();
+      if (!Number.isFinite(val)) return;
+      if (!metaState.podeEditar) return;
+      try {
+        showLoading('Atualizando meta anual...');
+        const resp = await Auth.apiCall('atualizarMetaAnualDashboard', { metaPct: val });
+        hideLoading();
+        if (!resp || resp.sucesso !== true) throw new Error('Falha ao atualizar meta anual');
+        metaState.metaPct = Number(resp.metaPct);
+        await renderMetaAnual();
+      } catch (e) {
+        hideLoading();
+        console.error(e);
+        alert('Não foi possível atualizar a meta anual global.');
+      }
     }
     function lerCacheJson(chave, ttlMs) {
       try {
@@ -564,9 +585,21 @@
     }
     async function renderMetaAnual() {
       const ano = getAnoSelecionado();
-      const pct = obterMetaPercentual();
+      if (!metaState.configCarregada) {
+        await carregarMetaConfigGlobal(false);
+      }
+      const pct = Number(metaState.metaPct);
       const input = document.getElementById('metaPctInput');
-      if (input) input.value = String(pct);
+      const btn = document.getElementById('metaPctBtn');
+      if (input) {
+        input.value = String(pct);
+        input.disabled = !metaState.podeEditar;
+      }
+      if (btn) {
+        btn.disabled = !metaState.podeEditar;
+        btn.style.opacity = metaState.podeEditar ? '1' : '.6';
+        btn.title = metaState.podeEditar ? 'Salvar meta anual global' : 'Somente proprietário pode alterar a meta global';
+      }
       const realizadoAtual = num(dashboardData?.resumo?.financeiro?.contrato);
       if (!metaState.carregado || metaState.ano !== ano) {
         try {
