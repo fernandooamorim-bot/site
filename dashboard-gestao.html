@@ -162,6 +162,7 @@
     .auditoria-row .status{justify-self:end;font-size:11px;font-weight:800;border-radius:999px;padding:3px 8px;border:1px solid var(--line)}
     .auditoria-row .status.ok{background:#effcf5;color:#0d8a5d;border-color:#b7ebd5}
     .auditoria-row .status.warn{background:#fff7e8;color:#9a6d08;border-color:#f3ddb2}
+    .auditoria-note{font-size:11px;color:var(--muted);padding:0 10px 10px}
     .row{border:1px solid var(--line);border-radius:10px;padding:10px;background:#fff}
     .row-top{display:flex;justify-content:space-between;gap:8px}
     .row .name{font-size:13px;font-weight:700}
@@ -244,12 +245,12 @@
     </div>
 
     <div class="kpis">
-      <div class="kpi"><div class="lbl">Contrato</div><div class="val" id="kContrato">R$ 0,00</div><div class="sub" id="kEventos">0 eventos</div></div>
-      <div class="kpi"><div class="lbl">Recebido</div><div class="val" id="kRecebido">R$ 0,00</div><div class="sub" id="kPerc">0% recebido</div></div>
-      <div class="kpi"><div class="lbl">Pendente</div><div class="val" id="kPendente">R$ 0,00</div><div class="sub" id="kPendEvt">0 eventos parciais/abertos</div></div>
-      <div class="kpi"><div class="lbl">BV</div><div class="val" id="kBV">0</div><div class="sub" id="kBVPend">0 pendente</div></div>
-      <div class="kpi"><div class="lbl">NF</div><div class="val" id="kNF">0</div><div class="sub" id="kNFPend">0 pendente</div></div>
-      <div class="kpi"><div class="lbl">Riscos</div><div class="val" id="kRiscos">0</div><div class="sub">alertas críticos</div></div>
+      <div class="kpi"><div class="lbl" id="kLblContrato">Contrato</div><div class="val" id="kContrato">R$ 0,00</div><div class="sub" id="kEventos">0 eventos</div></div>
+      <div class="kpi"><div class="lbl" id="kLblRecebido">Recebido</div><div class="val" id="kRecebido">R$ 0,00</div><div class="sub" id="kPerc">0% recebido</div></div>
+      <div class="kpi"><div class="lbl" id="kLblPendente">Pendente</div><div class="val" id="kPendente">R$ 0,00</div><div class="sub" id="kPendEvt">0 eventos parciais/abertos</div></div>
+      <div class="kpi"><div class="lbl" id="kLblBV">BV</div><div class="val" id="kBV">0</div><div class="sub" id="kBVPend">0 pendente</div></div>
+      <div class="kpi"><div class="lbl" id="kLblNF">NF</div><div class="val" id="kNF">0</div><div class="sub" id="kNFPend">0 pendente</div></div>
+      <div class="kpi"><div class="lbl" id="kLblRiscos">Riscos</div><div class="val" id="kRiscos">0</div><div class="sub" id="kSubRiscos">alertas críticos</div></div>
     </div>
     <div class="insights-kpis">
       <div class="insight-kpi">
@@ -297,7 +298,7 @@
     </div>
 
     <div class="grid">
-      <div class="card" style="grid-column:1/-1">
+      <div class="card" id="cardVisaoMesEvento" style="grid-column:1/-1">
         <h2><i data-lucide="git-compare-arrows"></i>Visão por Mês do Evento</h2>
         <div class="sub">Valores por competência do evento (consistentes para gestão, sem depender da data de lançamento).</div>
         <div id="qualidadeDados" class="badges"></div>
@@ -324,7 +325,7 @@
         </div>
       </div>
 
-      <div class="card" style="grid-column:1/-1">
+      <div class="card" id="cardResultadoMensal" style="grid-column:1/-1">
         <h2><i data-lucide="wallet"></i>Resultado Financeiro Mensal</h2>
         <div class="sub">Recebido por mês do evento, saídas consolidadas e resultado líquido.</div>
         <div class="metric-grid">
@@ -351,25 +352,43 @@
         </div>
       </div>
 
-      <div class="card" style="grid-column:1/-1">
+      <div class="card hidden" id="cardAuditoriaComercial" style="grid-column:1/-1">
+        <h2><i data-lucide="receipt-text"></i>Auditoria Comercial por Evento</h2>
+        <div class="sub">Comparativo de recebido e comissão por evento (foco comercial).</div>
+        <div class="auditoria-wrap">
+          <div class="auditoria-head">
+            <div class="auditoria-actions">
+              <button id="btnAuditoriaComercial" class="btn outline" onclick="toggleAuditoriaComercial()">Ver auditoria comercial</button>
+              <button id="btnRefreshAuditoriaComercial" class="btn outline hidden" onclick="refreshAuditoriaComercial()">Atualizar auditoria</button>
+            </div>
+            <div id="auditoriaComercialHint" class="auditoria-hint">Sob demanda: visão comercial por evento no ano selecionado.</div>
+          </div>
+          <div id="auditoriaComercialContent" class="auditoria-content hidden"></div>
+          <div id="auditoriaComercialNote" class="auditoria-note hidden">
+            * Em base legado, "Comissão gerada" usa regra de consistência: maior entre gerada informada e (paga + pendente).
+          </div>
+        </div>
+      </div>
+
+      <div class="card" id="cardProximos30" style="grid-column:1/-1">
         <h2><i data-lucide="calendar-clock"></i>Próximos 30 dias</h2>
         <div class="sub">Eventos próximos com impacto financeiro</div>
         <div id="proxBox"></div>
       </div>
 
-      <div class="card">
+      <div class="card" id="cardRiscos">
         <h2><i data-lucide="shield-alert"></i>Riscos Prioritários</h2>
         <div class="sub">Eventos com ação financeira imediata</div>
         <div id="riscosBox"></div>
       </div>
 
-      <div class="card">
+      <div class="card" id="cardRankingVendedores">
         <h2><i data-lucide="users"></i>Ranking de Vendedores</h2>
         <div class="sub">Comissão gerada e paga</div>
         <div id="vendBox"></div>
       </div>
 
-      <details class="card card-collapse" style="grid-column:1/-1">
+      <details class="card card-collapse" id="cardFunil" style="grid-column:1/-1">
         <summary>
           <div>
             <div class="card-collapse-ttl"><i data-lucide="funnel"></i><span>Funil Operacional</span></div>
@@ -399,6 +418,7 @@
 
   <script>
     let dashboardData = null;
+    let usuarioAtual = null;
     const AUDITORIA_CACHE_KEY = 'dashboard:auditoriaMensal:v1';
     const AUDITORIA_CACHE_TTL_MS = 10 * 60 * 1000;
     const META_PCT_PADRAO = 30;
@@ -406,6 +426,12 @@
     const INSIGHTS_CACHE_KEY = 'dashboard:insightsComerciais:v1';
     const INSIGHTS_CACHE_TTL_MS = 10 * 60 * 1000;
     const auditoriaState = {
+      loaded: false,
+      loading: false,
+      ano: null,
+      eventos: []
+    };
+    const auditoriaComercialState = {
       loaded: false,
       loading: false,
       ano: null,
@@ -422,6 +448,14 @@
 
     function showLoading(txt){document.getElementById('loadingText').textContent = txt || 'Processando...';document.getElementById('loading').classList.add('active');}
     function hideLoading(){document.getElementById('loading').classList.remove('active');}
+    function perfilNormalizado() {
+      return String(usuarioAtual?.PERFIL || localStorage.getItem('auth_perfil') || '')
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+    }
+    function modoComercialSocioAdmin() {
+      const p = perfilNormalizado();
+      return p === 'socio' || p === 'administrador' || p === 'admin';
+    }
 
     function fmt(v){return Number(v || 0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});}
     function fmtPct(v){
@@ -800,6 +834,14 @@
     function normalizarStatus(s) {
       return String(s || '').trim().toUpperCase();
     }
+    function obterComissaoEventoConsistente(evento) {
+      const geradaInformada = num(evento?.comissao?.valores?.gerado);
+      const paga = num(evento?.comissao?.valores?.pago);
+      const pendente = num(evento?.comissao?.valores?.pendente);
+      const geradaConsistente = Math.max(geradaInformada, paga + pendente);
+      const ajustada = Math.abs(geradaConsistente - geradaInformada) > 0.01;
+      return { geradaInformada, geradaConsistente, paga, pendente, ajustada };
+    }
 
     function montarAnos() {
       const y = new Date().getFullYear();
@@ -829,6 +871,18 @@
         return false;
       }
       return true;
+    }
+    function aplicarLayoutPorPerfil() {
+      const comercial = modoComercialSocioAdmin();
+      const show = (id, visivel) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.classList.toggle('hidden', !visivel);
+      };
+      show('cardResultadoMensal', !comercial);
+      show('cardRiscos', !comercial);
+      show('cardFunil', !comercial);
+      show('cardAuditoriaComercial', comercial);
     }
 
     async function carregarDashboard() {
@@ -860,17 +914,51 @@
       const funil = d.funil || {};
       const prox = Array.isArray(d.proximos30dias) ? d.proximos30dias : [];
 
-      document.getElementById('kContrato').textContent = fmt(fin.contrato);
-      document.getElementById('kEventos').textContent = `${Number(ev.total || 0)} eventos`;
-      document.getElementById('kRecebido').textContent = fmt(fin.recebido);
-      document.getElementById('kPerc').textContent = `${Number(fin.percRecebido || 0).toFixed(2)}% recebido`;
-      document.getElementById('kPendente').textContent = fmt(fin.pendente);
-      document.getElementById('kPendEvt').textContent = `${Number(ev.parciais || 0) + Number(ev.abertos || 0)} eventos`;
-      document.getElementById('kBV').textContent = `${Number(saidas.bvProcessado || 0)} pagos`;
-      document.getElementById('kBVPend').textContent = `${Number(saidas.bvPendente || 0)} pendente(s)`;
-      document.getElementById('kNF').textContent = `${Number(saidas.nfProcessada || 0)} processadas`;
-      document.getElementById('kNFPend').textContent = `${Number(saidas.nfPendente || 0)} pendente(s)`;
-      document.getElementById('kRiscos').textContent = `${riscos.filter(x => x.severidade === 'CRITICO').length}`;
+      if (modoComercialSocioAdmin()) {
+        const vend = vendedores.reduce((acc, v) => {
+          acc.gerado += num(v?.gerado);
+          acc.pago += num(v?.pago);
+          acc.pendente += num(v?.pendente);
+          return acc;
+        }, { gerado: 0, pago: 0, pendente: 0 });
+        document.getElementById('kLblContrato').textContent = 'Vendido';
+        document.getElementById('kLblRecebido').textContent = 'Recebido';
+        document.getElementById('kLblPendente').textContent = 'Comissão Gerada';
+        document.getElementById('kLblBV').textContent = 'Comissão Paga';
+        document.getElementById('kLblNF').textContent = 'Comissão Pendente';
+        document.getElementById('kLblRiscos').textContent = 'Comercial';
+        document.getElementById('kSubRiscos').textContent = 'eventos no ano';
+        document.getElementById('kContrato').textContent = fmt(fin.contrato);
+        document.getElementById('kEventos').textContent = `${Number(ev.total || 0)} eventos`;
+        document.getElementById('kRecebido').textContent = fmt(fin.recebido);
+        document.getElementById('kPerc').textContent = `${Number(fin.percRecebido || 0).toFixed(2)}% recebido`;
+        document.getElementById('kPendente').textContent = fmt(vend.gerado);
+        document.getElementById('kPendEvt').textContent = 'base vendedores';
+        document.getElementById('kBV').textContent = fmt(vend.pago);
+        document.getElementById('kBVPend').textContent = 'comissão paga';
+        document.getElementById('kNF').textContent = fmt(vend.pendente);
+        document.getElementById('kNFPend').textContent = 'comissão pendente';
+        document.getElementById('kRiscos').textContent = `${Number(ev.total || 0)}`;
+      } else {
+        document.getElementById('kLblContrato').textContent = 'Contrato';
+        document.getElementById('kLblRecebido').textContent = 'Recebido';
+        document.getElementById('kLblPendente').textContent = 'Pendente';
+        document.getElementById('kLblBV').textContent = 'BV';
+        document.getElementById('kLblNF').textContent = 'NF';
+        document.getElementById('kLblRiscos').textContent = 'Riscos';
+        document.getElementById('kSubRiscos').textContent = 'alertas críticos';
+        document.getElementById('kContrato').textContent = fmt(fin.contrato);
+        document.getElementById('kEventos').textContent = `${Number(ev.total || 0)} eventos`;
+        document.getElementById('kRecebido').textContent = fmt(fin.recebido);
+        document.getElementById('kPerc').textContent = `${Number(fin.percRecebido || 0).toFixed(2)}% recebido`;
+        document.getElementById('kPendente').textContent = fmt(fin.pendente);
+        document.getElementById('kPendEvt').textContent = `${Number(ev.parciais || 0) + Number(ev.abertos || 0)} eventos`;
+        document.getElementById('kBV').textContent = `${Number(saidas.bvProcessado || 0)} pagos`;
+        document.getElementById('kBVPend').textContent = `${Number(saidas.bvPendente || 0)} pendente(s)`;
+        document.getElementById('kNF').textContent = `${Number(saidas.nfProcessada || 0)} processadas`;
+        document.getElementById('kNFPend').textContent = `${Number(saidas.nfPendente || 0)} pendente(s)`;
+        document.getElementById('kRiscos').textContent = `${riscos.filter(x => x.severidade === 'CRITICO').length}`;
+      }
 
       renderMensal(mensal);
       renderMensalHibrido(visaoMensal);
@@ -885,6 +973,10 @@
       const auditBox = document.getElementById('auditoriaContent');
       if (auditBox && !auditBox.classList.contains('hidden')) {
         carregarAuditoriaMensal(false);
+      }
+      const auditComBox = document.getElementById('auditoriaComercialContent');
+      if (auditComBox && !auditComBox.classList.contains('hidden')) {
+        carregarAuditoriaComercial(false);
       }
     }
 
@@ -1244,6 +1336,125 @@
       await carregarAuditoriaMensal(true);
     }
 
+    function setAuditoriaComercialHint(msg, cls) {
+      const el = document.getElementById('auditoriaComercialHint');
+      if (!el) return;
+      el.textContent = String(msg || '');
+      el.classList.remove('ok', 'warn');
+      if (cls) el.classList.add(cls);
+    }
+    function renderAuditoriaComercial(eventos, ano) {
+      const box = document.getElementById('auditoriaComercialContent');
+      const note = document.getElementById('auditoriaComercialNote');
+      if (!box) return;
+      const linhas = (Array.isArray(eventos) ? eventos : [])
+        .map(ev => {
+          const dataInfo = parseDataEventoInfo(ev?.dataEvento);
+          if (!dataInfo || Number(dataInfo.ano) !== Number(ano)) return null;
+          const statusGeral = String(ev?.statusGeral || '').toUpperCase();
+          if (statusGeral === 'CANCELADO') return null;
+          const c = obterComissaoEventoConsistente(ev);
+          return {
+            data: dataInfo.label,
+            dia: Number(dataInfo.dia || 0),
+            mes: Number(dataInfo.mes || 0),
+            nome: String(ev?.nomeEvento || 'Evento'),
+            contratado: num(ev?.valorContrato),
+            recebido: num(ev?.totalRecebido || (num(ev?.valorContrato) - num(ev?.valorPendente))),
+            comissaoGerada: c.geradaConsistente,
+            comissaoGeradaAjustada: c.ajustada,
+            comissaoPaga: c.paga,
+            comissaoPendente: c.pendente,
+            statusComissao: normalizarStatus(ev?.comissao?.status) || 'N/A'
+          };
+        })
+        .filter(Boolean)
+        .sort((a, b) => (a.mes - b.mes) || (a.dia - b.dia) || a.nome.localeCompare(b.nome, 'pt-BR'));
+      if (!linhas.length) {
+        box.innerHTML = `<div class="empty" style="margin-top:0">Sem eventos para auditoria comercial em ${ano}.</div>`;
+        if (note) note.classList.add('hidden');
+        setAuditoriaComercialHint(`Sem eventos no recorte de ${ano}.`, 'warn');
+        return;
+      }
+      const html = `
+        <div class="auditoria-list">
+          <div class="auditoria-row head" style="grid-template-columns:100px 1fr 110px 110px 130px 110px 130px 120px">
+            <div>Data</div>
+            <div>Evento</div>
+            <div class="num">Contratado</div>
+            <div class="num">Recebido</div>
+            <div class="num">Comissão gerada</div>
+            <div class="num">Comissão paga</div>
+            <div class="num">Comissão pendente</div>
+            <div class="num">Status</div>
+          </div>
+          ${linhas.map(x => `
+            <div class="auditoria-row" style="grid-template-columns:100px 1fr 110px 110px 130px 110px 130px 120px">
+              <div class="dt">${x.data}</div>
+              <div class="ev-wrap"><div class="ev" title="${x.nome}">${x.nome}</div></div>
+              <div class="num">${fmt(x.contratado)}</div>
+              <div class="num">${fmt(x.recebido)}</div>
+              <div class="num">${fmt(x.comissaoGerada)}${x.comissaoGeradaAjustada ? ' *' : ''}</div>
+              <div class="num">${fmt(x.comissaoPaga)}</div>
+              <div class="num">${fmt(x.comissaoPendente)}</div>
+              <div class="status ${x.statusComissao === 'QUITADO' ? 'ok' : 'warn'}">${x.statusComissao}</div>
+            </div>
+          `).join('')}
+        </div>
+      `;
+      box.innerHTML = html;
+      if (note) note.classList.remove('hidden');
+      setAuditoriaComercialHint(`Auditoria comercial atualizada: ${linhas.length} evento(s).`, 'ok');
+    }
+    async function carregarAuditoriaComercial(force = false) {
+      if (auditoriaComercialState.loading) return;
+      const ano = getAnoSelecionado();
+      const box = document.getElementById('auditoriaComercialContent');
+      if (!box) return;
+      if (!force && auditoriaComercialState.loaded && auditoriaComercialState.ano === ano && auditoriaComercialState.eventos.length) {
+        renderAuditoriaComercial(auditoriaComercialState.eventos, ano);
+        return;
+      }
+      try {
+        auditoriaComercialState.loading = true;
+        setAuditoriaComercialHint('Carregando auditoria comercial...', 'warn');
+        box.innerHTML = `<div class="empty" style="margin-top:0">Buscando eventos para auditoria comercial...</div>`;
+        const resp = await Auth.apiCall('listarEventosFinanceiros');
+        const eventos = Array.isArray(resp) ? resp : (resp?.eventos || []);
+        auditoriaComercialState.loaded = true;
+        auditoriaComercialState.ano = ano;
+        auditoriaComercialState.eventos = eventos;
+        renderAuditoriaComercial(eventos, ano);
+      } catch (e) {
+        console.error('Erro auditoria comercial:', e);
+        box.innerHTML = `<div class="empty" style="margin-top:0">Falha ao carregar auditoria comercial.</div>`;
+        setAuditoriaComercialHint('Falha ao carregar auditoria comercial.', 'warn');
+      } finally {
+        auditoriaComercialState.loading = false;
+      }
+    }
+    async function toggleAuditoriaComercial() {
+      const box = document.getElementById('auditoriaComercialContent');
+      const btn = document.getElementById('btnAuditoriaComercial');
+      const btnRefresh = document.getElementById('btnRefreshAuditoriaComercial');
+      if (!box || !btn) return;
+      const abrindo = box.classList.contains('hidden');
+      if (!abrindo) {
+        box.classList.add('hidden');
+        btn.textContent = 'Ver auditoria comercial';
+        if (btnRefresh) btnRefresh.classList.add('hidden');
+        setAuditoriaComercialHint('Sob demanda: visão comercial por evento no ano selecionado.');
+        return;
+      }
+      box.classList.remove('hidden');
+      btn.textContent = 'Ocultar auditoria comercial';
+      if (btnRefresh) btnRefresh.classList.remove('hidden');
+      await carregarAuditoriaComercial(false);
+    }
+    async function refreshAuditoriaComercial() {
+      await carregarAuditoriaComercial(true);
+    }
+
     function renderFunil(funil) {
       const box = document.getElementById('funilBox');
       box.innerHTML = `
@@ -1319,10 +1530,13 @@
         if (window.lucide) lucide.createIcons();
         const auth = await Auth.apiCall('verificarUsuario');
         if (!auth || !auth.ok) throw new Error('NOT_AUTH');
-        if (!checarPermissao(auth.user || {})) return;
+        usuarioAtual = auth.user || null;
+        if (!checarPermissao(usuarioAtual || {})) return;
+        aplicarLayoutPorPerfil();
         preencherUser();
         montarAnos();
         await carregarDashboard();
+        if (window.lucide) lucide.createIcons();
       } catch (err) {
         console.error(err);
         alert('Sessão inválida. Faça login novamente.');
