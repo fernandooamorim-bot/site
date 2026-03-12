@@ -79,6 +79,27 @@
     .kpi .lbl{font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.5px}
     .kpi .val{margin-top:6px;font-size:22px;font-weight:800;letter-spacing:-.4px}
     .kpi .sub{margin-top:4px;font-size:12px;color:var(--muted)}
+    .insights-kpis{display:grid;grid-template-columns:1.2fr 1fr 1fr;gap:10px;margin-bottom:12px}
+    .insight-kpi{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:14px;box-shadow:var(--shadow)}
+    .insight-kpi .head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}
+    .insight-kpi .head .ttl{font-size:12px;font-weight:800;color:var(--navy-2);text-transform:uppercase;letter-spacing:.5px}
+    .insight-kpi .head i{width:16px;height:16px;color:var(--gold)}
+    .meta-top{display:flex;align-items:flex-end;justify-content:space-between;gap:10px}
+    .meta-top .big{font-size:24px;font-weight:800;letter-spacing:-.4px}
+    .meta-top .sub{font-size:12px;color:var(--muted)}
+    .meta-config{display:flex;align-items:center;gap:8px;margin-top:10px}
+    .meta-config input{width:72px;padding:6px 8px;border-radius:8px}
+    .meta-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:10px}
+    .meta-item{border:1px solid var(--line);border-radius:8px;padding:8px;background:#fbfcff}
+    .meta-item .k{font-size:11px;color:var(--muted);font-weight:700}
+    .meta-item .v{font-size:12px;font-weight:800;color:var(--text);margin-top:3px}
+    .segmento-list,.partner-list{display:grid;gap:6px}
+    .segmento-row,.partner-row{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center;border:1px solid var(--line);border-radius:8px;padding:7px 8px;background:#fbfcff}
+    .segmento-row .nome,.partner-row .nome{font-size:12px;font-weight:700;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .segmento-row .meta,.partner-row .meta{font-size:11px;color:var(--muted);margin-top:2px}
+    .segmento-row .val,.partner-row .val{font-size:12px;font-weight:800}
+    .val.pos{color:#0d8a5d}
+    .val.neg{color:#9f1d1d}
 
     .grid{display:grid;grid-template-columns:2fr 1.2fr;gap:12px}
     .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:14px;box-shadow:var(--shadow)}
@@ -180,11 +201,11 @@
     .bnav i,.bnav svg{width:21px;height:21px;color:currentColor;stroke:currentColor;fill:none}
     .bnav.active{color:var(--gold)}
 
-    @media (max-width:1100px){.kpis{grid-template-columns:repeat(3,minmax(0,1fr))}}
+    @media (max-width:1100px){.kpis{grid-template-columns:repeat(3,minmax(0,1fr))}.insights-kpis{grid-template-columns:1fr 1fr}}
     @media (max-width:1280px){.split{grid-template-columns:1fr 1fr}}
     @media (max-width:980px){.metric-grid{grid-template-columns:1fr}}
     @media (max-width:980px){.auditoria-top5{grid-template-columns:1fr}.auditoria-row{grid-template-columns:78px 1fr 88px 88px 88px 84px 98px;font-size:11px}}
-    @media (max-width:860px){.grid{grid-template-columns:1fr}.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.split{grid-template-columns:1fr}}
+    @media (max-width:860px){.grid{grid-template-columns:1fr}.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.insights-kpis{grid-template-columns:1fr}.split{grid-template-columns:1fr}}
     @media (min-width:768px){.bottom-nav{display:none}.container{padding-bottom:20px}}
     .hidden{display:none !important}
   </style>
@@ -220,6 +241,50 @@
       <div class="kpi"><div class="lbl">BV</div><div class="val" id="kBV">0</div><div class="sub" id="kBVPend">0 pendente</div></div>
       <div class="kpi"><div class="lbl">NF</div><div class="val" id="kNF">0</div><div class="sub" id="kNFPend">0 pendente</div></div>
       <div class="kpi"><div class="lbl">Riscos</div><div class="val" id="kRiscos">0</div><div class="sub">alertas críticos</div></div>
+    </div>
+    <div class="insights-kpis">
+      <div class="insight-kpi">
+        <div class="head">
+          <div class="ttl">Meta Anual</div>
+          <i data-lucide="target"></i>
+        </div>
+        <div class="meta-top">
+          <div>
+            <div id="metaPctTitulo" class="big">+30%</div>
+            <div class="sub">sobre faturamento do ano anterior</div>
+          </div>
+          <div class="sub" id="metaStatusTexto">Carregando...</div>
+        </div>
+        <div class="meta-config">
+          <span class="sub">Meta %:</span>
+          <input id="metaPctInput" type="number" min="0" max="200" step="1" />
+          <button class="btn outline" onclick="aplicarMetaPercentual()">Aplicar</button>
+        </div>
+        <div class="meta-grid">
+          <div class="meta-item"><div class="k">Base Ano Anterior</div><div id="metaBaseAnterior" class="v">R$ 0,00</div></div>
+          <div class="meta-item"><div class="k">Meta Ano Atual</div><div id="metaMetaAtual" class="v">R$ 0,00</div></div>
+          <div class="meta-item"><div class="k">Realizado</div><div id="metaRealizadoAtual" class="v">R$ 0,00</div></div>
+          <div class="meta-item"><div class="k">Gap</div><div id="metaGapAtual" class="v">R$ 0,00</div></div>
+        </div>
+      </div>
+      <div class="insight-kpi">
+        <div class="head">
+          <div class="ttl">Margem por Segmento</div>
+          <i data-lucide="pie-chart"></i>
+        </div>
+        <div id="segmentoList" class="segmento-list">
+          <div class="empty" style="margin-top:0">Carregando segmentos...</div>
+        </div>
+      </div>
+      <div class="insight-kpi">
+        <div class="head">
+          <div class="ttl">Top 5 Cerimonialistas</div>
+          <i data-lucide="users-round"></i>
+        </div>
+        <div id="partnerList" class="partner-list">
+          <div class="empty" style="margin-top:0">Carregando parceiros...</div>
+        </div>
+      </div>
     </div>
 
     <div class="grid">
@@ -321,11 +386,21 @@
     let dashboardData = null;
     const AUDITORIA_CACHE_KEY = 'dashboard:auditoriaMensal:v1';
     const AUDITORIA_CACHE_TTL_MS = 10 * 60 * 1000;
+    const META_PCT_STORAGE_KEY = 'dashboard:metaPct';
+    const META_PCT_PADRAO = 30;
+    const META_CACHE_KEY = 'dashboard:metaAnoAnterior:v1';
+    const INSIGHTS_CACHE_KEY = 'dashboard:insightsComerciais:v1';
+    const INSIGHTS_CACHE_TTL_MS = 10 * 60 * 1000;
     const auditoriaState = {
       loaded: false,
       loading: false,
       ano: null,
       eventos: []
+    };
+    const metaState = {
+      ano: null,
+      baseAnterior: 0,
+      carregado: false
     };
 
     function showLoading(txt){document.getElementById('loadingText').textContent = txt || 'Processando...';document.getElementById('loading').classList.add('active');}
@@ -428,6 +503,248 @@
       el.classList.remove('ok', 'warn');
       if (cls) el.classList.add(cls);
     }
+    function obterMetaPercentual() {
+      const raw = Number(localStorage.getItem(META_PCT_STORAGE_KEY));
+      if (Number.isFinite(raw) && raw >= 0 && raw <= 200) return raw;
+      return META_PCT_PADRAO;
+    }
+    function setMetaPercentual(v) {
+      const n = Number(v);
+      if (!Number.isFinite(n)) return;
+      const safe = Math.max(0, Math.min(200, Math.round(n)));
+      localStorage.setItem(META_PCT_STORAGE_KEY, String(safe));
+    }
+    function aplicarMetaPercentual() {
+      const input = document.getElementById('metaPctInput');
+      const val = Number(input?.value);
+      setMetaPercentual(val);
+      renderMetaAnual();
+    }
+    function lerCacheJson(chave, ttlMs) {
+      try {
+        const raw = localStorage.getItem(chave);
+        if (!raw) return null;
+        const obj = JSON.parse(raw);
+        if (!obj || typeof obj !== 'object') return null;
+        if (!obj.at || (Date.now() - Number(obj.at)) > ttlMs) return null;
+        return obj;
+      } catch (_) {
+        return null;
+      }
+    }
+    function salvarCacheJson(chave, payload) {
+      try {
+        localStorage.setItem(chave, JSON.stringify({ ...payload, at: Date.now() }));
+      } catch (_) {}
+    }
+    async function carregarBaseAnoAnterior(ano) {
+      const cache = lerCacheJson(META_CACHE_KEY + ':' + ano, 30 * 60 * 1000);
+      if (cache && Number.isFinite(Number(cache.baseAnterior))) {
+        return Number(cache.baseAnterior);
+      }
+      const respPrev = await Auth.apiCall('obterDashboardGestao', { ano: Number(ano) - 1, incluirCancelados: false });
+      const base = num(respPrev?.resumo?.financeiro?.contrato);
+      salvarCacheJson(META_CACHE_KEY + ':' + ano, { baseAnterior: base });
+      return base;
+    }
+    async function renderMetaAnual() {
+      const ano = getAnoSelecionado();
+      const pct = obterMetaPercentual();
+      const input = document.getElementById('metaPctInput');
+      if (input) input.value = String(pct);
+      const realizadoAtual = num(dashboardData?.resumo?.financeiro?.contrato);
+      if (!metaState.carregado || metaState.ano !== ano) {
+        try {
+          metaState.baseAnterior = await carregarBaseAnoAnterior(ano);
+          metaState.ano = ano;
+          metaState.carregado = true;
+        } catch (e) {
+          console.error('Falha ao carregar base do ano anterior:', e);
+          metaState.baseAnterior = 0;
+          metaState.ano = ano;
+          metaState.carregado = true;
+        }
+      }
+      const baseAnterior = num(metaState.baseAnterior);
+      const metaAno = baseAnterior * (1 + pct / 100);
+      const atingido = metaAno > 0 ? (realizadoAtual / metaAno) * 100 : 0;
+      const gap = Math.max(0, metaAno - realizadoAtual);
+      const hoje = new Date();
+      const anoAtual = hoje.getFullYear();
+      let mesesRestantes = 12;
+      if (ano === anoAtual) mesesRestantes = Math.max(1, 12 - hoje.getMonth());
+      const ritmo = gap / Math.max(1, mesesRestantes);
+      const statusMeta = ano < anoAtual
+        ? `${fmtPct(atingido)} atingido • ano encerrado`
+        : (ano > anoAtual
+          ? `${fmtPct(atingido)} atingido • planejamento`
+          : `${fmtPct(atingido)} atingido • ritmo ${fmt(ritmo)}/mês`);
+
+      const setTxt = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+      setTxt('metaPctTitulo', `+${pct}%`);
+      setTxt('metaBaseAnterior', fmt(baseAnterior));
+      setTxt('metaMetaAtual', fmt(metaAno));
+      setTxt('metaRealizadoAtual', fmt(realizadoAtual));
+      setTxt('metaGapAtual', fmt(gap));
+      setTxt('metaStatusTexto', statusMeta);
+    }
+    function normalizarTextoBase(v) {
+      return String(v || '')
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+        .toUpperCase()
+        .replace(/[^A-Z0-9 ]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+    }
+    function tokenizarNome(v) {
+      const stop = new Set(['CERIMONIAL', 'CERIMONIALISTA', 'ASSESSORIA', 'EVENTOS', 'EVENTO', 'PRODUCOES', 'PRODUCAO', 'LTDA', 'ME', 'EIRELI', 'EPP']);
+      return normalizarTextoBase(v).split(' ').filter(t => t && !stop.has(t));
+    }
+    function chaveCanonicaParceiro(v) {
+      const tokens = tokenizarNome(v);
+      return tokens.join(' ') || normalizarTextoBase(v);
+    }
+    function diceSimilarity(a, b) {
+      const sa = String(a || '');
+      const sb = String(b || '');
+      if (!sa || !sb) return 0;
+      if (sa === sb) return 1;
+      const bigrams = (s) => {
+        const out = [];
+        for (let i = 0; i < s.length - 1; i++) out.push(s.slice(i, i + 2));
+        return out;
+      };
+      const A = bigrams(sa), B = bigrams(sb);
+      if (!A.length || !B.length) return 0;
+      const mb = new Map();
+      B.forEach(x => mb.set(x, (mb.get(x) || 0) + 1));
+      let inter = 0;
+      A.forEach(x => {
+        const c = mb.get(x) || 0;
+        if (c > 0) { inter++; mb.set(x, c - 1); }
+      });
+      return (2 * inter) / (A.length + B.length);
+    }
+    function clusterizarParceiro(chave, existentes) {
+      if (!chave) return null;
+      let best = null;
+      let score = 0;
+      existentes.forEach(k => {
+        const s = diceSimilarity(chave, k);
+        const inclui = (k.includes(chave) || chave.includes(k)) && Math.min(k.length, chave.length) >= 5;
+        if ((s > 0.9 || inclui) && s >= score) {
+          score = s;
+          best = k;
+        }
+      });
+      return best;
+    }
+    function renderMargemSegmento(rows) {
+      const box = document.getElementById('segmentoList');
+      if (!box) return;
+      if (!rows.length) {
+        box.innerHTML = `<div class="empty" style="margin-top:0">Sem dados suficientes no período.</div>`;
+        return;
+      }
+      const map = {};
+      rows.forEach(r => {
+        const seg = String(r.tipoEvento || 'Sem tipo').trim() || 'Sem tipo';
+        if (!map[seg]) map[seg] = { seg, eventos: 0, recebido: 0, liquido: 0 };
+        map[seg].eventos++;
+        map[seg].recebido += num(r.recebido);
+        map[seg].liquido += num(r.liquido);
+      });
+      const lista = Object.values(map).map(x => ({
+        ...x,
+        margem: x.recebido > 0 ? (x.liquido / x.recebido) * 100 : null
+      })).sort((a, b) => num(b.recebido) - num(a.recebido)).slice(0, 5);
+      box.innerHTML = lista.map(x => `
+        <div class="segmento-row">
+          <div>
+            <div class="nome" title="${x.seg}">${x.seg}</div>
+            <div class="meta">${x.eventos} evento(s) • Recebido ${fmt(x.recebido)}</div>
+          </div>
+          <div class="val ${x.margem !== null && x.margem < 0 ? 'neg' : 'pos'}">${fmtPct(x.margem)}</div>
+        </div>
+      `).join('');
+    }
+    function renderTopCerimonialistas(rows, cadastroMap) {
+      const box = document.getElementById('partnerList');
+      if (!box) return;
+      if (!rows.length) {
+        box.innerHTML = `<div class="empty" style="margin-top:0">Sem cerimonialistas identificados.</div>`;
+        return;
+      }
+      const grupos = {};
+      rows.forEach(r => {
+        const id = String(r.idEvento || '');
+        const cadastro = cadastroMap[id] || {};
+        const nomeRaw = String(cadastro.cerimonialista || cadastro.nomeCerimonialista || '').trim();
+        if (!nomeRaw) return;
+        const chaveBase = chaveCanonicaParceiro(nomeRaw);
+        const atualKeys = Object.keys(grupos);
+        const agrupada = clusterizarParceiro(chaveBase, atualKeys) || chaveBase;
+        if (!grupos[agrupada]) grupos[agrupada] = { nome: nomeRaw, eventos: 0, recebido: 0 };
+        grupos[agrupada].eventos += 1;
+        grupos[agrupada].recebido += num(r.recebido);
+        if (nomeRaw.length > grupos[agrupada].nome.length) grupos[agrupada].nome = nomeRaw;
+      });
+      const lista = Object.values(grupos)
+        .sort((a, b) => (b.eventos - a.eventos) || (num(b.recebido) - num(a.recebido)))
+        .slice(0, 5);
+      box.innerHTML = lista.length ? lista.map(x => `
+        <div class="partner-row">
+          <div>
+            <div class="nome" title="${x.nome}">${x.nome}</div>
+            <div class="meta">${x.eventos} evento(s) • Recebido ${fmt(x.recebido)}</div>
+          </div>
+          <div class="val">${x.eventos}</div>
+        </div>
+      `).join('') : `<div class="empty" style="margin-top:0">Sem cerimonialistas identificados.</div>`;
+    }
+    async function carregarInsightsComerciais(force = false) {
+      const ano = getAnoSelecionado();
+      const cache = !force ? lerCacheJson(INSIGHTS_CACHE_KEY + ':' + ano, INSIGHTS_CACHE_TTL_MS) : null;
+      if (cache && Array.isArray(cache.rows)) {
+        renderMargemSegmento(cache.rows);
+        renderTopCerimonialistas(cache.rows, cache.cadastroMap || {});
+        return;
+      }
+      try {
+        const [respFin, respCad] = await Promise.all([
+          Auth.apiCall('listarEventosFinanceiros'),
+          Auth.apiCall('listarEventos')
+        ]);
+        const finRows = Array.isArray(respFin) ? respFin : (respFin?.eventos || []);
+        const cadRows = Array.isArray(respCad?.eventos) ? respCad.eventos : (Array.isArray(respCad) ? respCad : []);
+        const cadastroMap = {};
+        cadRows.forEach(e => {
+          const id = String(e?.id || e?.idEvento || '');
+          if (!id) return;
+          cadastroMap[id] = e;
+        });
+        const rows = [];
+        finRows.forEach(ev => {
+          const linha = montarLinhaAuditoriaEvento(ev);
+          if (!linha.ocorrido) return;
+          if (Number(linha.anoEvento) !== Number(ano)) return;
+          const statusGeral = String(ev?.statusGeral || '').toUpperCase();
+          if (statusGeral === 'CANCELADO') return;
+          const cad = cadastroMap[String(linha.idEvento)] || {};
+          linha.tipoEvento = String(ev?.tipoEvento || cad?.tipoEvento || '').trim() || 'Sem tipo';
+          rows.push(linha);
+        });
+        salvarCacheJson(INSIGHTS_CACHE_KEY + ':' + ano, { rows, cadastroMap });
+        renderMargemSegmento(rows);
+        renderTopCerimonialistas(rows, cadastroMap);
+      } catch (e) {
+        console.error('Erro ao carregar insights comerciais:', e);
+        const seg = document.getElementById('segmentoList');
+        const par = document.getElementById('partnerList');
+        if (seg) seg.innerHTML = `<div class="empty" style="margin-top:0">Falha ao carregar segmentos.</div>`;
+        if (par) par.innerHTML = `<div class="empty" style="margin-top:0">Falha ao carregar parceiros.</div>`;
+      }
+    }
     function eventoTemAlerta(evento, codigo) {
       const alertas = Array.isArray(evento?.alertas) ? evento.alertas : [];
       return alertas.includes(codigo);
@@ -514,6 +831,8 @@
       renderRiscos(riscos);
       renderVendedores(vendedores);
       renderProximos(prox);
+      renderMetaAnual().catch((e) => console.error('Falha ao renderizar Meta Anual:', e));
+      carregarInsightsComerciais(false).catch((e) => console.error('Falha ao carregar insights comerciais:', e));
 
       const auditBox = document.getElementById('auditoriaContent');
       if (auditBox && !auditBox.classList.contains('hidden')) {
