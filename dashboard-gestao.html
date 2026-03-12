@@ -360,6 +360,7 @@
             <div class="auditoria-actions">
               <button id="btnAuditoriaComercial" class="btn outline" onclick="toggleAuditoriaComercial()">Ver comissões por evento</button>
               <button id="btnRefreshAuditoriaComercial" class="btn outline hidden" onclick="refreshAuditoriaComercial()">Atualizar auditoria</button>
+              <button id="btnToggleCanceladosComMov" class="btn outline hidden" onclick="toggleCanceladosComMovComercial()">Incluir cancelados c/ movimentação: Não</button>
             </div>
             <div id="auditoriaComercialHint" class="auditoria-hint">Sob demanda: visão comercial por evento no ano selecionado.</div>
           </div>
@@ -435,7 +436,8 @@
       loaded: false,
       loading: false,
       ano: null,
-      eventos: []
+      eventos: [],
+      incluirCanceladosComMov: false
     };
     const metaState = {
       ano: null,
@@ -848,6 +850,18 @@
       const geradaConsistente = Math.max(geradaInformada, paga + pendente);
       const ajustada = Math.abs(geradaConsistente - geradaInformada) > 0.01;
       return { geradaInformada, geradaConsistente, paga, pendente, ajustada };
+    }
+    function eventoCanceladoComMovimento(ev) {
+      const statusGeral = String(ev?.statusGeral || '').toUpperCase();
+      if (statusGeral !== 'CANCELADO') return false;
+      const recebido = num(ev?.totalRecebido || (num(ev?.valorContrato) - num(ev?.valorPendente)));
+      const c = obterComissaoEventoConsistente(ev);
+      return recebido > 0 || c.paga > 0 || c.pendente > 0 || c.geradaConsistente > 0;
+    }
+    function syncBtnCanceladosComMov() {
+      const btn = document.getElementById('btnToggleCanceladosComMov');
+      if (!btn) return;
+      btn.textContent = `Incluir cancelados c/ movimentação: ${auditoriaComercialState.incluirCanceladosComMov ? 'Sim' : 'Não'}`;
     }
 
     function montarAnos() {
@@ -1358,7 +1372,9 @@
           const dataInfo = parseDataEventoInfo(ev?.dataEvento);
           if (!dataInfo || Number(dataInfo.ano) !== Number(ano)) return null;
           const statusGeral = String(ev?.statusGeral || '').toUpperCase();
-          if (statusGeral === 'CANCELADO') return null;
+          if (statusGeral === 'CANCELADO') {
+            if (!(auditoriaComercialState.incluirCanceladosComMov && eventoCanceladoComMovimento(ev))) return null;
+          }
           const c = obterComissaoEventoConsistente(ev);
           return {
             data: dataInfo.label,
@@ -1443,22 +1459,33 @@
       const box = document.getElementById('auditoriaComercialContent');
       const btn = document.getElementById('btnAuditoriaComercial');
       const btnRefresh = document.getElementById('btnRefreshAuditoriaComercial');
+      const btnCancel = document.getElementById('btnToggleCanceladosComMov');
       if (!box || !btn) return;
       const abrindo = box.classList.contains('hidden');
       if (!abrindo) {
         box.classList.add('hidden');
         btn.textContent = 'Ver comissões por evento';
         if (btnRefresh) btnRefresh.classList.add('hidden');
+        if (btnCancel) btnCancel.classList.add('hidden');
         setAuditoriaComercialHint('Sob demanda: visão comercial por evento no ano selecionado.');
         return;
       }
       box.classList.remove('hidden');
       btn.textContent = 'Ocultar comissões por evento';
       if (btnRefresh) btnRefresh.classList.remove('hidden');
+      if (btnCancel) {
+        btnCancel.classList.remove('hidden');
+        syncBtnCanceladosComMov();
+      }
       await carregarAuditoriaComercial(false);
     }
     async function refreshAuditoriaComercial() {
       await carregarAuditoriaComercial(true);
+    }
+    async function toggleCanceladosComMovComercial() {
+      auditoriaComercialState.incluirCanceladosComMov = !auditoriaComercialState.incluirCanceladosComMov;
+      syncBtnCanceladosComMov();
+      await carregarAuditoriaComercial(false);
     }
 
     function renderFunil(funil) {
