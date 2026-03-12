@@ -98,6 +98,7 @@
     .segmento-row .nome,.partner-row .nome{font-size:12px;font-weight:700;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .segmento-row .meta,.partner-row .meta{font-size:11px;color:var(--muted);margin-top:2px}
     .segmento-row .val,.partner-row .val{font-size:12px;font-weight:800}
+    .insight-badge{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:700;color:#0d8a5d;border:1px solid #b7ebd5;background:#effcf5;border-radius:999px;padding:3px 8px;margin-bottom:8px}
     .val.pos{color:#0d8a5d}
     .val.neg{color:#9f1d1d}
 
@@ -279,9 +280,11 @@
       </div>
       <div class="insight-kpi">
         <div class="head">
-          <div class="ttl">Margem por Segmento</div>
+          <div class="ttl">Margem Realizada por Segmento</div>
           <i data-lucide="pie-chart"></i>
         </div>
+        <div class="insight-badge">Base: Realizado</div>
+        <div class="sub" style="margin-bottom:8px">Somente eventos já ocorridos (ano selecionado)</div>
         <div id="segmentoList" class="segmento-list">
           <div class="empty" style="margin-top:0">Carregando segmentos...</div>
         </div>
@@ -746,9 +749,9 @@
         <div class="segmento-row">
           <div>
             <div class="nome" title="${x.seg}">${x.seg}</div>
-            <div class="meta">${x.eventos} evento(s) • Recebido ${fmt(x.recebido)}</div>
+            <div class="meta">${x.eventos} evento(s) realizado(s) • Recebido ${fmt(x.recebido)}</div>
           </div>
-          <div class="val ${x.margem !== null && x.margem < 0 ? 'neg' : 'pos'}">${fmtPct(x.margem)}</div>
+          <div class="val ${x.margem !== null && x.margem < 0 ? 'neg' : 'pos'}" title="Margem líquida: (Recebido - Saídas) / Recebido">${fmtPct(x.margem)}</div>
         </div>
       `).join('');
     }
