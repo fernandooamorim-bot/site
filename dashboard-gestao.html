@@ -290,9 +290,10 @@
       </div>
       <div class="insight-kpi">
         <div class="head">
-          <div class="ttl">Top 5 Cerimonialistas</div>
+          <div class="ttl">Top 5 Cerimonialistas do Ano</div>
           <i data-lucide="users-round"></i>
         </div>
+        <div class="insight-subtle">Ano selecionado (eventos do ano todo, sem cancelados)</div>
         <div id="partnerList" class="partner-list">
           <div class="empty" style="margin-top:0">Carregando parceiros...</div>
         </div>
@@ -782,7 +783,7 @@
         <div class="partner-row">
           <div>
             <div class="nome" title="${x.nome}">${x.nome}</div>
-            <div class="meta">${x.eventos} evento(s) • Recebido ${fmt(x.recebido)}</div>
+            <div class="meta">${x.eventos} evento(s) no ano • Recebido ${fmt(x.recebido)}</div>
           </div>
           <div class="val">${x.eventos}</div>
         </div>
@@ -791,9 +792,9 @@
     async function carregarInsightsComerciais(force = false) {
       const ano = getAnoSelecionado();
       const cache = !force ? lerCacheJson(INSIGHTS_CACHE_KEY + ':' + ano, INSIGHTS_CACHE_TTL_MS) : null;
-      if (cache && Array.isArray(cache.rows)) {
-        renderMargemSegmento(cache.rows);
-        renderTopCerimonialistas(cache.rows, cache.cadastroMap || {});
+      if (cache && Array.isArray(cache.rowsRealizados) && Array.isArray(cache.rowsAno)) {
+        renderMargemSegmento(cache.rowsRealizados);
+        renderTopCerimonialistas(cache.rowsAno, cache.cadastroMap || {});
         return;
       }
       try {
@@ -809,20 +810,21 @@
           if (!id) return;
           cadastroMap[id] = e;
         });
-        const rows = [];
+        const rowsRealizados = [];
+        const rowsAno = [];
         finRows.forEach(ev => {
           const linha = montarLinhaAuditoriaEvento(ev);
-          if (!linha.ocorrido) return;
           if (Number(linha.anoEvento) !== Number(ano)) return;
           const statusGeral = obterStatusEvento(ev);
           if (statusGeral === 'CANCELADO') return;
           const cad = cadastroMap[String(linha.idEvento)] || {};
           linha.tipoEvento = String(ev?.tipoEvento || cad?.tipoEvento || '').trim() || 'Sem tipo';
-          rows.push(linha);
+          rowsAno.push(linha);
+          if (linha.ocorrido) rowsRealizados.push(linha);
         });
-        salvarCacheJson(INSIGHTS_CACHE_KEY + ':' + ano, { rows, cadastroMap });
-        renderMargemSegmento(rows);
-        renderTopCerimonialistas(rows, cadastroMap);
+        salvarCacheJson(INSIGHTS_CACHE_KEY + ':' + ano, { rowsRealizados, rowsAno, cadastroMap });
+        renderMargemSegmento(rowsRealizados);
+        renderTopCerimonialistas(rowsAno, cadastroMap);
       } catch (e) {
         console.error('Erro ao carregar insights comerciais:', e);
         const seg = document.getElementById('segmentoList');
