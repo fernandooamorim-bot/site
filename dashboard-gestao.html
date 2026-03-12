@@ -108,7 +108,7 @@
     .card .sub{font-size:12px;color:var(--muted);margin-top:4px}
 
     .bars{margin-top:12px;display:grid;gap:8px}
-    .split{display:grid;grid-template-columns:repeat(3,minmax(260px,1fr));gap:14px;margin-top:12px}
+    .split{display:grid;grid-template-columns:repeat(4,minmax(220px,1fr));gap:14px;margin-top:12px}
     .mini{border:1px solid var(--line);border-radius:10px;padding:10px;background:#fbfcff}
     .mini h3{font-size:13px;color:var(--muted);margin-bottom:8px;line-height:1.2}
     .mini-total{margin-top:8px;font-size:12px;font-weight:700;color:var(--navy-2)}
@@ -175,6 +175,15 @@
     .actions .btn{padding:7px 9px;font-size:12px}
 
     .empty{font-size:13px;color:var(--muted);padding:14px;border:1px dashed var(--line);border-radius:10px;margin-top:10px}
+    .card-collapse{padding:0;overflow:hidden}
+    .card-collapse > summary{
+      list-style:none;cursor:pointer;padding:14px;display:flex;align-items:center;justify-content:space-between;gap:10px
+    }
+    .card-collapse > summary::-webkit-details-marker{display:none}
+    .card-collapse .card-collapse-ttl{display:flex;align-items:center;gap:8px;font-size:16px;font-weight:700}
+    .card-collapse .card-collapse-ttl i{color:var(--gold);width:16px;height:16px}
+    .card-collapse .card-collapse-sub{font-size:12px;color:var(--muted);padding:0 14px 10px}
+    .card-collapse .card-collapse-content{padding:0 14px 14px}
 
     .loading{
       position:fixed;inset:0;background:rgba(10,22,40,.55);display:none;align-items:center;justify-content:center;z-index:30;color:#fff;flex-direction:column;gap:10px
@@ -251,20 +260,20 @@
         <div class="meta-top">
           <div>
             <div id="metaPctTitulo" class="big">+30%</div>
-            <div class="sub">sobre faturamento do ano anterior</div>
+            <div class="sub">sobre vendido do ano anterior</div>
           </div>
           <div class="sub" id="metaStatusTexto">Carregando...</div>
         </div>
         <div class="meta-config">
-          <span class="sub">Meta %:</span>
+          <span class="sub">Meta % padrão:</span>
           <input id="metaPctInput" type="number" min="0" max="200" step="1" />
           <button class="btn outline" onclick="aplicarMetaPercentual()">Aplicar</button>
         </div>
         <div class="meta-grid">
-          <div class="meta-item"><div class="k">Base Ano Anterior</div><div id="metaBaseAnterior" class="v">R$ 0,00</div></div>
-          <div class="meta-item"><div class="k">Meta Ano Atual</div><div id="metaMetaAtual" class="v">R$ 0,00</div></div>
-          <div class="meta-item"><div class="k">Realizado</div><div id="metaRealizadoAtual" class="v">R$ 0,00</div></div>
-          <div class="meta-item"><div class="k">Gap</div><div id="metaGapAtual" class="v">R$ 0,00</div></div>
+          <div class="meta-item"><div class="k">Base (Ano anterior)</div><div id="metaBaseAnterior" class="v">R$ 0,00</div></div>
+          <div class="meta-item"><div class="k">Meta do Ano</div><div id="metaMetaAtual" class="v">R$ 0,00</div></div>
+          <div class="meta-item"><div class="k">Vendido no Ano</div><div id="metaRealizadoAtual" class="v">R$ 0,00</div></div>
+          <div class="meta-item"><div class="k">Falta para Meta</div><div id="metaGapAtual" class="v">R$ 0,00</div></div>
         </div>
       </div>
       <div class="insight-kpi">
@@ -288,17 +297,15 @@
     </div>
 
     <div class="grid">
-      <div class="card">
-        <h2><i data-lucide="line-chart"></i>Tendência Mensal</h2>
-        <div class="sub">Recebimento no ano de referência</div>
-        <div id="barsReceb" class="bars"></div>
-      </div>
-
       <div class="card" style="grid-column:1/-1">
         <h2><i data-lucide="git-compare-arrows"></i>Visão por Mês do Evento</h2>
         <div class="sub">Valores por competência do evento (consistentes para gestão, sem depender da data de lançamento).</div>
         <div id="qualidadeDados" class="badges"></div>
         <div class="split">
+          <div class="mini">
+            <h3>Tendência Mensal (recebimento)</h3>
+            <div id="barsReceb" class="bars"></div>
+          </div>
           <div class="mini">
             <h3>Agenda Contratada (valor total por DATA_EVENTO)</h3>
             <div id="barsContratado" class="bars"></div>
@@ -344,10 +351,10 @@
         </div>
       </div>
 
-      <div class="card">
-        <h2><i data-lucide="funnel"></i>Funil Operacional</h2>
-        <div class="sub">Base atual de registros</div>
-        <div class="table" id="funilBox"></div>
+      <div class="card" style="grid-column:1/-1">
+        <h2><i data-lucide="calendar-clock"></i>Próximos 30 dias</h2>
+        <div class="sub">Eventos próximos com impacto financeiro</div>
+        <div id="proxBox"></div>
       </div>
 
       <div class="card">
@@ -362,11 +369,19 @@
         <div id="vendBox"></div>
       </div>
 
-      <div class="card" style="grid-column:1/-1">
-        <h2><i data-lucide="calendar-clock"></i>Próximos 30 dias</h2>
-        <div class="sub">Eventos próximos com impacto financeiro</div>
-        <div id="proxBox"></div>
-      </div>
+      <details class="card card-collapse" style="grid-column:1/-1">
+        <summary>
+          <div>
+            <div class="card-collapse-ttl"><i data-lucide="funnel"></i><span>Funil Operacional</span></div>
+            <div class="card-collapse-sub">Base de volume operacional (secundário para leitura financeira)</div>
+          </div>
+          <i data-lucide="chevron-down"></i>
+        </summary>
+        <div class="card-collapse-content">
+          <div class="table" id="funilBox"></div>
+        </div>
+      </details>
+
     </div>
   </div>
 
@@ -672,7 +687,7 @@
       const box = document.getElementById('partnerList');
       if (!box) return;
       if (!rows.length) {
-        box.innerHTML = `<div class="empty" style="margin-top:0">Sem cerimonialistas identificados.</div>`;
+        box.innerHTML = `<div class="empty" style="margin-top:0">Sem base de cerimonialistas para o ano selecionado.</div>`;
         return;
       }
       const grupos = {};
@@ -700,7 +715,7 @@
           </div>
           <div class="val">${x.eventos}</div>
         </div>
-      `).join('') : `<div class="empty" style="margin-top:0">Sem cerimonialistas identificados.</div>`;
+      `).join('') : `<div class="empty" style="margin-top:0">Sem base de cerimonialistas para o ano selecionado.</div>`;
     }
     async function carregarInsightsComerciais(force = false) {
       const ano = getAnoSelecionado();
