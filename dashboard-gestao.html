@@ -923,13 +923,9 @@
       const prox = Array.isArray(d.proximos30dias) ? d.proximos30dias : [];
 
       if (modoComercialSocioAdmin()) {
-        const vend = vendedores.reduce((acc, v) => {
-          acc.gerado += num(v?.gerado);
-          acc.pago += num(v?.pago);
-          acc.pendente += num(v?.pendente);
-          return acc;
-        }, { gerado: 0, pago: 0, pendente: 0 });
+        const comissaoGeradaBaseEvento = num(visaoMensal?.totais?.comissaoGeradaEvento);
         const comissaoPagaBaseEvento = num(visaoMensal?.totais?.comissaoPagaEvento);
+        const comissaoPendenteBaseEvento = num(visaoMensal?.totais?.comissaoPendenteEvento);
         document.getElementById('kLblContrato').textContent = 'Vendido';
         document.getElementById('kLblRecebido').textContent = 'Recebido';
         document.getElementById('kLblPendente').textContent = 'Comissão Gerada';
@@ -941,11 +937,11 @@
         document.getElementById('kEventos').textContent = `${Number(ev.total || 0)} eventos`;
         document.getElementById('kRecebido').textContent = fmt(fin.recebido);
         document.getElementById('kPerc').textContent = `${Number(fin.percRecebido || 0).toFixed(2)}% recebido`;
-        document.getElementById('kPendente').textContent = fmt(vend.gerado);
-        document.getElementById('kPendEvt').textContent = 'base vendedores';
+        document.getElementById('kPendente').textContent = fmt(comissaoGeradaBaseEvento);
+        document.getElementById('kPendEvt').textContent = 'base mês do evento';
         document.getElementById('kBV').textContent = fmt(comissaoPagaBaseEvento);
         document.getElementById('kBVPend').textContent = 'base mês do evento';
-        document.getElementById('kNF').textContent = fmt(vend.pendente);
+        document.getElementById('kNF').textContent = fmt(comissaoPendenteBaseEvento);
         document.getElementById('kNFPend').textContent = 'comissão pendente';
         document.getElementById('kRiscos').textContent = `${Number(ev.total || 0)}`;
       } else {
