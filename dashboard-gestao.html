@@ -303,17 +303,17 @@
         <div class="sub">Valores por competência do evento (consistentes para gestão, sem depender da data de lançamento).</div>
         <div id="qualidadeDados" class="badges"></div>
         <div class="split">
-          <div class="mini">
+          <div class="mini" id="miniTendenciaMensal">
             <h3>Tendência Mensal (recebimento)</h3>
             <div id="barsReceb" class="bars"></div>
           </div>
           <div class="mini">
-            <h3>Agenda Contratada (valor total por DATA_EVENTO)</h3>
+            <h3>Valor contratado por mês do evento</h3>
             <div id="barsContratado" class="bars"></div>
             <div id="totalContratadoMes" class="mini-total">Total: R$ 0,00</div>
           </div>
           <div class="mini">
-            <h3>Recebimentos dos eventos do mês (base financeira + legado)</h3>
+            <h3>Recebimentos dos eventos do mês</h3>
             <div id="barsRecebHibrido" class="bars"></div>
             <div id="totalRecebHibridoMes" class="mini-total">Total: R$ 0,00</div>
           </div>
@@ -353,12 +353,12 @@
       </div>
 
       <div class="card hidden" id="cardAuditoriaComercial" style="grid-column:1/-1">
-        <h2><i data-lucide="receipt-text"></i>Auditoria Comercial por Evento</h2>
+        <h2><i data-lucide="receipt-text"></i>Comissões por Evento</h2>
         <div class="sub">Comparativo de recebido e comissão por evento (foco comercial).</div>
         <div class="auditoria-wrap">
           <div class="auditoria-head">
             <div class="auditoria-actions">
-              <button id="btnAuditoriaComercial" class="btn outline" onclick="toggleAuditoriaComercial()">Ver auditoria comercial</button>
+              <button id="btnAuditoriaComercial" class="btn outline" onclick="toggleAuditoriaComercial()">Ver comissões por evento</button>
               <button id="btnRefreshAuditoriaComercial" class="btn outline hidden" onclick="refreshAuditoriaComercial()">Atualizar auditoria</button>
             </div>
             <div id="auditoriaComercialHint" class="auditoria-hint">Sob demanda: visão comercial por evento no ano selecionado.</div>
@@ -834,6 +834,13 @@
     function normalizarStatus(s) {
       return String(s || '').trim().toUpperCase();
     }
+    function ehEventoComercial(ev) {
+      const tipoRegistro = String(ev?.tipoRegistro || ev?.tipo_registro || '').trim().toUpperCase();
+      if (tipoRegistro) return tipoRegistro === 'EVENTO';
+      const tipoEvento = String(ev?.tipoEvento || '').trim().toUpperCase();
+      if (!tipoEvento) return true;
+      return !['RESERVA', 'BLOQUEIO', 'REUNIAO', 'REUNIÃO'].includes(tipoEvento);
+    }
     function obterComissaoEventoConsistente(evento) {
       const geradaInformada = num(evento?.comissao?.valores?.gerado);
       const paga = num(evento?.comissao?.valores?.pago);
@@ -879,6 +886,7 @@
         if (!el) return;
         el.classList.toggle('hidden', !visivel);
       };
+      show('miniTendenciaMensal', !comercial);
       show('cardResultadoMensal', !comercial);
       show('cardRiscos', !comercial);
       show('cardFunil', !comercial);
@@ -921,6 +929,7 @@
           acc.pendente += num(v?.pendente);
           return acc;
         }, { gerado: 0, pago: 0, pendente: 0 });
+        const comissaoPagaBaseEvento = num(visaoMensal?.totais?.comissaoPagaEvento);
         document.getElementById('kLblContrato').textContent = 'Vendido';
         document.getElementById('kLblRecebido').textContent = 'Recebido';
         document.getElementById('kLblPendente').textContent = 'Comissão Gerada';
@@ -934,8 +943,8 @@
         document.getElementById('kPerc').textContent = `${Number(fin.percRecebido || 0).toFixed(2)}% recebido`;
         document.getElementById('kPendente').textContent = fmt(vend.gerado);
         document.getElementById('kPendEvt').textContent = 'base vendedores';
-        document.getElementById('kBV').textContent = fmt(vend.pago);
-        document.getElementById('kBVPend').textContent = 'comissão paga';
+        document.getElementById('kBV').textContent = fmt(comissaoPagaBaseEvento);
+        document.getElementById('kBVPend').textContent = 'base mês do evento';
         document.getElementById('kNF').textContent = fmt(vend.pendente);
         document.getElementById('kNFPend').textContent = 'comissão pendente';
         document.getElementById('kRiscos').textContent = `${Number(ev.total || 0)}`;
@@ -1349,6 +1358,7 @@
       if (!box) return;
       const linhas = (Array.isArray(eventos) ? eventos : [])
         .map(ev => {
+          if (!ehEventoComercial(ev)) return null;
           const dataInfo = parseDataEventoInfo(ev?.dataEvento);
           if (!dataInfo || Number(dataInfo.ano) !== Number(ano)) return null;
           const statusGeral = String(ev?.statusGeral || '').toUpperCase();
@@ -1371,7 +1381,7 @@
         .filter(Boolean)
         .sort((a, b) => (a.mes - b.mes) || (a.dia - b.dia) || a.nome.localeCompare(b.nome, 'pt-BR'));
       if (!linhas.length) {
-        box.innerHTML = `<div class="empty" style="margin-top:0">Sem eventos para auditoria comercial em ${ano}.</div>`;
+        box.innerHTML = `<div class="empty" style="margin-top:0">Sem eventos para comissões por evento em ${ano}.</div>`;
         if (note) note.classList.add('hidden');
         setAuditoriaComercialHint(`Sem eventos no recorte de ${ano}.`, 'warn');
         return;
@@ -1404,7 +1414,7 @@
       `;
       box.innerHTML = html;
       if (note) note.classList.remove('hidden');
-      setAuditoriaComercialHint(`Auditoria comercial atualizada: ${linhas.length} evento(s).`, 'ok');
+      setAuditoriaComercialHint(`Comissões por evento atualizada: ${linhas.length} evento(s).`, 'ok');
     }
     async function carregarAuditoriaComercial(force = false) {
       if (auditoriaComercialState.loading) return;
@@ -1417,8 +1427,8 @@
       }
       try {
         auditoriaComercialState.loading = true;
-        setAuditoriaComercialHint('Carregando auditoria comercial...', 'warn');
-        box.innerHTML = `<div class="empty" style="margin-top:0">Buscando eventos para auditoria comercial...</div>`;
+        setAuditoriaComercialHint('Carregando comissões por evento...', 'warn');
+        box.innerHTML = `<div class="empty" style="margin-top:0">Buscando eventos para comissões por evento...</div>`;
         const resp = await Auth.apiCall('listarEventosFinanceiros');
         const eventos = Array.isArray(resp) ? resp : (resp?.eventos || []);
         auditoriaComercialState.loaded = true;
@@ -1427,8 +1437,8 @@
         renderAuditoriaComercial(eventos, ano);
       } catch (e) {
         console.error('Erro auditoria comercial:', e);
-        box.innerHTML = `<div class="empty" style="margin-top:0">Falha ao carregar auditoria comercial.</div>`;
-        setAuditoriaComercialHint('Falha ao carregar auditoria comercial.', 'warn');
+        box.innerHTML = `<div class="empty" style="margin-top:0">Falha ao carregar comissões por evento.</div>`;
+        setAuditoriaComercialHint('Falha ao carregar comissões por evento.', 'warn');
       } finally {
         auditoriaComercialState.loading = false;
       }
@@ -1441,13 +1451,13 @@
       const abrindo = box.classList.contains('hidden');
       if (!abrindo) {
         box.classList.add('hidden');
-        btn.textContent = 'Ver auditoria comercial';
+        btn.textContent = 'Ver comissões por evento';
         if (btnRefresh) btnRefresh.classList.add('hidden');
         setAuditoriaComercialHint('Sob demanda: visão comercial por evento no ano selecionado.');
         return;
       }
       box.classList.remove('hidden');
-      btn.textContent = 'Ocultar auditoria comercial';
+      btn.textContent = 'Ocultar comissões por evento';
       if (btnRefresh) btnRefresh.classList.remove('hidden');
       await carregarAuditoriaComercial(false);
     }
