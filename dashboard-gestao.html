@@ -497,6 +497,10 @@
       ano: null,
       eventos: []
     };
+    const syncState = {
+      agendaVersion: '',
+      agendaAt: 0
+    };
 
     function showLoading(txt){document.getElementById('loadingText').textContent = txt || 'Processando...';document.getElementById('loading').classList.add('active');}
     function hideLoading(){document.getElementById('loading').classList.remove('active');}
@@ -661,6 +665,29 @@
       try {
         localStorage.setItem(chave, JSON.stringify({ ...payload, at: Date.now() }));
       } catch (_) {}
+    }
+    function lerCacheJsonRaw(chave) {
+      try {
+        const raw = localStorage.getItem(chave);
+        if (!raw) return null;
+        const obj = JSON.parse(raw);
+        return obj && typeof obj === 'object' ? obj : null;
+      } catch (_) {
+        return null;
+      }
+    }
+    async function obterAgendaVersion(force = false) {
+      const now = Date.now();
+      if (!force && syncState.agendaVersion && (now - syncState.agendaAt) < 60 * 1000) {
+        return syncState.agendaVersion;
+      }
+      const info = await Auth.apiCall('obterAgendaSyncInfo');
+      const version = String(info?.version || '');
+      if (version) {
+        syncState.agendaVersion = version;
+        syncState.agendaAt = now;
+      }
+      return version;
     }
     async function carregarBaseAnoAnterior(ano) {
       const cache = lerCacheJson(META_CACHE_KEY + ':' + ano, 30 * 60 * 1000);
@@ -841,11 +868,22 @@
     }
     async function carregarInsightsComerciais(force = false) {
       const ano = getAnoSelecionado();
-      const cache = !force ? lerCacheJson(INSIGHTS_CACHE_KEY + ':' + ano, INSIGHTS_CACHE_TTL_MS) : null;
-      if (cache && Array.isArray(cache.rowsRealizados) && Array.isArray(cache.rowsAno)) {
-        renderMargemSegmento(cache.rowsRealizados);
-        renderTopCerimonialistas(cache.rowsAno, cache.cadastroMap || {});
-        return;
+      const cacheKey = INSIGHTS_CACHE_KEY + ':' + ano;
+      const cacheRaw = !force ? lerCacheJsonRaw(cacheKey) : null;
+      let versaoAgenda = '';
+      try {
+        versaoAgenda = await obterAgendaVersion(force);
+      } catch (_) {
+        versaoAgenda = '';
+      }
+      if (cacheRaw && Array.isArray(cacheRaw.rowsRealizados) && Array.isArray(cacheRaw.rowsAno)) {
+        const ttlOk = !!cacheRaw.at && (Date.now() - Number(cacheRaw.at)) <= INSIGHTS_CACHE_TTL_MS;
+        const versaoOk = !!versaoAgenda && String(cacheRaw.syncVersion || '') === String(versaoAgenda);
+        if (!force && (versaoOk || ttlOk)) {
+          renderMargemSegmento(cacheRaw.rowsRealizados);
+          renderTopCerimonialistas(cacheRaw.rowsAno, cacheRaw.cadastroMap || {});
+          return;
+        }
       }
       try {
         const [respFin, respCad] = await Promise.all([
@@ -872,7 +910,7 @@
           rowsAno.push(linha);
           if (linha.ocorrido) rowsRealizados.push(linha);
         });
-        salvarCacheJson(INSIGHTS_CACHE_KEY + ':' + ano, { rowsRealizados, rowsAno, cadastroMap });
+        salvarCacheJson(cacheKey, { rowsRealizados, rowsAno, cadastroMap, syncVersion: versaoAgenda || '' });
         renderMargemSegmento(rowsRealizados);
         renderTopCerimonialistas(rowsAno, cadastroMap);
       } catch (e) {
@@ -1053,8 +1091,27 @@
       const box = document.getElementById('ticketMedioBox');
       if (box) box.innerHTML = `<div class="empty" style="margin-top:0">Carregando base comercial para ticket médio...</div>`;
       try {
-        const resp = await Auth.apiCall('listarEventosFinanceiros');
-        const eventos = Array.isArray(resp) ? resp : (resp?.eventos || []);
+        const [respFin, respCad] = await Promise.all([
+          Auth.apiCall('listarEventosFinanceiros'),
+          Auth.apiCall('listarEventos')
+        ]);
+        const eventosFin = Array.isArray(respFin) ? respFin : (respFin?.eventos || []);
+        const eventosCad = Array.isArray(respCad?.eventos) ? respCad.eventos : (Array.isArray(respCad) ? respCad : []);
+        const cadMap = {};
+        eventosCad.forEach(e => {
+          const id = String(e?.id || e?.idEvento || '').trim();
+          if (!id) return;
+          cadMap[id] = e;
+        });
+        const eventos = eventosFin.map(ev => {
+          const id = String(ev?.idEvento || '').trim();
+          const cad = cadMap[id] || {};
+          return {
+            ...ev,
+            tipoEvento: String(ev?.tipoEvento || cad?.tipoEvento || cad?.tipo || '').trim(),
+            projeto: String(ev?.projeto || cad?.projeto || '').trim()
+          };
+        });
         ticketState.loaded = true;
         ticketState.ano = ano;
         ticketState.eventos = eventos;
@@ -1084,8 +1141,8 @@
       const limiteBaixo = 1000;
       const linhas = (Array.isArray(eventos) ? eventos : []).filter(ev => {
         if (!eventoElegivelTicket(ev, ano)) return false;
-        const tipo = normalizarTextoTicket(ev?.tipoEvento);
-        const proj = normalizarTextoTicket(ev?.projeto);
+        const tipo = normalizarTextoTicket(ev?.tipoEvento || ev?.tipo || ev?.metadados?.tipoEvento || '');
+        const proj = normalizarTextoTicket(ev?.projeto || ev?.metadados?.projeto || '');
         if (tipoFiltro && tipo !== normalizarTextoTicket(tipoFiltro)) return false;
         if (projetoFiltro && proj !== normalizarTextoTicket(projetoFiltro)) return false;
         const contrato = num(ev?.valorContrato);
