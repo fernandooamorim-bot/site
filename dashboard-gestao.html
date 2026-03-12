@@ -468,7 +468,7 @@
     const META_CACHE_KEY = 'dashboard:metaAnoAnterior:v1';
     const INSIGHTS_CACHE_KEY = 'dashboard:insightsComerciais:v1';
     const INSIGHTS_CACHE_TTL_MS = 10 * 60 * 1000;
-    const TICKET_CACHE_KEY = 'dashboard:ticketMedio:v1';
+    const TICKET_CACHE_KEY = 'dashboard:ticketMedio:v2';
     const TICKET_CACHE_TTL_MS = 10 * 60 * 1000;
     const auditoriaState = {
       loaded: false,
@@ -496,6 +496,9 @@
       loading: false,
       ano: null,
       eventos: []
+    };
+    const ticketOptionsState = {
+      loadedAno: null
     };
     const syncState = {
       agendaVersion: '',
@@ -1079,7 +1082,11 @@
       }
       if (!force) {
         const cache = carregarCacheTicket(ano);
-        if (cache && cache.eventos?.length) {
+        const cacheValidoEstrutura = !!(cache && Array.isArray(cache.eventos) && cache.eventos.length);
+        const cacheComCamposFiltro = cacheValidoEstrutura && cache.eventos.some(ev =>
+          String(ev?.tipoEvento || '').trim() || String(ev?.projeto || '').trim()
+        );
+        if (cacheValidoEstrutura && cacheComCamposFiltro) {
           ticketState.loaded = true;
           ticketState.ano = ano;
           ticketState.eventos = cache.eventos;
@@ -1124,6 +1131,30 @@
         return [];
       } finally {
         ticketState.loading = false;
+      }
+    }
+    async function preloadTicketOptions(force = false) {
+      if (!ehProprietario()) return;
+      const ano = getAnoSelecionado();
+      if (!force && ticketOptionsState.loadedAno === ano) return;
+      try {
+        const respCad = await Auth.apiCall('listarEventos');
+        const eventosCad = Array.isArray(respCad?.eventos) ? respCad.eventos : (Array.isArray(respCad) ? respCad : []);
+        const filtrados = eventosCad.filter(ev => {
+          if (String(ev?.tipo || '').trim().toUpperCase() !== 'EVENTO') return false;
+          if (String(ev?.statusGeral || '').trim().toUpperCase() === 'CANCELADO') return false;
+          const info = parseDataEventoInfo(ev?.data);
+          return !!info && Number(info.ano) === Number(ano);
+        }).map(ev => ({
+          tipoEvento: String(ev?.tipoEvento || '').trim(),
+          projeto: String(ev?.projeto || '').trim()
+        }));
+        if (filtrados.length) {
+          preencherFiltrosTicket(filtrados, false);
+          ticketOptionsState.loadedAno = ano;
+        }
+      } catch (e) {
+        console.error('Falha ao pré-carregar opções de ticket:', e);
       }
     }
     async function refreshTicketMedio() {
@@ -1212,6 +1243,9 @@
           if (box) box.innerHTML = `<div class="empty" style="margin-top:0">Sob demanda: clique em Aplicar para carregar o ticket médio de ${ano}.</div>`;
         }
         renderDashboard();
+        if (ehProprietario()) {
+          preloadTicketOptions(false).catch(() => {});
+        }
       } catch (err) {
         hideLoading();
         console.error(err);
