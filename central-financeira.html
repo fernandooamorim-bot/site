@@ -964,6 +964,8 @@ let appReady = false;
 
 let ultimoPreview = null;
 let ultimoResumoFinanceiro = null;
+let ultimaCobrancaAsaas = null;
+let cobrancasAsaasEvento = [];
 let ajustesDetalhadosComissao = [];
 let previewComissaoAtual = null;
 let fiscalEventosCache = [];
@@ -1364,9 +1366,35 @@ function renderRecebimento(){
     <label>Observações</label>
     <textarea id="obs"></textarea>
 
+    ${ehProprietario_() ? `
+      <div class="divider"></div>
+      <h4>PIX Asaas (Automático)</h4>
+      <p class="muted">Gera cobrança PIX vinculada ao evento e baixa automática via webhook.</p>
+
+      <label>CPF/CNPJ (opcional se já houver no cadastro do contratante)</label>
+      <input id="asaasCpfCnpj" placeholder="Somente números ou formatado">
+
+      <label>Vencimento da cobrança</label>
+      <input type="date" id="asaasVencimento" value="${hojeLocalISO()}">
+
+      <label>Valor da cobrança (opcional)</label>
+      <input type="text" id="asaasValor" inputmode="decimal" autocomplete="off" placeholder="Se vazio, usa pendente do evento">
+
+      <label>Descrição (opcional)</label>
+      <input id="asaasDescricao" placeholder="Ex.: Entrada do contrato">
+
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+        <button type="button" class="btn secondary" onclick="gerarPixAsaasEvento_()">Gerar PIX Asaas</button>
+        <button type="button" class="btn secondary" onclick="consultarUltimaCobrancaAsaas_()">Consultar última</button>
+        <button type="button" class="btn secondary" onclick="cancelarUltimaCobrancaAsaas_()">Cancelar última</button>
+      </div>
+      <div id="asaasBlocoInfo" class="muted" style="margin-top:10px">Selecione um evento para carregar cobranças Asaas.</div>
+    ` : ''}
+
     <button class="btn primary" onclick="submitRecebimento()">Registrar Recebimento</button>
   `;
   aplicarMascaraMonetariaPorIds_(['valor']);
+  if (ehProprietario_()) aplicarMascaraMonetariaPorIds_(['asaasValor']);
 }
 
 /* ================= COMISSAO ================= */
@@ -2240,9 +2268,142 @@ async function selectEvento(ev){
     listarRecebimentosEvento(idEventoReal);
   }
 
+  if (ehProprietario_() && mode === 'recebimento') {
+    await carregarCobrancasAsaasEvento_();
+  }
+
 } catch (err) {
   console.error('Erro ao carregar resumo financeiro:', err);
   resumo.innerHTML = '<span class="muted">Erro ao carregar resumo financeiro</span>';
+}
+
+async function carregarCobrancasAsaasEvento_() {
+  const box = document.getElementById('asaasBlocoInfo');
+  if (!box || !eventoSelecionado) return;
+  box.innerHTML = '<span class="muted">Carregando cobranças Asaas...</span>';
+  try {
+    const resp = await Auth.apiCall('pixAsaasListarCobrancasEvento', { idEvento: eventoSelecionado });
+    cobrancasAsaasEvento = Array.isArray(resp?.cobrancas) ? resp.cobrancas : [];
+    ultimaCobrancaAsaas = cobrancasAsaasEvento.length ? cobrancasAsaasEvento[0] : null;
+    renderBlocoAsaasInfo_();
+  } catch (err) {
+    console.error('Erro ao carregar cobranças Asaas:', err);
+    box.innerHTML = '<span class="muted">Erro ao carregar cobranças Asaas.</span>';
+  }
+}
+
+function renderBlocoAsaasInfo_() {
+  const box = document.getElementById('asaasBlocoInfo');
+  if (!box) return;
+  if (!eventoSelecionado) {
+    box.innerHTML = '<span class="muted">Selecione um evento.</span>';
+    return;
+  }
+  if (!cobrancasAsaasEvento.length) {
+    box.innerHTML = '<span class="muted">Nenhuma cobrança Asaas para este evento.</span>';
+    return;
+  }
+  const itens = cobrancasAsaasEvento.slice(0, 3).map(c => {
+    const status = String(c.status || '—');
+    const valor = Number(c.valorCobranca || 0).toFixed(2);
+    const recebido = Number(c.valorRecebido || 0).toFixed(2);
+    const pay = String(c.paymentId || '—');
+    const link = c.invoiceUrl ? `<a href="${escaparAttr_(c.invoiceUrl)}" target="_blank" rel="noopener">abrir fatura</a>` : 'sem link';
+    return `<div style="padding:8px;border:1px solid #e2e6ef;border-radius:8px;margin-top:6px">
+      <div><strong>${status}</strong> • R$ ${valor} • recebido R$ ${recebido}</div>
+      <div class="muted" style="font-size:12px">${pay} • ${link}</div>
+    </div>`;
+  }).join('');
+  box.innerHTML = `<div><strong>${cobrancasAsaasEvento.length}</strong> cobrança(s) Asaas no evento.</div>${itens}`;
+}
+
+async function gerarPixAsaasEvento_() {
+  if (!ehProprietario_()) return alert('Ação restrita ao proprietário.');
+  if (!eventoSelecionado) return alert('Selecione um evento primeiro.');
+  const btn = event?.target;
+  if (lockSubmit) return;
+
+  const valor = parseValorSeguro(document.getElementById('asaasValor')?.value || '');
+  const vencimento = String(document.getElementById('asaasVencimento')?.value || '').trim();
+  const descricao = String(document.getElementById('asaasDescricao')?.value || '').trim();
+  const cpfCnpj = String(document.getElementById('asaasCpfCnpj')?.value || '').trim();
+
+  lockSubmit = true;
+  bloquearBotao(btn);
+  showLoading('Gerando cobrança PIX Asaas...');
+  try {
+    const payload = { idEvento: eventoSelecionado };
+    if (valor > 0) payload.valor = valor;
+    if (vencimento) payload.vencimento = vencimento;
+    if (descricao) payload.descricao = descricao;
+    if (cpfCnpj) payload.cpfCnpj = cpfCnpj;
+
+    const resp = await Auth.apiCall('pixAsaasCriarCobranca', payload);
+    if (!resp || resp.sucesso !== true) {
+      alert(resp?.mensagem || 'Erro ao gerar cobrança Asaas.');
+      return;
+    }
+    ultimaCobrancaAsaas = {
+      paymentId: resp.paymentId,
+      status: resp.status,
+      valorCobranca: resp.valor,
+      invoiceUrl: resp.invoiceUrl,
+      valorRecebido: 0
+    };
+    await carregarCobrancasAsaasEvento_();
+    alert('Cobrança Asaas criada com sucesso.');
+  } catch (err) {
+    tratarErroApi(err);
+  } finally {
+    hideLoading();
+    lockSubmit = false;
+    liberarBotao(btn);
+  }
+}
+
+async function consultarUltimaCobrancaAsaas_() {
+  if (!ehProprietario_()) return alert('Ação restrita ao proprietário.');
+  if (!ultimaCobrancaAsaas?.paymentId) {
+    await carregarCobrancasAsaasEvento_();
+  }
+  const paymentId = String(ultimaCobrancaAsaas?.paymentId || '').trim();
+  if (!paymentId) return alert('Não há cobrança Asaas para consultar neste evento.');
+  showLoading('Consultando cobrança Asaas...');
+  try {
+    const resp = await Auth.apiCall('pixAsaasConsultarCobranca', { paymentId });
+    const payment = resp?.payment || null;
+    if (!payment) return alert('Cobrança não encontrada no Asaas.');
+    alert(`Status: ${payment.status || '—'}\nValor: R$ ${Number(payment.value || 0).toFixed(2)}\nVencimento: ${payment.dueDate || '—'}`);
+    await carregarCobrancasAsaasEvento_();
+  } catch (err) {
+    tratarErroApi(err);
+  } finally {
+    hideLoading();
+  }
+}
+
+async function cancelarUltimaCobrancaAsaas_() {
+  if (!ehProprietario_()) return alert('Ação restrita ao proprietário.');
+  if (!ultimaCobrancaAsaas?.paymentId) {
+    await carregarCobrancasAsaasEvento_();
+  }
+  const paymentId = String(ultimaCobrancaAsaas?.paymentId || '').trim();
+  if (!paymentId) return alert('Não há cobrança Asaas para cancelar neste evento.');
+  if (!confirm(`Cancelar cobrança ${paymentId}?`)) return;
+  showLoading('Cancelando cobrança Asaas...');
+  try {
+    const resp = await Auth.apiCall('pixAsaasCancelarCobranca', { paymentId });
+    if (!resp || resp.sucesso !== true) {
+      alert(resp?.mensagem || 'Erro ao cancelar cobrança.');
+      return;
+    }
+    await carregarCobrancasAsaasEvento_();
+    alert('Cobrança cancelada com sucesso.');
+  } catch (err) {
+    tratarErroApi(err);
+  } finally {
+    hideLoading();
+  }
 }
 }
 
