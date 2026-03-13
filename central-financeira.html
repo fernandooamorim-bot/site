@@ -970,7 +970,7 @@ let ultimoPreview = null;
 let ultimoResumoFinanceiro = null;
 let ultimaCobrancaAsaas = null;
 let cobrancasAsaasEvento = [];
-let asaasActionType = 'cobranca_unica';
+let asaasActionType = 'plano_parcelado';
 let ajustesDetalhadosComissao = [];
 let previewComissaoAtual = null;
 let fiscalEventosCache = [];
@@ -1410,10 +1410,13 @@ function renderPixAutomatico(){
 
     <label>Tipo de ação</label>
     <select id="asaasActionType" onchange="onChangeAsaasActionType_()">
-      <option value="cobranca_unica" selected>Cobrança única</option>
-      <option value="plano_parcelado">Plano parcelado</option>
+      <option value="cobranca_unica">Cobrança única</option>
+      <option value="plano_parcelado" selected>Plano parcelado (lote por parcela • recomendado)</option>
       <option value="cobranca_avulsa">Cobrança avulsa (extra/saldo)</option>
     </select>
+    <div class="muted" style="margin-top:6px">
+      Padrão atual: <strong>lote por parcela</strong> (melhor para auditoria e fiscalização por evento).
+    </div>
 
     <div id="asaasActionFields"></div>
 
@@ -1430,7 +1433,7 @@ function renderPixAutomatico(){
     <div id="asaasBlocoInfo" class="muted" style="margin-top:10px">Selecione um evento para carregar cobranças Asaas.</div>
   `;
 
-  asaasActionType = 'cobranca_unica';
+  asaasActionType = 'plano_parcelado';
   renderAsaasActionFields_();
   atualizarKpisSaudeAsaas_();
 }
@@ -1469,7 +1472,7 @@ function renderAsaasActionFields_() {
         <option value="quinzenal">Quinzenal</option>
         <option value="semanal">Semanal</option>
       </select>
-      <div class="muted">O plano parcelado gera todas as parcelas em lote no Asaas com referência P1/N, P2/N...</div>
+      <div class="muted">O plano parcelado gera todas as parcelas em lote no Asaas com referência P1/N, P2/N... (rastreio completo por parcela).</div>
     ` : ''}
 
     <label>Descrição (opcional)</label>
