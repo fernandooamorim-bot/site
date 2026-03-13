@@ -904,6 +904,8 @@
       const realizados = linhas.filter(x => !!x?.ocorrido);
       const futuros = linhas.filter(x => !x?.ocorrido);
       const futurosGlobais = linhasAll.filter(x => !x?.ocorrido);
+      const futurosComReceb = futuros.filter(x => num(x?.recebido) > 0);
+      const futurosGlobaisComReceb = futurosGlobais.filter(x => num(x?.recebido) > 0);
       const recebidoRealizado = realizados.reduce((s, x) => s + num(x?.recebido), 0);
       const recebidoFuturo = futuros.reduce((s, x) => s + num(x?.recebido), 0);
       const recebidoFuturoGeral = futurosGlobais.reduce((s, x) => s + num(x?.recebido), 0);
@@ -917,12 +919,12 @@
       setTxt('kRecebRealizado', fmt(recebidoRealizado));
       setTxt('kRecebRealizadoSub', `${realizados.length} evento(s) já executado(s) em ${ano}`);
       setTxt('kRecebFuturo', fmt(recebidoFuturo));
-      setTxt('kRecebFuturoSub', `${futuros.length} evento(s) futuro(s) com recebimento em ${ano}`);
+      setTxt('kRecebFuturoSub', `${futurosComReceb.length} evento(s) futuro(s) com recebimento em ${ano}`);
       setTxt('kExpoFuturo', fmtPct(expo));
       setTxt('kExpoFuturoSub', `sobre o recebido total de ${ano}`);
       setTxt('kExpoFuturoLinha', `Passivo operacional: ${fmt(recebidoFuturo)}`);
       setTxt('kRecebFuturoGeral', fmt(recebidoFuturoGeral));
-      setTxt('kRecebFuturoGeralSub', `${futurosGlobais.length} evento(s) futuro(s) com recebimento (todos os anos)`);
+      setTxt('kRecebFuturoGeralSub', `${futurosGlobaisComReceb.length} evento(s) futuro(s) com recebimento (todos os anos)`);
     }
     async function carregarInsightsComerciais(force = false) {
       const ano = getAnoSelecionado();
