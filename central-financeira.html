@@ -970,6 +970,7 @@ let ultimoPreview = null;
 let ultimoResumoFinanceiro = null;
 let ultimaCobrancaAsaas = null;
 let cobrancasAsaasEvento = [];
+let asaasActionType = 'cobranca_unica';
 let ajustesDetalhadosComissao = [];
 let previewComissaoAtual = null;
 let fiscalEventosCache = [];
@@ -1398,17 +1399,25 @@ function renderPixAutomatico(){
 
     <div class="divider"></div>
 
-    <label>CPF/CNPJ (opcional se já houver no cadastro do contratante)</label>
-    <input id="asaasCpfCnpj" placeholder="Somente números ou formatado">
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px" id="asaasSaudePix">
+      <div class="kpi"><div class="muted">A vencer (7d)</div><div id="kpiAsaasVencer"><strong>0</strong></div></div>
+      <div class="kpi"><div class="muted">Vencidas</div><div id="kpiAsaasVencidas"><strong>0</strong></div></div>
+      <div class="kpi"><div class="muted">Divergentes</div><div id="kpiAsaasDivergentes"><strong>0</strong></div></div>
+      <div class="kpi"><div class="muted">Recebidas hoje</div><div id="kpiAsaasRecebidasHoje"><strong>0</strong></div></div>
+    </div>
 
-    <label>Vencimento da cobrança</label>
-    <input type="date" id="asaasVencimento" value="${hojeLocalISO()}">
+    <div class="divider"></div>
 
-    <label>Valor da cobrança (opcional)</label>
-    <input type="text" id="asaasValor" inputmode="decimal" autocomplete="off" placeholder="Se vazio, usa pendente do evento">
+    <label>Tipo de ação</label>
+    <select id="asaasActionType" onchange="onChangeAsaasActionType_()">
+      <option value="cobranca_unica" selected>Cobrança única</option>
+      <option value="plano_parcelado">Plano parcelado</option>
+      <option value="cobranca_avulsa">Cobrança avulsa (extra/saldo)</option>
+    </select>
 
-    <label>Descrição (opcional)</label>
-    <input id="asaasDescricao" placeholder="Ex.: Entrada do contrato">
+    <div id="asaasActionFields"></div>
+
+    <div class="divider"></div>
 
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
       <button type="button" class="btn primary" onclick="gerarPixAsaasEvento_()">Gerar PIX Asaas</button>
@@ -1421,7 +1430,109 @@ function renderPixAutomatico(){
     <div id="asaasBlocoInfo" class="muted" style="margin-top:10px">Selecione um evento para carregar cobranças Asaas.</div>
   `;
 
+  asaasActionType = 'cobranca_unica';
+  renderAsaasActionFields_();
+  atualizarKpisSaudeAsaas_();
+}
+
+function onChangeAsaasActionType_() {
+  const el = document.getElementById('asaasActionType');
+  asaasActionType = String(el?.value || 'cobranca_unica');
+  renderAsaasActionFields_();
+}
+
+function renderAsaasActionFields_() {
+  const box = document.getElementById('asaasActionFields');
+  if (!box) return;
+  const tipo = String(asaasActionType || 'cobranca_unica');
+  const isParcelado = tipo === 'plano_parcelado';
+  const descPlaceholder = tipo === 'cobranca_avulsa'
+    ? 'Ex.: Complemento de pagamento'
+    : (isParcelado ? 'Ex.: Parcela contrato do evento' : 'Ex.: Entrada do contrato');
+
+  box.innerHTML = `
+    <label>CPF/CNPJ (opcional se já houver no cadastro do contratante)</label>
+    <input id="asaasCpfCnpj" placeholder="Somente números ou formatado">
+
+    <label>Vencimento da cobrança</label>
+    <input type="date" id="asaasVencimento" value="${hojeLocalISO()}">
+
+    <label>Valor da cobrança ${isParcelado ? '(parcela)' : '(opcional)'}</label>
+    <input type="text" id="asaasValor" inputmode="decimal" autocomplete="off" placeholder="${isParcelado ? 'Informe valor da parcela' : 'Se vazio, usa pendente do evento'}">
+
+    ${isParcelado ? `
+      <label>Qtd. parcelas</label>
+      <input type="number" id="asaasQtdParcelas" min="2" max="24" value="3">
+      <label>Periodicidade</label>
+      <select id="asaasPeriodicidade">
+        <option value="mensal" selected>Mensal</option>
+        <option value="quinzenal">Quinzenal</option>
+        <option value="semanal">Semanal</option>
+      </select>
+      <div class="muted">O plano parcelado gera todas as parcelas em lote no Asaas com referência P1/N, P2/N...</div>
+    ` : ''}
+
+    <label>Descrição (opcional)</label>
+    <input id="asaasDescricao" placeholder="${descPlaceholder}">
+  `;
+
   aplicarMascaraMonetariaPorIds_(['asaasValor']);
+}
+
+function atualizarKpisSaudeAsaas_() {
+  const now = new Date();
+  const hojeYmd = UtilitiesFormatDateBrowser_(now);
+  let vencer7 = 0;
+  let vencidas = 0;
+  let divergentes = 0;
+  let recebidasHoje = 0;
+
+  (cobrancasAsaasEvento || []).forEach(c => {
+    const st = String(c.status || '').toUpperCase();
+    const venc = parseDataBrowser_(c.vencimento);
+    const conc = String(c.conciliacaoStatus || '').toUpperCase();
+    const div = String(c.divergencia || '').trim();
+
+    if (conc === 'DIVERGENTE' || !!div) divergentes++;
+    if (st === 'RECEIVED' || st === 'CONFIRMED') {
+      const upd = parseDataBrowser_(c.atualizadoEm || c.ultimoSyncEm);
+      if (upd && UtilitiesFormatDateBrowser_(upd) === hojeYmd) recebidasHoje++;
+      return;
+    }
+    if (!venc) return;
+    const diffDias = Math.floor((venc.getTime() - new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()) / 86400000);
+    if (diffDias < 0) vencidas++;
+    else if (diffDias <= 7) vencer7++;
+  });
+
+  const set = (id, val) => {
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = `<strong>${val}</strong>`;
+  };
+  set('kpiAsaasVencer', vencer7);
+  set('kpiAsaasVencidas', vencidas);
+  set('kpiAsaasDivergentes', divergentes);
+  set('kpiAsaasRecebidasHoje', recebidasHoje);
+}
+
+function parseDataBrowser_(v) {
+  if (!v) return null;
+  if (Object.prototype.toString.call(v) === '[object Date]' && !isNaN(v.getTime())) return v;
+  const s = String(v).trim();
+  if (!s) return null;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return new Date(s + 'T00:00:00');
+  const d = new Date(s);
+  if (isNaN(d.getTime())) return null;
+  return d;
+}
+
+function UtilitiesFormatDateBrowser_(d) {
+  const dt = d instanceof Date ? d : new Date(d);
+  if (isNaN(dt.getTime())) return '';
+  const y = dt.getFullYear();
+  const m = String(dt.getMonth() + 1).padStart(2, '0');
+  const day = String(dt.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
 }
 
 /* ================= COMISSAO ================= */
@@ -2314,6 +2425,7 @@ async function carregarCobrancasAsaasEvento_() {
     cobrancasAsaasEvento = Array.isArray(resp?.cobrancas) ? resp.cobrancas : [];
     ultimaCobrancaAsaas = cobrancasAsaasEvento.length ? cobrancasAsaasEvento[0] : null;
     renderBlocoAsaasInfo_();
+    atualizarKpisSaudeAsaas_();
   } catch (err) {
     console.error('Erro ao carregar cobranças Asaas:', err);
     box.innerHTML = '<span class="muted">Erro ao carregar cobranças Asaas.</span>';
@@ -2357,6 +2469,8 @@ async function gerarPixAsaasEvento_() {
   const vencimento = String(document.getElementById('asaasVencimento')?.value || '').trim();
   const descricao = String(document.getElementById('asaasDescricao')?.value || '').trim();
   const cpfCnpj = String(document.getElementById('asaasCpfCnpj')?.value || '').trim();
+  const qtdParcelas = Number(document.getElementById('asaasQtdParcelas')?.value || 0);
+  const periodicidade = String(document.getElementById('asaasPeriodicidade')?.value || 'mensal').trim();
 
   lockSubmit = true;
   bloquearBotao(btn);
@@ -2367,21 +2481,52 @@ async function gerarPixAsaasEvento_() {
     if (vencimento) payload.vencimento = vencimento;
     if (descricao) payload.descricao = descricao;
     if (cpfCnpj) payload.cpfCnpj = cpfCnpj;
+    if (String(asaasActionType) === 'plano_parcelado' && qtdParcelas > 1) {
+      payload.parcelaAtual = 1;
+      payload.parcelaTotal = Math.min(24, Math.max(2, qtdParcelas));
+      if (!payload.descricao) payload.descricao = 'Parcela 1/' + payload.parcelaTotal;
+    }
 
-    const resp = await Auth.apiCall('pixAsaasCriarCobranca', payload);
+    let resp = null;
+    if (String(asaasActionType) === 'plano_parcelado' && qtdParcelas > 1) {
+      payload.qtdParcelas = Math.min(24, Math.max(2, qtdParcelas));
+      payload.periodicidade = periodicidade || 'mensal';
+      if (valor <= 0) {
+        alert('Informe o valor da parcela para plano parcelado.');
+        return;
+      }
+      resp = await Auth.apiCall('pixAsaasCriarPlanoParcelado', payload);
+    } else {
+      resp = await Auth.apiCall('pixAsaasCriarCobranca', payload);
+    }
     if (!resp || resp.sucesso !== true) {
       alert(resp?.mensagem || 'Erro ao gerar cobrança Asaas.');
       return;
     }
-    ultimaCobrancaAsaas = {
-      paymentId: resp.paymentId,
-      status: resp.status,
-      valorCobranca: resp.valor,
-      invoiceUrl: resp.invoiceUrl,
-      valorRecebido: 0
-    };
+    if (resp.paymentId) {
+      ultimaCobrancaAsaas = {
+        paymentId: resp.paymentId,
+        status: resp.status,
+        valorCobranca: resp.valor,
+        invoiceUrl: resp.invoiceUrl,
+        valorRecebido: 0
+      };
+    } else if (Array.isArray(resp.cobrancas) && resp.cobrancas.length) {
+      const last = resp.cobrancas[resp.cobrancas.length - 1];
+      ultimaCobrancaAsaas = {
+        paymentId: last.paymentId,
+        status: last.status,
+        valorCobranca: last.valor,
+        invoiceUrl: last.invoiceUrl,
+        valorRecebido: 0
+      };
+    }
     await carregarCobrancasAsaasEvento_();
-    alert('Cobrança Asaas criada com sucesso.');
+    if (Array.isArray(resp.cobrancas) && resp.cobrancas.length > 1) {
+      alert(`Plano parcelado criado com sucesso: ${resp.cobrancas.length} parcela(s).`);
+    } else {
+      alert('Cobrança Asaas criada com sucesso.');
+    }
   } catch (err) {
     tratarErroApi(err);
   } finally {
