@@ -862,6 +862,10 @@
     <i class="mode-icon" data-lucide="circle-dollar-sign"></i>
     <span>Recebimento</span>
   </button>
+  <button data-mode="pixautomatico">
+    <i class="mode-icon" data-lucide="qr-code"></i>
+    <span>PIX Automático</span>
+  </button>
   <button data-mode="estorno">
     <i class="mode-icon" data-lucide="rotate-ccw"></i>
     <span>Estorno</span>
@@ -1006,6 +1010,7 @@ const form = document.getElementById('form');
 const resumo = document.getElementById('resumo');
 const MODE_LABELS = {
   recebimento: 'Recebimento',
+  pixautomatico: 'PIX Automático',
   estorno: 'Estorno',
   comissao: 'Comissão',
   obrigacao: 'Saídas',
@@ -1076,6 +1081,9 @@ function labelDivergencia_(codigo) {
 }
 
 function aplicarPermissoesTelaFinanceira() {
+  const btnPixAutomatico = document.querySelector('.intent button[data-mode=\"pixautomatico\"]');
+  if (btnPixAutomatico && !ehProprietario_()) btnPixAutomatico.style.display = 'none';
+
   if (!ehSocio_()) return;
 
   const btnRecebimento = document.querySelector('.intent button[data-mode=\"recebimento\"]');
@@ -1234,6 +1242,7 @@ async function selecionarEventoPorIdNoModo_(idEvento) {
 
 function render(){
   if(mode === 'recebimento') renderRecebimento();
+  if(mode === 'pixautomatico') renderPixAutomatico();
   if(mode === 'estorno') renderEstorno();
   if(mode === 'comissao') renderComissao();
   if(mode === 'obrigacao') renderObrigacao();
@@ -1366,35 +1375,51 @@ function renderRecebimento(){
     <label>Observações</label>
     <textarea id="obs"></textarea>
 
-    ${ehProprietario_() ? `
-      <div class="divider"></div>
-      <h4>PIX Asaas (Automático)</h4>
-      <p class="muted">Gera cobrança PIX vinculada ao evento e baixa automática via webhook.</p>
-
-      <label>CPF/CNPJ (opcional se já houver no cadastro do contratante)</label>
-      <input id="asaasCpfCnpj" placeholder="Somente números ou formatado">
-
-      <label>Vencimento da cobrança</label>
-      <input type="date" id="asaasVencimento" value="${hojeLocalISO()}">
-
-      <label>Valor da cobrança (opcional)</label>
-      <input type="text" id="asaasValor" inputmode="decimal" autocomplete="off" placeholder="Se vazio, usa pendente do evento">
-
-      <label>Descrição (opcional)</label>
-      <input id="asaasDescricao" placeholder="Ex.: Entrada do contrato">
-
-      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
-        <button type="button" class="btn secondary" onclick="gerarPixAsaasEvento_()">Gerar PIX Asaas</button>
-        <button type="button" class="btn secondary" onclick="consultarUltimaCobrancaAsaas_()">Consultar última</button>
-        <button type="button" class="btn secondary" onclick="cancelarUltimaCobrancaAsaas_()">Cancelar última</button>
-      </div>
-      <div id="asaasBlocoInfo" class="muted" style="margin-top:10px">Selecione um evento para carregar cobranças Asaas.</div>
-    ` : ''}
-
     <button class="btn primary" onclick="submitRecebimento()">Registrar Recebimento</button>
   `;
   aplicarMascaraMonetariaPorIds_(['valor']);
-  if (ehProprietario_()) aplicarMascaraMonetariaPorIds_(['asaasValor']);
+}
+
+function renderPixAutomatico(){
+  if (!ehProprietario_()) {
+    resumo.innerHTML = '<span class="muted">Acesso restrito ao proprietário.</span>';
+    form.innerHTML = '<h3>PIX Automático</h3><p class="muted">Você não possui permissão para este módulo.</p>';
+    return;
+  }
+
+  resumo.innerHTML = '<span class="muted">Selecione um evento para gerar cobrança PIX automática.</span>';
+
+  form.innerHTML = `
+    <h3>PIX Automático (Asaas)</h3>
+
+    <label>Evento (Contratante)</label>
+    <input id="inputEvento" onkeyup="buscarEvento(this.value)">
+    <div id="evSug" class="autocomplete"></div>
+
+    <div class="divider"></div>
+
+    <label>CPF/CNPJ (opcional se já houver no cadastro do contratante)</label>
+    <input id="asaasCpfCnpj" placeholder="Somente números ou formatado">
+
+    <label>Vencimento da cobrança</label>
+    <input type="date" id="asaasVencimento" value="${hojeLocalISO()}">
+
+    <label>Valor da cobrança (opcional)</label>
+    <input type="text" id="asaasValor" inputmode="decimal" autocomplete="off" placeholder="Se vazio, usa pendente do evento">
+
+    <label>Descrição (opcional)</label>
+    <input id="asaasDescricao" placeholder="Ex.: Entrada do contrato">
+
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+      <button type="button" class="btn primary" onclick="gerarPixAsaasEvento_()">Gerar PIX Asaas</button>
+      <button type="button" class="btn secondary" onclick="consultarUltimaCobrancaAsaas_()">Consultar última</button>
+      <button type="button" class="btn secondary" onclick="cancelarUltimaCobrancaAsaas_()">Cancelar última</button>
+    </div>
+
+    <div id="asaasBlocoInfo" class="muted" style="margin-top:10px">Selecione um evento para carregar cobranças Asaas.</div>
+  `;
+
+  aplicarMascaraMonetariaPorIds_(['asaasValor']);
 }
 
 /* ================= COMISSAO ================= */
@@ -2268,7 +2293,7 @@ async function selectEvento(ev){
     listarRecebimentosEvento(idEventoReal);
   }
 
-  if (ehProprietario_() && mode === 'recebimento') {
+  if (ehProprietario_() && mode === 'pixautomatico') {
     await carregarCobrancasAsaasEvento_();
   }
 
