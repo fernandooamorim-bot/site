@@ -1414,6 +1414,8 @@ function renderPixAutomatico(){
       <button type="button" class="btn primary" onclick="gerarPixAsaasEvento_()">Gerar PIX Asaas</button>
       <button type="button" class="btn secondary" onclick="consultarUltimaCobrancaAsaas_()">Consultar última</button>
       <button type="button" class="btn secondary" onclick="cancelarUltimaCobrancaAsaas_()">Cancelar última</button>
+      <button type="button" class="btn secondary" onclick="reconciliarAsaasAgora_()">Reconciliar agora</button>
+      <button type="button" class="btn secondary" onclick="configurarReconAsaas2xDia_()">Ativar reconciliação 2x/dia</button>
     </div>
 
     <div id="asaasBlocoInfo" class="muted" style="margin-top:10px">Selecione um evento para carregar cobranças Asaas.</div>
@@ -2335,9 +2337,11 @@ function renderBlocoAsaasInfo_() {
     const recebido = Number(c.valorRecebido || 0).toFixed(2);
     const pay = String(c.paymentId || '—');
     const link = c.invoiceUrl ? `<a href="${escaparAttr_(c.invoiceUrl)}" target="_blank" rel="noopener">abrir fatura</a>` : 'sem link';
+    const conc = c.conciliacaoStatus ? ` • conciliação: ${escaparHtml_(c.conciliacaoStatus)}` : '';
+    const div = c.divergencia ? ` • ⚠️ ${escaparHtml_(c.divergencia)}` : '';
     return `<div style="padding:8px;border:1px solid #e2e6ef;border-radius:8px;margin-top:6px">
       <div><strong>${status}</strong> • R$ ${valor} • recebido R$ ${recebido}</div>
-      <div class="muted" style="font-size:12px">${pay} • ${link}</div>
+      <div class="muted" style="font-size:12px">${pay} • ${link}${conc}${div}</div>
     </div>`;
   }).join('');
   box.innerHTML = `<div><strong>${cobrancasAsaasEvento.length}</strong> cobrança(s) Asaas no evento.</div>${itens}`;
@@ -2425,6 +2429,62 @@ async function cancelarUltimaCobrancaAsaas_() {
     }
     await carregarCobrancasAsaasEvento_();
     alert('Cobrança cancelada com sucesso.');
+  } catch (err) {
+    tratarErroApi(err);
+  } finally {
+    hideLoading();
+  }
+}
+
+async function reconciliarAsaasAgora_() {
+  if (!ehProprietario_()) return alert('Ação restrita ao proprietário.');
+  if (lockSubmit) return;
+  const btn = event?.target;
+  lockSubmit = true;
+  bloquearBotao(btn);
+  showLoading('Executando reconciliação Asaas...');
+  try {
+    const payload = {
+      diasJanela: 60,
+      idEvento: String(eventoSelecionado || '').trim()
+    };
+    const resp = await Auth.apiCall('pixAsaasReconciliar', payload);
+    if (!resp || resp.sucesso !== true) {
+      alert(resp?.mensagem || 'Erro ao reconciliar cobranças.');
+      return;
+    }
+    await carregarCobrancasAsaasEvento_();
+    const msg = [
+      `Verificadas: ${resp.verificadas || 0}`,
+      `Atualizadas: ${resp.atualizadas || 0}`,
+      `Baixas criadas: ${resp.baixasCriadas || 0}`,
+      `Divergências: ${resp.divergencias || 0}`,
+      `Erros: ${resp.erros || 0}`
+    ].join('\n');
+    alert('Reconciliação concluída.\n' + msg);
+  } catch (err) {
+    tratarErroApi(err);
+  } finally {
+    hideLoading();
+    lockSubmit = false;
+    liberarBotao(btn);
+  }
+}
+
+async function configurarReconAsaas2xDia_() {
+  if (!ehProprietario_()) return alert('Ação restrita ao proprietário.');
+  if (!confirm('Ativar reconciliação automática diária às 10h e 18h?')) return;
+  showLoading('Configurando reconciliação automática...');
+  try {
+    const resp = await Auth.apiCall('pixAsaasConfigurarReconciliacao', {
+      horas: '10,18',
+      apagarAnteriores: 'TRUE'
+    });
+    if (!resp || resp.sucesso !== true) {
+      alert(resp?.mensagem || 'Erro ao configurar reconciliação.');
+      return;
+    }
+    alert(`Reconciliação automática ativa às ${Array.isArray(resp.horas) ? resp.horas.join('h e ') + 'h' : '10h e 18h'}.`);
   } catch (err) {
     tratarErroApi(err);
   } finally {
