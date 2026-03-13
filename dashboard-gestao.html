@@ -934,7 +934,7 @@
       } catch (_) {
         versaoAgenda = '';
       }
-      if (cacheRaw && Array.isArray(cacheRaw.rowsRealizados) && Array.isArray(cacheRaw.rowsAno)) {
+      if (cacheRaw && Array.isArray(cacheRaw.rowsRealizados) && Array.isArray(cacheRaw.rowsAno) && Array.isArray(cacheRaw.rowsAllAtivos)) {
         const ttlOk = !!cacheRaw.at && (Date.now() - Number(cacheRaw.at)) <= INSIGHTS_CACHE_TTL_MS;
         const versaoOk = !!versaoAgenda && String(cacheRaw.syncVersion || '') === String(versaoAgenda);
         if (!force && (versaoOk || ttlOk)) {
