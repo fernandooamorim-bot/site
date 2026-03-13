@@ -971,6 +971,9 @@ let ultimoResumoFinanceiro = null;
 let ultimaCobrancaAsaas = null;
 let cobrancasAsaasEvento = [];
 let asaasActionType = 'plano_parcelado';
+let eventoSelecionadoMeta = null;
+let asaasMensagensCliente = { completa: '', curta: '' };
+let asaasContatoEvento = { whatsapp: '', email: '', cpfCnpj: '' };
 let ajustesDetalhadosComissao = [];
 let previewComissaoAtual = null;
 let fiscalEventosCache = [];
@@ -1424,13 +1427,32 @@ function renderPixAutomatico(){
 
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
       <button type="button" class="btn primary" onclick="gerarPixAsaasEvento_()">Gerar PIX Asaas</button>
+      <button type="button" class="btn secondary" onclick="salvarContatoAsaasEvento_()">Salvar contato no contratante</button>
       <button type="button" class="btn secondary" onclick="consultarUltimaCobrancaAsaas_()">Consultar última</button>
       <button type="button" class="btn secondary" onclick="cancelarUltimaCobrancaAsaas_()">Cancelar última</button>
       <button type="button" class="btn secondary" onclick="reconciliarAsaasAgora_()">Reconciliar agora</button>
       <button type="button" class="btn secondary" onclick="configurarReconAsaas2xDia_()">Ativar reconciliação 2x/dia</button>
+      <button type="button" class="btn secondary" onclick="gerarMensagensClienteAsaas_()">Gerar mensagem cliente</button>
     </div>
 
     <div id="asaasBlocoInfo" class="muted" style="margin-top:10px">Selecione um evento para carregar cobranças Asaas.</div>
+
+    <div id="asaasMensagensBox" style="display:none;margin-top:10px;padding:10px;border:1px solid #e2e6ef;border-radius:10px;background:#fbfcff">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">
+        <strong>Mensagem do cliente (carnê digital)</strong>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button type="button" class="btn secondary" onclick="copiarMensagemAsaas_('completa')">Copiar completa</button>
+          <button type="button" class="btn secondary" onclick="copiarMensagemAsaas_('curta')">Copiar curta</button>
+          <button type="button" class="btn secondary" onclick="abrirWhatsMensagemAsaas_('completa')">WhatsApp completa</button>
+          <button type="button" class="btn secondary" onclick="abrirWhatsMensagemAsaas_('curta')">WhatsApp curta</button>
+        </div>
+      </div>
+      <div class="muted" style="margin-top:8px">Use a completa para contratação e a curta para reforço/recapitulação.</div>
+      <label style="margin-top:8px">Mensagem completa</label>
+      <textarea id="asaasMensagemCompleta" readonly style="min-height:150px"></textarea>
+      <label style="margin-top:8px">Mensagem curta</label>
+      <textarea id="asaasMensagemCurta" readonly style="min-height:110px"></textarea>
+    </div>
   `;
 
   asaasActionType = 'plano_parcelado';
@@ -1449,13 +1471,20 @@ function renderAsaasActionFields_() {
   if (!box) return;
   const tipo = String(asaasActionType || 'cobranca_unica');
   const isParcelado = tipo === 'plano_parcelado';
+  const cpfAtual = String(document.getElementById('asaasCpfCnpj')?.value || asaasContatoEvento.cpfCnpj || '').trim();
+  const whatsAtual = String(document.getElementById('asaasWhatsapp')?.value || asaasContatoEvento.whatsapp || '').trim();
+  const emailAtual = String(document.getElementById('asaasEmail')?.value || asaasContatoEvento.email || '').trim();
   const descPlaceholder = tipo === 'cobranca_avulsa'
     ? 'Ex.: Complemento de pagamento'
     : (isParcelado ? 'Ex.: Parcela contrato do evento' : 'Ex.: Entrada do contrato');
 
   box.innerHTML = `
     <label>CPF/CNPJ (opcional se já houver no cadastro do contratante)</label>
-    <input id="asaasCpfCnpj" placeholder="Somente números ou formatado">
+    <input id="asaasCpfCnpj" placeholder="Somente números ou formatado" value="${escaparAttr_(cpfAtual)}">
+    <label>WhatsApp do cliente (opcional)</label>
+    <input id="asaasWhatsapp" placeholder="(85) 99999-9999" value="${escaparAttr_(whatsAtual)}">
+    <label>E-mail do cliente (opcional)</label>
+    <input id="asaasEmail" placeholder="cliente@email.com" value="${escaparAttr_(emailAtual)}">
 
     <label>Vencimento da cobrança</label>
     <input type="date" id="asaasVencimento" value="${hojeLocalISO()}">
@@ -2321,6 +2350,12 @@ async function selectEvento(ev){
   if (inp) inp.value = ev.id + ' — ' + ev.contratante;
   const idEventoReal = ev.id || ev.ID_EVENTO;
   eventoSelecionado = idEventoReal;
+  eventoSelecionadoMeta = {
+    idEvento: idEventoReal,
+    contratante: String(ev.contratante || '').trim(),
+    tipoEvento: String(ev.tipoEvento || ev.tipoRegistro || '').trim(),
+    dataEvento: String(ev.dataFormatada || '').trim()
+  };
   document.getElementById('evSug').innerHTML = '';
 
   resumo.innerHTML = '<span class="muted">Carregando resumo financeiro...</span>';
@@ -2410,7 +2445,9 @@ async function selectEvento(ev){
   }
 
   if (ehProprietario_() && mode === 'pixautomatico') {
+    await carregarContatoAsaasEvento_();
     await carregarCobrancasAsaasEvento_();
+    limparMensagensAsaas_();
   }
 
 } catch (err) {
@@ -2432,6 +2469,61 @@ async function carregarCobrancasAsaasEvento_() {
   } catch (err) {
     console.error('Erro ao carregar cobranças Asaas:', err);
     box.innerHTML = '<span class="muted">Erro ao carregar cobranças Asaas.</span>';
+  }
+}
+
+async function carregarContatoAsaasEvento_() {
+  if (!eventoSelecionado) return;
+  try {
+    const resp = await Auth.apiCall('pixAsaasObterContatoEvento', { idEvento: String(eventoSelecionado || '').trim() });
+    const cpf = String(resp?.cpfCnpj || '').trim();
+    const whats = String(resp?.whatsapp || '').trim();
+    const email = String(resp?.email || '').trim();
+    asaasContatoEvento = { whatsapp: whats, email: email, cpfCnpj: cpf };
+    const elCpf = document.getElementById('asaasCpfCnpj');
+    const elWhats = document.getElementById('asaasWhatsapp');
+    const elEmail = document.getElementById('asaasEmail');
+    if (elCpf) elCpf.value = cpf;
+    if (elWhats) elWhats.value = whats;
+    if (elEmail) elEmail.value = email;
+  } catch (err) {
+    console.warn('Não foi possível carregar contato do contratante para PIX:', err);
+  }
+}
+
+async function salvarContatoAsaasEvento_() {
+  if (!ehProprietario_()) return alert('Ação restrita ao proprietário.');
+  if (!eventoSelecionado) return alert('Selecione um evento primeiro.');
+
+  const cpfCnpj = String(document.getElementById('asaasCpfCnpj')?.value || '').trim();
+  const whatsapp = String(document.getElementById('asaasWhatsapp')?.value || '').trim();
+  const email = String(document.getElementById('asaasEmail')?.value || '').trim();
+  if (!cpfCnpj && !whatsapp && !email) {
+    return alert('Preencha pelo menos um dado: CPF/CNPJ, WhatsApp ou E-mail.');
+  }
+
+  showLoading('Salvando contato do contratante...');
+  try {
+    const resp = await Auth.apiCall('pixAsaasAtualizarContatoEvento', {
+      idEvento: String(eventoSelecionado || '').trim(),
+      cpfCnpj,
+      whatsapp,
+      email
+    });
+    if (!resp || resp.sucesso !== true) {
+      alert(resp?.mensagem || 'Não foi possível salvar o contato.');
+      return;
+    }
+    asaasContatoEvento = {
+      cpfCnpj: String(resp.cpfCnpj || cpfCnpj || ''),
+      whatsapp: String(resp.whatsapp || whatsapp || ''),
+      email: String(resp.email || email || '')
+    };
+    alert('Contato do contratante atualizado com sucesso.');
+  } catch (err) {
+    tratarErroApi(err);
+  } finally {
+    hideLoading();
   }
 }
 
@@ -2472,6 +2564,8 @@ async function gerarPixAsaasEvento_() {
   const vencimento = String(document.getElementById('asaasVencimento')?.value || '').trim();
   const descricao = String(document.getElementById('asaasDescricao')?.value || '').trim();
   const cpfCnpj = String(document.getElementById('asaasCpfCnpj')?.value || '').trim();
+  const whatsapp = String(document.getElementById('asaasWhatsapp')?.value || '').trim();
+  const email = String(document.getElementById('asaasEmail')?.value || '').trim();
   const qtdParcelas = Number(document.getElementById('asaasQtdParcelas')?.value || 0);
   const periodicidade = String(document.getElementById('asaasPeriodicidade')?.value || 'mensal').trim();
 
@@ -2484,6 +2578,21 @@ async function gerarPixAsaasEvento_() {
     if (vencimento) payload.vencimento = vencimento;
     if (descricao) payload.descricao = descricao;
     if (cpfCnpj) payload.cpfCnpj = cpfCnpj;
+    if (whatsapp) payload.whatsapp = whatsapp;
+    if (email) payload.email = email;
+
+    if (cpfCnpj || whatsapp || email) {
+      try {
+        await Auth.apiCall('pixAsaasAtualizarContatoEvento', {
+          idEvento: eventoSelecionado,
+          cpfCnpj,
+          whatsapp,
+          email
+        });
+      } catch (errSync) {
+        console.warn('Falha ao sincronizar contato antes da cobrança PIX:', errSync);
+      }
+    }
     if (String(asaasActionType) === 'plano_parcelado' && qtdParcelas > 1) {
       payload.parcelaAtual = 1;
       payload.parcelaTotal = Math.min(24, Math.max(2, qtdParcelas));
@@ -2525,6 +2634,7 @@ async function gerarPixAsaasEvento_() {
       };
     }
     await carregarCobrancasAsaasEvento_();
+    gerarMensagensClienteAsaas_();
     if (Array.isArray(resp.cobrancas) && resp.cobrancas.length > 1) {
       alert(`Plano parcelado criado com sucesso: ${resp.cobrancas.length} parcela(s).`);
     } else {
@@ -2537,6 +2647,146 @@ async function gerarPixAsaasEvento_() {
     lockSubmit = false;
     liberarBotao(btn);
   }
+}
+
+function limparMensagensAsaas_() {
+  asaasMensagensCliente = { completa: '', curta: '' };
+  const box = document.getElementById('asaasMensagensBox');
+  const completa = document.getElementById('asaasMensagemCompleta');
+  const curta = document.getElementById('asaasMensagemCurta');
+  if (completa) completa.value = '';
+  if (curta) curta.value = '';
+  if (box) box.style.display = 'none';
+}
+
+function formatarMoedaAsaasMsg_(v) {
+  const n = Number(v || 0);
+  return n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+}
+
+function formatarDataAsaasMsg_(iso) {
+  const s = String(iso || '').trim();
+  if (!s) return '—';
+  const m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!m) return s;
+  return `${m[3]}/${m[2]}/${m[1]}`;
+}
+
+function montarMensagensClienteAsaas_() {
+  const idEvento = String(eventoSelecionado || '').trim();
+  if (!idEvento) return null;
+  const meta = eventoSelecionadoMeta || {};
+  const contratante = String(meta.contratante || 'Cliente').trim();
+  const nomeEvento = String(meta.tipoEvento || 'Evento').trim();
+  const dataEvento = String(meta.dataEvento || '').trim();
+
+  const list = (Array.isArray(cobrancasAsaasEvento) ? cobrancasAsaasEvento : [])
+    .filter(c => String(c.status || '').toUpperCase() !== 'CANCELED')
+    .slice()
+    .sort((a, b) => {
+      const pa = Number(a.parcelaAtual || a.parcela || 0);
+      const pb = Number(b.parcelaAtual || b.parcela || 0);
+      if (pa && pb) return pa - pb;
+      return String(a.vencimento || '').localeCompare(String(b.vencimento || ''));
+    });
+
+  if (!list.length) return null;
+
+  const valorTotal = list.reduce((acc, c) => acc + Number(c.valorCobranca || c.valor || 0), 0);
+  const primeira = list[0];
+  const valorEntrada = Number(primeira.valorCobranca || primeira.valor || 0);
+  const valorParcela = Number((list[1] && (list[1].valorCobranca || list[1].valor)) || valorEntrada || 0);
+  const qtdParcelas = list.length;
+  const inicio = formatarDataAsaasMsg_(primeira.vencimento);
+
+  const linhasParcelas = list.map((c, idx) => {
+    const n = Number(c.parcelaAtual || c.parcela || (idx + 1)) || (idx + 1);
+    const link = String(c.invoiceUrl || '').trim();
+    return [
+      `• Parcela ${n}/${qtdParcelas} — Venc.: ${formatarDataAsaasMsg_(c.vencimento)} — ${formatarMoedaAsaasMsg_(c.valorCobranca || c.valor)}`,
+      link || 'sem link'
+    ].join('\n');
+  }).join('\n');
+
+  const completa =
+`Olá, ${contratante}! Tudo bem?
+
+Conforme combinado, segue o seu plano de pagamento do evento *${nomeEvento}*${dataEvento ? ` (${dataEvento})` : ''}.
+
+*Resumo do contrato*
+• ID do evento: ${idEvento}
+• Valor total: ${formatarMoedaAsaasMsg_(valorTotal)}
+• Entrada: ${formatarMoedaAsaasMsg_(valorEntrada)}
+• Parcelamento: ${qtdParcelas}x de ${formatarMoedaAsaasMsg_(valorParcela)}
+• Início: ${inicio}
+
+*Parcelas e links de pagamento (PIX)*
+${linhasParcelas}
+
+Importante:
+• Você também receberá lembretes automáticos próximos ao vencimento.
+• Após cada pagamento, a baixa é feita automaticamente no sistema.
+• Em caso de dúvida, é só responder esta mensagem.
+
+Atenciosamente,
+Equipe Fernando Amorim`;
+
+  const curta =
+`Olá, ${contratante}! Segue seu carnê digital do evento *${nomeEvento}*.
+ID: ${idEvento} • ${qtdParcelas} parcela(s)
+
+${linhasParcelas}
+
+Qualquer dúvida, fico à disposição.`;
+
+  return { completa, curta };
+}
+
+function gerarMensagensClienteAsaas_() {
+  if (!ehProprietario_()) return;
+  const mensagens = montarMensagensClienteAsaas_();
+  if (!mensagens) {
+    alert('Sem cobranças ativas para gerar mensagem.');
+    return;
+  }
+  asaasMensagensCliente = mensagens;
+  const box = document.getElementById('asaasMensagensBox');
+  const completa = document.getElementById('asaasMensagemCompleta');
+  const curta = document.getElementById('asaasMensagemCurta');
+  if (completa) completa.value = mensagens.completa;
+  if (curta) curta.value = mensagens.curta;
+  if (box) box.style.display = 'block';
+}
+
+async function copiarMensagemAsaas_(tipo) {
+  const txt = String((asaasMensagensCliente && asaasMensagensCliente[tipo]) || '').trim();
+  if (!txt) return alert('Gere a mensagem primeiro.');
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      await navigator.clipboard.writeText(txt);
+    } else {
+      const ta = document.createElement('textarea');
+      ta.value = txt;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      ta.remove();
+    }
+    alert(`Mensagem ${tipo} copiada.`);
+  } catch (_) {
+    alert('Não foi possível copiar automaticamente.');
+  }
+}
+
+function abrirWhatsMensagemAsaas_(tipo) {
+  const txt = String((asaasMensagensCliente && asaasMensagensCliente[tipo]) || '').trim();
+  if (!txt) return alert('Gere a mensagem primeiro.');
+  const phoneDigits = String((document.getElementById('asaasWhatsapp')?.value || asaasContatoEvento.whatsapp || '')).replace(/\D/g, '');
+  const phone = phoneDigits ? (phoneDigits.startsWith('55') ? phoneDigits : ('55' + phoneDigits)) : '';
+  const url = phone
+    ? ('https://api.whatsapp.com/send?phone=' + encodeURIComponent(phone) + '&text=' + encodeURIComponent(txt))
+    : ('https://api.whatsapp.com/send?text=' + encodeURIComponent(txt));
+  window.open(url, '_blank', 'noopener');
 }
 
 async function consultarUltimaCobrancaAsaas_() {
