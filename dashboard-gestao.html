@@ -79,6 +79,10 @@
     .kpi .lbl{font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.5px}
     .kpi .val{margin-top:6px;font-size:22px;font-weight:800;letter-spacing:-.4px}
     .kpi .sub{margin-top:4px;font-size:12px;color:var(--muted)}
+    .kpis-secondary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:0 0 12px}
+    .kpi.soft-ok .val{color:#0d8a5d}
+    .kpi.soft-warn .val{color:#9a6d08}
+    .kpi .sub-line{margin-top:6px;font-size:11px;color:var(--muted)}
     .insights-kpis{display:grid;grid-template-columns:1.2fr 1fr 1fr;gap:10px;margin-bottom:12px}
     .insight-kpi{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:14px;box-shadow:var(--shadow)}
     .insight-kpi .head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}
@@ -229,7 +233,7 @@
     @media (max-width:1280px){.split{grid-template-columns:1fr 1fr}}
     @media (max-width:980px){.metric-grid{grid-template-columns:1fr}}
     @media (max-width:980px){.auditoria-top5{grid-template-columns:1fr}.auditoria-row{grid-template-columns:78px 1fr 88px 88px 88px 84px 98px;font-size:11px}}
-    @media (max-width:860px){.grid{grid-template-columns:1fr}.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.insights-kpis{grid-template-columns:1fr}.split{grid-template-columns:1fr}.ticket-grid{grid-template-columns:1fr}}
+    @media (max-width:860px){.grid{grid-template-columns:1fr}.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.kpis-secondary{grid-template-columns:1fr}.insights-kpis{grid-template-columns:1fr}.split{grid-template-columns:1fr}.ticket-grid{grid-template-columns:1fr}}
     @media (min-width:768px){.bottom-nav{display:none}.container{padding-bottom:20px}}
     .hidden{display:none !important}
   </style>
@@ -265,6 +269,24 @@
       <div class="kpi"><div class="lbl" id="kLblBV">BV</div><div class="val" id="kBV">0</div><div class="sub" id="kBVPend">0 pendente</div></div>
       <div class="kpi"><div class="lbl" id="kLblNF">NF</div><div class="val" id="kNF">0</div><div class="sub" id="kNFPend">0 pendente</div></div>
       <div class="kpi"><div class="lbl" id="kLblRiscos">Riscos</div><div class="val" id="kRiscos">0</div><div class="sub" id="kSubRiscos">alertas críticos</div></div>
+    </div>
+    <div class="kpis-secondary hidden" id="kpisExecucaoRow">
+      <div class="kpi soft-ok">
+        <div class="lbl">Recebido Realizado</div>
+        <div class="val" id="kRecebRealizado">R$ 0,00</div>
+        <div class="sub" id="kRecebRealizadoSub">eventos já executados</div>
+      </div>
+      <div class="kpi soft-warn">
+        <div class="lbl">Recebido Futuro</div>
+        <div class="val" id="kRecebFuturo">R$ 0,00</div>
+        <div class="sub" id="kRecebFuturoSub">adiantamentos de eventos futuros</div>
+      </div>
+      <div class="kpi">
+        <div class="lbl">Exposição do Futuro</div>
+        <div class="val" id="kExpoFuturo">0,0%</div>
+        <div class="sub" id="kExpoFuturoSub">sobre o recebido total do ano</div>
+        <div class="sub-line" id="kExpoFuturoLinha">Passivo operacional: R$ 0,00</div>
+      </div>
     </div>
     <div class="insights-kpis">
       <div class="insight-kpi">
@@ -869,6 +891,28 @@
         </div>
       `).join('') : `<div class="empty" style="margin-top:0">Sem base de cerimonialistas para o ano selecionado.</div>`;
     }
+    function renderKpisExecucao(rowsAno) {
+      if (!ehProprietario()) return;
+      const linhas = Array.isArray(rowsAno) ? rowsAno : [];
+      const realizados = linhas.filter(x => !!x?.ocorrido);
+      const futuros = linhas.filter(x => !x?.ocorrido);
+      const recebidoRealizado = realizados.reduce((s, x) => s + num(x?.recebido), 0);
+      const recebidoFuturo = futuros.reduce((s, x) => s + num(x?.recebido), 0);
+      const recebidoTotal = recebidoRealizado + recebidoFuturo;
+      const expo = recebidoTotal > 0 ? (recebidoFuturo / recebidoTotal) * 100 : 0;
+
+      const setTxt = (id, val) => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = val;
+      };
+      setTxt('kRecebRealizado', fmt(recebidoRealizado));
+      setTxt('kRecebRealizadoSub', `${realizados.length} evento(s) já executado(s)`);
+      setTxt('kRecebFuturo', fmt(recebidoFuturo));
+      setTxt('kRecebFuturoSub', `${futuros.length} evento(s) futuro(s) com recebimento`);
+      setTxt('kExpoFuturo', fmtPct(expo));
+      setTxt('kExpoFuturoSub', 'sobre o recebido total do ano');
+      setTxt('kExpoFuturoLinha', `Passivo operacional: ${fmt(recebidoFuturo)}`);
+    }
     async function carregarInsightsComerciais(force = false) {
       const ano = getAnoSelecionado();
       const cacheKey = INSIGHTS_CACHE_KEY + ':' + ano;
@@ -885,6 +929,7 @@
         if (!force && (versaoOk || ttlOk)) {
           renderMargemSegmento(cacheRaw.rowsRealizados);
           renderTopCerimonialistas(cacheRaw.rowsAno, cacheRaw.cadastroMap || {});
+          renderKpisExecucao(cacheRaw.rowsAno);
           return;
         }
       }
@@ -916,12 +961,14 @@
         salvarCacheJson(cacheKey, { rowsRealizados, rowsAno, cadastroMap, syncVersion: versaoAgenda || '' });
         renderMargemSegmento(rowsRealizados);
         renderTopCerimonialistas(rowsAno, cadastroMap);
+        renderKpisExecucao(rowsAno);
       } catch (e) {
         console.error('Erro ao carregar insights comerciais:', e);
         const seg = document.getElementById('segmentoList');
         const par = document.getElementById('partnerList');
         if (seg) seg.innerHTML = `<div class="empty" style="margin-top:0">Falha ao carregar segmentos.</div>`;
         if (par) par.innerHTML = `<div class="empty" style="margin-top:0">Falha ao carregar parceiros.</div>`;
+        if (ehProprietario()) renderKpisExecucao([]);
       }
     }
     function eventoTemAlerta(evento, codigo) {
@@ -1011,6 +1058,7 @@
       show('cardFunil', !comercial);
       show('cardAuditoriaComercial', comercial);
       show('cardTicketMedio', proprietario);
+      show('kpisExecucaoRow', proprietario);
     }
 
     function cacheKeyTicket(ano) {
