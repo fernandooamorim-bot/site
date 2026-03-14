@@ -1911,6 +1911,42 @@
       </div>
     </div>
   </div>
+
+  <div id="modalLocalEdicao" class="modal-overlay">
+    <div class="modal">
+      <div class="modal-title">Editar Local</div>
+      <div class="cadastro-modal-grid">
+        <div class="form-group">
+          <label for="editLocalNome">Nome do Local</label>
+          <input type="text" id="editLocalNome" placeholder="Nome do local">
+        </div>
+        <div class="form-group">
+          <label for="editLocalEnderecoCompleto">Endereço Completo</label>
+          <textarea id="editLocalEnderecoCompleto" placeholder="Rua, número, bairro..."></textarea>
+        </div>
+        <div class="form-group">
+          <label for="editLocalCidade">Cidade</label>
+          <input type="text" id="editLocalCidade" placeholder="Cidade">
+        </div>
+        <div class="form-group">
+          <label for="editLocalEstado">Estado</label>
+          <input type="text" id="editLocalEstado" placeholder="UF">
+        </div>
+        <div class="form-group">
+          <label for="editLocalLinkMaps">Link Google Maps</label>
+          <input type="text" id="editLocalLinkMaps" placeholder="https://maps.google.com/...">
+        </div>
+        <div class="form-group">
+          <label for="editLocalObservacoes">Observações</label>
+          <textarea id="editLocalObservacoes" placeholder="Informações adicionais"></textarea>
+        </div>
+      </div>
+      <div class="actions">
+        <button class="btn btn-secondary" type="button" onclick="fecharModalLocalEdicao()">Cancelar</button>
+        <button class="btn btn-primary" type="button" onclick="salvarCadastroLocalEdicao()">Salvar Cadastro</button>
+      </div>
+    </div>
+  </div>
   
   <script>
 console.log('🚀 editar-evento.html iniciado (frontend externo)');
@@ -2017,7 +2053,7 @@ function getConverterFromURL() {
 
 function travarAcoes(travar = true) {
   document
-    .querySelectorAll('#formEdicao button, #modalConfirmacao button, #modalContratanteEdicao button')
+    .querySelectorAll('#formEdicao button, #modalConfirmacao button, #modalContratanteEdicao button, #modalLocalEdicao button')
     .forEach(btn => {
       btn.disabled = travar;
       if (travar) {
@@ -2633,14 +2669,47 @@ async function editarCadastroLocalEdicao() {
   const id = String(document.getElementById('idEndereco')?.value || '').trim();
   if (!id) return;
 
-  const nomeAtual = String(document.getElementById('nomeLocal')?.value || '').trim();
-  const nome = String(prompt('Nome do local:', nomeAtual) || '').trim();
-  if (!nome) return;
-  const enderecoCompleto = String(prompt('Endereço completo (opcional):', '') || '').trim();
-  const linkMaps = String(prompt('Link Google Maps (opcional):', '') || '').trim();
-  const cidade = String(prompt('Cidade (opcional):', '') || '').trim();
-  const estado = String(prompt('Estado (opcional):', '') || '').trim();
-  const observacoes = String(prompt('Observações (opcional):', '') || '').trim();
+  try {
+    mostrarLoadingGlobal('Carregando cadastro do local...');
+    const res = await Auth.apiCall('obterEnderecoPorId', { id });
+    if (!res?.sucesso || !res?.endereco) {
+      throw new Error(res?.mensagem || 'Não foi possível carregar os dados do local.');
+    }
+    const e = res.endereco;
+    document.getElementById('editLocalNome').value = String(e.nome || '');
+    document.getElementById('editLocalEnderecoCompleto').value = String(e.enderecoCompleto || '');
+    document.getElementById('editLocalCidade').value = String(e.cidade || '');
+    document.getElementById('editLocalEstado').value = String(e.estado || '');
+    document.getElementById('editLocalLinkMaps').value = String(e.linkMaps || '');
+    document.getElementById('editLocalObservacoes').value = String(e.observacoes || '');
+    const modal = document.getElementById('modalLocalEdicao');
+    if (modal) modal.classList.add('show');
+  } catch (err) {
+    mostrarAlerta('Erro ao abrir cadastro do local: ' + (err?.message || err), 'error');
+  } finally {
+    esconderLoadingGlobal();
+  }
+}
+
+function fecharModalLocalEdicao() {
+  const modal = document.getElementById('modalLocalEdicao');
+  if (modal) modal.classList.remove('show');
+}
+
+async function salvarCadastroLocalEdicao() {
+  const id = String(document.getElementById('idEndereco')?.value || '').trim();
+  if (!id) return;
+
+  const nome = String(document.getElementById('editLocalNome')?.value || '').trim();
+  const enderecoCompleto = String(document.getElementById('editLocalEnderecoCompleto')?.value || '').trim();
+  const cidade = String(document.getElementById('editLocalCidade')?.value || '').trim();
+  const estado = String(document.getElementById('editLocalEstado')?.value || '').trim();
+  const linkMaps = String(document.getElementById('editLocalLinkMaps')?.value || '').trim();
+  const observacoes = String(document.getElementById('editLocalObservacoes')?.value || '').trim();
+  if (!nome) {
+    mostrarAlerta('Nome do local é obrigatório.', 'error');
+    return;
+  }
 
   try {
     mostrarLoadingGlobal('Atualizando local...');
@@ -2656,6 +2725,7 @@ async function editarCadastroLocalEdicao() {
     if (!res?.sucesso) throw new Error(res?.mensagem || 'Falha ao atualizar local.');
     document.getElementById('nomeLocal').value = String(res.nome || nome);
     atualizarAcoesContextuaisCadastro();
+    fecharModalLocalEdicao();
     mostrarAlerta('Cadastro do local atualizado.', 'success');
   } catch (err) {
     mostrarAlerta('Erro ao atualizar local: ' + (err?.message || err), 'error');
