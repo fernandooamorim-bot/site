@@ -470,6 +470,16 @@
       font-weight: 500;
     }
 
+    .helper-text.helper-warning {
+      color: #b45309;
+    }
+
+    .input-pendente-vinculo {
+      border-color: #f59e0b !important;
+      box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.15) !important;
+      background: #fffdf5 !important;
+    }
+
     .horario-fim-calc {
       margin-top: 8px;
       padding: 10px 12px;
@@ -1833,6 +1843,7 @@
                 <button type="button" id="btnRegularizarContratante" class="btn btn-secondary" onclick="regularizarContratanteEdicao()">Regularizar Contratante</button>
                 <button type="button" id="btnEditarContratanteCadastro" class="btn btn-secondary" onclick="editarCadastroContratanteEdicao()">Editar Contratante</button>
               </div>
+              <div id="hintVinculoContratante" class="helper-text helper-warning hidden"></div>
             </div>
             
             <div class="form-group" id="campoCerimonialistaEdicao">
@@ -1858,6 +1869,7 @@
               <button type="button" id="btnRegularizarLocal" class="btn btn-secondary" onclick="regularizarLocalEdicao()">Regularizar Local</button>
               <button type="button" id="btnEditarLocalCadastro" class="btn btn-secondary" onclick="editarCadastroLocalEdicao()">Editar Local</button>
             </div>
+            <div id="hintVinculoLocal" class="helper-text helper-warning hidden"></div>
           </div>
         </div>
       </div>
@@ -2668,6 +2680,56 @@ function atualizarAcoesContextuaisCadastro() {
     btnRegLocal.classList.toggle('hidden', !!idEndereco || !nomeLocal);
     btnEditLocal.classList.toggle('hidden', !idEndereco);
   }
+
+  atualizarIndicadoresVinculoConversao();
+}
+
+function marcarCampoPendenteVinculo_(inputId, pendente) {
+  const input = document.getElementById(inputId);
+  if (!input) return;
+  input.classList.toggle('input-pendente-vinculo', !!pendente);
+}
+
+function atualizarIndicadoresVinculoConversao() {
+  const hintContr = document.getElementById('hintVinculoContratante');
+  const hintLocal = document.getElementById('hintVinculoLocal');
+
+  const idContr = String(document.getElementById('idContratante')?.value || '').trim();
+  const nomeContr = String(document.getElementById('nomeContratante')?.value || '').trim();
+  const idLocal = String(document.getElementById('idEndereco')?.value || '').trim();
+  const nomeLocal = String(document.getElementById('nomeLocal')?.value || '').trim();
+
+  const pendContr = !!modoConversaoReserva && !idContr;
+  const pendLocal = !!modoConversaoReserva && !idLocal;
+
+  marcarCampoPendenteVinculo_('nomeContratante', pendContr);
+  marcarCampoPendenteVinculo_('nomeLocal', pendLocal);
+
+  if (hintContr) {
+    if (!modoConversaoReserva || !pendContr) {
+      hintContr.classList.add('hidden');
+      hintContr.textContent = '';
+    } else if (!nomeContr) {
+      hintContr.classList.remove('hidden');
+      hintContr.textContent = 'Para converter, informe e regularize o Contratante.';
+    } else {
+      hintContr.classList.remove('hidden');
+      hintContr.textContent = 'Para converter, clique em "Regularizar Contratante".';
+    }
+  }
+
+  if (hintLocal) {
+    if (!modoConversaoReserva || !pendLocal) {
+      hintLocal.classList.add('hidden');
+      hintLocal.textContent = '';
+    } else if (!nomeLocal) {
+      hintLocal.classList.remove('hidden');
+      hintLocal.textContent = 'Para converter, informe e regularize o Local.';
+    } else {
+      hintLocal.classList.remove('hidden');
+      hintLocal.textContent = 'Para converter, clique em "Regularizar Local".';
+    }
+  }
 }
 
 async function regularizarContratanteEdicao() {
@@ -2858,6 +2920,7 @@ function ativarConversaoReserva() {
       </div>
     `;
   }
+  atualizarIndicadoresVinculoConversao();
 }
 
 function configurarVisibilidadeCamposPorTipoEdicao_(tipoOriginal) {
@@ -2974,6 +3037,8 @@ function configurarVisibilidadeCamposPorTipoEdicao_(tipoOriginal) {
       inputMotivo.value = inputObservacoes.value.trim();
     }
   }
+
+  atualizarIndicadoresVinculoConversao();
 }
 
 function renderizarStatusTipoRegistro(evento) {
@@ -4035,10 +4100,19 @@ function preencherFormulario(evento) {
       if (!dados.tipoEvento) erros.push('Selecione o Tipo de Evento.');
       if (!(Number(dados.valorTotal) > 0)) erros.push('Informe um Valor Total maior que zero.');
       if (!dados.idVendedor) erros.push('Selecione o Vendedor responsável.');
-      if (!dados.nomeContratante) erros.push('Informe o Contratante.');
-      if (!dados.nomeLocal) erros.push('Informe o Local.');
+      if (!dados.idContratante) erros.push('Regularize o Contratante (vínculo por ID).');
+      if (!dados.idEndereco) erros.push('Regularize o Local (vínculo por ID).');
       if (!dados.observacoes) erros.push('Informe o Motivo/Status da Reserva.');
       if (erros.length) {
+        atualizarIndicadoresVinculoConversao();
+        const focoId = !dados.idContratante ? 'nomeContratante' : (!dados.idEndereco ? 'nomeLocal' : '');
+        if (focoId) {
+          const campo = document.getElementById(focoId);
+          if (campo) {
+            campo.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            setTimeout(() => campo.focus(), 180);
+          }
+        }
         mostrarAlerta('Conversão de reserva incompleta: ' + erros.join(' '), 'error');
         return false;
       }
