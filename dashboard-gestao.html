@@ -70,6 +70,25 @@
     .btn{
       border:0;border-radius:10px;padding:10px 12px;font-size:13px;font-weight:700;cursor:pointer
     }
+    .btn[disabled]{opacity:.65;cursor:not-allowed}
+    .btn.is-loading{
+      position:relative;
+      pointer-events:none;
+      padding-right:30px;
+    }
+    .btn.is-loading::after{
+      content:'';
+      position:absolute;
+      right:10px;
+      top:50%;
+      width:12px;
+      height:12px;
+      margin-top:-6px;
+      border:2px solid rgba(15,26,46,.25);
+      border-top-color:rgba(15,26,46,.85);
+      border-radius:50%;
+      animation:spin .8s linear infinite;
+    }
     .btn.primary{background:var(--navy-2);color:#fff}
     .btn.warn{background:#fff7e8;color:#9a6d08;border:1px solid #f3ddb2}
     .btn.outline{background:#fff;border:1px solid var(--line);color:var(--text)}
@@ -204,11 +223,6 @@
     .card-collapse .card-collapse-sub{font-size:12px;color:var(--muted);padding:0 14px 10px}
     .card-collapse .card-collapse-content{padding:0 14px 14px}
 
-    .loading{
-      position:fixed;inset:0;background:rgba(10,22,40,.55);display:none;align-items:center;justify-content:center;z-index:30;color:#fff;flex-direction:column;gap:10px
-    }
-    .loading.active{display:flex}
-    .spin{width:42px;height:42px;border:3px solid rgba(255,255,255,.2);border-top-color:var(--gold);border-radius:50%;animation:spin 1s linear infinite}
     @keyframes spin{to{transform:rotate(360deg)}}
 
     .bottom-nav{
@@ -258,7 +272,7 @@
       </div>
       <div class="toolbar-right">
         <select id="anoRef"></select>
-        <button class="btn outline" onclick="carregarDashboard()">Atualizar</button>
+        <button id="btnAtualizarDashboard" class="btn outline" onclick="carregarDashboard(this)">Atualizar</button>
       </div>
     </div>
 
@@ -474,11 +488,6 @@
     </div>
   </div>
 
-  <div id="loading" class="loading">
-    <div class="spin"></div>
-    <div id="loadingText">Carregando dashboard...</div>
-  </div>
-
   <nav class="bottom-nav">
     <button class="bnav" onclick="location.href='index.html'"><i data-lucide="layout-grid"></i><span>Início</span></button>
     <button class="bnav active"><i data-lucide="layout-dashboard"></i><span>Dashboard</span></button>
@@ -532,8 +541,13 @@
       agendaAt: 0
     };
 
-    function showLoading(txt){document.getElementById('loadingText').textContent = txt || 'Processando...';document.getElementById('loading').classList.add('active');}
-    function hideLoading(){document.getElementById('loading').classList.remove('active');}
+    function setButtonLoading(btn, on, loadingText) {
+      if (!btn) return;
+      if (!btn.dataset.defaultText) btn.dataset.defaultText = (btn.textContent || '').trim() || 'Processando';
+      btn.disabled = !!on;
+      btn.classList.toggle('is-loading', !!on);
+      btn.textContent = on ? (loadingText || 'Processando...') : btn.dataset.defaultText;
+    }
     function perfilNormalizado() {
       return String(usuarioAtual?.PERFIL || localStorage.getItem('auth_perfil') || '')
         .normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
@@ -663,20 +677,21 @@
     }
     async function aplicarMetaPercentual() {
       const input = document.getElementById('metaPctInput');
+      const btn = document.getElementById('metaPctBtn');
       const val = Number(input?.value);
       if (!Number.isFinite(val)) return;
       if (!metaState.podeEditar) return;
       try {
-        showLoading('Atualizando meta anual...');
+        setButtonLoading(btn, true, 'Aplicando...');
         const resp = await Auth.apiCall('atualizarMetaAnualDashboard', { metaPct: val });
-        hideLoading();
         if (!resp || resp.sucesso !== true) throw new Error('Falha ao atualizar meta anual');
         metaState.metaPct = Number(resp.metaPct);
         await renderMetaAnual();
       } catch (e) {
-        hideLoading();
         console.error(e);
         alert('Não foi possível atualizar a meta anual global.');
+      } finally {
+        setButtonLoading(btn, false);
       }
     }
     function lerCacheJson(chave, ttlMs) {
@@ -1293,12 +1308,11 @@
       `;
     }
 
-    async function carregarDashboard() {
+    async function carregarDashboard(btnTrigger = null) {
       try {
-        showLoading('Consolidando indicadores...');
+        setButtonLoading(btnTrigger, true, 'Atualizando...');
         const ano = Number(document.getElementById('anoRef').value);
         const resp = await Auth.apiCall('obterDashboardGestao', { ano: ano, incluirCancelados: false });
-        hideLoading();
         if (!resp || resp.sucesso !== true) throw new Error(resp?.mensagem || 'Falha ao obter dashboard');
         dashboardData = resp;
         if (ehProprietario() && ticketState.ano !== ano) {
@@ -1310,9 +1324,10 @@
           preloadTicketOptions(false).catch(() => {});
         }
       } catch (err) {
-        hideLoading();
         console.error(err);
         alert('Erro ao carregar dashboard de gestão.');
+      } finally {
+        setButtonLoading(btnTrigger, false);
       }
     }
 
