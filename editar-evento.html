@@ -552,6 +552,35 @@
       display: none;
     }
 
+    .troca-resultados {
+      border: 1px solid var(--gray-200);
+      border-radius: var(--radius-sm);
+      max-height: 220px;
+      overflow: auto;
+      background: #fff;
+      margin-top: 8px;
+    }
+
+    .troca-resultado-item {
+      width: 100%;
+      border: none;
+      border-bottom: 1px solid var(--gray-100);
+      background: #fff;
+      text-align: left;
+      padding: 10px 12px;
+      font-size: 13px;
+      color: var(--gray-700);
+      cursor: pointer;
+    }
+
+    .troca-resultado-item:hover {
+      background: #f8fafc;
+    }
+
+    .troca-resultado-item:last-child {
+      border-bottom: none;
+    }
+
     /* ============================================
        AUTOCOMPLETE
        ============================================ */
@@ -2113,11 +2142,9 @@
       <div id="paneTrocaContratanteExistente" class="troca-pane">
         <div class="form-group">
           <label for="filtroTrocaContratante">Buscar contratante ativo</label>
-          <input type="text" id="filtroTrocaContratante" placeholder="Digite para filtrar..." oninput="filtrarListaTrocaContratante()">
-        </div>
-        <div class="form-group">
-          <label for="selectTrocaContratante">Selecionar</label>
-          <select id="selectTrocaContratante"></select>
+          <input type="text" id="filtroTrocaContratante" placeholder="Digite 2+ letras..." oninput="buscarOpcoesTrocaContratante()">
+          <div id="resultadoTrocaContratante" class="troca-resultados"></div>
+          <div id="selecionadoTrocaContratante" class="helper-text hidden"></div>
         </div>
       </div>
 
@@ -2160,11 +2187,9 @@
       <div id="paneTrocaLocalExistente" class="troca-pane">
         <div class="form-group">
           <label for="filtroTrocaLocal">Buscar local ativo</label>
-          <input type="text" id="filtroTrocaLocal" placeholder="Digite para filtrar..." oninput="filtrarListaTrocaLocal()">
-        </div>
-        <div class="form-group">
-          <label for="selectTrocaLocal">Selecionar</label>
-          <select id="selectTrocaLocal"></select>
+          <input type="text" id="filtroTrocaLocal" placeholder="Digite 2+ letras..." oninput="buscarOpcoesTrocaLocal()">
+          <div id="resultadoTrocaLocal" class="troca-resultados"></div>
+          <div id="selecionadoTrocaLocal" class="helper-text hidden"></div>
         </div>
       </div>
 
@@ -2212,8 +2237,10 @@ console.log('🚀 editar-evento.html iniciado (frontend externo)');
 // ============================
 let EVENTO_ID_URL = null;
 let modoConversaoReserva = false;
-let listaContratantesTroca = [];
-let listaLocaisTroca = [];
+let trocaContratanteSelecionado = null;
+let trocaLocalSelecionado = null;
+let debounceTrocaContratante = null;
+let debounceTrocaLocal = null;
 
 function getIdEventoFromURL() {
   const params = new URLSearchParams(window.location.search);
@@ -2877,22 +2904,6 @@ function alternarAbaTrocaLocal(aba) {
   document.getElementById('paneTrocaLocalNovo')?.classList.toggle('hidden', ehExistente);
 }
 
-function preencherSelectTroca_(selectId, lista, placeholder) {
-  const select = document.getElementById(selectId);
-  if (!select) return;
-  select.innerHTML = '';
-  const optPadrao = document.createElement('option');
-  optPadrao.value = '';
-  optPadrao.textContent = placeholder || 'Selecione...';
-  select.appendChild(optPadrao);
-  lista.forEach(item => {
-    const opt = document.createElement('option');
-    opt.value = String(item.id || '');
-    opt.textContent = String(item.nome || '');
-    select.appendChild(opt);
-  });
-}
-
 function limparCamposTrocaContratanteNovo_() {
   const ids = [
     'novoTrocaContratanteNome',
@@ -2922,41 +2933,25 @@ function limparCamposTrocaLocalNovo_() {
 }
 
 async function abrirModalTrocaContratante() {
-  try {
-    mostrarLoadingGlobal('Carregando contratantes ativos...');
-    const resposta = await Auth.apiCall('listarContratantes', {});
-    if (resposta && resposta.error) throw new Error(resposta.error);
-    listaContratantesTroca = Array.isArray(resposta) ? resposta : [];
-    preencherSelectTroca_('selectTrocaContratante', listaContratantesTroca, 'Selecione um contratante ativo...');
-    const filtro = document.getElementById('filtroTrocaContratante');
-    if (filtro) filtro.value = '';
-    limparCamposTrocaContratanteNovo_();
-    alternarAbaTrocaContratante('existente');
-    document.getElementById('modalTrocaContratante')?.classList.add('show');
-  } catch (err) {
-    mostrarAlerta('Erro ao carregar contratantes: ' + (err?.message || err), 'error');
-  } finally {
-    esconderLoadingGlobal();
-  }
+  trocaContratanteSelecionado = null;
+  const filtro = document.getElementById('filtroTrocaContratante');
+  if (filtro) filtro.value = '';
+  limparCamposTrocaContratanteNovo_();
+  alternarAbaTrocaContratante('existente');
+  renderResultadosTrocaContratante_([]);
+  atualizarSelecionadoTrocaContratante_();
+  document.getElementById('modalTrocaContratante')?.classList.add('show');
 }
 
 async function abrirModalTrocaLocal() {
-  try {
-    mostrarLoadingGlobal('Carregando locais ativos...');
-    const resposta = await Auth.apiCall('listarEnderecos', {});
-    if (resposta && resposta.error) throw new Error(resposta.error);
-    listaLocaisTroca = Array.isArray(resposta) ? resposta : [];
-    preencherSelectTroca_('selectTrocaLocal', listaLocaisTroca, 'Selecione um local ativo...');
-    const filtro = document.getElementById('filtroTrocaLocal');
-    if (filtro) filtro.value = '';
-    limparCamposTrocaLocalNovo_();
-    alternarAbaTrocaLocal('existente');
-    document.getElementById('modalTrocaLocal')?.classList.add('show');
-  } catch (err) {
-    mostrarAlerta('Erro ao carregar locais: ' + (err?.message || err), 'error');
-  } finally {
-    esconderLoadingGlobal();
-  }
+  trocaLocalSelecionado = null;
+  const filtro = document.getElementById('filtroTrocaLocal');
+  if (filtro) filtro.value = '';
+  limparCamposTrocaLocalNovo_();
+  alternarAbaTrocaLocal('existente');
+  renderResultadosTrocaLocal_([]);
+  atualizarSelecionadoTrocaLocal_();
+  document.getElementById('modalTrocaLocal')?.classList.add('show');
 }
 
 function fecharModalTrocaContratante() {
@@ -2967,20 +2962,108 @@ function fecharModalTrocaLocal() {
   document.getElementById('modalTrocaLocal')?.classList.remove('show');
 }
 
-function filtrarListaTrocaContratante() {
-  const termo = String(document.getElementById('filtroTrocaContratante')?.value || '').trim().toLowerCase();
-  const listaFiltrada = termo
-    ? listaContratantesTroca.filter(item => String(item.nome || '').toLowerCase().includes(termo))
-    : listaContratantesTroca;
-  preencherSelectTroca_('selectTrocaContratante', listaFiltrada, 'Selecione um contratante ativo...');
+function atualizarSelecionadoTrocaContratante_() {
+  const el = document.getElementById('selecionadoTrocaContratante');
+  if (!el) return;
+  if (!trocaContratanteSelecionado) {
+    el.classList.add('hidden');
+    el.textContent = '';
+    return;
+  }
+  el.classList.remove('hidden');
+  el.textContent = `Selecionado: ${trocaContratanteSelecionado.nome} (${trocaContratanteSelecionado.id})`;
 }
 
-function filtrarListaTrocaLocal() {
-  const termo = String(document.getElementById('filtroTrocaLocal')?.value || '').trim().toLowerCase();
-  const listaFiltrada = termo
-    ? listaLocaisTroca.filter(item => String(item.nome || '').toLowerCase().includes(termo))
-    : listaLocaisTroca;
-  preencherSelectTroca_('selectTrocaLocal', listaFiltrada, 'Selecione um local ativo...');
+function atualizarSelecionadoTrocaLocal_() {
+  const el = document.getElementById('selecionadoTrocaLocal');
+  if (!el) return;
+  if (!trocaLocalSelecionado) {
+    el.classList.add('hidden');
+    el.textContent = '';
+    return;
+  }
+  el.classList.remove('hidden');
+  el.textContent = `Selecionado: ${trocaLocalSelecionado.nome} (${trocaLocalSelecionado.id})`;
+}
+
+function renderResultadosTrocaContratante_(lista) {
+  const box = document.getElementById('resultadoTrocaContratante');
+  if (!box) return;
+  if (!Array.isArray(lista) || lista.length === 0) {
+    box.innerHTML = '<div class="helper-text" style="padding:10px 12px;">Digite 2+ letras para buscar.</div>';
+    return;
+  }
+  box.innerHTML = '';
+  lista.forEach(item => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'troca-resultado-item';
+    btn.textContent = `${String(item.nome || '')} (${String(item.id || '')})`;
+    btn.onclick = () => {
+      trocaContratanteSelecionado = { id: String(item.id || ''), nome: String(item.nome || '') };
+      atualizarSelecionadoTrocaContratante_();
+    };
+    box.appendChild(btn);
+  });
+}
+
+function renderResultadosTrocaLocal_(lista) {
+  const box = document.getElementById('resultadoTrocaLocal');
+  if (!box) return;
+  if (!Array.isArray(lista) || lista.length === 0) {
+    box.innerHTML = '<div class="helper-text" style="padding:10px 12px;">Digite 2+ letras para buscar.</div>';
+    return;
+  }
+  box.innerHTML = '';
+  lista.forEach(item => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'troca-resultado-item';
+    btn.textContent = `${String(item.nome || '')} (${String(item.id || '')})`;
+    btn.onclick = () => {
+      trocaLocalSelecionado = { id: String(item.id || ''), nome: String(item.nome || '') };
+      atualizarSelecionadoTrocaLocal_();
+    };
+    box.appendChild(btn);
+  });
+}
+
+function buscarOpcoesTrocaContratante() {
+  const termo = String(document.getElementById('filtroTrocaContratante')?.value || '').trim();
+  trocaContratanteSelecionado = null;
+  atualizarSelecionadoTrocaContratante_();
+  clearTimeout(debounceTrocaContratante);
+  debounceTrocaContratante = setTimeout(async () => {
+    if (termo.length < 2) {
+      renderResultadosTrocaContratante_([]);
+      return;
+    }
+    try {
+      const lista = await Auth.apiCall('buscarContratantesVinculo', { q: termo, limit: 20 });
+      renderResultadosTrocaContratante_(Array.isArray(lista) ? lista : []);
+    } catch (_) {
+      renderResultadosTrocaContratante_([]);
+    }
+  }, 220);
+}
+
+function buscarOpcoesTrocaLocal() {
+  const termo = String(document.getElementById('filtroTrocaLocal')?.value || '').trim();
+  trocaLocalSelecionado = null;
+  atualizarSelecionadoTrocaLocal_();
+  clearTimeout(debounceTrocaLocal);
+  debounceTrocaLocal = setTimeout(async () => {
+    if (termo.length < 2) {
+      renderResultadosTrocaLocal_([]);
+      return;
+    }
+    try {
+      const lista = await Auth.apiCall('buscarEnderecosVinculo', { q: termo, limit: 20 });
+      renderResultadosTrocaLocal_(Array.isArray(lista) ? lista : []);
+    } catch (_) {
+      renderResultadosTrocaLocal_([]);
+    }
+  }, 220);
 }
 
 function aplicarVinculoContratanteNoFormulario_(id, nome) {
@@ -3000,13 +3083,12 @@ async function confirmarTrocaContratante() {
   try {
     mostrarLoadingGlobal('Aplicando vínculo de contratante...');
     if (!abaNovo) {
-      const select = document.getElementById('selectTrocaContratante');
-      const id = String(select?.value || '').trim();
+      const id = String(trocaContratanteSelecionado?.id || '').trim();
       if (!id) {
         mostrarAlerta('Selecione um contratante para vincular.', 'error');
         return;
       }
-      const nome = String(select.options[select.selectedIndex]?.text || '').trim();
+      const nome = String(trocaContratanteSelecionado?.nome || '').trim();
       aplicarVinculoContratanteNoFormulario_(id, nome);
       fecharModalTrocaContratante();
       mostrarAlerta('Vínculo de contratante atualizado.', 'success');
@@ -3047,13 +3129,12 @@ async function confirmarTrocaLocal() {
   try {
     mostrarLoadingGlobal('Aplicando vínculo de local...');
     if (!abaNovo) {
-      const select = document.getElementById('selectTrocaLocal');
-      const id = String(select?.value || '').trim();
+      const id = String(trocaLocalSelecionado?.id || '').trim();
       if (!id) {
         mostrarAlerta('Selecione um local para vincular.', 'error');
         return;
       }
-      const nome = String(select.options[select.selectedIndex]?.text || '').trim();
+      const nome = String(trocaLocalSelecionado?.nome || '').trim();
       aplicarVinculoLocalNoFormulario_(id, nome);
       fecharModalTrocaLocal();
       mostrarAlerta('Vínculo de local atualizado.', 'success');
