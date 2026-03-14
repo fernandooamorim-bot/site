@@ -3017,7 +3017,6 @@ async function iniciarEditarEvento() {
     EVENTO_ID_URL = getIdEventoFromURL();
 
     if (EVENTO_ID_URL) {
-      mostrarLoadingGlobal('Carregando edição do evento...');
       travarAcoes(true);
       aplicarSkeletonFormulario(true);
 
@@ -3045,7 +3044,6 @@ async function iniciarEditarEvento() {
       verificarConflitosEdicao();
 
       aplicarSkeletonFormulario(false);
-      esconderLoadingGlobal();
       travarAcoes(false);
       mostrarAlerta('Evento carregado pela URL.', 'success');
       return;
@@ -3458,8 +3456,16 @@ function mostrarResultados(eventos) {
   async function selecionarEvento(idEvento) {
     console.log('🟦 Selecionar evento:', idEvento);
 
-    // FASE 1 — feedback imediato
-    mostrarLoadingGlobal('Carregando evento...');
+    // FASE 1 — transição imediata para carregamento de página (sem overlay global)
+    const search = document.querySelector('.search-section');
+    if (search) search.style.display = 'none';
+
+    const form = document.getElementById('formEdicao');
+    if (form) {
+      form.classList.remove('hidden');
+      travarAcoes(true);
+      aplicarSkeletonFormulario(true);
+    }
 
     try {
       // ============================
@@ -3478,20 +3484,6 @@ function mostrarResultados(eventos) {
       eventoOriginal = JSON.parse(JSON.stringify(resultado.evento));
       modoConversaoReserva = false;
 
-      // ============================
-      // FASE 3 — TRANSIÇÃO VISUAL
-      // ============================
-      // esconde busca, mostra formulário com skeleton
-      const search = document.querySelector('.search-section');
-      if (search) search.style.display = 'none';
-
-      const form = document.getElementById('formEdicao');
-      if (form) {
-        form.classList.remove('hidden');
-        travarAcoes(true);
-        aplicarSkeletonFormulario(true);
-      }
-
       await aplicarPermissaoFinanceiraEdicao();
 
       // Conflitos de agenda: listeners únicos + verificação inicial
@@ -3502,7 +3494,6 @@ function mostrarResultados(eventos) {
         preencherFormulario(eventoAtual);
         renderizarStatusTipoRegistro(eventoAtual);
         aplicarSkeletonFormulario(false);
-        esconderLoadingGlobal();
         travarAcoes(false);
         console.log('✅ Evento pronto para edição (dropdowns já carregados)');
       } else {
@@ -3511,7 +3502,6 @@ function mostrarResultados(eventos) {
           preencherFormulario(eventoAtual);
           renderizarStatusTipoRegistro(eventoAtual);
           aplicarSkeletonFormulario(false);
-          esconderLoadingGlobal();
           travarAcoes(false);
         });
         console.log('✅ Evento pronto para edição (aguardando dropdowns)');
@@ -3519,8 +3509,10 @@ function mostrarResultados(eventos) {
 
     } catch (erro) {
       console.error('🔥 Erro ao abrir edição:', erro);
-      esconderLoadingGlobal();
+      aplicarSkeletonFormulario(false);
       travarAcoes(false);
+      if (form) form.classList.add('hidden');
+      if (search) search.style.display = 'block';
       mostrarAlerta(
         'Erro ao abrir evento: ' + (erro?.message || 'Erro desconhecido'),
         'error'
