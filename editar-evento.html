@@ -1161,6 +1161,49 @@
       display: flex;
     }
 
+    /* Loading global de ação (padrão Central Financeira) */
+    #globalLoading {
+      background: rgba(10,22,40,0.7);
+      z-index: 9999;
+    }
+
+    #globalLoading .modal {
+      background: transparent;
+      border: none;
+      box-shadow: none;
+      padding: 0;
+      width: auto;
+      max-width: none;
+      max-height: none;
+      overflow: visible;
+    }
+
+    #globalLoading .loading {
+      text-align: center;
+      padding: 0;
+      color: rgba(255,255,255,0.72);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+    }
+
+    #globalLoading .loading p {
+      color: rgba(255,255,255,0.92);
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: -0.2px;
+      margin: 0;
+    }
+
+    #globalLoading .spinner {
+      width: 44px;
+      height: 44px;
+      border: 3px solid rgba(255,255,255,0.12);
+      border-top-color: var(--gold-500);
+      margin: 0;
+    }
+
     .modal {
       background: white;
       padding: 28px 24px;
