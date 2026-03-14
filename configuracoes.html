@@ -30,6 +30,7 @@
       background: var(--bg);
       color: var(--text);
     }
+    .hidden { display: none !important; }
     .header {
       position: sticky;
       top: 0;
@@ -86,6 +87,34 @@
       font-size: 13px;
       color: var(--muted);
     }
+    .modules {
+      display: grid;
+      gap: 10px;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+    .module-card {
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: #fff;
+      padding: 14px;
+      display: grid;
+      gap: 8px;
+      box-shadow: 0 6px 20px rgba(15,23,42,0.06);
+    }
+    .module-card h3 {
+      margin: 0;
+      font-size: 14px;
+      display: inline-flex;
+      gap: 7px;
+      align-items: center;
+    }
+    .module-card p {
+      margin: 0;
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+    .module-card .btn { width: fit-content; }
     .tabs {
       display: flex;
       flex-wrap: wrap;
@@ -109,7 +138,7 @@
     .content {
       display: grid;
       gap: 12px;
-      grid-template-columns: 330px minmax(0, 1fr);
+      grid-template-columns: 350px minmax(0, 1fr);
     }
     .card {
       border: 1px solid var(--line);
@@ -178,7 +207,7 @@
       cursor: wait;
     }
     .list {
-      max-height: calc(100vh - 310px);
+      max-height: calc(100vh - 320px);
       overflow: auto;
       display: grid;
       gap: 8px;
@@ -200,11 +229,13 @@
       font-size: 13px;
       font-weight: 700;
       color: #0f172a;
+      text-align: left;
     }
     .item-sub {
       margin-top: 3px;
       font-size: 12px;
       color: #64748b;
+      text-align: left;
     }
     .field {
       display: grid;
@@ -227,8 +258,10 @@
       border-radius: 10px;
       padding: 10px;
       background: #f8fafc;
+      line-height: 1.5;
     }
     @media (max-width: 980px) {
+      .modules { grid-template-columns: 1fr; }
       .content { grid-template-columns: 1fr; }
       .list { max-height: 260px; }
       .grid-2 { grid-template-columns: 1fr; }
@@ -251,41 +284,68 @@
 
   <main class="page">
     <section class="hero">
-      <h1><i data-lucide="database"></i> Gestão de Cadastros</h1>
-      <p>Cadastro e edição de contratantes, locais, cerimonialistas e parceiros, sem alterar o fluxo atual de eventos e reservas.</p>
+      <h1><i data-lucide="sliders-horizontal"></i> Área de Configurações</h1>
+      <p>Centralize configurações sem alterar os fluxos atuais já aprovados do sistema.</p>
     </section>
 
-    <section class="tabs">
-      <button class="tab active" data-tab="contratantes">Contratantes</button>
-      <button class="tab" data-tab="locais">Locais</button>
-      <button class="tab" data-tab="cerimonialistas">Cerimonialistas</button>
-      <button class="tab" data-tab="parceiros">Parceiros</button>
+    <section id="modulos" class="modules">
+      <article class="module-card">
+        <h3><i data-lucide="database"></i>Gestão de Cadastros</h3>
+        <p>Cadastro e edição de contratantes, locais, cerimonialistas e parceiros.</p>
+        <button class="btn primary" id="btnAbrirCadastros">Abrir</button>
+      </article>
+      <article class="module-card">
+        <h3><i data-lucide="shield-check"></i>Permissões</h3>
+        <p>Espaço reservado para regras avançadas de acesso por perfil e setores.</p>
+        <button class="btn" disabled>Em breve</button>
+      </article>
+      <article class="module-card">
+        <h3><i data-lucide="plug-zap"></i>Integrações</h3>
+        <p>Espaço para integrações e automações operacionais futuras.</p>
+        <button class="btn" disabled>Em breve</button>
+      </article>
     </section>
 
-    <div id="statusMsg" class="status"></div>
+    <section id="cadastrosPanel" class="hidden">
+      <div class="row">
+        <button class="btn" id="btnVoltarModulos">Voltar para Configurações</button>
+      </div>
 
-    <section class="content">
-      <article class="card">
-        <div class="card-head">
-          <span id="leftTitle">Lista</span>
-          <button class="btn" id="btnAtualizarLista">Atualizar</button>
-        </div>
-        <div class="card-body">
-          <input type="text" id="filtroBusca" placeholder="Buscar por nome...">
-          <div class="row">
-            <input class="grow" type="text" id="novoNome" placeholder="Nome para cadastro rápido">
-            <button class="btn primary" id="btnNovo">Cadastrar</button>
+      <section class="tabs">
+        <button class="tab active" data-tab="contratantes">Contratantes</button>
+        <button class="tab" data-tab="locais">Locais</button>
+        <button class="tab" data-tab="cerimonialistas">Cerimonialistas</button>
+        <button class="tab" data-tab="parceiros">Parceiros</button>
+      </section>
+
+      <div id="statusMsg" class="status"></div>
+
+      <section class="content">
+        <article class="card">
+          <div class="card-head">
+            <span id="leftTitle">Lista</span>
+            <button class="btn" id="btnAtualizarLista">Atualizar</button>
           </div>
-          <div id="listaItens" class="list"></div>
-        </div>
-      </article>
+          <div class="card-body">
+            <input type="text" id="filtroBusca" placeholder="Buscar por nome...">
+            <div class="row">
+              <input class="grow" type="text" id="novoNome" placeholder="Nome para cadastro rápido">
+              <button class="btn primary" id="btnNovo">Cadastro Rápido</button>
+            </div>
+            <div class="row" id="linhaNovoCompleto">
+              <button class="btn" id="btnNovoCompleto">Novo Cadastro Completo</button>
+            </div>
+            <div id="listaItens" class="list"></div>
+          </div>
+        </article>
 
-      <article class="card">
-        <div class="card-head">
-          <span id="rightTitle">Detalhes</span>
-        </div>
-        <div class="card-body" id="detalheBody"></div>
-      </article>
+        <article class="card">
+          <div class="card-head">
+            <span id="rightTitle">Detalhes</span>
+          </div>
+          <div class="card-body" id="detalheBody"></div>
+        </article>
+      </section>
     </section>
   </main>
 
@@ -361,6 +421,10 @@
       return p === 'proprietario' || p === 'socio' || p === 'administrador' || p === 'admin';
     }
 
+    function ehAbaComCadastroCompleto() {
+      return state.tab === 'contratantes' || state.tab === 'locais';
+    }
+
     function setStatus(msg, tipo) {
       const el = document.getElementById('statusMsg');
       if (!el) return;
@@ -401,8 +465,12 @@
       const leftTitle = document.getElementById('leftTitle');
       const rightTitle = document.getElementById('rightTitle');
       const nomeAba = cfg[state.tab].singular;
+      const linhaNovoCompleto = document.getElementById('linhaNovoCompleto');
+
       if (leftTitle) leftTitle.textContent = nomeAba + 's';
       if (rightTitle) rightTitle.textContent = 'Detalhes de ' + nomeAba;
+      if (linhaNovoCompleto) linhaNovoCompleto.classList.toggle('hidden', !ehAbaComCadastroCompleto());
+
       const lista = getListaAtualFiltrada();
       if (!lista.length) {
         box.innerHTML = '<div class="hint">Nenhum registro encontrado.</div>';
@@ -433,6 +501,12 @@
         .map(conf.normalize)
         .filter((x) => x.id || x.nome)
         .sort((a, b) => String(a.nome || '').localeCompare(String(b.nome || ''), 'pt-BR'));
+
+      if (state.selecionado === '__new__') {
+        renderLista();
+        await renderDetalhe();
+        return;
+      }
       if (!state.selecionado && state.listas[state.tab].length) {
         state.selecionado = state.listas[state.tab][0].id;
       }
@@ -501,13 +575,119 @@
       }
     }
 
+    async function cadastrarCompletoContratante() {
+      const nome = String(document.getElementById('fNome')?.value || '').trim();
+      const telefone = String(document.getElementById('fTelefone')?.value || '').trim();
+      const email = String(document.getElementById('fEmail')?.value || '').trim();
+      const cpfCnpj = String(document.getElementById('fCpfCnpj')?.value || '').trim();
+      if (!nome) {
+        setStatus('Informe o nome para cadastrar o contratante.', 'err');
+        return;
+      }
+      const btn = document.getElementById('btnSalvar');
+      try {
+        setButtonLoading(btn, true, 'Cadastrando...');
+        const criado = await Auth.apiCall('cadastrarContratanteRapido', { nome: nome });
+        if (!criado?.sucesso || !criado?.id) throw new Error(criado?.mensagem || 'Falha ao cadastrar contratante');
+
+        const atualizado = await Auth.apiCall('atualizarContratante', {
+          id: criado.id,
+          nome,
+          telefone,
+          email,
+          cpfCnpj
+        });
+        if (!atualizado?.sucesso) throw new Error(atualizado?.mensagem || 'Falha ao completar cadastro do contratante');
+
+        state.selecionado = String(criado.id);
+        setStatus('Contratante cadastrado com dados completos.', 'ok');
+        await carregarLista();
+      } catch (err) {
+        setStatus('Erro ao cadastrar contratante: ' + (err?.message || err), 'err');
+      } finally {
+        setButtonLoading(btn, false);
+      }
+    }
+
+    async function cadastrarCompletoLocal() {
+      const nome = String(document.getElementById('fNome')?.value || '').trim();
+      const enderecoCompleto = String(document.getElementById('fEndereco')?.value || '').trim();
+      const cidade = String(document.getElementById('fCidade')?.value || '').trim();
+      const estado = String(document.getElementById('fEstado')?.value || '').trim();
+      const linkMaps = String(document.getElementById('fLinkMaps')?.value || '').trim();
+      const observacoes = String(document.getElementById('fObservacoes')?.value || '').trim();
+      if (!nome) {
+        setStatus('Informe o nome para cadastrar o local.', 'err');
+        return;
+      }
+      const btn = document.getElementById('btnSalvar');
+      try {
+        setButtonLoading(btn, true, 'Cadastrando...');
+        const criado = await Auth.apiCall('cadastrarEnderecoRapido', { nomeLocal: nome });
+        if (!criado?.sucesso || !criado?.id) throw new Error(criado?.mensagem || 'Falha ao cadastrar local');
+
+        const atualizado = await Auth.apiCall('atualizarEndereco', {
+          id: criado.id,
+          nome,
+          enderecoCompleto,
+          cidade,
+          estado,
+          linkMaps,
+          observacoes
+        });
+        if (!atualizado?.sucesso) throw new Error(atualizado?.mensagem || 'Falha ao completar cadastro do local');
+
+        state.selecionado = String(criado.id);
+        setStatus('Local cadastrado com dados completos.', 'ok');
+        await carregarLista();
+      } catch (err) {
+        setStatus('Erro ao cadastrar local: ' + (err?.message || err), 'err');
+      } finally {
+        setButtonLoading(btn, false);
+      }
+    }
+
     async function renderDetalhe() {
       const box = document.getElementById('detalheBody');
       const id = String(state.selecionado || '');
+
+      if (id === '__new__' && state.tab === 'contratantes') {
+        box.innerHTML = `
+          <div class="grid-2">
+            <div class="field"><label>Nome</label><input id="fNome" placeholder="Nome do contratante"></div>
+            <div class="field"><label>WhatsApp / Telefone</label><input id="fTelefone" placeholder="(85) 99999-9999"></div>
+            <div class="field"><label>E-mail</label><input id="fEmail" placeholder="email@dominio.com"></div>
+            <div class="field"><label>CPF / CNPJ</label><input id="fCpfCnpj" placeholder="Opcional"></div>
+          </div>
+          <div class="row"><button class="btn primary" id="btnSalvar">Cadastrar completo</button></div>
+          <div class="hint">Sem alterar o fluxo atual, o sistema cria primeiro o cadastro rápido e em seguida completa os dados.</div>
+        `;
+        document.getElementById('btnSalvar')?.addEventListener('click', cadastrarCompletoContratante);
+        return;
+      }
+
+      if (id === '__new__' && state.tab === 'locais') {
+        box.innerHTML = `
+          <div class="grid-2">
+            <div class="field"><label>Nome</label><input id="fNome" placeholder="Nome do local"></div>
+            <div class="field"><label>Cidade</label><input id="fCidade" placeholder="Cidade"></div>
+            <div class="field"><label>Estado</label><input id="fEstado" placeholder="UF"></div>
+            <div class="field"><label>Link Maps</label><input id="fLinkMaps" placeholder="https://..."></div>
+          </div>
+          <div class="field"><label>Endereço completo</label><input id="fEndereco" placeholder="Rua, número, bairro..."></div>
+          <div class="field"><label>Observações</label><textarea id="fObservacoes"></textarea></div>
+          <div class="row"><button class="btn primary" id="btnSalvar">Cadastrar completo</button></div>
+          <div class="hint">Sem alterar o fluxo atual, o sistema cria primeiro o cadastro rápido e em seguida completa os dados.</div>
+        `;
+        document.getElementById('btnSalvar')?.addEventListener('click', cadastrarCompletoLocal);
+        return;
+      }
+
       if (!id) {
         box.innerHTML = '<div class="hint">Selecione um item na lista para visualizar detalhes.</div>';
         return;
       }
+
       try {
         if (state.tab === 'contratantes') {
           const resp = await Auth.apiCall('obterContratantePorId', { id });
@@ -520,10 +700,12 @@
               <div class="field"><label>CPF / CNPJ</label><input id="fCpfCnpj" value="${escapeAttr(c.cpfCnpj || '')}"></div>
             </div>
             <div class="row"><button class="btn primary" id="btnSalvar">Salvar alterações</button></div>
+            <div class="hint">Exclusão/inativação ainda não foi habilitada no backend para manter segurança de vínculos existentes.</div>
           `;
           document.getElementById('btnSalvar')?.addEventListener('click', salvarCadastroContratante);
           return;
         }
+
         if (state.tab === 'locais') {
           const resp = await Auth.apiCall('obterEnderecoPorId', { id });
           const e = resp?.endereco || {};
@@ -537,16 +719,18 @@
             <div class="field"><label>Endereço completo</label><input id="fEndereco" value="${escapeAttr(e.enderecoCompleto || '')}"></div>
             <div class="field"><label>Observações</label><textarea id="fObservacoes">${escapeHtml(e.observacoes || '')}</textarea></div>
             <div class="row"><button class="btn primary" id="btnSalvar">Salvar alterações</button></div>
+            <div class="hint">Exclusão/inativação ainda não foi habilitada no backend para manter segurança de vínculos existentes.</div>
           `;
           document.getElementById('btnSalvar')?.addEventListener('click', salvarCadastroLocal);
           return;
         }
+
         const item = (state.listas[state.tab] || []).find((x) => String(x.id) === id);
         box.innerHTML = `
           <div class="field"><label>Nome</label><input value="${escapeAttr(item?.nome || '')}" disabled></div>
           <div class="hint">
-            Nesta fase, ${cfg[state.tab].singular.toLowerCase()} está com foco em cadastro rápido + vínculo de uso no fluxo de eventos.
-            A edição completa desses cadastros será habilitada sem alterar os fluxos existentes.
+            Nesta fase, ${cfg[state.tab].singular.toLowerCase()} está com foco em cadastro rápido para operação diária.
+            Edição detalhada e remoção dependem de endpoints dedicados no backend para não gerar inconsistência.
           </div>
         `;
       } catch (err) {
@@ -569,11 +753,9 @@
         const resp = await Auth.apiCall(conf.createApi, conf.createPayload(nome));
         if (!resp?.sucesso) throw new Error(resp?.mensagem || 'Falha ao cadastrar');
         input.value = '';
+        state.selecionado = String(resp.id || state.selecionado || '');
         setStatus(conf.singular + ' cadastrado com sucesso.', 'ok');
         await carregarLista();
-        state.selecionado = String(resp.id || state.selecionado || '');
-        renderLista();
-        await renderDetalhe();
       } catch (err) {
         setStatus('Erro ao cadastrar: ' + (err?.message || err), 'err');
       } finally {
@@ -581,7 +763,25 @@
       }
     }
 
+    function abrirGestaoCadastros() {
+      document.getElementById('modulos')?.classList.add('hidden');
+      document.getElementById('cadastrosPanel')?.classList.remove('hidden');
+      setStatus('', '');
+      carregarLista().catch((err) => {
+        setStatus('Erro ao carregar lista: ' + (err?.message || err), 'err');
+      });
+    }
+
+    function voltarParaModulos() {
+      document.getElementById('cadastrosPanel')?.classList.add('hidden');
+      document.getElementById('modulos')?.classList.remove('hidden');
+      setStatus('', '');
+    }
+
     function bindUi() {
+      document.getElementById('btnAbrirCadastros')?.addEventListener('click', abrirGestaoCadastros);
+      document.getElementById('btnVoltarModulos')?.addEventListener('click', voltarParaModulos);
+
       document.querySelectorAll('.tab').forEach((tab) => {
         tab.addEventListener('click', async () => {
           const next = tab.getAttribute('data-tab');
@@ -595,6 +795,13 @@
           setStatus('', '');
           await carregarLista();
         });
+      });
+
+      document.getElementById('btnNovoCompleto')?.addEventListener('click', () => {
+        if (!ehAbaComCadastroCompleto()) return;
+        state.selecionado = '__new__';
+        renderLista();
+        renderDetalhe();
       });
 
       document.getElementById('filtroBusca')?.addEventListener('input', renderLista);
@@ -632,7 +839,6 @@
           return;
         }
         bindUi();
-        await carregarLista();
       } catch (err) {
         console.error('Erro ao abrir configurações:', err);
         alert('Sessão inválida ou sem permissão.');
