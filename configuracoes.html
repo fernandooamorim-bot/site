@@ -213,6 +213,25 @@
       flex-wrap: wrap;
       gap: 8px;
     }
+    .cadastros-top {
+      display: grid;
+      gap: 10px;
+    }
+    .cadastros-nav {
+      display: flex;
+      align-items: center;
+      justify-content: flex-start;
+    }
+    .tabs-wrap {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: #fff;
+      padding: 10px;
+      box-shadow: var(--shadow-sm);
+    }
+    .tabs-wrap .tabs {
+      gap: 10px;
+    }
     .tab {
       border: 1px solid var(--line);
       background: #fff;
@@ -302,6 +321,19 @@
       transition: transform .14s ease, box-shadow .14s ease, border-color .14s ease;
     }
     .btn:hover { transform: translateY(-1px); box-shadow: var(--shadow-sm); }
+    .btn.icon {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .btn.icon i {
+      width: 14px;
+      height: 14px;
+    }
+    .btn.subtle {
+      background: #f8fafc;
+      color: #334155;
+    }
     .btn.primary {
       background: var(--primary);
       border-color: var(--primary);
@@ -329,6 +361,34 @@
       display: grid;
       gap: 8px;
       padding-right: 2px;
+    }
+    .create-shell {
+      border: 1px dashed #cbd5e1;
+      border-radius: 10px;
+      background: #f8fafc;
+      padding: 10px;
+      display: grid;
+      gap: 10px;
+    }
+    .create-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .create-title {
+      font-size: 12px;
+      font-weight: 800;
+      color: #334155;
+      letter-spacing: .01em;
+      text-transform: uppercase;
+    }
+    .create-body {
+      display: grid;
+      gap: 8px;
+    }
+    .create-body.hidden {
+      display: none;
     }
     .item {
       border: 1px solid var(--line);
@@ -517,16 +577,19 @@
     </section>
 
     <section id="cadastrosPanel" class="hidden">
-      <div class="row">
-        <button class="btn" id="btnVoltarModulos">Voltar para Configurações</button>
+      <div class="cadastros-top">
+        <div class="cadastros-nav">
+          <button class="btn" id="btnVoltarModulos">Voltar para Configurações</button>
+        </div>
+        <section class="tabs-wrap">
+          <section class="tabs">
+            <button class="tab active" data-tab="contratantes">Contratantes</button>
+            <button class="tab" data-tab="locais">Locais</button>
+            <button class="tab" data-tab="cerimonialistas">Cerimonialistas</button>
+            <button class="tab" data-tab="parceiros">Parceiros</button>
+          </section>
+        </section>
       </div>
-
-      <section class="tabs">
-        <button class="tab active" data-tab="contratantes">Contratantes</button>
-        <button class="tab" data-tab="locais">Locais</button>
-        <button class="tab" data-tab="cerimonialistas">Cerimonialistas</button>
-        <button class="tab" data-tab="parceiros">Parceiros</button>
-      </section>
 
       <div id="statusMsg" class="status"></div>
 
@@ -536,7 +599,7 @@
             <span id="leftTitle">Lista</span>
             <div class="row">
               <span id="listLoadingChip" class="loading-chip hidden"><span class="dot"></span>Atualizando</span>
-              <button class="btn" id="btnAtualizarLista">Atualizar</button>
+              <button class="btn subtle icon" id="btnAtualizarLista"><i data-lucide="refresh-cw"></i>Atualizar</button>
             </div>
           </div>
           <div class="card-body">
@@ -548,13 +611,21 @@
                 <option value="TODOS">Todos</option>
               </select>
             </div>
-            <div class="row">
-              <input class="grow" type="text" id="novoNome" placeholder="Nome para cadastro rápido">
-              <button class="btn primary" id="btnNovo">Cadastro Rápido</button>
-            </div>
-            <div class="row" id="linhaNovoCompleto">
-              <button class="btn" id="btnNovoCompleto">Novo Cadastro Completo</button>
-            </div>
+            <section class="create-shell">
+              <div class="create-head">
+                <span class="create-title">Novo Cadastro</span>
+                <button class="btn subtle icon" id="btnToggleCreate"><i data-lucide="chevron-up"></i>Ocultar</button>
+              </div>
+              <div id="createBody" class="create-body">
+                <div class="row">
+                  <input class="grow" type="text" id="novoNome" placeholder="Nome para cadastro rápido">
+                  <button class="btn primary" id="btnNovo">Cadastro Rápido</button>
+                </div>
+                <div class="row" id="linhaNovoCompleto">
+                  <button class="btn" id="btnNovoCompleto">Novo Cadastro Completo</button>
+                </div>
+              </div>
+            </section>
             <div id="listaItens" class="list"></div>
           </div>
         </article>
@@ -584,7 +655,8 @@
       selecionado: null,
       ui: {
         listLoading: false,
-        detailLoading: false
+        detailLoading: false,
+        createCollapsed: false
       }
     };
 
@@ -1312,6 +1384,19 @@
         state.selecionado = '__new__';
         renderLista();
         renderDetalhe();
+      });
+
+      document.getElementById('btnToggleCreate')?.addEventListener('click', () => {
+        state.ui.createCollapsed = !state.ui.createCollapsed;
+        const body = document.getElementById('createBody');
+        const btn = document.getElementById('btnToggleCreate');
+        if (body) body.classList.toggle('hidden', state.ui.createCollapsed);
+        if (btn) {
+          const icon = state.ui.createCollapsed ? 'chevron-down' : 'chevron-up';
+          const txt = state.ui.createCollapsed ? 'Expandir' : 'Ocultar';
+          btn.innerHTML = `<i data-lucide="${icon}"></i>${txt}`;
+          if (window.lucide) window.lucide.createIcons();
+        }
       });
 
       document.getElementById('filtroBusca')?.addEventListener('input', renderLista);
