@@ -339,6 +339,36 @@
     }
     .overlay.active { display: flex; }
 
+    /* Modo de ação: loading leve no padrão da Central Financeira */
+    .overlay.overlay-loading {
+      background: rgba(10,22,40,0.7);
+    }
+
+    .overlay.overlay-loading .overlay-box {
+      background: transparent;
+      padding: 0;
+      border-radius: 0;
+      max-width: none;
+      width: auto;
+      box-shadow: none;
+    }
+
+    .overlay.overlay-loading .overlay-text {
+      color: rgba(255,255,255,0.92);
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: -0.2px;
+      margin-top: 0;
+    }
+
+    .overlay.overlay-loading #spinner {
+      width: 44px;
+      height: 44px;
+      border: 3px solid rgba(255,255,255,0.12);
+      border-top-color: var(--gold-500);
+      margin: 0 auto 10px;
+    }
+
     @media (max-width: 767px) {
       .overlay {
         backdrop-filter: none;
@@ -1639,9 +1669,10 @@
   
   <script>
     function loading(texto) {
+      const overlay = document.getElementById('overlay');
       document.getElementById('overlayText').textContent = texto || 'Processando...';
       document.getElementById('spinner').style.display = 'block';
-      document.getElementById('overlay').classList.add('active');
+      overlay.classList.add('active', 'overlay-loading');
     }
 
     function escapeHtmlSimples_(s) {
@@ -1666,6 +1697,7 @@
     }
 
     function sucesso(titulo, msg, callback) {
+      document.getElementById('overlay').classList.remove('overlay-loading');
       document.getElementById('spinner').style.display = 'none';
       document.getElementById('overlayText').innerHTML = `
         <div style="display:flex;justify-content:center;margin-bottom:10px;">
@@ -1690,7 +1722,7 @@
     }
 
     function fecharLoading() {
-      document.getElementById('overlay').classList.remove('active');
+      document.getElementById('overlay').classList.remove('active', 'overlay-loading');
       document.getElementById('overlayText').textContent = 'Processando...';
       document.getElementById('spinner').style.display = 'block';
     }
