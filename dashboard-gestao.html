@@ -104,6 +104,26 @@
     .kpi .sub-line{margin-top:6px;font-size:11px;color:var(--muted)}
     .insights-kpis{display:grid;grid-template-columns:1.2fr 1fr 1fr;gap:10px;margin-bottom:12px}
     .insight-kpi{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:14px;box-shadow:var(--shadow)}
+    .container.dashboard-updating .kpi,
+    .container.dashboard-updating .insight-kpi,
+    .container.dashboard-updating .card{
+      position:relative;
+      overflow:hidden;
+    }
+    .container.dashboard-updating .kpi::after,
+    .container.dashboard-updating .insight-kpi::after,
+    .container.dashboard-updating .card::after{
+      content:'';
+      position:absolute;
+      inset:0;
+      background:linear-gradient(100deg, rgba(255,255,255,0) 20%, rgba(212,168,83,0.10) 50%, rgba(255,255,255,0) 80%);
+      animation:dashShimmer 1.15s linear infinite;
+      pointer-events:none;
+    }
+    @keyframes dashShimmer{
+      from{transform:translateX(-100%)}
+      to{transform:translateX(100%)}
+    }
     .insight-kpi .head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}
     .insight-kpi .head .ttl{font-size:12px;font-weight:800;color:var(--navy-2);text-transform:uppercase;letter-spacing:.5px}
     .insight-kpi .head i{width:16px;height:16px;color:var(--gold)}
@@ -542,11 +562,16 @@
     };
 
     function setButtonLoading(btn, on, loadingText) {
-      if (!btn) return;
+      if (!btn || !(btn instanceof HTMLElement)) return;
       if (!btn.dataset.defaultText) btn.dataset.defaultText = (btn.textContent || '').trim() || 'Processando';
       btn.disabled = !!on;
       btn.classList.toggle('is-loading', !!on);
       btn.textContent = on ? (loadingText || 'Processando...') : btn.dataset.defaultText;
+    }
+    function setDashboardUpdating(on) {
+      const container = document.querySelector('.container');
+      if (!container) return;
+      container.classList.toggle('dashboard-updating', !!on);
     }
     function perfilNormalizado() {
       return String(usuarioAtual?.PERFIL || localStorage.getItem('auth_perfil') || '')
@@ -1050,7 +1075,7 @@
       const sel = document.getElementById('anoRef');
       const anos = [y - 1, y, y + 1];
       sel.innerHTML = anos.map(a => `<option value="${a}" ${a === y ? 'selected' : ''}>${a}</option>`).join('');
-      sel.onchange = carregarDashboard;
+      sel.onchange = () => carregarDashboard();
     }
 
     function preencherUser() {
@@ -1311,6 +1336,7 @@
     async function carregarDashboard(btnTrigger = null) {
       try {
         setButtonLoading(btnTrigger, true, 'Atualizando...');
+        setDashboardUpdating(true);
         const ano = Number(document.getElementById('anoRef').value);
         const resp = await Auth.apiCall('obterDashboardGestao', { ano: ano, incluirCancelados: false });
         if (!resp || resp.sucesso !== true) throw new Error(resp?.mensagem || 'Falha ao obter dashboard');
@@ -1327,6 +1353,7 @@
         console.error(err);
         alert('Erro ao carregar dashboard de gestão.');
       } finally {
+        setDashboardUpdating(false);
         setButtonLoading(btnTrigger, false);
       }
     }
