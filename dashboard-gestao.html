@@ -63,6 +63,12 @@
     .toolbar h1{font-size:24px;letter-spacing:-.4px}
     .toolbar p{color:var(--muted);font-size:13px;margin-top:2px}
     .toolbar-right{display:flex;gap:8px;align-items:center}
+    .toolbar-status{
+      font-size:12px;
+      color:var(--muted);
+      font-weight:600;
+      white-space:nowrap;
+    }
     select,button,input{font-family:var(--font)}
     select,input{
       border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:#fff;color:var(--text);font-size:13px
@@ -104,15 +110,11 @@
     .kpi .sub-line{margin-top:6px;font-size:11px;color:var(--muted)}
     .insights-kpis{display:grid;grid-template-columns:1.2fr 1fr 1fr;gap:10px;margin-bottom:12px}
     .insight-kpi{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:14px;box-shadow:var(--shadow)}
-    .container.dashboard-updating .kpi,
-    .container.dashboard-updating .insight-kpi,
-    .container.dashboard-updating .card{
+    .is-loading-section{
       position:relative;
       overflow:hidden;
     }
-    .container.dashboard-updating .kpi::after,
-    .container.dashboard-updating .insight-kpi::after,
-    .container.dashboard-updating .card::after{
+    .is-loading-section::after{
       content:'';
       position:absolute;
       inset:0;
@@ -293,10 +295,11 @@
       <div class="toolbar-right">
         <select id="anoRef"></select>
         <button id="btnAtualizarDashboard" class="btn outline" onclick="carregarDashboard(this)">Atualizar</button>
+        <span id="dashboardUpdateStatus" class="toolbar-status hidden"></span>
       </div>
     </div>
 
-    <div class="kpis">
+    <div id="kpisBlock" class="kpis">
       <div class="kpi"><div class="lbl" id="kLblContrato">Contrato</div><div class="val" id="kContrato">R$ 0,00</div><div class="sub" id="kEventos">0 eventos</div></div>
       <div class="kpi"><div class="lbl" id="kLblRecebido">Recebido</div><div class="val" id="kRecebido">R$ 0,00</div><div class="sub" id="kPerc">0% recebido</div></div>
       <div class="kpi"><div class="lbl" id="kLblPendente">Pendente</div><div class="val" id="kPendente">R$ 0,00</div><div class="sub" id="kPendEvt">0 eventos parciais/abertos</div></div>
@@ -327,7 +330,7 @@
         <div class="sub" id="kRecebFuturoGeralSub">recebido de eventos futuros (todos os anos)</div>
       </div>
     </div>
-    <div class="insights-kpis">
+    <div id="insightsBlock" class="insights-kpis">
       <div class="insight-kpi">
         <div class="head">
           <div class="ttl">Meta Anual</div>
@@ -568,10 +571,30 @@
       btn.classList.toggle('is-loading', !!on);
       btn.textContent = on ? (loadingText || 'Processando...') : btn.dataset.defaultText;
     }
-    function setDashboardUpdating(on) {
-      const container = document.querySelector('.container');
-      if (!container) return;
-      container.classList.toggle('dashboard-updating', !!on);
+    function setDashboardSectionLoading(on, anoRef) {
+      const ids = [
+        'kpisBlock',
+        'kpisExecucaoRow',
+        'insightsBlock',
+        'cardVisaoMesEvento',
+        'cardResultadoMensal',
+        'cardFunil',
+        'cardProximos30',
+        'cardRiscos',
+        'cardRankingVendedores'
+      ];
+      ids.forEach((id) => {
+        const el = document.getElementById(id);
+        if (el) el.classList.toggle('is-loading-section', !!on);
+      });
+      const status = document.getElementById('dashboardUpdateStatus');
+      if (!status) return;
+      if (on) {
+        status.textContent = `Atualizando dados${anoRef ? ` (${anoRef})` : ''}...`;
+        status.classList.remove('hidden');
+      } else {
+        status.classList.add('hidden');
+      }
     }
     function perfilNormalizado() {
       return String(usuarioAtual?.PERFIL || localStorage.getItem('auth_perfil') || '')
@@ -1336,8 +1359,8 @@
     async function carregarDashboard(btnTrigger = null) {
       try {
         setButtonLoading(btnTrigger, true, 'Atualizando...');
-        setDashboardUpdating(true);
         const ano = Number(document.getElementById('anoRef').value);
+        setDashboardSectionLoading(true, ano);
         const resp = await Auth.apiCall('obterDashboardGestao', { ano: ano, incluirCancelados: false });
         if (!resp || resp.sucesso !== true) throw new Error(resp?.mensagem || 'Falha ao obter dashboard');
         dashboardData = resp;
@@ -1353,7 +1376,7 @@
         console.error(err);
         alert('Erro ao carregar dashboard de gestão.');
       } finally {
-        setDashboardUpdating(false);
+        setDashboardSectionLoading(false);
         setButtonLoading(btnTrigger, false);
       }
     }
