@@ -1502,7 +1502,7 @@
         <button type="button" class="btn btn-secondary" onclick="fecharModal('modalContratante')">
           Cancelar
         </button>
-        <button type="button" class="btn btn-primary" onclick="salvarContratante()">
+        <button type="button" id="btnSalvarContratante" class="btn btn-primary" onclick="salvarContratante()">
           💾 Salvar
         </button>
       </div>
@@ -1538,7 +1538,7 @@
         <button type="button" class="btn btn-secondary" onclick="fecharModal('modalCerimonialista')">
           Cancelar
         </button>
-        <button type="button" class="btn btn-primary" onclick="salvarCerimonialista()">
+        <button type="button" id="btnSalvarCerimonialista" class="btn btn-primary" onclick="salvarCerimonialista()">
           💾 Salvar
         </button>
       </div>
@@ -1620,7 +1620,7 @@
         <button type="button" class="btn btn-secondary" onclick="fecharModal('modalEndereco')">
           Cancelar
         </button>
-        <button type="button" class="btn btn-primary" onclick="salvarEndereco()">
+        <button type="button" id="btnSalvarEndereco" class="btn btn-primary" onclick="salvarEndereco()">
           💾 Salvar
         </button>
       </div>
@@ -1660,7 +1660,7 @@
         <button type="button" class="btn btn-secondary" onclick="fecharModal('modalParceiroBV')">
           Cancelar
         </button>
-        <button type="button" class="btn btn-primary" onclick="salvarParceiroBV()">
+        <button type="button" id="btnSalvarParceiroBV" class="btn btn-primary" onclick="salvarParceiroBV()">
           💾 Salvar
         </button>
       </div>
@@ -2499,6 +2499,7 @@ window.onload = function () {
       document.getElementById('emailContratante').value = '';
       document.getElementById('cpfCnpjContratante').value = '';
       document.getElementById('alertContratante').innerHTML = '';
+      setBotaoSalvamentoModal_('btnSalvarContratante', false);
       abrirModal('modalContratante');
     }
     
@@ -2507,6 +2508,7 @@ window.onload = function () {
       document.getElementById('telefoneCerimonialista').value = '';
       document.getElementById('empresaCerimonialista').value = '';
       document.getElementById('alertCerimonialista').innerHTML = '';
+      setBotaoSalvamentoModal_('btnSalvarCerimonialista', false);
       abrirModal('modalCerimonialista');
     }
     
@@ -2518,6 +2520,7 @@ window.onload = function () {
       document.getElementById('linkMaps').value = '';
       document.getElementById('obsEndereco').value = '';
       document.getElementById('alertEndereco').innerHTML = '';
+      setBotaoSalvamentoModal_('btnSalvarEndereco', false);
       abrirModal('modalEndereco');
     }
     
@@ -2526,7 +2529,16 @@ window.onload = function () {
       document.getElementById('telefoneParceiroBV').value = '';
       document.getElementById('tipoParceiroBV').value = 'BV';
       document.getElementById('alertParceiroBV').innerHTML = '';
+      setBotaoSalvamentoModal_('btnSalvarParceiroBV', false);
       abrirModal('modalParceiroBV');
+    }
+
+    function setBotaoSalvamentoModal_(idBotao, carregando) {
+      const btn = document.getElementById(idBotao);
+      if (!btn) return;
+      if (!btn.dataset.defaultText) btn.dataset.defaultText = btn.textContent.trim() || 'Salvar';
+      btn.disabled = !!carregando;
+      btn.textContent = carregando ? 'Salvando...' : btn.dataset.defaultText;
     }
     
     // Salvar cadastros rápidos (mantido do código anterior)
@@ -2545,6 +2557,7 @@ window.onload = function () {
         cpfCnpj: document.getElementById('cpfCnpjContratante').value
       };
 
+      setBotaoSalvamentoModal_('btnSalvarContratante', true);
       Auth.apiCall('cadastrarContratanteRapido', dados)
         .then(resultado => {
           if (resultado.sucesso) {
@@ -2555,7 +2568,11 @@ window.onload = function () {
           } else {
             mostrarAlerta('alertContratante', resultado.mensagem, 'error');
           }
-        });
+        })
+        .catch(err => {
+          mostrarAlerta('alertContratante', 'Erro ao salvar: ' + (err?.message || err), 'error');
+        })
+        .finally(() => setBotaoSalvamentoModal_('btnSalvarContratante', false));
     }
     
     function salvarCerimonialista() {
@@ -2572,6 +2589,7 @@ window.onload = function () {
         empresa: document.getElementById('empresaCerimonialista').value
       };
 
+      setBotaoSalvamentoModal_('btnSalvarCerimonialista', true);
       Auth.apiCall('cadastrarCerimonialistaRapido', dados)
         .then(resultado => {
           if (resultado.sucesso) {
@@ -2582,7 +2600,11 @@ window.onload = function () {
           } else {
             mostrarAlerta('alertCerimonialista', resultado.mensagem, 'error');
           }
-        });
+        })
+        .catch(err => {
+          mostrarAlerta('alertCerimonialista', 'Erro ao salvar: ' + (err?.message || err), 'error');
+        })
+        .finally(() => setBotaoSalvamentoModal_('btnSalvarCerimonialista', false));
     }
     
     function salvarEndereco() {
@@ -2602,6 +2624,7 @@ window.onload = function () {
         observacoes: document.getElementById('obsEndereco').value
       };
 
+      setBotaoSalvamentoModal_('btnSalvarEndereco', true);
       Auth.apiCall('cadastrarEnderecoRapido', dados)
         .then(resultado => {
           if (resultado.sucesso) {
@@ -2612,7 +2635,11 @@ window.onload = function () {
           } else {
             mostrarAlerta('alertEndereco', resultado.mensagem, 'error');
           }
-        });
+        })
+        .catch(err => {
+          mostrarAlerta('alertEndereco', 'Erro ao salvar: ' + (err?.message || err), 'error');
+        })
+        .finally(() => setBotaoSalvamentoModal_('btnSalvarEndereco', false));
     }
     
     function salvarParceiroBV() {
@@ -2629,6 +2656,7 @@ window.onload = function () {
         tipo: document.getElementById('tipoParceiroBV').value
       };
 
+      setBotaoSalvamentoModal_('btnSalvarParceiroBV', true);
       Auth.apiCall('cadastrarParceiroBVRapido', dados)
         .then(resultado => {
           if (resultado.sucesso) {
@@ -2645,7 +2673,11 @@ window.onload = function () {
           } else {
             mostrarAlerta('alertParceiroBV', resultado.mensagem, 'error');
           }
-        });
+        })
+        .catch(err => {
+          mostrarAlerta('alertParceiroBV', 'Erro ao salvar: ' + (err?.message || err), 'error');
+        })
+        .finally(() => setBotaoSalvamentoModal_('btnSalvarParceiroBV', false));
     }
     
     // Salvar evento
