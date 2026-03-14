@@ -470,6 +470,19 @@
       font-weight: 500;
     }
 
+    .horario-fim-calc {
+      margin-top: 8px;
+      padding: 10px 12px;
+      border-radius: var(--radius-sm);
+      border: 1px solid rgba(59,130,246,0.18);
+      background: rgba(59,130,246,0.06);
+      color: #1e40af;
+      font-size: 12.5px;
+      font-weight: 700;
+      letter-spacing: -0.1px;
+      display: none;
+    }
+
     .cadastro-context-actions {
       display: flex;
       gap: 8px;
@@ -1718,7 +1731,7 @@
             <select id="duracao">
               <option value="">Selecione...</option>
             </select>
-            <div id="horarioFimCalc" style="margin-top:8px;padding:8px;background:#e3f2fd;border-radius:4px;color:#0d47a1;font-weight:600;display:none;"></div>
+            <div id="horarioFimCalc" class="horario-fim-calc"></div>
           </div>
         </div>
 
