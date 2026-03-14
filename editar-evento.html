@@ -442,6 +442,18 @@
       font-weight: 500;
     }
 
+    .cadastro-context-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 8px;
+      flex-wrap: wrap;
+    }
+
+    .cadastro-context-actions .btn {
+      padding: 8px 10px;
+      font-size: 12px;
+    }
+
     /* ============================================
        AUTOCOMPLETE
        ============================================ */
@@ -1704,6 +1716,10 @@
               <input type="text" id="nomeContratante" placeholder="Nome do contratante">
               <input type="hidden" id="idContratante">
               <div id="avisoRefContratante" class="helper-text hidden"></div>
+              <div id="acoesContratanteContexto" class="cadastro-context-actions hidden">
+                <button type="button" id="btnRegularizarContratante" class="btn btn-secondary" onclick="regularizarContratanteEdicao()">Regularizar Contratante</button>
+                <button type="button" id="btnEditarContratanteCadastro" class="btn btn-secondary" onclick="editarCadastroContratanteEdicao()">Editar Contratante</button>
+              </div>
             </div>
             
             <div class="form-group" id="campoCerimonialistaEdicao">
@@ -1725,6 +1741,10 @@
             <input type="text" id="nomeLocal" placeholder="Local do evento">
             <input type="hidden" id="idEndereco">
             <div id="avisoRefEndereco" class="helper-text hidden"></div>
+            <div id="acoesLocalContexto" class="cadastro-context-actions hidden">
+              <button type="button" id="btnRegularizarLocal" class="btn btn-secondary" onclick="regularizarLocalEdicao()">Regularizar Local</button>
+              <button type="button" id="btnEditarLocalCadastro" class="btn btn-secondary" onclick="editarCadastroLocalEdicao()">Editar Local</button>
+            </div>
           </div>
         </div>
       </div>
@@ -2420,7 +2440,7 @@ function aplicarFallbackReferenciasMestre(evento) {
       `⚠️ Divergência entre EVENTOS e cadastro mestre. ` +
       `No evento: <strong>${escapeHtml(evento.nomeContratanteAtual || '-')}</strong>; ` +
       `no mestre: <strong>${escapeHtml(evento.nomeContratanteCadastro || '-')}</strong>. ` +
-      `Ao salvar, o texto digitado será aplicado no evento e no cadastro mestre vinculado.`
+      `Ao salvar, você poderá decidir se deseja aplicar no cadastro mestre.`
     );
   } else {
     mostrarAvisoReferencia('avisoRefContratante', '');
@@ -2439,10 +2459,142 @@ function aplicarFallbackReferenciasMestre(evento) {
       `⚠️ Divergência entre EVENTOS e cadastro mestre. ` +
       `No evento: <strong>${escapeHtml(evento.nomeLocalAtual || '-')}</strong>; ` +
       `no mestre: <strong>${escapeHtml(evento.nomeLocalCadastro || '-')}</strong>. ` +
-      `Ao salvar, o texto digitado será aplicado no evento e no cadastro mestre vinculado.`
+      `Ao salvar, você poderá decidir se deseja aplicar no cadastro mestre.`
     );
   } else {
     mostrarAvisoReferencia('avisoRefEndereco', '');
+  }
+
+  atualizarAcoesContextuaisCadastro();
+}
+
+function atualizarAcoesContextuaisCadastro() {
+  const idContratante = String(document.getElementById('idContratante')?.value || '').trim();
+  const nomeContratante = String(document.getElementById('nomeContratante')?.value || '').trim();
+  const wrapContr = document.getElementById('acoesContratanteContexto');
+  const btnRegContr = document.getElementById('btnRegularizarContratante');
+  const btnEditContr = document.getElementById('btnEditarContratanteCadastro');
+
+  if (wrapContr && btnRegContr && btnEditContr) {
+    const temAcaoContratante = !!(idContratante || nomeContratante);
+    wrapContr.classList.toggle('hidden', !temAcaoContratante);
+    btnRegContr.classList.toggle('hidden', !!idContratante || !nomeContratante);
+    btnEditContr.classList.toggle('hidden', !idContratante);
+  }
+
+  const idEndereco = String(document.getElementById('idEndereco')?.value || '').trim();
+  const nomeLocal = String(document.getElementById('nomeLocal')?.value || '').trim();
+  const wrapLocal = document.getElementById('acoesLocalContexto');
+  const btnRegLocal = document.getElementById('btnRegularizarLocal');
+  const btnEditLocal = document.getElementById('btnEditarLocalCadastro');
+
+  if (wrapLocal && btnRegLocal && btnEditLocal) {
+    const temAcaoLocal = !!(idEndereco || nomeLocal);
+    wrapLocal.classList.toggle('hidden', !temAcaoLocal);
+    btnRegLocal.classList.toggle('hidden', !!idEndereco || !nomeLocal);
+    btnEditLocal.classList.toggle('hidden', !idEndereco);
+  }
+}
+
+async function regularizarContratanteEdicao() {
+  const nome = String(document.getElementById('nomeContratante')?.value || '').trim();
+  if (!nome) {
+    mostrarAlerta('Informe o nome do contratante para regularizar.', 'error');
+    return;
+  }
+  try {
+    mostrarLoadingGlobal('Regularizando contratante...');
+    const res = await Auth.apiCall('regularizarContratante', { nome });
+    if (!res?.sucesso) throw new Error(res?.mensagem || 'Falha ao regularizar contratante.');
+    document.getElementById('idContratante').value = String(res.id || '');
+    document.getElementById('nomeContratante').value = String(res.nome || nome);
+    atualizarAcoesContextuaisCadastro();
+    mostrarAlerta(res.acao === 'criado' ? 'Contratante criado e vinculado.' : 'Contratante vinculado com sucesso.', 'success');
+  } catch (err) {
+    mostrarAlerta('Erro ao regularizar contratante: ' + (err?.message || err), 'error');
+  } finally {
+    esconderLoadingGlobal();
+  }
+}
+
+async function regularizarLocalEdicao() {
+  const nome = String(document.getElementById('nomeLocal')?.value || '').trim();
+  if (!nome) {
+    mostrarAlerta('Informe o nome do local para regularizar.', 'error');
+    return;
+  }
+  try {
+    mostrarLoadingGlobal('Regularizando local...');
+    const res = await Auth.apiCall('regularizarLocal', { nome });
+    if (!res?.sucesso) throw new Error(res?.mensagem || 'Falha ao regularizar local.');
+    document.getElementById('idEndereco').value = String(res.id || '');
+    document.getElementById('nomeLocal').value = String(res.nome || nome);
+    atualizarAcoesContextuaisCadastro();
+    mostrarAlerta(res.acao === 'criado' ? 'Local criado e vinculado.' : 'Local vinculado com sucesso.', 'success');
+  } catch (err) {
+    mostrarAlerta('Erro ao regularizar local: ' + (err?.message || err), 'error');
+  } finally {
+    esconderLoadingGlobal();
+  }
+}
+
+async function editarCadastroContratanteEdicao() {
+  const id = String(document.getElementById('idContratante')?.value || '').trim();
+  if (!id) return;
+
+  const nomeAtual = String(document.getElementById('nomeContratante')?.value || '').trim();
+  const nome = String(prompt('Nome do contratante:', nomeAtual) || '').trim();
+  if (!nome) return;
+  const telefone = String(prompt('WhatsApp/Telefone (opcional):', '') || '').trim();
+  const email = String(prompt('E-mail (opcional):', '') || '').trim();
+  const cpfCnpj = String(prompt('CPF/CNPJ (opcional):', '') || '').trim();
+
+  try {
+    mostrarLoadingGlobal('Atualizando contratante...');
+    const res = await Auth.apiCall('atualizarContratante', { id, nome, telefone, email, cpfCnpj });
+    if (!res?.sucesso) throw new Error(res?.mensagem || 'Falha ao atualizar contratante.');
+    document.getElementById('nomeContratante').value = String(res.nome || nome);
+    atualizarAcoesContextuaisCadastro();
+    mostrarAlerta('Cadastro do contratante atualizado.', 'success');
+  } catch (err) {
+    mostrarAlerta('Erro ao atualizar contratante: ' + (err?.message || err), 'error');
+  } finally {
+    esconderLoadingGlobal();
+  }
+}
+
+async function editarCadastroLocalEdicao() {
+  const id = String(document.getElementById('idEndereco')?.value || '').trim();
+  if (!id) return;
+
+  const nomeAtual = String(document.getElementById('nomeLocal')?.value || '').trim();
+  const nome = String(prompt('Nome do local:', nomeAtual) || '').trim();
+  if (!nome) return;
+  const enderecoCompleto = String(prompt('Endereço completo (opcional):', '') || '').trim();
+  const linkMaps = String(prompt('Link Google Maps (opcional):', '') || '').trim();
+  const cidade = String(prompt('Cidade (opcional):', '') || '').trim();
+  const estado = String(prompt('Estado (opcional):', '') || '').trim();
+  const observacoes = String(prompt('Observações (opcional):', '') || '').trim();
+
+  try {
+    mostrarLoadingGlobal('Atualizando local...');
+    const res = await Auth.apiCall('atualizarEndereco', {
+      id,
+      nome,
+      enderecoCompleto,
+      linkMaps,
+      cidade,
+      estado,
+      observacoes
+    });
+    if (!res?.sucesso) throw new Error(res?.mensagem || 'Falha ao atualizar local.');
+    document.getElementById('nomeLocal').value = String(res.nome || nome);
+    atualizarAcoesContextuaisCadastro();
+    mostrarAlerta('Cadastro do local atualizado.', 'success');
+  } catch (err) {
+    mostrarAlerta('Erro ao atualizar local: ' + (err?.message || err), 'error');
+  } finally {
+    esconderLoadingGlobal();
   }
 }
 
@@ -3624,6 +3776,8 @@ function preencherFormulario(evento) {
         nomeLocalEditado: document.getElementById('nomeLocal').value,
         nomeContratanteFallback: eventoOriginal?.nomeContratanteAtual || '',
         nomeLocalFallback: eventoOriginal?.nomeLocalAtual || '',
+        aplicarNomeContratanteNoMestre: false,
+        aplicarNomeLocalNoMestre: false,
         valorTotal: valorTotalParsed || 0,
         idVendedor: document.getElementById('idVendedor').value,
         valorBV: valorBVParsed || 0,
@@ -3687,6 +3841,20 @@ function preencherFormulario(evento) {
         // 2) Removido mostrarLoadingGlobal/travarAcoes duplicado aqui
         try {
           const dadosFormulario = coletarDadosFormulario();
+          const idContr = String(dadosFormulario.idContratante || '').trim();
+          const idLoc = String(dadosFormulario.idEndereco || '').trim();
+          const nomeContrNovo = String(dadosFormulario.nomeContratanteEditado || '').trim();
+          const nomeLocNovo = String(dadosFormulario.nomeLocalEditado || '').trim();
+          const nomeContrAntigo = String(eventoOriginal?.nomeContratanteAtual || '').trim();
+          const nomeLocAntigo = String(eventoOriginal?.nomeLocalAtual || '').trim();
+
+          if (idContr && nomeContrNovo && nomeContrNovo !== nomeContrAntigo) {
+            dadosFormulario.aplicarNomeContratanteNoMestre = confirm('Aplicar o novo nome do contratante também no cadastro mestre?');
+          }
+          if (idLoc && nomeLocNovo && nomeLocNovo !== nomeLocAntigo) {
+            dadosFormulario.aplicarNomeLocalNoMestre = confirm('Aplicar o novo nome do local também no cadastro mestre?');
+          }
+
           if (!validarCamposConversaoReserva(dadosFormulario)) {
             esconderLoadingGlobal();
             travarAcoes(false);
@@ -3824,12 +3992,20 @@ function preencherFormulario(evento) {
     setTimeout(function() {
       const inputHora = document.getElementById('horaInicio');
       const inputDuracao = document.getElementById('duracao');
+      const inputNomeContratante = document.getElementById('nomeContratante');
+      const inputNomeLocal = document.getElementById('nomeLocal');
       
       if (inputHora) {
         inputHora.addEventListener('change', calcularHorarioFim);
       }
       if (inputDuracao) {
         inputDuracao.addEventListener('change', calcularHorarioFim);
+      }
+      if (inputNomeContratante) {
+        inputNomeContratante.addEventListener('input', atualizarAcoesContextuaisCadastro);
+      }
+      if (inputNomeLocal) {
+        inputNomeLocal.addEventListener('input', atualizarAcoesContextuaisCadastro);
       }
     }, 1000);
 
