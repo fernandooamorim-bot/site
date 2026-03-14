@@ -571,8 +571,8 @@
       btn.classList.toggle('is-loading', !!on);
       btn.textContent = on ? (loadingText || 'Processando...') : btn.dataset.defaultText;
     }
-    function setDashboardSectionLoading(on, anoRef) {
-      const ids = [
+    function getDashboardLoadingIds() {
+      return [
         'kpisBlock',
         'kpisExecucaoRow',
         'insightsBlock',
@@ -583,13 +583,20 @@
         'cardRiscos',
         'cardRankingVendedores'
       ];
-      ids.forEach((id) => {
+    }
+    function setDashboardSectionLoading(on, anoRef, ids = null) {
+      const targets = Array.isArray(ids) && ids.length ? ids : getDashboardLoadingIds();
+      targets.forEach((id) => {
         const el = document.getElementById(id);
         if (el) el.classList.toggle('is-loading-section', !!on);
       });
       const status = document.getElementById('dashboardUpdateStatus');
       if (!status) return;
-      if (on) {
+      const anyLoading = getDashboardLoadingIds().some((id) => {
+        const el = document.getElementById(id);
+        return !!el && el.classList.contains('is-loading-section');
+      });
+      if (anyLoading) {
         status.textContent = `Atualizando dados${anoRef ? ` (${anoRef})` : ''}...`;
         status.classList.remove('hidden');
       } else {
@@ -1360,7 +1367,18 @@
       try {
         setButtonLoading(btnTrigger, true, 'Atualizando...');
         const ano = Number(document.getElementById('anoRef').value);
-        setDashboardSectionLoading(true, ano);
+        const allSections = getDashboardLoadingIds();
+        const baseSections = [
+          'kpisBlock',
+          'cardVisaoMesEvento',
+          'cardResultadoMensal',
+          'cardFunil',
+          'cardProximos30',
+          'cardRiscos',
+          'cardRankingVendedores'
+        ];
+        const asyncSections = ['insightsBlock', 'kpisExecucaoRow'];
+        setDashboardSectionLoading(true, ano, allSections);
         const resp = await Auth.apiCall('obterDashboardGestao', { ano: ano, incluirCancelados: false });
         if (!resp || resp.sucesso !== true) throw new Error(resp?.mensagem || 'Falha ao obter dashboard');
         dashboardData = resp;
@@ -1369,6 +1387,13 @@
           if (box) box.innerHTML = `<div class="empty" style="margin-top:0">Sob demanda: clique em Aplicar para carregar o ticket médio de ${ano}.</div>`;
         }
         renderDashboard();
+        setDashboardSectionLoading(false, ano, baseSections);
+        const tarefasAsync = [
+          renderMetaAnual(),
+          carregarInsightsComerciais(false)
+        ];
+        await Promise.allSettled(tarefasAsync);
+        setDashboardSectionLoading(false, ano, asyncSections);
         if (ehProprietario()) {
           preloadTicketOptions(false).catch(() => {});
         }
@@ -1444,9 +1469,6 @@
       renderRiscos(riscos);
       renderVendedores(vendedores);
       renderProximos(prox);
-      renderMetaAnual().catch((e) => console.error('Falha ao renderizar Meta Anual:', e));
-      carregarInsightsComerciais(false).catch((e) => console.error('Falha ao carregar insights comerciais:', e));
-
       const auditBox = document.getElementById('auditoriaContent');
       if (auditBox && !auditBox.classList.contains('hidden')) {
         carregarAuditoriaMensal(false);
