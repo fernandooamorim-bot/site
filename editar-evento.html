@@ -474,6 +474,12 @@
       color: #b45309;
     }
 
+    .input-vinculo-bloqueado {
+      background: #f8fafc !important;
+      color: #334155 !important;
+      cursor: not-allowed;
+    }
+
     .input-pendente-vinculo {
       border-color: #f59e0b !important;
       box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.15) !important;
@@ -1841,6 +1847,7 @@
               <div id="avisoRefContratante" class="helper-text hidden"></div>
               <div id="acoesContratanteContexto" class="cadastro-context-actions hidden">
                 <button type="button" id="btnRegularizarContratante" class="btn btn-secondary" onclick="regularizarContratanteEdicao()">Regularizar Contratante</button>
+                <button type="button" id="btnTrocarContratanteVinculo" class="btn btn-secondary hidden" onclick="iniciarTrocaVinculoContratante()">Trocar Vínculo</button>
                 <button type="button" id="btnEditarContratanteCadastro" class="btn btn-secondary" onclick="editarCadastroContratanteEdicao()">Editar Contratante</button>
               </div>
               <div id="hintVinculoContratante" class="helper-text helper-warning hidden"></div>
@@ -1867,6 +1874,7 @@
             <div id="avisoRefEndereco" class="helper-text hidden"></div>
             <div id="acoesLocalContexto" class="cadastro-context-actions hidden">
               <button type="button" id="btnRegularizarLocal" class="btn btn-secondary" onclick="regularizarLocalEdicao()">Regularizar Local</button>
+              <button type="button" id="btnTrocarLocalVinculo" class="btn btn-secondary hidden" onclick="iniciarTrocaVinculoLocal()">Trocar Vínculo</button>
               <button type="button" id="btnEditarLocalCadastro" class="btn btn-secondary" onclick="editarCadastroLocalEdicao()">Editar Local</button>
             </div>
             <div id="hintVinculoLocal" class="helper-text helper-warning hidden"></div>
@@ -2075,6 +2083,8 @@ console.log('🚀 editar-evento.html iniciado (frontend externo)');
 // ============================
 let EVENTO_ID_URL = null;
 let modoConversaoReserva = false;
+let modoTrocaVinculoContratante = false;
+let modoTrocaVinculoLocal = false;
 
 function getIdEventoFromURL() {
   const params = new URLSearchParams(window.location.search);
@@ -2660,12 +2670,14 @@ function atualizarAcoesContextuaisCadastro() {
   const wrapContr = document.getElementById('acoesContratanteContexto');
   const btnRegContr = document.getElementById('btnRegularizarContratante');
   const btnEditContr = document.getElementById('btnEditarContratanteCadastro');
+  const btnTrocaContr = document.getElementById('btnTrocarContratanteVinculo');
 
-  if (wrapContr && btnRegContr && btnEditContr) {
+  if (wrapContr && btnRegContr && btnEditContr && btnTrocaContr) {
     const temAcaoContratante = !!(idContratante || nomeContratante);
     wrapContr.classList.toggle('hidden', !temAcaoContratante);
     btnRegContr.classList.toggle('hidden', !!idContratante || !nomeContratante);
     btnEditContr.classList.toggle('hidden', !idContratante);
+    btnTrocaContr.classList.toggle('hidden', !idContratante);
   }
 
   const idEndereco = String(document.getElementById('idEndereco')?.value || '').trim();
@@ -2673,15 +2685,65 @@ function atualizarAcoesContextuaisCadastro() {
   const wrapLocal = document.getElementById('acoesLocalContexto');
   const btnRegLocal = document.getElementById('btnRegularizarLocal');
   const btnEditLocal = document.getElementById('btnEditarLocalCadastro');
+  const btnTrocaLocal = document.getElementById('btnTrocarLocalVinculo');
 
-  if (wrapLocal && btnRegLocal && btnEditLocal) {
+  if (wrapLocal && btnRegLocal && btnEditLocal && btnTrocaLocal) {
     const temAcaoLocal = !!(idEndereco || nomeLocal);
     wrapLocal.classList.toggle('hidden', !temAcaoLocal);
     btnRegLocal.classList.toggle('hidden', !!idEndereco || !nomeLocal);
     btnEditLocal.classList.toggle('hidden', !idEndereco);
+    btnTrocaLocal.classList.toggle('hidden', !idEndereco);
   }
 
+  aplicarBloqueioCamposVinculados_();
   atualizarIndicadoresVinculoConversao();
+}
+
+function aplicarBloqueioCamposVinculados_() {
+  const inputContr = document.getElementById('nomeContratante');
+  const inputLocal = document.getElementById('nomeLocal');
+  const idContr = String(document.getElementById('idContratante')?.value || '').trim();
+  const idLocal = String(document.getElementById('idEndereco')?.value || '').trim();
+
+  const bloquearContr = !!idContr && !modoTrocaVinculoContratante;
+  const bloquearLocal = !!idLocal && !modoTrocaVinculoLocal;
+
+  if (inputContr) {
+    inputContr.readOnly = bloquearContr;
+    inputContr.classList.toggle('input-vinculo-bloqueado', bloquearContr);
+    inputContr.title = bloquearContr
+      ? 'Para alterar, use "Editar Contratante" ou "Trocar Vínculo".'
+      : '';
+  }
+  if (inputLocal) {
+    inputLocal.readOnly = bloquearLocal;
+    inputLocal.classList.toggle('input-vinculo-bloqueado', bloquearLocal);
+    inputLocal.title = bloquearLocal
+      ? 'Para alterar, use "Editar Local" ou "Trocar Vínculo".'
+      : '';
+  }
+}
+
+function iniciarTrocaVinculoContratante() {
+  if (!confirm('Deseja trocar o vínculo do contratante deste evento?')) return;
+  modoTrocaVinculoContratante = true;
+  document.getElementById('idContratante').value = '';
+  document.getElementById('nomeContratante').value = '';
+  atualizarAcoesContextuaisCadastro();
+  const input = document.getElementById('nomeContratante');
+  if (input) input.focus();
+  mostrarAlerta('Digite o nome e clique em "Regularizar Contratante" para vincular existente ou criar novo.', 'info');
+}
+
+function iniciarTrocaVinculoLocal() {
+  if (!confirm('Deseja trocar o vínculo do local deste evento?')) return;
+  modoTrocaVinculoLocal = true;
+  document.getElementById('idEndereco').value = '';
+  document.getElementById('nomeLocal').value = '';
+  atualizarAcoesContextuaisCadastro();
+  const input = document.getElementById('nomeLocal');
+  if (input) input.focus();
+  mostrarAlerta('Digite o nome e clique em "Regularizar Local" para vincular existente ou criar novo.', 'info');
 }
 
 function marcarCampoPendenteVinculo_(inputId, pendente) {
@@ -2744,6 +2806,7 @@ async function regularizarContratanteEdicao() {
     if (!res?.sucesso) throw new Error(res?.mensagem || 'Falha ao regularizar contratante.');
     document.getElementById('idContratante').value = String(res.id || '');
     document.getElementById('nomeContratante').value = String(res.nome || nome);
+    modoTrocaVinculoContratante = false;
     atualizarAcoesContextuaisCadastro();
     mostrarAlerta(res.acao === 'criado' ? 'Contratante criado e vinculado.' : 'Contratante vinculado com sucesso.', 'success');
   } catch (err) {
@@ -2765,6 +2828,7 @@ async function regularizarLocalEdicao() {
     if (!res?.sucesso) throw new Error(res?.mensagem || 'Falha ao regularizar local.');
     document.getElementById('idEndereco').value = String(res.id || '');
     document.getElementById('nomeLocal').value = String(res.nome || nome);
+    modoTrocaVinculoLocal = false;
     atualizarAcoesContextuaisCadastro();
     mostrarAlerta(res.acao === 'criado' ? 'Local criado e vinculado.' : 'Local vinculado com sucesso.', 'success');
   } catch (err) {
@@ -3139,6 +3203,8 @@ async function iniciarEditarEvento() {
       eventoAtual = evento;
       eventoOriginal = JSON.parse(JSON.stringify(evento));
       modoConversaoReserva = getConverterFromURL() && String(eventoOriginal.tipoRegistro || '').trim() === 'Reserva';
+      modoTrocaVinculoContratante = false;
+      modoTrocaVinculoLocal = false;
 
       // Aguarda referências críticas em paralelo com a busca do evento.
       await promessaReferencias;
@@ -3588,6 +3654,8 @@ function mostrarResultados(eventos) {
       eventoAtual = resultado.evento;
       eventoOriginal = JSON.parse(JSON.stringify(resultado.evento));
       modoConversaoReserva = false;
+      modoTrocaVinculoContratante = false;
+      modoTrocaVinculoLocal = false;
 
       await aplicarPermissaoFinanceiraEdicao();
 
@@ -4158,13 +4226,15 @@ function preencherFormulario(evento) {
           const idLoc = String(dadosFormulario.idEndereco || '').trim();
           const nomeContrNovo = String(dadosFormulario.nomeContratanteEditado || '').trim();
           const nomeLocNovo = String(dadosFormulario.nomeLocalEditado || '').trim();
+          const idContrAntigo = String(eventoOriginal?.idContratante || '').trim();
+          const idLocAntigo = String(eventoOriginal?.idEndereco || '').trim();
           const nomeContrAntigo = String(eventoOriginal?.nomeContratanteAtual || '').trim();
           const nomeLocAntigo = String(eventoOriginal?.nomeLocalAtual || '').trim();
 
-          if (idContr && nomeContrNovo && nomeContrNovo !== nomeContrAntigo) {
+          if (idContr && idContr === idContrAntigo && nomeContrNovo && nomeContrNovo !== nomeContrAntigo) {
             dadosFormulario.aplicarNomeContratanteNoMestre = confirm('Aplicar o novo nome do contratante também no cadastro mestre?');
           }
-          if (idLoc && nomeLocNovo && nomeLocNovo !== nomeLocAntigo) {
+          if (idLoc && idLoc === idLocAntigo && nomeLocNovo && nomeLocNovo !== nomeLocAntigo) {
             dadosFormulario.aplicarNomeLocalNoMestre = confirm('Aplicar o novo nome do local também no cadastro mestre?');
           }
 
