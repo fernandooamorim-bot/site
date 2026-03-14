@@ -454,6 +454,12 @@
       font-size: 12px;
     }
 
+    .cadastro-modal-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 12px;
+    }
+
     /* ============================================
        AUTOCOMPLETE
        ============================================ */
@@ -1877,6 +1883,34 @@
       </div>
     </div>
   </div>
+
+  <div id="modalContratanteEdicao" class="modal-overlay">
+    <div class="modal">
+      <div class="modal-title">Editar Contratante</div>
+      <div class="cadastro-modal-grid">
+        <div class="form-group">
+          <label for="editContratanteNome">Nome</label>
+          <input type="text" id="editContratanteNome" placeholder="Nome do contratante">
+        </div>
+        <div class="form-group">
+          <label for="editContratanteTelefone">WhatsApp/Telefone</label>
+          <input type="text" id="editContratanteTelefone" placeholder="(85) 99999-9999">
+        </div>
+        <div class="form-group">
+          <label for="editContratanteEmail">E-mail</label>
+          <input type="email" id="editContratanteEmail" placeholder="nome@email.com">
+        </div>
+        <div class="form-group">
+          <label for="editContratanteCpfCnpj">CPF/CNPJ</label>
+          <input type="text" id="editContratanteCpfCnpj" placeholder="000.000.000-00">
+        </div>
+      </div>
+      <div class="actions">
+        <button class="btn btn-secondary" type="button" onclick="fecharModalContratanteEdicao()">Cancelar</button>
+        <button class="btn btn-primary" type="button" onclick="salvarCadastroContratanteEdicao()">Salvar Cadastro</button>
+      </div>
+    </div>
+  </div>
   
   <script>
 console.log('🚀 editar-evento.html iniciado (frontend externo)');
@@ -1983,7 +2017,7 @@ function getConverterFromURL() {
 
 function travarAcoes(travar = true) {
   document
-    .querySelectorAll('#formEdicao button, #modalConfirmacao button')
+    .querySelectorAll('#formEdicao button, #modalConfirmacao button, #modalContratanteEdicao button')
     .forEach(btn => {
       btn.disabled = travar;
       if (travar) {
@@ -2542,12 +2576,43 @@ async function editarCadastroContratanteEdicao() {
   const id = String(document.getElementById('idContratante')?.value || '').trim();
   if (!id) return;
 
-  const nomeAtual = String(document.getElementById('nomeContratante')?.value || '').trim();
-  const nome = String(prompt('Nome do contratante:', nomeAtual) || '').trim();
-  if (!nome) return;
-  const telefone = String(prompt('WhatsApp/Telefone (opcional):', '') || '').trim();
-  const email = String(prompt('E-mail (opcional):', '') || '').trim();
-  const cpfCnpj = String(prompt('CPF/CNPJ (opcional):', '') || '').trim();
+  try {
+    mostrarLoadingGlobal('Carregando cadastro do contratante...');
+    const res = await Auth.apiCall('obterContratantePorId', { id });
+    if (!res?.sucesso || !res?.contratante) {
+      throw new Error(res?.mensagem || 'Não foi possível carregar os dados do contratante.');
+    }
+    const c = res.contratante;
+    document.getElementById('editContratanteNome').value = String(c.nome || '');
+    document.getElementById('editContratanteTelefone').value = String(c.telefone || '');
+    document.getElementById('editContratanteEmail').value = String(c.email || '');
+    document.getElementById('editContratanteCpfCnpj').value = String(c.cpfCnpj || '');
+    const modal = document.getElementById('modalContratanteEdicao');
+    if (modal) modal.classList.add('show');
+  } catch (err) {
+    mostrarAlerta('Erro ao abrir cadastro do contratante: ' + (err?.message || err), 'error');
+  } finally {
+    esconderLoadingGlobal();
+  }
+}
+
+function fecharModalContratanteEdicao() {
+  const modal = document.getElementById('modalContratanteEdicao');
+  if (modal) modal.classList.remove('show');
+}
+
+async function salvarCadastroContratanteEdicao() {
+  const id = String(document.getElementById('idContratante')?.value || '').trim();
+  if (!id) return;
+
+  const nome = String(document.getElementById('editContratanteNome')?.value || '').trim();
+  const telefone = String(document.getElementById('editContratanteTelefone')?.value || '').trim();
+  const email = String(document.getElementById('editContratanteEmail')?.value || '').trim();
+  const cpfCnpj = String(document.getElementById('editContratanteCpfCnpj')?.value || '').trim();
+  if (!nome) {
+    mostrarAlerta('Nome do contratante é obrigatório.', 'error');
+    return;
+  }
 
   try {
     mostrarLoadingGlobal('Atualizando contratante...');
@@ -2555,6 +2620,7 @@ async function editarCadastroContratanteEdicao() {
     if (!res?.sucesso) throw new Error(res?.mensagem || 'Falha ao atualizar contratante.');
     document.getElementById('nomeContratante').value = String(res.nome || nome);
     atualizarAcoesContextuaisCadastro();
+    fecharModalContratanteEdicao();
     mostrarAlerta('Cadastro do contratante atualizado.', 'success');
   } catch (err) {
     mostrarAlerta('Erro ao atualizar contratante: ' + (err?.message || err), 'error');
