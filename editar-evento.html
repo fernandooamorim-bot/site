@@ -2100,7 +2100,6 @@ function getConverterFromURL() {
   let eventoAtual = null;
   let eventoOriginal = null;
   let buscaExecucaoId = 0;
-  let globalLoadingTimer = null;
   let globalLoadingSlowTimer = null;
   let __dropdownsProntos = {
     tipoEvento: false,
@@ -2141,7 +2140,6 @@ function getConverterFromURL() {
     document.body.setAttribute('aria-busy', 'true');
 
     clearTimeout(globalLoadingSlowTimer);
-    clearTimeout(globalLoadingTimer);
 
     globalLoadingSlowTimer = setTimeout(() => {
       if (label && overlay && overlay.classList.contains('show')) {
@@ -2155,7 +2153,6 @@ function getConverterFromURL() {
     if (overlay) overlay.classList.remove('show');
     document.body.removeAttribute('aria-busy');
     clearTimeout(globalLoadingSlowTimer);
-    clearTimeout(globalLoadingTimer);
   }
 
 function travarAcoes(travar = true) {
