@@ -237,6 +237,28 @@
       color: #64748b;
       text-align: left;
     }
+    .item-status {
+      display: inline-flex;
+      align-items: center;
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: .02em;
+      border-radius: 999px;
+      padding: 2px 7px;
+      border: 1px solid transparent;
+      margin-left: 6px;
+      vertical-align: middle;
+    }
+    .item-status.ativo {
+      color: #166534;
+      background: #ecfdf3;
+      border-color: #a7f3d0;
+    }
+    .item-status.inativo {
+      color: #92400e;
+      background: #fffbeb;
+      border-color: #fcd34d;
+    }
     .field {
       display: grid;
       gap: 6px;
@@ -329,6 +351,13 @@
           <div class="card-body">
             <input type="text" id="filtroBusca" placeholder="Buscar por nome...">
             <div class="row">
+              <select id="filtroStatus" class="grow">
+                <option value="ATIVOS">Somente ativos</option>
+                <option value="INATIVOS">Somente inativos</option>
+                <option value="TODOS">Todos</option>
+              </select>
+            </div>
+            <div class="row">
               <input class="grow" type="text" id="novoNome" placeholder="Nome para cadastro rápido">
               <button class="btn primary" id="btnNovo">Cadastro Rápido</button>
             </div>
@@ -371,7 +400,8 @@
         createPayload: (nome) => ({ nome: nome }),
         normalize: (x) => ({
           id: String(x?.id || ''),
-          nome: String(x?.nome || '')
+          nome: String(x?.nome || ''),
+          status: String(x?.status || '').trim().toUpperCase() === 'INATIVO' ? 'INATIVO' : 'ATIVO'
         })
       },
       locais: {
@@ -383,27 +413,34 @@
         createPayload: (nome) => ({ nomeLocal: nome }),
         normalize: (x) => ({
           id: String(x?.id || ''),
-          nome: String(x?.nome || x?.nomeLocal || '')
+          nome: String(x?.nome || x?.nomeLocal || ''),
+          status: String(x?.status || '').trim().toUpperCase() === 'INATIVO' ? 'INATIVO' : 'ATIVO'
         })
       },
       cerimonialistas: {
         singular: 'Cerimonialista',
         listApi: 'listarCerimonialistas',
+        getApi: 'obterCerimonialistaPorId',
+        updateApi: 'atualizarCerimonialista',
         createApi: 'cadastrarCerimonialistaRapido',
         createPayload: (nome) => ({ nome: nome }),
         normalize: (x) => ({
           id: String(x?.id || ''),
-          nome: String(x?.nome || '')
+          nome: String(x?.nome || ''),
+          status: String(x?.status || '').trim().toUpperCase() === 'INATIVO' ? 'INATIVO' : 'ATIVO'
         })
       },
       parceiros: {
         singular: 'Parceiro',
         listApi: 'listarParceirosBV',
+        getApi: 'obterParceiroBVPorId',
+        updateApi: 'atualizarParceiroBV',
         createApi: 'cadastrarParceiroBVRapido',
         createPayload: (nome) => ({ nome: nome }),
         normalize: (x) => ({
           id: String(x?.id || ''),
-          nome: String(x?.nome || '')
+          nome: String(x?.nome || ''),
+          status: String(x?.status || '').trim().toUpperCase() === 'INATIVO' ? 'INATIVO' : 'ATIVO'
         })
       }
     };
@@ -422,7 +459,7 @@
     }
 
     function ehAbaComCadastroCompleto() {
-      return state.tab === 'contratantes' || state.tab === 'locais';
+      return true;
     }
 
     function setStatus(msg, tipo) {
@@ -455,9 +492,16 @@
 
     function getListaAtualFiltrada() {
       const filtro = String(document.getElementById('filtroBusca')?.value || '').trim().toLowerCase();
+      const filtroStatus = String(document.getElementById('filtroStatus')?.value || 'ATIVOS').trim().toUpperCase();
       const lista = state.listas[state.tab] || [];
-      if (!filtro) return lista;
-      return lista.filter((x) => String(x.nome || '').toLowerCase().includes(filtro));
+      const porStatus = lista.filter((x) => {
+        const st = String(x.status || 'ATIVO').trim().toUpperCase();
+        if (filtroStatus === 'TODOS') return true;
+        if (filtroStatus === 'INATIVOS') return st === 'INATIVO';
+        return st !== 'INATIVO';
+      });
+      if (!filtro) return porStatus;
+      return porStatus.filter((x) => String(x.nome || '').toLowerCase().includes(filtro));
     }
 
     function renderLista() {
@@ -478,9 +522,12 @@
       }
       box.innerHTML = lista.map((item) => {
         const active = String(state.selecionado || '') === String(item.id || '');
+        const st = String(item.status || 'ATIVO').toUpperCase();
+        const statusCls = st === 'INATIVO' ? 'inativo' : 'ativo';
+        const statusTxt = st === 'INATIVO' ? 'INATIVO' : 'ATIVO';
         return `
           <button class="item ${active ? 'active' : ''}" data-id="${item.id}">
-            <div class="item-title">${escapeHtml(item.nome || '(Sem nome)')}</div>
+            <div class="item-title">${escapeHtml(item.nome || '(Sem nome)')}<span class="item-status ${statusCls}">${statusTxt}</span></div>
             <div class="item-sub">ID: ${escapeHtml(item.id || '-')}</div>
           </button>
         `;
@@ -496,7 +543,7 @@
 
     async function carregarLista() {
       const conf = cfg[state.tab];
-      const resp = await Auth.apiCall(conf.listApi, {});
+      const resp = await Auth.apiCall(conf.listApi, { incluirInativos: 'TRUE' });
       state.listas[state.tab] = toList(resp)
         .map(conf.normalize)
         .filter((x) => x.id || x.nome)
@@ -515,6 +562,34 @@
       }
       renderLista();
       await renderDetalhe();
+    }
+
+    function getCadastroSelecionado() {
+      const id = String(state.selecionado || '').trim();
+      if (!id || id === '__new__') return null;
+      const lista = state.listas[state.tab] || [];
+      return lista.find((x) => String(x.id || '').trim() === id) || null;
+    }
+
+    async function alternarStatusCadastroSelecionado() {
+      const item = getCadastroSelecionado();
+      if (!item) return;
+      const acao = item.status === 'INATIVO' ? 'reativarCadastroMestre' : 'inativarCadastroMestre';
+      const btn = document.getElementById('btnToggleStatus');
+      try {
+        setButtonLoading(btn, true, item.status === 'INATIVO' ? 'Reativando...' : 'Inativando...');
+        const resp = await Auth.apiCall(acao, {
+          entidade: state.tab,
+          id: item.id
+        });
+        if (!resp?.sucesso) throw new Error(resp?.mensagem || 'Falha ao atualizar status');
+        setStatus(resp.mensagem || 'Status atualizado com sucesso.', 'ok');
+        await carregarLista();
+      } catch (err) {
+        setStatus('Erro ao atualizar status: ' + (err?.message || err), 'err');
+      } finally {
+        setButtonLoading(btn, false);
+      }
     }
 
     async function salvarCadastroContratante() {
@@ -647,6 +722,98 @@
       }
     }
 
+    async function salvarCadastroCerimonialista() {
+      const id = String(state.selecionado || '');
+      const nome = String(document.getElementById('fNome')?.value || '').trim();
+      const telefone = String(document.getElementById('fTelefone')?.value || '').trim();
+      const empresa = String(document.getElementById('fEmpresa')?.value || '').trim();
+      if (!id || !nome) {
+        setStatus('Selecione um cerimonialista válido e informe nome.', 'err');
+        return;
+      }
+      const btn = document.getElementById('btnSalvar');
+      try {
+        setButtonLoading(btn, true, 'Salvando...');
+        const resp = await Auth.apiCall('atualizarCerimonialista', { id, nome, telefone, empresa });
+        if (!resp?.sucesso) throw new Error(resp?.mensagem || 'Falha ao atualizar cerimonialista');
+        setStatus('Cerimonialista atualizado com sucesso.', 'ok');
+        await carregarLista();
+      } catch (err) {
+        setStatus('Erro ao atualizar cerimonialista: ' + (err?.message || err), 'err');
+      } finally {
+        setButtonLoading(btn, false);
+      }
+    }
+
+    async function salvarCadastroParceiro() {
+      const id = String(state.selecionado || '');
+      const nome = String(document.getElementById('fNome')?.value || '').trim();
+      const telefone = String(document.getElementById('fTelefone')?.value || '').trim();
+      const tipo = String(document.getElementById('fTipo')?.value || '').trim() || 'BV';
+      if (!id || !nome) {
+        setStatus('Selecione um parceiro válido e informe nome.', 'err');
+        return;
+      }
+      const btn = document.getElementById('btnSalvar');
+      try {
+        setButtonLoading(btn, true, 'Salvando...');
+        const resp = await Auth.apiCall('atualizarParceiroBV', { id, nome, telefone, tipo });
+        if (!resp?.sucesso) throw new Error(resp?.mensagem || 'Falha ao atualizar parceiro');
+        setStatus('Parceiro atualizado com sucesso.', 'ok');
+        await carregarLista();
+      } catch (err) {
+        setStatus('Erro ao atualizar parceiro: ' + (err?.message || err), 'err');
+      } finally {
+        setButtonLoading(btn, false);
+      }
+    }
+
+    async function cadastrarCompletoCerimonialista() {
+      const nome = String(document.getElementById('fNome')?.value || '').trim();
+      const telefone = String(document.getElementById('fTelefone')?.value || '').trim();
+      const empresa = String(document.getElementById('fEmpresa')?.value || '').trim();
+      if (!nome) {
+        setStatus('Informe o nome para cadastrar o cerimonialista.', 'err');
+        return;
+      }
+      const btn = document.getElementById('btnSalvar');
+      try {
+        setButtonLoading(btn, true, 'Cadastrando...');
+        const criado = await Auth.apiCall('cadastrarCerimonialistaRapido', { nome, telefone, empresa });
+        if (!criado?.sucesso || !criado?.id) throw new Error(criado?.mensagem || 'Falha ao cadastrar cerimonialista');
+        state.selecionado = String(criado.id);
+        setStatus('Cerimonialista cadastrado com sucesso.', 'ok');
+        await carregarLista();
+      } catch (err) {
+        setStatus('Erro ao cadastrar cerimonialista: ' + (err?.message || err), 'err');
+      } finally {
+        setButtonLoading(btn, false);
+      }
+    }
+
+    async function cadastrarCompletoParceiro() {
+      const nome = String(document.getElementById('fNome')?.value || '').trim();
+      const telefone = String(document.getElementById('fTelefone')?.value || '').trim();
+      const tipo = String(document.getElementById('fTipo')?.value || '').trim() || 'BV';
+      if (!nome) {
+        setStatus('Informe o nome para cadastrar o parceiro.', 'err');
+        return;
+      }
+      const btn = document.getElementById('btnSalvar');
+      try {
+        setButtonLoading(btn, true, 'Cadastrando...');
+        const criado = await Auth.apiCall('cadastrarParceiroBVRapido', { nome, telefone, tipo });
+        if (!criado?.sucesso || !criado?.id) throw new Error(criado?.mensagem || 'Falha ao cadastrar parceiro');
+        state.selecionado = String(criado.id);
+        setStatus('Parceiro cadastrado com sucesso.', 'ok');
+        await carregarLista();
+      } catch (err) {
+        setStatus('Erro ao cadastrar parceiro: ' + (err?.message || err), 'err');
+      } finally {
+        setButtonLoading(btn, false);
+      }
+    }
+
     async function renderDetalhe() {
       const box = document.getElementById('detalheBody');
       const id = String(state.selecionado || '');
@@ -683,12 +850,42 @@
         return;
       }
 
+      if (id === '__new__' && state.tab === 'cerimonialistas') {
+        box.innerHTML = `
+          <div class="grid-2">
+            <div class="field"><label>Nome</label><input id="fNome" placeholder="Nome do cerimonialista"></div>
+            <div class="field"><label>WhatsApp / Telefone</label><input id="fTelefone" placeholder="(85) 99999-9999"></div>
+            <div class="field"><label>Empresa</label><input id="fEmpresa" placeholder="Opcional"></div>
+          </div>
+          <div class="row"><button class="btn primary" id="btnSalvar">Cadastrar completo</button></div>
+        `;
+        document.getElementById('btnSalvar')?.addEventListener('click', cadastrarCompletoCerimonialista);
+        return;
+      }
+
+      if (id === '__new__' && state.tab === 'parceiros') {
+        box.innerHTML = `
+          <div class="grid-2">
+            <div class="field"><label>Nome</label><input id="fNome" placeholder="Nome do parceiro"></div>
+            <div class="field"><label>WhatsApp / Telefone</label><input id="fTelefone" placeholder="(85) 99999-9999"></div>
+            <div class="field"><label>Tipo</label><input id="fTipo" placeholder="BV"></div>
+          </div>
+          <div class="row"><button class="btn primary" id="btnSalvar">Cadastrar completo</button></div>
+        `;
+        document.getElementById('btnSalvar')?.addEventListener('click', cadastrarCompletoParceiro);
+        return;
+      }
+
       if (!id) {
         box.innerHTML = '<div class="hint">Selecione um item na lista para visualizar detalhes.</div>';
         return;
       }
 
       try {
+        const itemSelecionado = getCadastroSelecionado();
+        const statusAtual = itemSelecionado?.status === 'INATIVO' ? 'INATIVO' : 'ATIVO';
+        const txtAcaoStatus = statusAtual === 'INATIVO' ? 'Reativar cadastro' : 'Inativar cadastro';
+
         if (state.tab === 'contratantes') {
           const resp = await Auth.apiCall('obterContratantePorId', { id });
           const c = resp?.contratante || {};
@@ -699,10 +896,15 @@
               <div class="field"><label>E-mail</label><input id="fEmail" value="${escapeAttr(c.email || '')}"></div>
               <div class="field"><label>CPF / CNPJ</label><input id="fCpfCnpj" value="${escapeAttr(c.cpfCnpj || '')}"></div>
             </div>
-            <div class="row"><button class="btn primary" id="btnSalvar">Salvar alterações</button></div>
-            <div class="hint">Exclusão/inativação ainda não foi habilitada no backend para manter segurança de vínculos existentes.</div>
+            <div class="field"><label>Status</label><input value="${statusAtual}" disabled></div>
+            <div class="row">
+              <button class="btn primary" id="btnSalvar">Salvar alterações</button>
+              <button class="btn" id="btnToggleStatus">${txtAcaoStatus}</button>
+            </div>
+            <div class="hint">Inativação preserva histórico e vínculos existentes. Exclusão física continua bloqueada por segurança.</div>
           `;
           document.getElementById('btnSalvar')?.addEventListener('click', salvarCadastroContratante);
+          document.getElementById('btnToggleStatus')?.addEventListener('click', alternarStatusCadastroSelecionado);
           return;
         }
 
@@ -718,21 +920,57 @@
             </div>
             <div class="field"><label>Endereço completo</label><input id="fEndereco" value="${escapeAttr(e.enderecoCompleto || '')}"></div>
             <div class="field"><label>Observações</label><textarea id="fObservacoes">${escapeHtml(e.observacoes || '')}</textarea></div>
-            <div class="row"><button class="btn primary" id="btnSalvar">Salvar alterações</button></div>
-            <div class="hint">Exclusão/inativação ainda não foi habilitada no backend para manter segurança de vínculos existentes.</div>
+            <div class="field"><label>Status</label><input value="${statusAtual}" disabled></div>
+            <div class="row">
+              <button class="btn primary" id="btnSalvar">Salvar alterações</button>
+              <button class="btn" id="btnToggleStatus">${txtAcaoStatus}</button>
+            </div>
+            <div class="hint">Inativação preserva histórico e vínculos existentes. Exclusão física continua bloqueada por segurança.</div>
           `;
           document.getElementById('btnSalvar')?.addEventListener('click', salvarCadastroLocal);
+          document.getElementById('btnToggleStatus')?.addEventListener('click', alternarStatusCadastroSelecionado);
           return;
         }
 
-        const item = (state.listas[state.tab] || []).find((x) => String(x.id) === id);
-        box.innerHTML = `
-          <div class="field"><label>Nome</label><input value="${escapeAttr(item?.nome || '')}" disabled></div>
-          <div class="hint">
-            Nesta fase, ${cfg[state.tab].singular.toLowerCase()} está com foco em cadastro rápido para operação diária.
-            Edição detalhada e remoção dependem de endpoints dedicados no backend para não gerar inconsistência.
-          </div>
-        `;
+        if (state.tab === 'cerimonialistas') {
+          const resp = await Auth.apiCall('obterCerimonialistaPorId', { id });
+          const c = resp?.cerimonialista || {};
+          box.innerHTML = `
+            <div class="grid-2">
+              <div class="field"><label>Nome</label><input id="fNome" value="${escapeAttr(c.nome || '')}"></div>
+              <div class="field"><label>WhatsApp / Telefone</label><input id="fTelefone" value="${escapeAttr(c.telefone || '')}"></div>
+              <div class="field"><label>Empresa</label><input id="fEmpresa" value="${escapeAttr(c.empresa || '')}"></div>
+            </div>
+            <div class="field"><label>Status</label><input value="${statusAtual}" disabled></div>
+            <div class="row">
+              <button class="btn primary" id="btnSalvar">Salvar alterações</button>
+              <button class="btn" id="btnToggleStatus">${txtAcaoStatus}</button>
+            </div>
+          `;
+          document.getElementById('btnSalvar')?.addEventListener('click', salvarCadastroCerimonialista);
+          document.getElementById('btnToggleStatus')?.addEventListener('click', alternarStatusCadastroSelecionado);
+          return;
+        }
+
+        if (state.tab === 'parceiros') {
+          const resp = await Auth.apiCall('obterParceiroBVPorId', { id });
+          const p = resp?.parceiro || {};
+          box.innerHTML = `
+            <div class="grid-2">
+              <div class="field"><label>Nome</label><input id="fNome" value="${escapeAttr(p.nome || '')}"></div>
+              <div class="field"><label>WhatsApp / Telefone</label><input id="fTelefone" value="${escapeAttr(p.telefone || '')}"></div>
+              <div class="field"><label>Tipo</label><input id="fTipo" value="${escapeAttr(p.tipo || 'BV')}"></div>
+            </div>
+            <div class="field"><label>Status</label><input value="${statusAtual}" disabled></div>
+            <div class="row">
+              <button class="btn primary" id="btnSalvar">Salvar alterações</button>
+              <button class="btn" id="btnToggleStatus">${txtAcaoStatus}</button>
+            </div>
+          `;
+          document.getElementById('btnSalvar')?.addEventListener('click', salvarCadastroParceiro);
+          document.getElementById('btnToggleStatus')?.addEventListener('click', alternarStatusCadastroSelecionado);
+          return;
+        }
       } catch (err) {
         box.innerHTML = '<div class="hint">Não foi possível carregar os detalhes deste cadastro.</div>';
         setStatus('Erro ao carregar detalhes: ' + (err?.message || err), 'err');
@@ -805,6 +1043,7 @@
       });
 
       document.getElementById('filtroBusca')?.addEventListener('input', renderLista);
+      document.getElementById('filtroStatus')?.addEventListener('change', renderLista);
       document.getElementById('btnNovo')?.addEventListener('click', criarRapido);
       document.getElementById('btnAtualizarLista')?.addEventListener('click', async (e) => {
         const btn = e.currentTarget;
