@@ -781,6 +781,42 @@
       border: 1px solid rgba(59,130,246,0.15);
     }
 
+    .alert-global-container {
+      margin: 0 0 12px 0;
+      scroll-margin-top: 84px;
+    }
+
+    .alert-toast-container {
+      position: fixed;
+      left: 12px;
+      right: 12px;
+      bottom: calc(84px + env(safe-area-inset-bottom, 0px));
+      z-index: 2100;
+      pointer-events: none;
+      display: flex;
+      justify-content: center;
+    }
+
+    .alert-toast {
+      width: min(680px, 100%);
+      margin: 0;
+      box-shadow: 0 14px 30px rgba(15, 23, 42, 0.2);
+      pointer-events: auto;
+    }
+
+    @media (min-width: 768px) {
+      .alert-toast-container {
+        left: auto;
+        right: 20px;
+        bottom: 20px;
+        width: min(460px, calc(100vw - 40px));
+      }
+
+      .alert-toast {
+        width: 100%;
+      }
+    }
+
     /* ============================================
        CONFLITOS DE AGENDA
        ============================================ */
@@ -1164,6 +1200,8 @@
       <h1>➕ Novo Registro</h1>
       <p>Evento • Reunião • Bloqueio de Data</p>
     </div>
+    <div id="alertContainer" class="alert-global-container"></div>
+    <div id="alertToastContainer" class="alert-toast-container"></div>
     
     <div class="form-container">
       <form id="formEvento" onsubmit="return false;">
@@ -1708,8 +1746,8 @@ window.onload = function () {
     const session = localStorage.getItem('auth_session');
 
     if (!email || !perfil || !session) {
-      alert('Sessão inválida. Faça login novamente.');
-      window.location.href = 'index.html';
+      mostrarAlertaGlobal('Sessão inválida. Faça login novamente.', 'error', { scroll: false, tempo: 2500 });
+      setTimeout(() => { window.location.href = 'index.html'; }, 900);
       return;
     }
 
@@ -2688,7 +2726,7 @@ if ((tipoRegistro === 'Evento' || tipoRegistro === 'Reunião' || tipoRegistro ==
           decimals: 2
         });
         if (!(valorTotalParsed > 0)) {
-          alert('Informe um Valor Total válido (ex: 15000 ou 15.000,00).');
+          mostrarAlertaGlobal('Informe um Valor Total válido (ex: 15000 ou 15.000,00).', 'error');
           return;
         }
 
@@ -2707,7 +2745,7 @@ if ((tipoRegistro === 'Evento' || tipoRegistro === 'Reunião' || tipoRegistro ==
             decimals: 2
           });
           if (comissaoValorParsed === null) {
-            alert('Informe um Valor/Percentual de comissão válido.');
+            mostrarAlertaGlobal('Informe um Valor/Percentual de comissão válido.', 'error');
             return;
           }
         }
@@ -2742,7 +2780,7 @@ if ((tipoRegistro === 'Evento' || tipoRegistro === 'Reunião' || tipoRegistro ==
       if (tipoRegistro === 'Reserva') {
         const motivoReserva = (document.getElementById('motivo').value || '').trim();
         if (!motivoReserva) {
-          alert('Para Reserva, preencha o campo "Motivo/Status da Reserva".');
+          mostrarAlertaGlobal('Para Reserva, preencha o campo "Motivo/Status da Reserva".', 'error');
           return;
         }
       }
@@ -2871,7 +2909,7 @@ if ((tipoRegistro === 'Evento' || tipoRegistro === 'Reunião' || tipoRegistro ==
       Auth.apiCall('cadastrarCerimonialistaRapido', { nome })
         .then(r => {
           if (r.sucesso) callback(r.id);
-          else alert('Erro ao cadastrar');
+          else mostrarAlertaGlobal('Erro ao cadastrar cerimonialista.', 'error');
         });
     }
     
@@ -2879,7 +2917,7 @@ if ((tipoRegistro === 'Evento' || tipoRegistro === 'Reunião' || tipoRegistro ==
       Auth.apiCall('cadastrarContratanteRapido', { nome: nome })
         .then(r => {
           if (r.sucesso) callback(r.id);
-          else alert('Erro ao cadastrar');
+          else mostrarAlertaGlobal('Erro ao cadastrar contratante.', 'error');
         });
     }
     
@@ -2887,7 +2925,7 @@ if ((tipoRegistro === 'Evento' || tipoRegistro === 'Reunião' || tipoRegistro ==
       Auth.apiCall('cadastrarEnderecoRapido', { nomeLocal: nome })
         .then(r => {
           if (r.sucesso) callback(r.id);
-          else alert('Erro ao cadastrar');
+          else mostrarAlertaGlobal('Erro ao cadastrar local.', 'error');
         });
     }
     
@@ -2900,18 +2938,50 @@ if ((tipoRegistro === 'Evento' || tipoRegistro === 'Reunião' || tipoRegistro ==
             sucesso('Registro criado!', resultado.mensagem || 'Cadastro salvo com sucesso.');
           } else {
             fecharLoading();
-            alert('❌ ' + (resultado.mensagem || 'Erro ao salvar'));
+            mostrarAlertaGlobal(resultado.mensagem || 'Erro ao salvar o registro.', 'error');
           }
         })
         .catch(err => {
           fecharLoading();
-          alert('Erro: ' + err.message);
+          mostrarAlertaGlobal('Erro: ' + (err?.message || err), 'error');
         });
     }
     
+    function mostrarAlertaGlobal(mensagem, tipo, opcoes = {}) {
+      const container = document.getElementById('alertContainer');
+      const toastContainer = document.getElementById('alertToastContainer');
+      const classe = tipo === 'success' ? 'alert-success' : tipo === 'error' ? 'alert-error' : 'alert-info';
+      const deveRolar = opcoes.scroll !== false;
+
+      if (container) {
+        container.innerHTML = `<div class="alert ${classe}">${mensagem}</div>`;
+        if (deveRolar) {
+          container.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      }
+
+      if (toastContainer) {
+        toastContainer.innerHTML = `<div class="alert ${classe} alert-toast">${mensagem}</div>`;
+      }
+
+      const tempo = typeof opcoes.tempo === 'number'
+        ? opcoes.tempo
+        : (tipo === 'error' ? 8000 : 5000);
+
+      if (tempo > 0) {
+        setTimeout(() => {
+          if (container) container.innerHTML = '';
+          if (toastContainer) toastContainer.innerHTML = '';
+        }, tempo);
+      }
+    }
+
     function mostrarAlerta(elementoId, mensagem, tipo) {
       const elemento = document.getElementById(elementoId);
       elemento.innerHTML = `<div class="alert alert-${tipo}">${mensagem}</div>`;
+      if (tipo === 'error') {
+        elemento.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
       setTimeout(() => {
         elemento.innerHTML = '';
       }, 5000);
