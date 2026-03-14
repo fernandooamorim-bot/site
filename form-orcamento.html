@@ -873,6 +873,17 @@
       box.classList.add('show');
     }
 
+    function isMobileResultadoOrcamento_() {
+      return typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(max-width: 767px)').matches;
+    }
+
+    function scrollParaResultadoOrcamento_() {
+      if (!isMobileResultadoOrcamento_()) return;
+      const box = document.getElementById('resultBox');
+      if (!box) return;
+      box.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
     async function enviarOrcamento_() {
       const btn = document.getElementById('btnGerar');
       const payload = coletarPayload_();
@@ -891,6 +902,7 @@
           throw new Error(resp && (resp.mensagem || resp.error) ? (resp.mensagem || resp.error) : 'Falha ao gerar orçamento');
         }
         renderResultado_(resp);
+        scrollParaResultadoOrcamento_();
         setStatus_(resp.mensagem || 'Orçamento gerado com sucesso.', 'ok');
       } catch (err) {
         console.error(err);

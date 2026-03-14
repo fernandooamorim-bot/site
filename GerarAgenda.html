@@ -342,6 +342,10 @@
       background: var(--success);
       color: #fff;
     }
+    .btn[disabled] {
+      opacity: .7;
+      cursor: wait;
+    }
 
     .status {
       margin-top: 10px;
@@ -671,21 +675,48 @@
     }
 
     function configurarAcoes() {
-      document.getElementById('btnSemanaAtual').addEventListener('click', () => carregarPreset('semana_atual'));
-      document.getElementById('btnProximaSemana').addEventListener('click', () => carregarPreset('proxima_semana'));
+      document.getElementById('btnSemanaAtual').addEventListener('click', (e) => carregarPreset('semana_atual', e.currentTarget));
+      document.getElementById('btnProximaSemana').addEventListener('click', (e) => carregarPreset('proxima_semana', e.currentTarget));
       document.getElementById('btnCarregar').addEventListener('click', carregarPeriodoManual);
       document.getElementById('btnGerarTexto').addEventListener('click', gerarTextoFinal);
       document.getElementById('btnCopiar').addEventListener('click', copiarTextoFinal);
     }
 
-    async function carregarPreset(preset) {
-      mostrarStatus('Carregando eventos do período...', 'info');
-      const resp = await Auth.apiCall('carregarAgendaSemanalPreview', { preset: preset });
-      aplicarRespostaPreview(resp);
-      mostrarStatus('Eventos carregados. Revise e ajuste se necessário.', 'ok');
+    function setButtonLoading_(btn, on, loadingText) {
+      if (!btn) return;
+      if (!btn.dataset.defaultText) btn.dataset.defaultText = (btn.textContent || '').trim() || 'Processando';
+      btn.disabled = !!on;
+      btn.textContent = on ? (loadingText || 'Processando...') : btn.dataset.defaultText;
+    }
+
+    function isMobileResultado_() {
+      return typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(max-width: 980px)').matches;
+    }
+
+    function scrollParaResultadoMobile_() {
+      if (!isMobileResultado_()) return;
+      const box = document.getElementById('previewBox');
+      if (!box) return;
+      box.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    async function carregarPreset(preset, btnTrigger = null) {
+      try {
+        setButtonLoading_(btnTrigger, true, 'Carregando...');
+        mostrarStatus('Carregando eventos do período...', 'info');
+        const resp = await Auth.apiCall('carregarAgendaSemanalPreview', { preset: preset });
+        aplicarRespostaPreview(resp);
+        mostrarStatus('Eventos carregados. Revise e ajuste se necessário.', 'ok');
+      } catch (err) {
+        console.error(err);
+        mostrarStatus('Falha ao carregar período: ' + (err.message || err), 'err');
+      } finally {
+        setButtonLoading_(btnTrigger, false);
+      }
     }
 
     async function carregarPeriodoManual() {
+      const btn = document.getElementById('btnCarregar');
       const dataInicio = document.getElementById('dataInicio').value;
       const dataFim = document.getElementById('dataFim').value;
 
@@ -699,6 +730,7 @@
       }
 
       try {
+        setButtonLoading_(btn, true, 'Carregando...');
         mostrarStatus('Carregando período personalizado...', 'info');
         const resp = await Auth.apiCall('carregarAgendaSemanalPreview', {
           dataInicio: dataInicio,
@@ -709,6 +741,8 @@
       } catch (err) {
         console.error(err);
         mostrarStatus('Falha ao carregar período: ' + (err.message || err), 'err');
+      } finally {
+        setButtonLoading_(btn, false);
       }
     }
 
@@ -813,6 +847,7 @@
     }
 
     async function gerarTextoFinal() {
+      const btn = document.getElementById('btnGerarTexto');
       try {
         const dataInicio = document.getElementById('dataInicio').value || state.periodo.dataInicio;
         const dataFim = document.getElementById('dataFim').value || state.periodo.dataFim;
@@ -827,6 +862,8 @@
           return;
         }
 
+        setButtonLoading_(btn, true, 'Gerando...');
+        document.getElementById('previewBox').textContent = 'Gerando texto final...';
         mostrarStatus('Gerando texto final...', 'info');
 
         const resp = await Auth.apiCall('gerarTextoAgendaSemanal', {
@@ -844,9 +881,12 @@
 
         document.getElementById('previewBox').textContent = resp.texto || '';
         mostrarStatus('Texto final gerado. Revise e copie para o WhatsApp.', 'ok');
+        scrollParaResultadoMobile_();
       } catch (err) {
         console.error(err);
         mostrarStatus('Erro ao gerar texto: ' + (err.message || err), 'err');
+      } finally {
+        setButtonLoading_(btn, false);
       }
     }
 
