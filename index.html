@@ -1172,6 +1172,28 @@
           </div>
         </div>
 
+        <!-- Card: Configurações -->
+        <div class="nav-card anim-in anim-d5" id="cardConfiguracoes" onclick="abrir('configuracoes')">
+          <div class="nav-card-top">
+            <div class="nav-card-icon navy">
+              <i data-lucide="settings-2"></i>
+            </div>
+            <div class="nav-card-arrow">
+              <i data-lucide="arrow-right"></i>
+            </div>
+          </div>
+          <div class="nav-card-body">
+            <div class="nav-card-title">Configurações</div>
+            <div class="nav-card-desc">Cadastro e edição de contratantes, locais, cerimonialistas e parceiros.</div>
+          </div>
+          <div class="nav-card-footer">
+            <span class="access-badge restricted">
+              <i data-lucide="shield"></i>
+              Proprietário e Sócio-Administrador
+            </span>
+          </div>
+        </div>
+
         <!-- Card: Agenda Semanal (WhatsApp) -->
         <div class="nav-card anim-in anim-d5" id="cardGerarAgenda" onclick="abrir('gerarAgenda')">
           <div class="nav-card-top">
@@ -1484,6 +1506,7 @@
     ocultar('cardGerarAgenda');
     ocultar('cardOrcamento');
     ocultar('cardPrecificadorShow');
+    ocultar('cardConfiguracoes');
     
 
     ocultar('bnavNovoEvento');
@@ -1505,6 +1528,12 @@
     const podePrecificador = (perfilNorm === 'proprietario') || isPerfilSocioOuAdmin(user.perfil);
     if (!podePrecificador) {
       ocultar('cardPrecificadorShow');
+    }
+
+    // Card de Configurações é para Proprietário e Sócio/Admin.
+    const podeConfiguracoes = (perfilNorm === 'proprietario') || isPerfilSocioOuAdmin(user.perfil);
+    if (!podeConfiguracoes) {
+      ocultar('cardConfiguracoes');
     }
 
     // Administrador mantém acesso à Central Financeira com regras internas da tela.
@@ -1557,6 +1586,7 @@
       centralFinanceira: './central-financeira.html',
       painelFinanceiro: './painel-financeiro.html',
       dashboardGestao: './dashboard-gestao.html',
+      configuracoes: './configuracoes.html',
       gerarAgenda: './GerarAgenda.html',
       orcamentoForm: './form-orcamento.html',
       folhaCustos: './folha-custos.html',

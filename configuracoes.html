@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Configurações</title>
+  <script src="auth.js"></script>
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js" defer></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #f5f7fb;
+      --card: #ffffff;
+      --line: #dbe2ef;
+      --text: #0f172a;
+      --muted: #64748b;
+      --navy: #0f1a2e;
+      --primary: #1e3a5f;
+      --ok-bg: #ecfdf3;
+      --ok-fg: #166534;
+      --err-bg: #fef2f2;
+      --err-fg: #991b1b;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+    .header {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      background: var(--navy);
+      color: #fff;
+      border-bottom: 1px solid rgba(255,255,255,0.09);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 16px;
+    }
+    .header-left {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      cursor: pointer;
+      font-weight: 700;
+    }
+    .header-left i { width: 18px; height: 18px; color: #e0bc6a; }
+    .header-right button {
+      border: 1px solid rgba(255,255,255,0.15);
+      background: rgba(255,255,255,0.08);
+      color: #fff;
+      border-radius: 10px;
+      width: 34px;
+      height: 34px;
+      cursor: pointer;
+    }
+    .page {
+      max-width: 1240px;
+      margin: 0 auto;
+      padding: 14px;
+      display: grid;
+      gap: 12px;
+    }
+    .hero {
+      background: linear-gradient(120deg, #ffffff 0%, #f6f9ff 100%);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 14px;
+      display: grid;
+      gap: 6px;
+    }
+    .hero h1 {
+      margin: 0;
+      font-size: 18px;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .hero p {
+      margin: 0;
+      font-size: 13px;
+      color: var(--muted);
+    }
+    .tabs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .tab {
+      border: 1px solid var(--line);
+      background: #fff;
+      border-radius: 999px;
+      padding: 8px 12px;
+      font-size: 12px;
+      font-weight: 700;
+      color: #334155;
+      cursor: pointer;
+    }
+    .tab.active {
+      background: var(--primary);
+      border-color: var(--primary);
+      color: #fff;
+    }
+    .content {
+      display: grid;
+      gap: 12px;
+      grid-template-columns: 330px minmax(0, 1fr);
+    }
+    .card {
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: var(--card);
+      overflow: hidden;
+    }
+    .card-head {
+      padding: 12px;
+      border-bottom: 1px solid var(--line);
+      font-size: 13px;
+      font-weight: 800;
+      color: #0f172a;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .card-body { padding: 12px; display: grid; gap: 10px; }
+    .status {
+      display: none;
+      padding: 10px 12px;
+      border-radius: 10px;
+      font-size: 13px;
+      font-weight: 600;
+    }
+    .status.show { display: block; }
+    .status.ok { background: var(--ok-bg); color: var(--ok-fg); border: 1px solid #a7f3d0; }
+    .status.err { background: var(--err-bg); color: var(--err-fg); border: 1px solid #fecaca; }
+    .row { display: flex; gap: 8px; }
+    .row > * { min-width: 0; }
+    .grow { flex: 1; }
+    input, textarea {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 9px 10px;
+      font-size: 13px;
+      font-family: inherit;
+      color: #0f172a;
+      background: #fff;
+    }
+    textarea { min-height: 90px; resize: vertical; }
+    input:focus, textarea:focus {
+      outline: none;
+      border-color: #1e3a5f;
+      box-shadow: 0 0 0 3px rgba(30,58,95,0.12);
+    }
+    .btn {
+      border: 1px solid var(--line);
+      background: #fff;
+      color: #0f172a;
+      border-radius: 10px;
+      padding: 9px 11px;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .btn.primary {
+      background: var(--primary);
+      border-color: var(--primary);
+      color: #fff;
+    }
+    .btn[disabled] {
+      opacity: .65;
+      cursor: wait;
+    }
+    .list {
+      max-height: calc(100vh - 310px);
+      overflow: auto;
+      display: grid;
+      gap: 8px;
+      padding-right: 2px;
+    }
+    .item {
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 9px;
+      background: #fff;
+      cursor: pointer;
+    }
+    .item.active {
+      border-color: #1e3a5f;
+      box-shadow: inset 0 0 0 1px #1e3a5f;
+      background: #f8fbff;
+    }
+    .item-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: #0f172a;
+    }
+    .item-sub {
+      margin-top: 3px;
+      font-size: 12px;
+      color: #64748b;
+    }
+    .field {
+      display: grid;
+      gap: 6px;
+    }
+    .field label {
+      font-size: 12px;
+      color: #334155;
+      font-weight: 700;
+    }
+    .grid-2 {
+      display: grid;
+      gap: 10px;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .hint {
+      font-size: 12px;
+      color: #64748b;
+      border: 1px dashed #cbd5e1;
+      border-radius: 10px;
+      padding: 10px;
+      background: #f8fafc;
+    }
+    @media (max-width: 980px) {
+      .content { grid-template-columns: 1fr; }
+      .list { max-height: 260px; }
+      .grid-2 { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <header class="header">
+    <div class="header-left" onclick="window.location.href='index.html'">
+      <i data-lucide="arrow-left"></i>
+      <i data-lucide="settings-2"></i>
+      <span>Configurações</span>
+    </div>
+    <div class="header-right">
+      <button onclick="Auth.logout()" title="Sair">
+        <i data-lucide="log-out"></i>
+      </button>
+    </div>
+  </header>
+
+  <main class="page">
+    <section class="hero">
+      <h1><i data-lucide="database"></i> Gestão de Cadastros</h1>
+      <p>Cadastro e edição de contratantes, locais, cerimonialistas e parceiros, sem alterar o fluxo atual de eventos e reservas.</p>
+    </section>
+
+    <section class="tabs">
+      <button class="tab active" data-tab="contratantes">Contratantes</button>
+      <button class="tab" data-tab="locais">Locais</button>
+      <button class="tab" data-tab="cerimonialistas">Cerimonialistas</button>
+      <button class="tab" data-tab="parceiros">Parceiros</button>
+    </section>
+
+    <div id="statusMsg" class="status"></div>
+
+    <section class="content">
+      <article class="card">
+        <div class="card-head">
+          <span id="leftTitle">Lista</span>
+          <button class="btn" id="btnAtualizarLista">Atualizar</button>
+        </div>
+        <div class="card-body">
+          <input type="text" id="filtroBusca" placeholder="Buscar por nome...">
+          <div class="row">
+            <input class="grow" type="text" id="novoNome" placeholder="Nome para cadastro rápido">
+            <button class="btn primary" id="btnNovo">Cadastrar</button>
+          </div>
+          <div id="listaItens" class="list"></div>
+        </div>
+      </article>
+
+      <article class="card">
+        <div class="card-head">
+          <span id="rightTitle">Detalhes</span>
+        </div>
+        <div class="card-body" id="detalheBody"></div>
+      </article>
+    </section>
+  </main>
+
+  <script>
+    const state = {
+      tab: 'contratantes',
+      listas: {
+        contratantes: [],
+        locais: [],
+        cerimonialistas: [],
+        parceiros: []
+      },
+      selecionado: null
+    };
+
+    const cfg = {
+      contratantes: {
+        singular: 'Contratante',
+        listApi: 'listarContratantes',
+        getApi: 'obterContratantePorId',
+        updateApi: 'atualizarContratante',
+        createApi: 'cadastrarContratanteRapido',
+        createPayload: (nome) => ({ nome: nome }),
+        normalize: (x) => ({
+          id: String(x?.id || ''),
+          nome: String(x?.nome || '')
+        })
+      },
+      locais: {
+        singular: 'Local',
+        listApi: 'listarEnderecos',
+        getApi: 'obterEnderecoPorId',
+        updateApi: 'atualizarEndereco',
+        createApi: 'cadastrarEnderecoRapido',
+        createPayload: (nome) => ({ nomeLocal: nome }),
+        normalize: (x) => ({
+          id: String(x?.id || ''),
+          nome: String(x?.nome || x?.nomeLocal || '')
+        })
+      },
+      cerimonialistas: {
+        singular: 'Cerimonialista',
+        listApi: 'listarCerimonialistas',
+        createApi: 'cadastrarCerimonialistaRapido',
+        createPayload: (nome) => ({ nome: nome }),
+        normalize: (x) => ({
+          id: String(x?.id || ''),
+          nome: String(x?.nome || '')
+        })
+      },
+      parceiros: {
+        singular: 'Parceiro',
+        listApi: 'listarParceirosBV',
+        createApi: 'cadastrarParceiroBVRapido',
+        createPayload: (nome) => ({ nome: nome }),
+        normalize: (x) => ({
+          id: String(x?.id || ''),
+          nome: String(x?.nome || '')
+        })
+      }
+    };
+
+    function normalizarPerfil(perfil) {
+      return String(perfil || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .trim()
+        .toLowerCase();
+    }
+
+    function perfilLiberado(perfil) {
+      const p = normalizarPerfil(perfil);
+      return p === 'proprietario' || p === 'socio' || p === 'administrador' || p === 'admin';
+    }
+
+    function setStatus(msg, tipo) {
+      const el = document.getElementById('statusMsg');
+      if (!el) return;
+      if (!msg) {
+        el.className = 'status';
+        el.textContent = '';
+        return;
+      }
+      el.textContent = msg;
+      el.className = 'status show ' + (tipo || 'ok');
+    }
+
+    function setButtonLoading(btn, on, txt) {
+      if (!btn) return;
+      if (!btn.dataset.defaultText) btn.dataset.defaultText = btn.textContent || 'Processando';
+      btn.disabled = !!on;
+      btn.textContent = on ? (txt || 'Processando...') : btn.dataset.defaultText;
+    }
+
+    function toList(resp) {
+      if (Array.isArray(resp)) return resp;
+      if (Array.isArray(resp?.dados)) return resp.dados;
+      if (Array.isArray(resp?.lista)) return resp.lista;
+      if (Array.isArray(resp?.itens)) return resp.itens;
+      if (Array.isArray(resp?.eventos)) return resp.eventos;
+      return [];
+    }
+
+    function getListaAtualFiltrada() {
+      const filtro = String(document.getElementById('filtroBusca')?.value || '').trim().toLowerCase();
+      const lista = state.listas[state.tab] || [];
+      if (!filtro) return lista;
+      return lista.filter((x) => String(x.nome || '').toLowerCase().includes(filtro));
+    }
+
+    function renderLista() {
+      const box = document.getElementById('listaItens');
+      const leftTitle = document.getElementById('leftTitle');
+      const rightTitle = document.getElementById('rightTitle');
+      const nomeAba = cfg[state.tab].singular;
+      if (leftTitle) leftTitle.textContent = nomeAba + 's';
+      if (rightTitle) rightTitle.textContent = 'Detalhes de ' + nomeAba;
+      const lista = getListaAtualFiltrada();
+      if (!lista.length) {
+        box.innerHTML = '<div class="hint">Nenhum registro encontrado.</div>';
+        return;
+      }
+      box.innerHTML = lista.map((item) => {
+        const active = String(state.selecionado || '') === String(item.id || '');
+        return `
+          <button class="item ${active ? 'active' : ''}" data-id="${item.id}">
+            <div class="item-title">${escapeHtml(item.nome || '(Sem nome)')}</div>
+            <div class="item-sub">ID: ${escapeHtml(item.id || '-')}</div>
+          </button>
+        `;
+      }).join('');
+      box.querySelectorAll('.item').forEach((el) => {
+        el.addEventListener('click', () => {
+          state.selecionado = el.getAttribute('data-id');
+          renderLista();
+          renderDetalhe();
+        });
+      });
+    }
+
+    async function carregarLista() {
+      const conf = cfg[state.tab];
+      const resp = await Auth.apiCall(conf.listApi, {});
+      state.listas[state.tab] = toList(resp)
+        .map(conf.normalize)
+        .filter((x) => x.id || x.nome)
+        .sort((a, b) => String(a.nome || '').localeCompare(String(b.nome || ''), 'pt-BR'));
+      if (!state.selecionado && state.listas[state.tab].length) {
+        state.selecionado = state.listas[state.tab][0].id;
+      }
+      if (!state.listas[state.tab].some((x) => String(x.id) === String(state.selecionado))) {
+        state.selecionado = state.listas[state.tab][0]?.id || null;
+      }
+      renderLista();
+      await renderDetalhe();
+    }
+
+    async function salvarCadastroContratante() {
+      const id = String(state.selecionado || '');
+      const nome = String(document.getElementById('fNome')?.value || '').trim();
+      const telefone = String(document.getElementById('fTelefone')?.value || '').trim();
+      const email = String(document.getElementById('fEmail')?.value || '').trim();
+      const cpfCnpj = String(document.getElementById('fCpfCnpj')?.value || '').trim();
+      if (!id || !nome) {
+        setStatus('Selecione um contratante válido e informe nome.', 'err');
+        return;
+      }
+      const btn = document.getElementById('btnSalvar');
+      try {
+        setButtonLoading(btn, true, 'Salvando...');
+        const resp = await Auth.apiCall('atualizarContratante', { id, nome, telefone, email, cpfCnpj });
+        if (!resp?.sucesso) throw new Error(resp?.mensagem || 'Falha ao atualizar contratante');
+        setStatus('Contratante atualizado com sucesso.', 'ok');
+        await carregarLista();
+      } catch (err) {
+        setStatus('Erro ao atualizar contratante: ' + (err?.message || err), 'err');
+      } finally {
+        setButtonLoading(btn, false);
+      }
+    }
+
+    async function salvarCadastroLocal() {
+      const id = String(state.selecionado || '');
+      const nome = String(document.getElementById('fNome')?.value || '').trim();
+      const enderecoCompleto = String(document.getElementById('fEndereco')?.value || '').trim();
+      const cidade = String(document.getElementById('fCidade')?.value || '').trim();
+      const estado = String(document.getElementById('fEstado')?.value || '').trim();
+      const linkMaps = String(document.getElementById('fLinkMaps')?.value || '').trim();
+      const observacoes = String(document.getElementById('fObservacoes')?.value || '').trim();
+      if (!id || !nome) {
+        setStatus('Selecione um local válido e informe nome.', 'err');
+        return;
+      }
+      const btn = document.getElementById('btnSalvar');
+      try {
+        setButtonLoading(btn, true, 'Salvando...');
+        const resp = await Auth.apiCall('atualizarEndereco', {
+          id,
+          nome,
+          enderecoCompleto,
+          cidade,
+          estado,
+          linkMaps,
+          observacoes
+        });
+        if (!resp?.sucesso) throw new Error(resp?.mensagem || 'Falha ao atualizar local');
+        setStatus('Local atualizado com sucesso.', 'ok');
+        await carregarLista();
+      } catch (err) {
+        setStatus('Erro ao atualizar local: ' + (err?.message || err), 'err');
+      } finally {
+        setButtonLoading(btn, false);
+      }
+    }
+
+    async function renderDetalhe() {
+      const box = document.getElementById('detalheBody');
+      const id = String(state.selecionado || '');
+      if (!id) {
+        box.innerHTML = '<div class="hint">Selecione um item na lista para visualizar detalhes.</div>';
+        return;
+      }
+      try {
+        if (state.tab === 'contratantes') {
+          const resp = await Auth.apiCall('obterContratantePorId', { id });
+          const c = resp?.contratante || {};
+          box.innerHTML = `
+            <div class="grid-2">
+              <div class="field"><label>Nome</label><input id="fNome" value="${escapeAttr(c.nome || '')}"></div>
+              <div class="field"><label>WhatsApp / Telefone</label><input id="fTelefone" value="${escapeAttr(c.telefone || '')}"></div>
+              <div class="field"><label>E-mail</label><input id="fEmail" value="${escapeAttr(c.email || '')}"></div>
+              <div class="field"><label>CPF / CNPJ</label><input id="fCpfCnpj" value="${escapeAttr(c.cpfCnpj || '')}"></div>
+            </div>
+            <div class="row"><button class="btn primary" id="btnSalvar">Salvar alterações</button></div>
+          `;
+          document.getElementById('btnSalvar')?.addEventListener('click', salvarCadastroContratante);
+          return;
+        }
+        if (state.tab === 'locais') {
+          const resp = await Auth.apiCall('obterEnderecoPorId', { id });
+          const e = resp?.endereco || {};
+          box.innerHTML = `
+            <div class="grid-2">
+              <div class="field"><label>Nome</label><input id="fNome" value="${escapeAttr(e.nome || '')}"></div>
+              <div class="field"><label>Cidade</label><input id="fCidade" value="${escapeAttr(e.cidade || '')}"></div>
+              <div class="field"><label>Estado</label><input id="fEstado" value="${escapeAttr(e.estado || '')}"></div>
+              <div class="field"><label>Link Maps</label><input id="fLinkMaps" value="${escapeAttr(e.linkMaps || '')}"></div>
+            </div>
+            <div class="field"><label>Endereço completo</label><input id="fEndereco" value="${escapeAttr(e.enderecoCompleto || '')}"></div>
+            <div class="field"><label>Observações</label><textarea id="fObservacoes">${escapeHtml(e.observacoes || '')}</textarea></div>
+            <div class="row"><button class="btn primary" id="btnSalvar">Salvar alterações</button></div>
+          `;
+          document.getElementById('btnSalvar')?.addEventListener('click', salvarCadastroLocal);
+          return;
+        }
+        const item = (state.listas[state.tab] || []).find((x) => String(x.id) === id);
+        box.innerHTML = `
+          <div class="field"><label>Nome</label><input value="${escapeAttr(item?.nome || '')}" disabled></div>
+          <div class="hint">
+            Nesta fase, ${cfg[state.tab].singular.toLowerCase()} está com foco em cadastro rápido + vínculo de uso no fluxo de eventos.
+            A edição completa desses cadastros será habilitada sem alterar os fluxos existentes.
+          </div>
+        `;
+      } catch (err) {
+        box.innerHTML = '<div class="hint">Não foi possível carregar os detalhes deste cadastro.</div>';
+        setStatus('Erro ao carregar detalhes: ' + (err?.message || err), 'err');
+      }
+    }
+
+    async function criarRapido() {
+      const conf = cfg[state.tab];
+      const input = document.getElementById('novoNome');
+      const nome = String(input?.value || '').trim();
+      if (!nome) {
+        setStatus('Informe um nome para cadastrar.', 'err');
+        return;
+      }
+      const btn = document.getElementById('btnNovo');
+      try {
+        setButtonLoading(btn, true, 'Cadastrando...');
+        const resp = await Auth.apiCall(conf.createApi, conf.createPayload(nome));
+        if (!resp?.sucesso) throw new Error(resp?.mensagem || 'Falha ao cadastrar');
+        input.value = '';
+        setStatus(conf.singular + ' cadastrado com sucesso.', 'ok');
+        await carregarLista();
+        state.selecionado = String(resp.id || state.selecionado || '');
+        renderLista();
+        await renderDetalhe();
+      } catch (err) {
+        setStatus('Erro ao cadastrar: ' + (err?.message || err), 'err');
+      } finally {
+        setButtonLoading(btn, false);
+      }
+    }
+
+    function bindUi() {
+      document.querySelectorAll('.tab').forEach((tab) => {
+        tab.addEventListener('click', async () => {
+          const next = tab.getAttribute('data-tab');
+          if (!next || next === state.tab) return;
+          state.tab = next;
+          state.selecionado = null;
+          document.querySelectorAll('.tab').forEach((t) => t.classList.remove('active'));
+          tab.classList.add('active');
+          document.getElementById('filtroBusca').value = '';
+          document.getElementById('novoNome').value = '';
+          setStatus('', '');
+          await carregarLista();
+        });
+      });
+
+      document.getElementById('filtroBusca')?.addEventListener('input', renderLista);
+      document.getElementById('btnNovo')?.addEventListener('click', criarRapido);
+      document.getElementById('btnAtualizarLista')?.addEventListener('click', async (e) => {
+        const btn = e.currentTarget;
+        setButtonLoading(btn, true, 'Atualizando...');
+        try {
+          await carregarLista();
+        } finally {
+          setButtonLoading(btn, false);
+        }
+      });
+    }
+
+    function escapeHtml(v) {
+      return String(v || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+    function escapeAttr(v) {
+      return escapeHtml(v).replace(/`/g, '&#96;');
+    }
+
+    window.addEventListener('load', async () => {
+      try {
+        const auth = await Auth.apiCall('verificarUsuario');
+        if (!auth || !auth.ok || !auth.user) throw new Error('NOT_AUTH');
+        if (!perfilLiberado(auth.user.perfil)) {
+          alert('Você não tem permissão para acessar esta área.');
+          window.location.href = 'index.html';
+          return;
+        }
+        bindUi();
+        await carregarLista();
+      } catch (err) {
+        console.error('Erro ao abrir configurações:', err);
+        alert('Sessão inválida ou sem permissão.');
+        window.location.href = 'index.html';
+      } finally {
+        if (window.lucide) window.lucide.createIcons();
+      }
+    });
+  </script>
+</body>
+</html>
