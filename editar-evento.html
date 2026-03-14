@@ -972,36 +972,6 @@
       scroll-margin-top: 84px;
     }
 
-    .alert-toast-container {
-      position: fixed;
-      left: 12px;
-      right: 12px;
-      bottom: calc(84px + env(safe-area-inset-bottom, 0px));
-      z-index: 2100;
-      pointer-events: none;
-      display: flex;
-      justify-content: center;
-    }
-
-    .alert-toast {
-      width: min(680px, 100%);
-      margin: 0;
-      box-shadow: 0 14px 30px rgba(15, 23, 42, 0.2);
-      pointer-events: auto;
-    }
-
-    @media (min-width: 768px) {
-      .alert-toast-container {
-        left: auto;
-        right: 20px;
-        bottom: 20px;
-        width: min(460px, calc(100vw - 40px));
-      }
-
-      .alert-toast {
-        width: 100%;
-      }
-    }
 
     .hidden {
       display: none !important;
@@ -1521,7 +1491,6 @@
       </div>
     </div>
     <div id="alertContainer"></div>
-    <div id="alertToastContainer" class="alert-toast-container"></div>
 <div id="successCard" class="hidden success-overlay">
   <div class="success-card">
     <div style="display:flex;justify-content:center;margin-bottom:8px;">
@@ -4121,20 +4090,14 @@ function preencherFormulario(evento) {
     
     function mostrarAlerta(mensagem, tipo) {
       const container = document.getElementById('alertContainer');
-      const toastContainer = document.getElementById('alertToastContainer');
       const classe = tipo === 'success' ? 'alert-success' : tipo === 'error' ? 'alert-error' : 'alert-info';
       container.innerHTML = `<div class="alert ${classe}">${mensagem}</div>`;
       container.scrollIntoView({ behavior: 'smooth', block: 'start' });
-
-      if (toastContainer) {
-        toastContainer.innerHTML = `<div class="alert ${classe} alert-toast">${mensagem}</div>`;
-      }
 
       if (tipo === 'success' || tipo === 'info' || tipo === 'error') {
         const timeout = tipo === 'error' ? 8000 : 5000;
         setTimeout(() => {
           container.innerHTML = '';
-          if (toastContainer) toastContainer.innerHTML = '';
         }, timeout);
       }
     }

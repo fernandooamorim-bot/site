@@ -786,36 +786,6 @@
       scroll-margin-top: 84px;
     }
 
-    .alert-toast-container {
-      position: fixed;
-      left: 12px;
-      right: 12px;
-      bottom: calc(84px + env(safe-area-inset-bottom, 0px));
-      z-index: 2100;
-      pointer-events: none;
-      display: flex;
-      justify-content: center;
-    }
-
-    .alert-toast {
-      width: min(680px, 100%);
-      margin: 0;
-      box-shadow: 0 14px 30px rgba(15, 23, 42, 0.2);
-      pointer-events: auto;
-    }
-
-    @media (min-width: 768px) {
-      .alert-toast-container {
-        left: auto;
-        right: 20px;
-        bottom: 20px;
-        width: min(460px, calc(100vw - 40px));
-      }
-
-      .alert-toast {
-        width: 100%;
-      }
-    }
 
     /* ============================================
        CONFLITOS DE AGENDA
@@ -1201,7 +1171,6 @@
       <p>Evento • Reunião • Bloqueio de Data</p>
     </div>
     <div id="alertContainer" class="alert-global-container"></div>
-    <div id="alertToastContainer" class="alert-toast-container"></div>
     
     <div class="form-container">
       <form id="formEvento" onsubmit="return false;">
@@ -2949,7 +2918,6 @@ if ((tipoRegistro === 'Evento' || tipoRegistro === 'Reunião' || tipoRegistro ==
     
     function mostrarAlertaGlobal(mensagem, tipo, opcoes = {}) {
       const container = document.getElementById('alertContainer');
-      const toastContainer = document.getElementById('alertToastContainer');
       const classe = tipo === 'success' ? 'alert-success' : tipo === 'error' ? 'alert-error' : 'alert-info';
       const deveRolar = opcoes.scroll !== false;
 
@@ -2960,10 +2928,6 @@ if ((tipoRegistro === 'Evento' || tipoRegistro === 'Reunião' || tipoRegistro ==
         }
       }
 
-      if (toastContainer) {
-        toastContainer.innerHTML = `<div class="alert ${classe} alert-toast">${mensagem}</div>`;
-      }
-
       const tempo = typeof opcoes.tempo === 'number'
         ? opcoes.tempo
         : (tipo === 'error' ? 8000 : 5000);
@@ -2971,7 +2935,6 @@ if ((tipoRegistro === 'Evento' || tipoRegistro === 'Reunião' || tipoRegistro ==
       if (tempo > 0) {
         setTimeout(() => {
           if (container) container.innerHTML = '';
-          if (toastContainer) toastContainer.innerHTML = '';
         }, tempo);
       }
     }
