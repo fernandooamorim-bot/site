@@ -3536,7 +3536,7 @@ async function validarImpactoFinanceiroAntesSalvar(callback) {
       }
 
       if (resVendedores.status === 'fulfilled') {
-        popularDropdown('idVendedor', resVendedores.value);
+        popularDropdown('idVendedor', resVendedores.value, true, 'Selecione...');
       }
 
       if (resParceiros.status === 'fulfilled') {
@@ -3609,7 +3609,7 @@ async function validarImpactoFinanceiroAntesSalvar(callback) {
       travarAcoes(false);
     }
 
-    function popularDropdown(id, lista, opcional = false) {
+    function popularDropdown(id, lista, opcional = false, textoOpcaoPadrao = '-- Selecione --') {
       const select = document.getElementById(id);
       if (!select || !Array.isArray(lista)) return;
 
@@ -3620,7 +3620,7 @@ async function validarImpactoFinanceiroAntesSalvar(callback) {
       if (opcional) {
         const opt = document.createElement('option');
         opt.value = '';
-        opt.textContent = '-- Selecione --';
+        opt.textContent = textoOpcaoPadrao || '-- Selecione --';
         select.appendChild(opt);
       }
 
