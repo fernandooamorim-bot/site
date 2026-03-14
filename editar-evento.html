@@ -481,6 +481,14 @@
       font-weight: 700;
       letter-spacing: -0.1px;
       display: none;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .horario-fim-calc i {
+      width: 15px;
+      height: 15px;
+      flex-shrink: 0;
     }
 
     .cadastro-context-actions {
@@ -4175,8 +4183,9 @@ function preencherFormulario(evento) {
   const hf = String(fim.getHours()).padStart(2, '0');
   const mf = String(fim.getMinutes()).padStart(2, '0');
 
-  box.textContent = `⏰ Término previsto: ${hf}:${mf}`;
-  box.style.display = 'block';
+  box.innerHTML = `<i data-lucide="clock-3"></i><span>Término previsto: ${hf}:${mf}</span>`;
+  box.style.display = 'inline-flex';
+  if (window.lucide) window.lucide.createIcons();
 }
     // ========================================
     // CORRIGIR BOTÃO VOLTAR
