@@ -555,9 +555,10 @@
     .troca-resultados {
       border: 1px solid var(--gray-200);
       border-radius: var(--radius-sm);
+      min-height: 52px;
       max-height: 220px;
       overflow: auto;
-      background: #fff;
+      background: #f8fafc;
       margin-top: 8px;
     }
 
@@ -577,8 +578,33 @@
       background: #f8fafc;
     }
 
+    .troca-resultado-item.selected {
+      background: rgba(30,58,95,0.1);
+      color: var(--navy-700);
+      font-weight: 700;
+    }
+
     .troca-resultado-item:last-child {
       border-bottom: none;
+    }
+
+    .troca-estado {
+      padding: 12px;
+      font-size: 12px;
+      color: var(--gray-500);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .troca-spinner {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      border: 2px solid rgba(30,58,95,0.2);
+      border-top-color: var(--navy-500);
+      animation: spin 0.8s linear infinite;
+      flex-shrink: 0;
     }
 
     /* ============================================
@@ -2241,6 +2267,8 @@ let trocaContratanteSelecionado = null;
 let trocaLocalSelecionado = null;
 let debounceTrocaContratante = null;
 let debounceTrocaLocal = null;
+let buscaTrocaContratanteSeq = 0;
+let buscaTrocaLocalSeq = 0;
 
 function getIdEventoFromURL() {
   const params = new URLSearchParams(window.location.search);
@@ -2990,7 +3018,7 @@ function renderResultadosTrocaContratante_(lista) {
   const box = document.getElementById('resultadoTrocaContratante');
   if (!box) return;
   if (!Array.isArray(lista) || lista.length === 0) {
-    box.innerHTML = '<div class="helper-text" style="padding:10px 12px;">Digite 2+ letras para buscar.</div>';
+    box.innerHTML = '<div class="troca-estado">Digite 2+ letras para buscar.</div>';
     return;
   }
   box.innerHTML = '';
@@ -2998,10 +3026,14 @@ function renderResultadosTrocaContratante_(lista) {
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'troca-resultado-item';
+    if (trocaContratanteSelecionado && String(trocaContratanteSelecionado.id) === String(item.id)) {
+      btn.classList.add('selected');
+    }
     btn.textContent = `${String(item.nome || '')} (${String(item.id || '')})`;
     btn.onclick = () => {
       trocaContratanteSelecionado = { id: String(item.id || ''), nome: String(item.nome || '') };
       atualizarSelecionadoTrocaContratante_();
+      renderResultadosTrocaContratante_(lista);
     };
     box.appendChild(btn);
   });
@@ -3011,7 +3043,7 @@ function renderResultadosTrocaLocal_(lista) {
   const box = document.getElementById('resultadoTrocaLocal');
   if (!box) return;
   if (!Array.isArray(lista) || lista.length === 0) {
-    box.innerHTML = '<div class="helper-text" style="padding:10px 12px;">Digite 2+ letras para buscar.</div>';
+    box.innerHTML = '<div class="troca-estado">Digite 2+ letras para buscar.</div>';
     return;
   }
   box.innerHTML = '';
@@ -3019,10 +3051,14 @@ function renderResultadosTrocaLocal_(lista) {
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'troca-resultado-item';
+    if (trocaLocalSelecionado && String(trocaLocalSelecionado.id) === String(item.id)) {
+      btn.classList.add('selected');
+    }
     btn.textContent = `${String(item.nome || '')} (${String(item.id || '')})`;
     btn.onclick = () => {
       trocaLocalSelecionado = { id: String(item.id || ''), nome: String(item.nome || '') };
       atualizarSelecionadoTrocaLocal_();
+      renderResultadosTrocaLocal_(lista);
     };
     box.appendChild(btn);
   });
@@ -3033,16 +3069,26 @@ function buscarOpcoesTrocaContratante() {
   trocaContratanteSelecionado = null;
   atualizarSelecionadoTrocaContratante_();
   clearTimeout(debounceTrocaContratante);
+  const seq = ++buscaTrocaContratanteSeq;
   debounceTrocaContratante = setTimeout(async () => {
     if (termo.length < 2) {
       renderResultadosTrocaContratante_([]);
       return;
     }
+    const box = document.getElementById('resultadoTrocaContratante');
+    if (box) box.innerHTML = '<div class="troca-estado"><span class="troca-spinner"></span>Buscando contratantes...</div>';
     try {
       const lista = await Auth.apiCall('buscarContratantesVinculo', { q: termo, limit: 20 });
-      renderResultadosTrocaContratante_(Array.isArray(lista) ? lista : []);
+      if (seq !== buscaTrocaContratanteSeq) return;
+      const arr = Array.isArray(lista) ? lista : [];
+      if (!arr.length) {
+        if (box) box.innerHTML = '<div class="troca-estado">Nenhum contratante ativo encontrado.</div>';
+        return;
+      }
+      renderResultadosTrocaContratante_(arr);
     } catch (_) {
-      renderResultadosTrocaContratante_([]);
+      if (seq !== buscaTrocaContratanteSeq) return;
+      if (box) box.innerHTML = '<div class="troca-estado">Erro ao buscar. Tente novamente.</div>';
     }
   }, 220);
 }
@@ -3052,16 +3098,26 @@ function buscarOpcoesTrocaLocal() {
   trocaLocalSelecionado = null;
   atualizarSelecionadoTrocaLocal_();
   clearTimeout(debounceTrocaLocal);
+  const seq = ++buscaTrocaLocalSeq;
   debounceTrocaLocal = setTimeout(async () => {
     if (termo.length < 2) {
       renderResultadosTrocaLocal_([]);
       return;
     }
+    const box = document.getElementById('resultadoTrocaLocal');
+    if (box) box.innerHTML = '<div class="troca-estado"><span class="troca-spinner"></span>Buscando locais...</div>';
     try {
       const lista = await Auth.apiCall('buscarEnderecosVinculo', { q: termo, limit: 20 });
-      renderResultadosTrocaLocal_(Array.isArray(lista) ? lista : []);
+      if (seq !== buscaTrocaLocalSeq) return;
+      const arr = Array.isArray(lista) ? lista : [];
+      if (!arr.length) {
+        if (box) box.innerHTML = '<div class="troca-estado">Nenhum local ativo encontrado.</div>';
+        return;
+      }
+      renderResultadosTrocaLocal_(arr);
     } catch (_) {
-      renderResultadosTrocaLocal_([]);
+      if (seq !== buscaTrocaLocalSeq) return;
+      if (box) box.innerHTML = '<div class="troca-estado">Erro ao buscar. Tente novamente.</div>';
     }
   }, 220);
 }
