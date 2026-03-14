@@ -3740,6 +3740,7 @@ function preencherFormulario(evento) {
     function detectarAlteracoes() {
       const alteracoes = [];
       const dados = coletarDadosFormulario();
+      const contextoEvento = registroEhEvento();
       const campos = {
         dataEvento: 'Data do Evento', horaInicio: 'Hora de Início',
         duracao: 'Duração', tipoEvento: 'Tipo de Evento', projeto: 'Formato/Projeto',
@@ -3755,8 +3756,12 @@ function preencherFormulario(evento) {
         dataEvento: 'Verificar conflitos na agenda',
         horaInicio: 'Verificar conflitos na agenda'
       };
+      const camposFinanceiros = new Set(['valorTotal', 'idVendedor', 'valorBV', 'idBV', 'temNF']);
       
       for (let campo in campos) {
+  if (!contextoEvento && camposFinanceiros.has(campo)) {
+    continue;
+  }
   const el = document.getElementById(campo);
 
   // ✅ NOVO: se campo está desabilitado, ignora
@@ -3914,11 +3919,11 @@ function preencherFormulario(evento) {
         nomeLocalFallback: eventoOriginal?.nomeLocalAtual || '',
         aplicarNomeContratanteNoMestre: false,
         aplicarNomeLocalNoMestre: false,
-        valorTotal: valorTotalParsed || 0,
-        idVendedor: document.getElementById('idVendedor').value,
-        valorBV: valorBVParsed || 0,
-        idBV: document.getElementById('idBV').value,
-        temNF: document.getElementById('temNF').value,
+        valorTotal: ehEventoVisual ? (valorTotalParsed || 0) : 0,
+        idVendedor: ehEventoVisual ? document.getElementById('idVendedor').value : '',
+        valorBV: ehEventoVisual ? (valorBVParsed || 0) : 0,
+        idBV: ehEventoVisual ? document.getElementById('idBV').value : '',
+        temNF: ehEventoVisual ? document.getElementById('temNF').value : 'NÃO',
         look: ehEventoVisual ? document.getElementById('look').value : '',
         somResponsavel: ehEventoVisual ? document.getElementById('somResponsavel').value : '',
         observacoes: observacoesFinal,
