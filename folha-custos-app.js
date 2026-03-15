@@ -783,13 +783,12 @@ async function carregarEventosComPropostaFolha_() {
 function classificarStatusEventoAutocompleteRapido_(ev) {
   const idEvento = String(ev?.id || '').trim();
   if (!idEvento) return 'sem_folha';
-  if (eventosComPropostaFolhaCache.has(idEvento)) return 'pendente';
-
   const statusLocal = statusFolhaLocalEvento_(ev);
   if (statusLocal === true) return 'folha_ativa';
   if (resumoFolhaEventoCache.has(idEvento)) {
     return resumoFolhaEventoCache.get(idEvento) === true ? 'folha_ativa' : 'sem_folha';
   }
+  if (eventosComPropostaFolhaCache.has(idEvento)) return 'pendente';
   return 'sem_folha';
 }
 
