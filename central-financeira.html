@@ -2244,12 +2244,14 @@ async function buscarEvento(q){
     return;
   }
 
+  box.innerHTML = '<div class="muted" style="padding:8px 10px">Buscando eventos...</div>';
+
   if (buscaEventoTimer) clearTimeout(buscaEventoTimer);
   const seq = ++buscaEventoSeq;
   buscaEventoTimer = setTimeout(() => {
     executarBuscaEvento_(termo, seq).catch(err => {
       console.error('Erro ao buscar evento:', err);
-      box.innerHTML = '';
+      box.innerHTML = '<div class="muted" style="padding:8px 10px">Erro ao buscar eventos.</div>';
     });
   }, BUSCA_EVENTO_DEBOUNCE_MS);
 }
@@ -2258,6 +2260,11 @@ function renderSugestoesEvento_(list) {
   const box = document.getElementById('evSug');
   if (!box) return;
   box.innerHTML = '';
+
+  if (!Array.isArray(list) || list.length === 0) {
+    box.innerHTML = '<div class="muted" style="padding:8px 10px">Nenhum evento encontrado.</div>';
+    return;
+  }
 
   (list || []).forEach(ev => {
     const d = document.createElement('div');
@@ -2333,6 +2340,9 @@ async function executarBuscaEvento_(termo, seq) {
 
   // 3) Fonte da verdade (API)
   try {
+    if ((!preview || !preview.length) && seq === buscaEventoSeq) {
+      box.innerHTML = '<div class="muted" style="padding:8px 10px">Consultando eventos...</div>';
+    }
     const list = await Auth.apiCall('buscarEventoPorContratante', { nome: termoKey });
     if (seq !== buscaEventoSeq) return;
     setCacheBuscaEvento_(termoKey, list || []);
@@ -2340,7 +2350,7 @@ async function executarBuscaEvento_(termo, seq) {
   } catch (err) {
     if (seq !== buscaEventoSeq) return;
     console.error('Erro ao buscar evento:', err);
-    box.innerHTML = '';
+    box.innerHTML = '<div class="muted" style="padding:8px 10px">Erro ao consultar eventos.</div>';
   }
 }
 
