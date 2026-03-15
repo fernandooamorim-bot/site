@@ -836,16 +836,52 @@ async function carregarPropostaPendenteParaEdicao_(idFolha) {
 
     if (!detalhe || !detalhe.id) return false;
 
+    const parseArrayMaybeJson = (v) => {
+      if (Array.isArray(v)) return v;
+      if (typeof v === 'string' && v.trim()) {
+        try {
+          const p = JSON.parse(v);
+          return Array.isArray(p) ? p : [];
+        } catch (_) {
+          return [];
+        }
+      }
+      return [];
+    };
+    const parseObjectMaybeJson = (v) => {
+      if (v && typeof v === 'object' && !Array.isArray(v)) return v;
+      if (typeof v === 'string' && v.trim()) {
+        try {
+          const p = JSON.parse(v);
+          return (p && typeof p === 'object' && !Array.isArray(p)) ? p : null;
+        } catch (_) {
+          return null;
+        }
+      }
+      return null;
+    };
+    const metaFolha = parseObjectMaybeJson(detalhe.Folhas_Custo || detalhe.folhas_custo || detalhe.folhasCusto);
+
     propostaPendenteAtual = {
       id: String(detalhe.id || '').trim(),
-      idEvento: String(detalhe.idEvento || detalhe.idEventoAgenda || '').trim()
+      idEvento: String(
+        detalhe.idEvento ||
+        detalhe.idEventoAgenda ||
+        metaFolha?.agenda?.idEvento ||
+        metaFolha?.agenda?.idEventoAgenda ||
+        ''
+      ).trim()
     };
 
     const eventoForaCidade = document.getElementById('evento-fora-cidade');
-    if (eventoForaCidade) eventoForaCidade.checked = detalhe.foraCidade === true;
+    if (eventoForaCidade) {
+      const fora = detalhe.foraCidade;
+      const foraNorm = (fora === true) || String(fora || '').trim().toLowerCase() === 'sim' || String(fora || '').trim().toLowerCase() === 'true';
+      eventoForaCidade.checked = foraNorm;
+    }
 
     const mSelecionados = new Map();
-    const listaMusicos = Array.isArray(detalhe.musicos) ? detalhe.musicos : [];
+    const listaMusicos = parseArrayMaybeJson(detalhe.musicos);
     listaMusicos.forEach((m) => {
       const base = (musicos || []).find(mm => String(mm.id || '') === String(m.id || '')) || {
         id: String(m.id || ''),
@@ -863,13 +899,14 @@ async function carregarPropostaPendenteParaEdicao_(idFolha) {
     });
     musicosSelecionados = mSelecionados;
 
-    terceirizadosAtivos = Array.isArray(detalhe.terceirizados) ? detalhe.terceirizados.map(t => ({
+    const listaTerceirizados = parseArrayMaybeJson(detalhe.terceirizados);
+    terceirizadosAtivos = listaTerceirizados.map(t => ({
       nome: String(t.nome || ''),
       categoria: String(t.categoria || ''),
       valor: Number(t.valor || 0)
-    })) : [];
+    }));
 
-    const p = detalhe.passagemDeSom;
+    const p = parseObjectMaybeJson(detalhe.passagemDeSom) || parseObjectMaybeJson(metaFolha?.passagemDeSom);
     passagemDeSomAtiva = !!(p && p.ativa);
     passagemDeSomPorMusico = {};
     if (passagemDeSomAtiva && Array.isArray(p.participantes)) {
