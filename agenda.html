@@ -296,6 +296,97 @@
       box-shadow: var(--shadow-sm);
     }
 
+    .agenda-sync-status {
+      display: none;
+      position: sticky;
+      top: var(--header-height);
+      z-index: 95;
+      margin: 0;
+      padding: 8px 14px;
+      background: rgba(248, 250, 252, 0.96);
+      border-bottom: 1px solid var(--gray-200);
+      color: var(--navy-700);
+      font-size: 12px;
+      font-weight: 600;
+      align-items: center;
+      gap: 8px;
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
+    }
+
+    .agenda-sync-status.show {
+      display: flex;
+    }
+
+    .agenda-sync-status.success {
+      background: rgba(236, 253, 245, 0.96);
+      border-bottom-color: rgba(16, 185, 129, 0.2);
+      color: #065f46;
+    }
+
+    .agenda-sync-status.slow {
+      background: rgba(255, 251, 235, 0.96);
+      border-bottom-color: rgba(245, 158, 11, 0.22);
+      color: #92400e;
+    }
+
+    .agenda-sync-status-icon {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      border: 2px solid rgba(30, 58, 95, 0.2);
+      border-top-color: var(--navy-600);
+      animation: agendaSyncSpin 0.9s linear infinite;
+      flex-shrink: 0;
+    }
+
+    .agenda-sync-status.success .agenda-sync-status-icon,
+    .agenda-sync-status.slow .agenda-sync-status-icon {
+      animation: none;
+      border: none;
+      width: 14px;
+      height: 14px;
+      position: relative;
+    }
+
+    .agenda-sync-status.success .agenda-sync-status-icon::before {
+      content: '';
+      position: absolute;
+      left: 3px;
+      top: 1px;
+      width: 5px;
+      height: 9px;
+      border: solid #059669;
+      border-width: 0 2px 2px 0;
+      transform: rotate(45deg);
+    }
+
+    .agenda-sync-status.slow .agenda-sync-status-icon::before {
+      content: '';
+      position: absolute;
+      left: 6px;
+      top: 1px;
+      width: 2px;
+      height: 8px;
+      border-radius: 2px;
+      background: #b45309;
+    }
+
+    .agenda-sync-status.slow .agenda-sync-status-icon::after {
+      content: '';
+      position: absolute;
+      left: 6px;
+      bottom: 1px;
+      width: 2px;
+      height: 2px;
+      border-radius: 50%;
+      background: #b45309;
+    }
+
+    @keyframes agendaSyncSpin {
+      to { transform: rotate(360deg); }
+    }
+
     .filters-quick {
       display: flex;
       gap: 8px;
@@ -1564,6 +1655,11 @@
     <div class="header-info" id="headerInfo"></div>
   </div>
 
+  <div class="agenda-sync-status" id="agendaSyncStatus" aria-live="polite">
+    <span class="agenda-sync-status-icon" aria-hidden="true"></span>
+    <span id="agendaSyncStatusText"></span>
+  </div>
+
   <!-- Filtros -->
   <div class="filters-container">
     <!-- Filtros rápidos -->
@@ -1774,7 +1870,8 @@ if (!AUTH.email || !AUTH.session) {
       filtroAtivo: 'todos',
       ultimaAtualizacao: null,
       loading: false,
-      mobileSecondaryOpen: false
+      mobileSecondaryOpen: false,
+      syncEmAndamento: false
 
     };
 
@@ -2183,6 +2280,24 @@ calcularDiasIntervalo(dataInicio, dataFim) {
             setTimeout(() => el.remove(), 260);
           }, Math.max(900, Number(duracaoMs) || 3200));
         } catch (_) {}
+      },
+
+      showSyncStatus(mensagem, tipo = 'info') {
+        const el = document.getElementById('agendaSyncStatus');
+        const txt = document.getElementById('agendaSyncStatusText');
+        if (!el || !txt) return;
+
+        txt.textContent = String(mensagem || '');
+        el.classList.remove('success', 'slow');
+        if (tipo === 'success') el.classList.add('success');
+        if (tipo === 'slow') el.classList.add('slow');
+        el.classList.add('show');
+      },
+
+      hideSyncStatus() {
+        const el = document.getElementById('agendaSyncStatus');
+        if (!el) return;
+        el.classList.remove('show', 'success', 'slow');
       },
 
       atualizarEstadoControlesMobile_() {
@@ -3543,15 +3658,26 @@ renderizarEventosDentro(evento) {
   },
 
   async revalidarCacheEmSegundoPlano() {
+    if (AppState.syncEmAndamento) return;
+
+    let slowTimer = null;
+    const notify = this.configBool('AGENDA_CACHE_NOTIFY_UPDATE', true);
     try {
+      AppState.syncEmAndamento = true;
       const syncInfo = await this.obterAgendaSyncInfo();
       const versaoAtual = String(syncInfo.version || '');
       const versaoCache = String(AppState.cache.syncVersion || '');
       if (versaoAtual === versaoCache) return;
 
       Utils.log('♻️ Mudança detectada no backend. Atualizando agenda em segundo plano...');
-      if (this.configBool('AGENDA_CACHE_NOTIFY_UPDATE', true)) {
-        UI.showToast('Planilha atualizada. Sincronizando agenda...', 'info', 2200);
+      if (notify) {
+        UI.showSyncStatus('Detectamos alterações na agenda. Atualizando agora...', 'info');
+      }
+      if (notify) {
+        slowTimer = setTimeout(() => {
+          UI.showSyncStatus('Sincronização mais lenta que o normal. Você pode continuar usando a agenda enquanto atualizamos.', 'slow');
+        }, 30000);
+        UI.showSyncStatus('Sincronizando agenda...', 'info');
       }
       const eventosAtualizados = await this.carregarEventos();
       AppState.cache = {
@@ -3564,11 +3690,16 @@ renderizarEventosDentro(evento) {
 
       const filtro = AppState.filtroAtivo || (isPerfilRestritoAgenda() ? 'proximos' : 'todos');
       FiltroManager.aplicarFiltroRapido(filtro);
-      if (this.configBool('AGENDA_CACHE_NOTIFY_UPDATE', true)) {
-        UI.showToast('Agenda atualizada com sucesso.', 'success', 1800);
+      if (notify) {
+        UI.showSyncStatus('Agenda atualizada com sucesso.', 'success');
+        setTimeout(() => UI.hideSyncStatus(), 1800);
       }
     } catch (e) {
       Utils.error('Revalidação em segundo plano falhou:', e);
+      UI.hideSyncStatus();
+    } finally {
+      if (slowTimer) clearTimeout(slowTimer);
+      AppState.syncEmAndamento = false;
     }
   },
 
