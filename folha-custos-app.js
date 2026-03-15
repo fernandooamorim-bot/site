@@ -776,7 +776,7 @@ async function renderEventosAgendaRecomendados_() {
 
   const candidatos = (eventosAgendaFolhaCache || [])
     .map(ev => ({ ev: ev, dataObj: parseDataEventoAgenda_(ev.dataIso || ev.data) }))
-    .filter(item => item.dataObj && item.dataObj.getTime() <= hoje.getTime())
+    .filter(item => item.dataObj && item.dataObj.getFullYear() >= 2026 && item.dataObj.getTime() <= hoje.getTime())
     .sort((a, b) => b.dataObj.getTime() - a.dataObj.getTime())
     .map(item => item.ev);
 
