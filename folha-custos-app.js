@@ -31,6 +31,7 @@ let loadingMessageIndex = 0;
 const FOLHA_CACHE_KEY = 'folhaCustos:dataCache:v1';
 const FOLHA_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutos
 let eventosAgendaFolhaCache = [];
+let eventosAgendaFolhaCarregando = false;
 
 const LOADING_MESSAGES = [
   'Verificando sessão...',
@@ -191,6 +192,14 @@ function setupEventListeners() {
   const agendaEventoBusca = document.getElementById('agenda-evento-busca');
   if (agendaEventoBusca) {
     agendaEventoBusca.addEventListener('input', function() {
+      const inpId = document.getElementById('agenda-evento-id');
+      const badge = document.getElementById('agenda-evento-vinculo-status');
+      const eventoData = document.getElementById('evento-data');
+      const eventoNome = document.getElementById('evento-nome');
+      if (inpId) inpId.value = '';
+      if (badge) badge.classList.add('hidden');
+      if (eventoData) eventoData.value = '';
+      if (eventoNome) eventoNome.value = '';
       buscarEventoAgendaFolha_(this.value);
     });
   }
@@ -609,17 +618,63 @@ function parseDataFolhaLocal_(valor) {
 }
 
 async function carregarEventosAgendaFolha_() {
+  if (eventosAgendaFolhaCarregando) return;
+  eventosAgendaFolhaCarregando = true;
+  setAgendaEventoBuscaLoading_(true, 'Carregando eventos da Agenda...');
   try {
     const resp = await Auth.apiCall('listarEventosBootstrap', { incluirCancelados: false });
     const lista = Array.isArray(resp?.eventos) ? resp.eventos : [];
-    eventosAgendaFolhaCache = lista.filter(ev => String(ev?.tipo || '').trim() === 'Evento');
+    eventosAgendaFolhaCache = lista
+      .filter(ev => String(ev?.tipo || '').trim() === 'Evento')
+      .sort((a, b) => {
+        const aFolha = eventoAgendaTemFolhaAtiva_(a) ? 1 : 0;
+        const bFolha = eventoAgendaTemFolhaAtiva_(b) ? 1 : 0;
+        if (aFolha !== bFolha) return aFolha - bFolha; // sem folha primeiro
+        return String(a?.data || '').localeCompare(String(b?.data || ''));
+      });
   } catch (e) {
     console.warn('Falha ao carregar eventos da Agenda para vínculo da Folha:', e);
     eventosAgendaFolhaCache = [];
+  } finally {
+    eventosAgendaFolhaCarregando = false;
+    setAgendaEventoBuscaLoading_(false);
   }
 }
 
-function buscarEventoAgendaFolha_(q) {
+function eventoAgendaTemFolhaAtiva_(ev) {
+  const valorDireto = Number(ev?.folhaCustoValor || 0);
+  const valorCustos = Number(ev?.custos?.folha?.valor || ev?.folha?.valor || 0);
+  return valorDireto > 0 || valorCustos > 0;
+}
+
+function normalizarDataAgendaParaIso_(valor) {
+  const raw = String(valor || '').trim();
+  if (!raw) return '';
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
+  if (/^\d{2}\/\d{2}\/\d{4}$/.test(raw)) {
+    const p = raw.split('/');
+    return `${p[2]}-${p[1]}-${p[0]}`;
+  }
+  const d = new Date(raw);
+  if (isNaN(d.getTime())) return '';
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+function setAgendaEventoBuscaLoading_(ativo, texto) {
+  const el = document.getElementById('agenda-evento-loading');
+  if (!el) return;
+  if (ativo) {
+    el.textContent = texto || 'Carregando...';
+    el.classList.remove('hidden');
+  } else {
+    el.classList.add('hidden');
+  }
+}
+
+async function buscarEventoAgendaFolha_(q) {
   const termo = String(q || '').trim().toLowerCase();
   const box = document.getElementById('agenda-evento-sugestoes');
   if (!box) return;
@@ -627,6 +682,12 @@ function buscarEventoAgendaFolha_(q) {
   if (!termo || termo.length < 2) {
     box.innerHTML = '';
     return;
+  }
+
+  if (!eventosAgendaFolhaCache.length) {
+    setAgendaEventoBuscaLoading_(true, 'Buscando eventos...');
+    await carregarEventosAgendaFolha_();
+    setAgendaEventoBuscaLoading_(false);
   }
 
   const list = (eventosAgendaFolhaCache || [])
@@ -648,7 +709,12 @@ function buscarEventoAgendaFolha_(q) {
 
   box.innerHTML = list.map(ev => `
     <div style="padding:8px 10px;cursor:pointer;border-bottom:1px solid #eef2f7" onclick="selecionarEventoAgendaFolha_('${String(ev.id || '').replace(/'/g, "\\'")}')">
-      <div><strong>${String(ev.id || '')}</strong> • ${String(ev.contratante || 'Sem contratante')}</div>
+      <div>
+        <strong>${String(ev.id || '')}</strong> • ${String(ev.contratante || 'Sem contratante')}
+        <span style="margin-left:6px;font-size:11px;padding:2px 6px;border-radius:999px;background:${eventoAgendaTemFolhaAtiva_(ev) ? '#fef3c7' : '#dcfce7'};color:${eventoAgendaTemFolhaAtiva_(ev) ? '#92400e' : '#166534'}">
+          ${eventoAgendaTemFolhaAtiva_(ev) ? 'Com folha ativa' : 'Sem folha'}
+        </span>
+      </div>
       <div class="muted" style="font-size:12px">${String(ev.tipoEvento || 'Evento')} • ${String(ev.data || '')}</div>
     </div>
   `).join('');
@@ -664,14 +730,22 @@ function selecionarEventoAgendaFolha_(idEvento) {
   const box = document.getElementById('agenda-evento-sugestoes');
   const badge = document.getElementById('agenda-evento-vinculo-status');
   const badgeTxt = document.getElementById('agenda-evento-vinculo-texto');
+  const eventoData = document.getElementById('evento-data');
+  const eventoNome = document.getElementById('evento-nome');
 
   if (inpBusca) inpBusca.value = `${ev.id} — ${ev.contratante || ''}`;
   if (inpId) inpId.value = id;
+  if (eventoData) eventoData.value = normalizarDataAgendaParaIso_(ev.dataIso || ev.data);
+  if (eventoNome) {
+    const nomePadrao = [String(ev.tipoEvento || '').trim(), String(ev.contratante || '').trim()].filter(Boolean).join(' ');
+    eventoNome.value = nomePadrao || String(ev.nome || ev.id || '').trim();
+  }
   if (box) box.innerHTML = '';
   if (badge && badgeTxt) {
-    badgeTxt.textContent = `${ev.id} • ${ev.tipoEvento || 'Evento'}`;
+    badgeTxt.textContent = `${ev.id} • ${ev.tipoEvento || 'Evento'} • ${ev.data || ''}`;
     badge.classList.remove('hidden');
   }
+  recalcular();
 }
 
 async function diagnosticarPeriodoSemEventos_(dataInicio, dataFim) {
@@ -1451,18 +1525,18 @@ if (linhasAdicionais.length > 0) {
 
 async function salvarFolhaCusto(opts) {
   const options = opts && typeof opts === 'object' ? opts : {};
-  const enviarAprovacao = options.enviarAprovacao === true;
+  const enviarAprovacao = options.enviarAprovacao !== false;
   const eventoData = document.getElementById('evento-data').value;
   const eventoNome = document.getElementById('evento-nome').value.trim();
   const idEventoAgenda = String(document.getElementById('agenda-evento-id')?.value || '').trim();
   
-  if (!eventoData) {
-    alert('Por favor, informe a data do evento');
+  if (!idEventoAgenda) {
+    alert('Selecione um evento da Agenda para continuar.');
     return;
   }
   
-  if (!eventoNome) {
-    alert('Por favor, informe o nome/local do evento');
+  if (!eventoData || !eventoNome) {
+    alert('Dados do evento não carregados. Selecione novamente o evento da Agenda.');
     return;
   }
   
@@ -1471,11 +1545,6 @@ async function salvarFolhaCusto(opts) {
     return;
   }
 
-  if (enviarAprovacao && !idEventoAgenda) {
-    alert('Para enviar aprovação na Agenda, vincule um evento da Agenda.');
-    return;
-  }
-  
   const eventoForaCidade = document.getElementById('evento-fora-cidade').checked;
   const adicionalAuto = calcularAdicionalAutomatico();
   

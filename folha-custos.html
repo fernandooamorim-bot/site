@@ -259,20 +259,13 @@
           
           <div class="card-content">
             <div class="form-grid">
-              <div class="form-group">
-                <label for="evento-data">Data do Evento *</label>
-                <input type="date" id="evento-data" required>
-              </div>
-              
               <div class="form-group full-width">
-                <label for="evento-nome">Nome/Local do Evento *</label>
-                <input type="text" id="evento-nome" placeholder="Ex: Casamento Maria e João - Clube Paineiras" required>
-              </div>
-
-              <div class="form-group full-width">
-                <label for="agenda-evento-busca">Vínculo com Evento da Agenda (para aprovação financeira)</label>
-                <input type="text" id="agenda-evento-busca" placeholder="Digite ID ou nome do contratante do evento">
+                <label for="agenda-evento-busca">Evento da Agenda *</label>
+                <input type="text" id="agenda-evento-busca" placeholder="Digite 2+ letras para buscar evento por ID, contratante ou tipo">
                 <input type="hidden" id="agenda-evento-id">
+                <input type="hidden" id="evento-data">
+                <input type="hidden" id="evento-nome">
+                <div id="agenda-evento-loading" class="muted hidden" style="margin-top:6px;font-size:12px">Carregando eventos...</div>
                 <div id="agenda-evento-sugestoes" class="autocomplete"></div>
                 <div id="agenda-evento-vinculo-status" class="info-badge hidden" style="margin-top:8px">
                   Evento vinculado: <span id="agenda-evento-vinculo-texto"></span>
@@ -423,9 +416,6 @@
 
             <!-- Ações -->
             <div class="card-actions">
-              <button class="btn-primary" onclick="salvarFolhaCusto()">
-                💾 Salvar Folha de Custo
-              </button>
               <button class="btn-primary" onclick="enviarFolhaParaAprovacaoAgenda()">
                 ✅ Registrar Folha e Enviar para Aprovação
               </button>
