@@ -1934,6 +1934,47 @@ if (!AUTH.email || !AUTH.session) {
       return p === 'proprietario' || p === 'socio' || p === 'administrador' || p === 'admin';
     }
 
+    function aplicarFallbackLucideAgenda_() {
+      const mapa = {
+        'arrow-left': '←',
+        'calendar-days': '📅',
+        'log-out': '↪',
+        'sliders-horizontal': '≡',
+        'layout-grid': '▦',
+        'table-2': '☷',
+        'file-spreadsheet': '▤',
+        'file-text': '📄',
+        'refresh-cw': '↻',
+        'search': '⌕',
+        'music-2': '♪',
+        'ban': '⛔',
+        'calendar': '🗓',
+        'bookmark': '🔖',
+        'pencil': '✎',
+        'refresh-ccw': '↺'
+      };
+
+      document.querySelectorAll('[data-lucide]').forEach((el) => {
+        if ((el.textContent || '').trim()) return;
+        const nome = String(el.getAttribute('data-lucide') || '').trim();
+        el.textContent = mapa[nome] || '•';
+        el.style.fontStyle = 'normal';
+        el.style.fontSize = '14px';
+        el.style.lineHeight = '1';
+        el.style.display = 'inline-flex';
+        el.style.alignItems = 'center';
+        el.style.justifyContent = 'center';
+      });
+    }
+
+    function renderizarIconesSeguroAgenda_() {
+      if (window.lucide && typeof window.lucide.createIcons === 'function') {
+        window.lucide.createIcons();
+        return;
+      }
+      aplicarFallbackLucideAgenda_();
+    }
+
     function isMobileAgenda_() {
       return window.matchMedia('(max-width: 640px)').matches;
     }
@@ -2775,7 +2816,7 @@ criarCardEvento(evento) {
     `;
 
     container.innerHTML = html;
-    if (window.lucide) window.lucide.createIcons();
+    renderizarIconesSeguroAgenda_();
 
     // Debug info (apenas se habilitado).
     if (AppState.virtualizacao.debug) {
@@ -2825,7 +2866,7 @@ criarCardEvento(evento) {
     html += '</div>';
 
     container.innerHTML = html;
-    if (window.lucide) window.lucide.createIcons();
+    renderizarIconesSeguroAgenda_();
   },
   mostrarDebugVirtualizacao(start, end, total) {
   // Remove info anterior
@@ -4246,7 +4287,7 @@ renderizarEventosDentro(evento) {
     // ========================================
     window.addEventListener('load', () => {
       // Init Lucide icons
-      if (window.lucide) lucide.createIcons();
+      renderizarIconesSeguroAgenda_();
 
       Utils.log('🎬 Window load - iniciando agenda...');
       AgendaController.init();

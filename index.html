@@ -1750,6 +1750,38 @@
     } catch (_) {}
   }
 
+  function aplicarFallbackLucide_() {
+    var mapa = {
+      'calendar-days': '📅',
+      'layout-grid': '▦',
+      'plus-circle': '+',
+      'pencil-line': '✎',
+      'arrow-right': '›',
+      'shield': '⛨',
+      'log-out': '↪',
+      'music': '♪'
+    };
+    document.querySelectorAll('[data-lucide]').forEach(function(el) {
+      if ((el.textContent || '').trim()) return;
+      var nome = String(el.getAttribute('data-lucide') || '').trim();
+      el.textContent = mapa[nome] || '•';
+      el.style.fontStyle = 'normal';
+      el.style.fontSize = '14px';
+      el.style.lineHeight = '1';
+      el.style.display = 'inline-flex';
+      el.style.alignItems = 'center';
+      el.style.justifyContent = 'center';
+    });
+  }
+
+  function renderizarIconesSeguro_() {
+    if (window.lucide && typeof lucide.createIcons === 'function') {
+      lucide.createIcons();
+      return;
+    }
+    aplicarFallbackLucide_();
+  }
+
   /**
    * ============================================
    * NAVEGAÇÃO — mesmas rotas exatas
@@ -1814,7 +1846,7 @@
    * ============================================
    */
   window.addEventListener('load', function() {
-    if (window.lucide) lucide.createIcons();
+    renderizarIconesSeguro_();
     boot();
   });
   </script>
