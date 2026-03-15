@@ -747,7 +747,7 @@ function extrairMetaAgendaDaFolhaLocal_(folha) {
 async function carregarEventosComPropostaFolha_() {
   const force = arguments.length > 0 ? arguments[0] === true : false;
   const agora = Date.now();
-  if (!force && (agora - eventosComPropostaFolhaCacheTs) < 10000 && eventosComPropostaFolhaCache.size >= 0) {
+  if (!force && (agora - eventosComPropostaFolhaCacheTs) < 60000 && eventosComPropostaFolhaCache.size >= 0) {
     return;
   }
   try {
@@ -780,16 +780,17 @@ async function carregarEventosComPropostaFolha_() {
   }
 }
 
-async function classificarStatusEventoAutocomplete_(ev) {
+function classificarStatusEventoAutocompleteRapido_(ev) {
   const idEvento = String(ev?.id || '').trim();
   if (!idEvento) return 'sem_folha';
   if (eventosComPropostaFolhaCache.has(idEvento)) return 'pendente';
 
   const statusLocal = statusFolhaLocalEvento_(ev);
   if (statusLocal === true) return 'folha_ativa';
-
-  const temFolhaResumo = await eventoAgendaTemFolhaAtivaPorResumo_(idEvento);
-  return temFolhaResumo ? 'folha_ativa' : 'sem_folha';
+  if (resumoFolhaEventoCache.has(idEvento)) {
+    return resumoFolhaEventoCache.get(idEvento) === true ? 'folha_ativa' : 'sem_folha';
+  }
+  return 'sem_folha';
 }
 
 function atualizarBotaoAcaoFolha_() {
@@ -995,10 +996,12 @@ async function buscarEventoAgendaFolha_(q) {
     await carregarEventosAgendaFolha_({ mostrarLoadingBusca: true });
     setAgendaEventoBuscaLoading_(false);
   }
-  await carregarEventosComPropostaFolha_(true);
+  await carregarEventosComPropostaFolha_(false);
 
   const list = (eventosAgendaFolhaCache || [])
     .filter(ev => {
+      const dt = parseDataEventoAgenda_(ev.dataIso || ev.data);
+      if (!dt || dt.getFullYear() < 2026) return false;
       const hay = [
         String(ev.id || ''),
         String(ev.contratante || ''),
@@ -1014,7 +1017,7 @@ async function buscarEventoAgendaFolha_(q) {
     return;
   }
 
-  const statusList = await Promise.all(list.map(ev => classificarStatusEventoAutocomplete_(ev)));
+  const statusList = list.map(ev => classificarStatusEventoAutocompleteRapido_(ev));
 
   box.innerHTML = list.map((ev, idx) => {
     const status = statusList[idx];
