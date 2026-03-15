@@ -936,6 +936,7 @@
       gap: 6px;
       min-width: 0;
       flex: 1;
+      overflow: hidden;
     }
 
     .evento-bottom-right {
@@ -951,8 +952,8 @@
       overflow: hidden;
       text-overflow: ellipsis;
       min-width: 0;
-      flex: 1;
-      max-width: none;
+      flex: 0 1 auto;
+      max-width: 62%;
     }
 
     .status-badge {
@@ -1558,7 +1559,11 @@
       }
 
       .evento-projeto-chip {
-        max-width: 42%;
+        max-width: 34vw;
+      }
+
+      .evento-local {
+        max-width: 48vw;
       }
 
       .modal-content {
@@ -3689,13 +3694,17 @@ renderizarEventosDentro(evento) {
       if (notify) {
         UI.showSyncStatus('Detectamos alterações na agenda. Atualizando agora...', 'info');
       }
+      const eventosPromise = this.carregarEventos();
+
       if (notify) {
         slowTimer = setTimeout(() => {
           UI.showSyncStatus('Sincronização mais lenta que o normal. Você pode continuar usando a agenda enquanto atualizamos.', 'slow');
         }, 30000);
+        await new Promise(resolve => setTimeout(resolve, 900));
         UI.showSyncStatus('Sincronizando agenda...', 'info');
       }
-      const eventosAtualizados = await this.carregarEventos();
+
+      const eventosAtualizados = await eventosPromise;
       AppState.cache = {
         timestamp: Date.now(),
         dados: eventosAtualizados,
@@ -3708,7 +3717,7 @@ renderizarEventosDentro(evento) {
       FiltroManager.aplicarFiltroRapido(filtro);
       if (notify) {
         UI.showSyncStatus('Agenda atualizada com sucesso.', 'success');
-        setTimeout(() => UI.hideSyncStatus(), 1800);
+        setTimeout(() => UI.hideSyncStatus(), 2400);
       }
     } catch (e) {
       Utils.error('Revalidação em segundo plano falhou:', e);
