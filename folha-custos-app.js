@@ -1937,7 +1937,10 @@ async function salvarFolhaCusto(opts) {
     pendenciaExistente &&
     (!propostaPendenteAtual || String(propostaPendenteAtual.id || '').trim() !== String(pendenciaExistente.id || '').trim())
   ) {
-    alert('Este evento já possui proposta pendente. Carregando para edição.');
+    const desejaAtualizar = confirm('Este evento já possui uma proposta pendente. Deseja abrir essa proposta para atualização?');
+    if (!desejaAtualizar) {
+      return;
+    }
     await selecionarEventoAgendaFolha_(idEventoAgenda);
     return;
   }
