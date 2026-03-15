@@ -2557,6 +2557,15 @@ function renderBlocoAsaasInfo_() {
 async function gerarPixAsaasEvento_() {
   if (!ehProprietario_()) return alert('Ação restrita ao proprietário.');
   if (!eventoSelecionado) return alert('Selecione um evento primeiro.');
+
+  try {
+    const vinculacao = await garantirVinculoContratanteFinanceiro_(eventoSelecionado, 'a geração do PIX Asaas');
+    if (vinculacao && vinculacao.cancelado) return;
+  } catch (errVinculo) {
+    tratarErroApi(errVinculo);
+    return;
+  }
+
   const btn = event?.target;
   if (lockSubmit) return;
 
@@ -3551,7 +3560,44 @@ function resetFechamentoForm() {
 
 /* ================= SUBMITS ================= */
 
-function submitRecebimento(){
+async function garantirVinculoContratanteFinanceiro_(idEvento, origem) {
+  const id = String(idEvento || '').trim();
+  if (!id) return { sucesso: false, cancelado: true };
+
+  const contexto = String(origem || 'operação financeira').trim();
+  const status = await Auth.apiCall('financeiroGarantirVinculoContratanteEvento', {
+    idEvento: id
+  });
+
+  if (status && status.sucesso === true) return status;
+  if (!status || status.requerConfirmacao !== true) {
+    throw new Error(status?.mensagem || 'Não foi possível validar vínculo do contratante.');
+  }
+
+  const nome = String(status.nomeContratanteEvento || '').trim() || 'contratante do evento';
+  const confirmar = confirm(
+    `Este evento ainda não tem ID de contratante vinculado na matriz.\n\n` +
+    `Contratante no evento: ${nome}\n\n` +
+    `Deseja registrar agora para continuar com ${contexto}?`
+  );
+  if (!confirmar) return { sucesso: false, cancelado: true };
+
+  showLoading('Regularizando vínculo do contratante...');
+  try {
+    const regularizado = await Auth.apiCall('financeiroGarantirVinculoContratanteEvento', {
+      idEvento: id,
+      confirmarCriacao: true
+    });
+    if (!regularizado || regularizado.sucesso !== true) {
+      throw new Error(regularizado?.mensagem || 'Falha ao regularizar contratante.');
+    }
+    return regularizado;
+  } finally {
+    hideLoading();
+  }
+}
+
+async function submitRecebimento(){
   const btn = event?.target;
   if (lockSubmit) return;
   if(!eventoSelecionado) return alert('Selecione um evento');
@@ -3559,6 +3605,14 @@ function submitRecebimento(){
   const valorRaw = document.getElementById('valor').value;
   const valor = parseValorSeguro(valorRaw);
   if (!valor) return alert('Informe um valor válido maior que zero.');
+
+  try {
+    const vinculacao = await garantirVinculoContratanteFinanceiro_(eventoSelecionado, 'o recebimento');
+    if (vinculacao && vinculacao.cancelado) return;
+  } catch (errVinculo) {
+    tratarErroApi(errVinculo);
+    return;
+  }
 
   lockSubmit = true;
   bloquearBotao(btn);
@@ -3575,8 +3629,8 @@ function submitRecebimento(){
     operationKey: obterOuCriarOperationKey('recebimento')
   };
 
-  Auth.apiCall('apiRegistrarRecebimento', payload)
-  .then(resp => {
+  try {
+    const resp = await Auth.apiCall('apiRegistrarRecebimento', payload);
     hideLoading();
     lockSubmit = false;
     liberarBotao(btn);
@@ -3589,13 +3643,12 @@ function submitRecebimento(){
     consumirOperationKey('recebimento');
     resetRecebimentoForm();
     alert('Recebimento registrado');
-  })
-  .catch(err => {
+  } catch (err) {
     hideLoading();
     lockSubmit = false;
     liberarBotao(btn);
     tratarErroApi(err);
-  });
+  }
 }
 
 
