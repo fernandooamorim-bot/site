@@ -2491,6 +2491,7 @@ async function selectEvento(ev){
   console.error('Erro ao carregar resumo financeiro:', err);
   resumo.innerHTML = '<span class="muted">Erro ao carregar resumo financeiro</span>';
 }
+}
 
 async function regularizarVinculoContratanteSelecionado_() {
   if (!eventoSelecionado) return alert('Selecione um evento.');
@@ -2505,7 +2506,6 @@ async function regularizarVinculoContratanteSelecionado_() {
   } catch (err) {
     tratarErroApi(err);
   }
-}
 }
 
 async function carregarCobrancasAsaasEvento_() {
