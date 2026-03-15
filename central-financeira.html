@@ -2496,15 +2496,22 @@ async function selectEvento(ev){
 async function regularizarVinculoContratanteSelecionado_() {
   if (!eventoSelecionado) return alert('Selecione um evento.');
   try {
-    const resultado = await garantirVinculoContratanteFinanceiro_(eventoSelecionado, 'a operação financeira');
-    if (resultado && resultado.cancelado) return;
+    showLoading('Regularizando vínculo do contratante...');
+    const resultado = await Auth.apiCall('financeiroGarantirVinculoContratanteEvento', {
+      idEvento: String(eventoSelecionado || '').trim(),
+      confirmarCriacao: true
+    });
     if (resultado && resultado.sucesso === true) {
       eventoRequerVinculoContratante = false;
       await selecionarEventoPorIdNoModo_(eventoSelecionado);
       alert('Vínculo do contratante regularizado com sucesso.');
+      return;
     }
+    alert(resultado?.mensagem || 'Não foi possível regularizar o vínculo do contratante.');
   } catch (err) {
     tratarErroApi(err);
+  } finally {
+    hideLoading();
   }
 }
 
