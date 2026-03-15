@@ -38,6 +38,7 @@ let propostasPendentesPorEvento = new Map();
 let eventosComPropostaFolhaCacheTs = 0;
 let propostaPendenteAtual = null;
 let eventoSelecionadoTemFolhaAtiva = false;
+let reconciliandoPendenciasCache = false;
 
 function setAgendaRecomendadosLoading_(ativo, texto) {
   const box = document.getElementById('agenda-evento-recomendados');
@@ -775,8 +776,30 @@ async function carregarEventosComPropostaFolha_() {
     eventosComPropostaFolhaCache = pendentes;
     propostasPendentesPorEvento = mapaPendentes;
     eventosComPropostaFolhaCacheTs = agora;
+    reconciliarPendenciasComFinanceiro_().catch(() => {});
   } catch (e) {
     console.warn('Falha ao carregar propostas pendentes da Folha:', e);
+  }
+}
+
+async function reconciliarPendenciasComFinanceiro_() {
+  if (reconciliandoPendenciasCache) return;
+  reconciliandoPendenciasCache = true;
+  try {
+    const ids = Array.from(eventosComPropostaFolhaCache || []).slice(0, 25);
+    for (let i = 0; i < ids.length; i++) {
+      const idEvento = String(ids[i] || '').trim();
+      if (!idEvento) continue;
+      const temFolhaAtiva = await eventoAgendaTemFolhaAtivaPorResumo_(idEvento);
+      if (temFolhaAtiva) {
+        eventosComPropostaFolhaCache.delete(idEvento);
+        propostasPendentesPorEvento.delete(idEvento);
+      }
+    }
+  } catch (e) {
+    console.warn('Falha ao reconciliar pendências com financeiro:', e);
+  } finally {
+    reconciliandoPendenciasCache = false;
   }
 }
 
@@ -806,137 +829,188 @@ function atualizarBotaoAcaoFolha_() {
   btn.textContent = '✅ Registrar Folha e Enviar para Aprovação';
 }
 
+function parseArrayMaybeJson_(v) {
+  if (Array.isArray(v)) return v;
+  if (typeof v === 'string' && v.trim()) {
+    try {
+      const p = JSON.parse(v);
+      return Array.isArray(p) ? p : [];
+    } catch (_) {
+      return [];
+    }
+  }
+  return [];
+}
+
+function parseObjectMaybeJson_(v) {
+  if (v && typeof v === 'object' && !Array.isArray(v)) return v;
+  if (typeof v === 'string' && v.trim()) {
+    try {
+      const p = JSON.parse(v);
+      return (p && typeof p === 'object' && !Array.isArray(p)) ? p : null;
+    } catch (_) {
+      return null;
+    }
+  }
+  return null;
+}
+
+async function obterDetalheFolhaPorIdComFallback_(id, idEventoAtual) {
+  const idFolha = String(id || '').trim();
+  const idEvt = String(idEventoAtual || '').trim();
+  let detalhe = null;
+
+  if (idFolha) {
+    try {
+      const detalheResp = await apiPost('getFolhaCusto', { id: idFolha });
+      detalhe = (detalheResp && typeof detalheResp === 'object')
+        ? (detalheResp.folha || detalheResp.data || detalheResp)
+        : null;
+    } catch (_) {
+      detalhe = null;
+    }
+  }
+
+  if (!detalhe || !detalhe.id) {
+    const listaResp = await apiPost('getFolhasCusto', {});
+    const lista = Array.isArray(listaResp) ? listaResp : [];
+    if (idFolha) detalhe = lista.find((f) => String(f?.id || '').trim() === idFolha) || null;
+
+    if ((!detalhe || !detalhe.id) && idEvt) {
+      const pendentesEvento = lista.filter((f) => {
+        const meta = extrairMetaAgendaDaFolhaLocal_(f);
+        const idEvento = String(meta.idEvento || '').trim();
+        const status = String(meta.status || '').trim().toUpperCase();
+        return idEvento === idEvt && (
+          status === 'PENDENTE_APROVACAO' || status === 'PENDENTE' || status === 'SOLICITADO'
+        );
+      });
+      pendentesEvento.sort((a, b) => {
+        const ta = new Date(String(a?.criadoEm || '')).getTime() || 0;
+        const tb = new Date(String(b?.criadoEm || '')).getTime() || 0;
+        return tb - ta;
+      });
+      detalhe = pendentesEvento[0] || null;
+    }
+  }
+
+  return (detalhe && detalhe.id) ? detalhe : null;
+}
+
+function preencherFormularioComFolha_(detalhe, modo) {
+  if (!detalhe || !detalhe.id) return false;
+  const metaFolha = parseObjectMaybeJson_(detalhe.Folhas_Custo || detalhe.folhas_custo || detalhe.folhasCusto);
+  const idEventoDetalhe = String(
+    detalhe.idEvento ||
+    detalhe.idEventoAgenda ||
+    metaFolha?.agenda?.idEvento ||
+    metaFolha?.agenda?.idEventoAgenda ||
+    ''
+  ).trim();
+
+  if (modo === 'pendente') {
+    propostaPendenteAtual = {
+      id: String(detalhe.id || '').trim(),
+      idEvento: idEventoDetalhe
+    };
+  } else {
+    propostaPendenteAtual = null;
+  }
+
+  const eventoForaCidade = document.getElementById('evento-fora-cidade');
+  if (eventoForaCidade) {
+    const fora = detalhe.foraCidade;
+    const foraNorm = (fora === true) || String(fora || '').trim().toLowerCase() === 'sim' || String(fora || '').trim().toLowerCase() === 'true';
+    eventoForaCidade.checked = foraNorm;
+  }
+
+  const mSelecionados = new Map();
+  const listaMusicos = parseArrayMaybeJson_(detalhe.musicos);
+  listaMusicos.forEach((m) => {
+    const base = (musicos || []).find(mm => String(mm.id || '') === String(m.id || '')) || {
+      id: String(m.id || ''),
+      nome: String(m.nome || ''),
+      funcao: String(m.funcao || ''),
+      valorBase: Number(m.valorBase || 0)
+    };
+    mSelecionados.set(base.id, {
+      musico: base,
+      ajuste: {
+        adicionalExtra: Number(m.adicionalExtra || 0),
+        justificativa: String(m.justificativa || '')
+      }
+    });
+  });
+  musicosSelecionados = mSelecionados;
+
+  const listaTerceirizados = parseArrayMaybeJson_(detalhe.terceirizados);
+  terceirizadosAtivos = listaTerceirizados.map(t => ({
+    nome: String(t.nome || ''),
+    categoria: String(t.categoria || ''),
+    valor: Number(t.valor || 0)
+  }));
+
+  const p = parseObjectMaybeJson_(detalhe.passagemDeSom) || parseObjectMaybeJson_(metaFolha?.passagemDeSom);
+  passagemDeSomAtiva = !!(p && p.ativa);
+  passagemDeSomPorMusico = {};
+  if (passagemDeSomAtiva && Array.isArray(p.participantes)) {
+    p.participantes.forEach((idMusico) => { passagemDeSomPorMusico[String(idMusico)] = true; });
+  }
+  const passagemCheckbox = document.getElementById('passagem-de-som-checkbox');
+  if (passagemCheckbox) passagemCheckbox.checked = passagemDeSomAtiva;
+  const passagemBadge = document.getElementById('passagem-info');
+  if (passagemBadge) passagemBadge.classList.toggle('hidden', !passagemDeSomAtiva);
+
+  renderMusicos();
+  renderTerceirizados();
+  recalcular();
+  atualizarBotaoAcaoFolha_();
+  return true;
+}
+
 async function carregarPropostaPendenteParaEdicao_(idFolha) {
   const id = String(idFolha || '').trim();
   const idEventoAtual = String(document.getElementById('agenda-evento-id')?.value || '').trim();
   if (!id && !idEventoAtual) return false;
   try {
-    let detalhe = null;
-
-    if (id) {
-      try {
-        const detalheResp = await apiPost('getFolhaCusto', { id: id });
-        detalhe = (detalheResp && typeof detalheResp === 'object')
-          ? (detalheResp.folha || detalheResp.data || detalheResp)
-          : null;
-      } catch (_) {
-        detalhe = null;
-      }
-    }
-
-    if (!detalhe || !detalhe.id) {
-      const listaResp = await apiPost('getFolhasCusto', {});
-      const lista = Array.isArray(listaResp) ? listaResp : [];
-      detalhe = lista.find((f) => String(f?.id || '').trim() === id) || null;
-
-      if ((!detalhe || !detalhe.id) && idEventoAtual) {
-        const pendentesEvento = lista.filter((f) => {
-          const meta = extrairMetaAgendaDaFolhaLocal_(f);
-          const idEvento = String(meta.idEvento || '').trim();
-          const status = String(meta.status || '').trim().toUpperCase();
-          return idEvento === idEventoAtual && (
-            status === 'PENDENTE_APROVACAO' || status === 'PENDENTE' || status === 'SOLICITADO'
-          );
-        });
-        pendentesEvento.sort((a, b) => {
-          const ta = new Date(String(a?.criadoEm || '')).getTime() || 0;
-          const tb = new Date(String(b?.criadoEm || '')).getTime() || 0;
-          return tb - ta;
-        });
-        detalhe = pendentesEvento[0] || null;
-      }
-    }
-
-    if (!detalhe || !detalhe.id) return false;
-
-    const parseArrayMaybeJson = (v) => {
-      if (Array.isArray(v)) return v;
-      if (typeof v === 'string' && v.trim()) {
-        try {
-          const p = JSON.parse(v);
-          return Array.isArray(p) ? p : [];
-        } catch (_) {
-          return [];
-        }
-      }
-      return [];
-    };
-    const parseObjectMaybeJson = (v) => {
-      if (v && typeof v === 'object' && !Array.isArray(v)) return v;
-      if (typeof v === 'string' && v.trim()) {
-        try {
-          const p = JSON.parse(v);
-          return (p && typeof p === 'object' && !Array.isArray(p)) ? p : null;
-        } catch (_) {
-          return null;
-        }
-      }
-      return null;
-    };
-    const metaFolha = parseObjectMaybeJson(detalhe.Folhas_Custo || detalhe.folhas_custo || detalhe.folhasCusto);
-
-    propostaPendenteAtual = {
-      id: String(detalhe.id || '').trim(),
-      idEvento: String(
-        detalhe.idEvento ||
-        detalhe.idEventoAgenda ||
-        metaFolha?.agenda?.idEvento ||
-        metaFolha?.agenda?.idEventoAgenda ||
-        ''
-      ).trim()
-    };
-
-    const eventoForaCidade = document.getElementById('evento-fora-cidade');
-    if (eventoForaCidade) {
-      const fora = detalhe.foraCidade;
-      const foraNorm = (fora === true) || String(fora || '').trim().toLowerCase() === 'sim' || String(fora || '').trim().toLowerCase() === 'true';
-      eventoForaCidade.checked = foraNorm;
-    }
-
-    const mSelecionados = new Map();
-    const listaMusicos = parseArrayMaybeJson(detalhe.musicos);
-    listaMusicos.forEach((m) => {
-      const base = (musicos || []).find(mm => String(mm.id || '') === String(m.id || '')) || {
-        id: String(m.id || ''),
-        nome: String(m.nome || ''),
-        funcao: String(m.funcao || ''),
-        valorBase: Number(m.valorBase || 0)
-      };
-      mSelecionados.set(base.id, {
-        musico: base,
-        ajuste: {
-          adicionalExtra: Number(m.adicionalExtra || 0),
-          justificativa: String(m.justificativa || '')
-        }
-      });
-    });
-    musicosSelecionados = mSelecionados;
-
-    const listaTerceirizados = parseArrayMaybeJson(detalhe.terceirizados);
-    terceirizadosAtivos = listaTerceirizados.map(t => ({
-      nome: String(t.nome || ''),
-      categoria: String(t.categoria || ''),
-      valor: Number(t.valor || 0)
-    }));
-
-    const p = parseObjectMaybeJson(detalhe.passagemDeSom) || parseObjectMaybeJson(metaFolha?.passagemDeSom);
-    passagemDeSomAtiva = !!(p && p.ativa);
-    passagemDeSomPorMusico = {};
-    if (passagemDeSomAtiva && Array.isArray(p.participantes)) {
-      p.participantes.forEach((idMusico) => { passagemDeSomPorMusico[String(idMusico)] = true; });
-    }
-    const passagemCheckbox = document.getElementById('passagem-de-som-checkbox');
-    if (passagemCheckbox) passagemCheckbox.checked = passagemDeSomAtiva;
-    const passagemBadge = document.getElementById('passagem-info');
-    if (passagemBadge) passagemBadge.classList.toggle('hidden', !passagemDeSomAtiva);
-
-    renderMusicos();
-    renderTerceirizados();
-    recalcular();
-    atualizarBotaoAcaoFolha_();
-    return true;
+    const detalhe = await obterDetalheFolhaPorIdComFallback_(id, idEventoAtual);
+    if (!detalhe) return false;
+    return preencherFormularioComFolha_(detalhe, 'pendente');
   } catch (e) {
     console.warn('Falha ao carregar proposta pendente para edição:', e);
+    return false;
+  }
+}
+
+async function carregarUltimaFolhaAprovadaParaRevisao_(idEvento) {
+  const idEvt = String(idEvento || '').trim();
+  if (!idEvt) return false;
+  try {
+    const listaResp = await apiPost('getFolhasCusto', {});
+    const lista = Array.isArray(listaResp) ? listaResp : [];
+    const aprovadas = lista.filter((f) => {
+      const meta = extrairMetaAgendaDaFolhaLocal_(f);
+      const idEventoFolha = String(meta.idEvento || '').trim();
+      const status = String(meta.status || '').trim().toUpperCase();
+      const sincronizado = (f?.agendaSincronizado === true) ||
+        String(f?.agendaSincronizado || '').trim().toLowerCase() === 'true' ||
+        (parseObjectMaybeJson_(f?.Folhas_Custo)?.agenda?.agendaSincronizado === true);
+      return idEventoFolha === idEvt && (status === 'APROVADO' || sincronizado);
+    });
+    if (!aprovadas.length) return false;
+
+    aprovadas.sort((a, b) => {
+      const tb = new Date(String(b?.aprovadoEm || b?.ultimaAtualizacao || b?.criadoEm || '')).getTime() || 0;
+      const ta = new Date(String(a?.aprovadoEm || a?.ultimaAtualizacao || a?.criadoEm || '')).getTime() || 0;
+      return tb - ta;
+    });
+
+    const base = aprovadas[0];
+    const detalhe = await obterDetalheFolhaPorIdComFallback_(String(base.id || '').trim(), idEvt);
+    if (!detalhe) return false;
+    return preencherFormularioComFolha_(detalhe, 'revisao');
+  } catch (e) {
+    console.warn('Falha ao carregar última folha aprovada para revisão:', e);
     return false;
   }
 }
@@ -1114,7 +1188,7 @@ async function selecionarEventoAgendaFolha_(idEvento) {
   }
 
   if (eventoSelecionadoTemFolhaAtiva && !pendente) {
-    const okRevisao = confirm('Este evento já possui folha ativa. Deseja criar uma revisão para nova aprovação?');
+    const okRevisao = confirm('Este evento já possui folha ativa. Deseja carregar a última folha para revisão?');
     if (!okRevisao) {
       if (inpBusca) inpBusca.value = '';
       if (inpId) inpId.value = '';
@@ -1144,6 +1218,16 @@ async function selecionarEventoAgendaFolha_(idEvento) {
       const carregou = await carregarPropostaPendenteParaEdicao_(pendente.id);
       if (!carregou) {
         alert('Não foi possível carregar a proposta pendente. Você pode recalcular e enviar uma atualização manualmente.');
+      }
+    } finally {
+      hideLoading();
+    }
+  } else if (eventoSelecionadoTemFolhaAtiva) {
+    showLoading('Carregando última folha aprovada...');
+    try {
+      const carregouRevisao = await carregarUltimaFolhaAprovadaParaRevisao_(idNormalizado);
+      if (!carregouRevisao) {
+        alert('Não foi possível carregar a última folha aprovada. Você pode iniciar uma revisão manualmente.');
       }
     } finally {
       hideLoading();
