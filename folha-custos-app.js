@@ -632,9 +632,11 @@ async function carregarEventosAgendaFolha_() {
         if (aFolha !== bFolha) return aFolha - bFolha; // sem folha primeiro
         return String(a?.data || '').localeCompare(String(b?.data || ''));
       });
+    renderEventosAgendaRecomendados_();
   } catch (e) {
     console.warn('Falha ao carregar eventos da Agenda para vínculo da Folha:', e);
     eventosAgendaFolhaCache = [];
+    renderEventosAgendaRecomendados_();
   } finally {
     eventosAgendaFolhaCarregando = false;
     setAgendaEventoBuscaLoading_(false);
@@ -645,6 +647,18 @@ function eventoAgendaTemFolhaAtiva_(ev) {
   const valorDireto = Number(ev?.folhaCustoValor || 0);
   const valorCustos = Number(ev?.custos?.folha?.valor || ev?.folha?.valor || 0);
   return valorDireto > 0 || valorCustos > 0;
+}
+
+function parseDataEventoAgenda_(valor) {
+  const raw = String(valor || '').trim();
+  if (!raw) return null;
+  if (/^\d{2}\/\d{2}\/\d{4}$/.test(raw)) {
+    const p = raw.split('/');
+    const d = new Date(Number(p[2]), Number(p[1]) - 1, Number(p[0]));
+    return isNaN(d.getTime()) ? null : d;
+  }
+  const d = new Date(raw);
+  return isNaN(d.getTime()) ? null : d;
 }
 
 function normalizarDataAgendaParaIso_(valor) {
@@ -717,6 +731,35 @@ async function buscarEventoAgendaFolha_(q) {
       </div>
       <div class="muted" style="font-size:12px">${String(ev.tipoEvento || 'Evento')} • ${String(ev.data || '')}</div>
     </div>
+  `).join('');
+}
+
+function renderEventosAgendaRecomendados_() {
+  const box = document.getElementById('agenda-evento-recomendados');
+  if (!box) return;
+
+  const hoje = new Date();
+  hoje.setHours(23, 59, 59, 999);
+
+  const recomendados = (eventosAgendaFolhaCache || [])
+    .filter(ev => !eventoAgendaTemFolhaAtiva_(ev))
+    .map(ev => ({ ev: ev, dataObj: parseDataEventoAgenda_(ev.dataIso || ev.data) }))
+    .filter(item => item.dataObj && item.dataObj.getTime() <= hoje.getTime())
+    .sort((a, b) => b.dataObj.getTime() - a.dataObj.getTime())
+    .slice(0, 6)
+    .map(item => item.ev);
+
+  if (!recomendados.length) {
+    box.innerHTML = '<span class="muted">Nenhum evento pendente sem folha no momento.</span>';
+    return;
+  }
+
+  box.innerHTML = recomendados.map(ev => `
+    <button type="button"
+      style="margin:0 6px 6px 0;padding:6px 10px;border:1px solid #dbe4f0;border-radius:999px;background:#fff;color:#1f2937;cursor:pointer"
+      onclick="selecionarEventoAgendaFolha_('${String(ev.id || '').replace(/'/g, "\\'")}')">
+      ${String(ev.id || '')} • ${String(ev.contratante || 'Sem contratante')} • ${String(ev.data || '')}
+    </button>
   `).join('');
 }
 
@@ -1645,6 +1688,7 @@ function limparFormulario() {
   if (agendaId) agendaId.value = '';
   if (agendaSug) agendaSug.innerHTML = '';
   if (agendaBadge) agendaBadge.classList.add('hidden');
+  renderEventosAgendaRecomendados_();
   // Limpar passagem de som
   document.getElementById('passagem-de-som-checkbox').checked = false;
   document.getElementById('passagem-info').classList.add('hidden');
