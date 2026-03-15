@@ -30,6 +30,7 @@ let loadingMessageTimer = null;
 let loadingMessageIndex = 0;
 const FOLHA_CACHE_KEY = 'folhaCustos:dataCache:v1';
 const FOLHA_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutos
+let eventosAgendaFolhaCache = [];
 
 const LOADING_MESSAGES = [
   'Verificando sessão...',
@@ -70,6 +71,7 @@ document.addEventListener('DOMContentLoaded', async function() {
 
     CURRENT_USER_EMAIL = String(auth.user.email || localStorage.getItem('auth_email') || '').trim();
     if (auth.user.nome) localStorage.setItem('auth_nome', String(auth.user.nome));
+    carregarEventosAgendaFolha_().catch(() => {});
 
     const cacheBoot = lerCacheFolhaCustos_();
     const podeInstantBoot = cacheFolhaValido_(cacheBoot);
@@ -184,6 +186,13 @@ function setupEventListeners() {
 
   if (dataEventoInput) {
     dataEventoInput.addEventListener('change', recalcular);
+  }
+
+  const agendaEventoBusca = document.getElementById('agenda-evento-busca');
+  if (agendaEventoBusca) {
+    agendaEventoBusca.addEventListener('input', function() {
+      buscarEventoAgendaFolha_(this.value);
+    });
   }
 }
 
@@ -597,6 +606,72 @@ function parseDataFolhaLocal_(valor) {
   }
   const d = new Date(txt);
   return isNaN(d.getTime()) ? null : d;
+}
+
+async function carregarEventosAgendaFolha_() {
+  try {
+    const resp = await Auth.apiCall('listarEventosBootstrap', { incluirCancelados: false });
+    const lista = Array.isArray(resp?.eventos) ? resp.eventos : [];
+    eventosAgendaFolhaCache = lista.filter(ev => String(ev?.tipo || '').trim() === 'Evento');
+  } catch (e) {
+    console.warn('Falha ao carregar eventos da Agenda para vínculo da Folha:', e);
+    eventosAgendaFolhaCache = [];
+  }
+}
+
+function buscarEventoAgendaFolha_(q) {
+  const termo = String(q || '').trim().toLowerCase();
+  const box = document.getElementById('agenda-evento-sugestoes');
+  if (!box) return;
+
+  if (!termo || termo.length < 2) {
+    box.innerHTML = '';
+    return;
+  }
+
+  const list = (eventosAgendaFolhaCache || [])
+    .filter(ev => {
+      const hay = [
+        String(ev.id || ''),
+        String(ev.contratante || ''),
+        String(ev.tipoEvento || ''),
+        String(ev.data || '')
+      ].join(' ').toLowerCase();
+      return hay.includes(termo);
+    })
+    .slice(0, 12);
+
+  if (!list.length) {
+    box.innerHTML = '<div class="muted" style="padding:8px 10px">Nenhum evento encontrado.</div>';
+    return;
+  }
+
+  box.innerHTML = list.map(ev => `
+    <div style="padding:8px 10px;cursor:pointer;border-bottom:1px solid #eef2f7" onclick="selecionarEventoAgendaFolha_('${String(ev.id || '').replace(/'/g, "\\'")}')">
+      <div><strong>${String(ev.id || '')}</strong> • ${String(ev.contratante || 'Sem contratante')}</div>
+      <div class="muted" style="font-size:12px">${String(ev.tipoEvento || 'Evento')} • ${String(ev.data || '')}</div>
+    </div>
+  `).join('');
+}
+
+function selecionarEventoAgendaFolha_(idEvento) {
+  const id = String(idEvento || '').trim();
+  const ev = (eventosAgendaFolhaCache || []).find(e => String(e.id || '').trim() === id);
+  if (!ev) return;
+
+  const inpBusca = document.getElementById('agenda-evento-busca');
+  const inpId = document.getElementById('agenda-evento-id');
+  const box = document.getElementById('agenda-evento-sugestoes');
+  const badge = document.getElementById('agenda-evento-vinculo-status');
+  const badgeTxt = document.getElementById('agenda-evento-vinculo-texto');
+
+  if (inpBusca) inpBusca.value = `${ev.id} — ${ev.contratante || ''}`;
+  if (inpId) inpId.value = id;
+  if (box) box.innerHTML = '';
+  if (badge && badgeTxt) {
+    badgeTxt.textContent = `${ev.id} • ${ev.tipoEvento || 'Evento'}`;
+    badge.classList.remove('hidden');
+  }
 }
 
 async function diagnosticarPeriodoSemEventos_(dataInicio, dataFim) {
@@ -1374,9 +1449,12 @@ if (linhasAdicionais.length > 0) {
 // SALVAR FOLHA DE CUSTO
 // ═══════════════════════════════════════════════════════════
 
-async function salvarFolhaCusto() {
+async function salvarFolhaCusto(opts) {
+  const options = opts && typeof opts === 'object' ? opts : {};
+  const enviarAprovacao = options.enviarAprovacao === true;
   const eventoData = document.getElementById('evento-data').value;
   const eventoNome = document.getElementById('evento-nome').value.trim();
+  const idEventoAgenda = String(document.getElementById('agenda-evento-id')?.value || '').trim();
   
   if (!eventoData) {
     alert('Por favor, informe a data do evento');
@@ -1390,6 +1468,11 @@ async function salvarFolhaCusto() {
   
   if (musicosSelecionados.size === 0) {
     alert('Por favor, selecione pelo menos um músico');
+    return;
+  }
+
+  if (enviarAprovacao && !idEventoAgenda) {
+    alert('Para enviar aprovação na Agenda, vincule um evento da Agenda.');
     return;
   }
   
@@ -1423,6 +1506,8 @@ async function salvarFolhaCusto() {
     id: Date.now().toString(),
     data: eventoData,
     nomeEvento: eventoNome,
+    idEvento: idEventoAgenda || '',
+    idEventoAgenda: idEventoAgenda || '',
     foraCidade: eventoForaCidade,
     musicos: musicosData,
     terceirizados: terceirizadosAtivos,
@@ -1441,19 +1526,24 @@ async function salvarFolhaCusto() {
     } : null,
 
     resumo: document.getElementById('resumo-texto').textContent,
+    resumoCompacto: String(document.getElementById('resumo-texto').textContent || '').replace(/\s+/g, ' ').trim().slice(0, 480),
+    statusAprovacao: enviarAprovacao ? 'PENDENTE_APROVACAO' : 'RASCUNHO',
+    agendaSincronizado: false,
     criadoPor: CURRENT_USER_EMAIL || localStorage.getItem('auth_email') || '',
     criadoEm: new Date().toISOString()
   };
   
   try {
-    showLoading('Salvando folha de custo...');
+    showLoading(enviarAprovacao ? 'Enviando proposta para aprovação...' : 'Salvando folha de custo...');
     
     const resultado = await apiPost('salvarFolhaCusto', { data: folhaCusto });
     
     hideLoading();
     
     if (resultado.success) {
-      alert('✅ Folha de custo salva com sucesso!');
+      alert(enviarAprovacao
+        ? '✅ Proposta enviada para aprovação na Agenda!'
+        : '✅ Folha de custo salva com sucesso!');
       
       if (confirm('Deseja criar uma nova folha de custo?')) {
         limparFormulario();
@@ -1469,11 +1559,23 @@ async function salvarFolhaCusto() {
   }
 }
 
+function enviarFolhaParaAprovacaoAgenda() {
+  return salvarFolhaCusto({ enviarAprovacao: true });
+}
+
 function limparFormulario() {
   document.getElementById('evento-data').value = '';
   document.getElementById('evento-nome').value = '';
   document.getElementById('evento-fora-cidade').checked = false;
   document.getElementById('adicional-info').classList.add('hidden');
+  const agendaBusca = document.getElementById('agenda-evento-busca');
+  const agendaId = document.getElementById('agenda-evento-id');
+  const agendaSug = document.getElementById('agenda-evento-sugestoes');
+  const agendaBadge = document.getElementById('agenda-evento-vinculo-status');
+  if (agendaBusca) agendaBusca.value = '';
+  if (agendaId) agendaId.value = '';
+  if (agendaSug) agendaSug.innerHTML = '';
+  if (agendaBadge) agendaBadge.classList.add('hidden');
   // Limpar passagem de som
   document.getElementById('passagem-de-som-checkbox').checked = false;
   document.getElementById('passagem-info').classList.add('hidden');

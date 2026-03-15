@@ -975,6 +975,7 @@ let eventoSelecionadoMeta = null;
 let asaasMensagensCliente = { completa: '', curta: '' };
 let asaasContatoEvento = { whatsapp: '', email: '', cpfCnpj: '' };
 let eventoRequerVinculoContratante = false;
+let pendenciasFolhaAprovacao = [];
 let ajustesDetalhadosComissao = [];
 let previewComissaoAtual = null;
 let fiscalEventosCache = [];
@@ -1115,6 +1116,10 @@ function ehProprietario_() {
 
 function ehSocio_() {
   return perfilAtualNorm === 'socio' || perfilAtualNorm === 'administrador' || perfilAtualNorm === 'admin';
+}
+
+function podeAprovarFolhaCustos_() {
+  return ehProprietario_() || ehSocio_();
 }
 
 /* ================= INIT ================= */
@@ -1759,9 +1764,23 @@ function atualizarResumoLiquidoComissao_() {
 function renderObrigacao(){
   resumo.innerHTML = '<span class="muted">Selecione um evento</span>';
   const podeRegistrarFolha = ehProprietario_();
+  const podeAprovarFolha = podeAprovarFolhaCustos_();
 
   form.innerHTML = `
 <h3>🟠 Saídas do Evento</h3>
+
+${podeAprovarFolha ? `
+<div style="margin-bottom:14px;padding:12px;border:1px solid #e2e8f0;border-radius:10px;background:#f8fafc">
+  <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
+    <div>
+      <strong>Folhas de Custos Pendentes</strong>
+      <div class="muted" style="font-size:12px">Propostas vindas da calculadora de Folha aguardando aprovação.</div>
+    </div>
+    <button type="button" class="btn secondary" onclick="carregarPendenciasFolhaCustosAprovacao_()">Atualizar</button>
+  </div>
+  <div id="folhaPendenciasBox" class="muted" style="margin-top:10px">Carregando pendências...</div>
+</div>
+` : ''}
 
 <label>Evento (Contratante)</label>
 <input id="inputEvento" onkeyup="buscarEvento(this.value)">
@@ -1783,6 +1802,10 @@ function renderObrigacao(){
 
 <div id="camposSaida"></div>
 `;
+
+  if (podeAprovarFolha) {
+    carregarPendenciasFolhaCustosAprovacao_().catch(() => {});
+  }
 }
 
 function renderCamposSaida() {
@@ -1913,6 +1936,65 @@ function submitSaidaEvento() {
     liberarBotao(btn);
     tratarErroApi(err);
   });
+}
+
+async function carregarPendenciasFolhaCustosAprovacao_() {
+  const box = document.getElementById('folhaPendenciasBox');
+  if (!box) return;
+  box.innerHTML = '<span class="muted">Carregando pendências...</span>';
+  try {
+    const resp = await Auth.apiCall('listarPendenciasFolhaCustoAprovacao', {});
+    pendenciasFolhaAprovacao = Array.isArray(resp?.pendentes) ? resp.pendentes : [];
+    if (!pendenciasFolhaAprovacao.length) {
+      box.innerHTML = '<span class="muted">Sem pendências de folha para aprovação.</span>';
+      return;
+    }
+
+    box.innerHTML = pendenciasFolhaAprovacao.map((p, idx) => `
+      <div style="padding:10px;border:1px solid #e5e7eb;border-radius:10px;margin-top:8px;background:#fff">
+        <div><strong>${escaparHtml_(String(p.idEvento || ''))}</strong> • ${escaparHtml_(String(p.nomeEvento || 'Evento'))}</div>
+        <div class="muted" style="font-size:12px;margin-top:3px">
+          Valor: <strong>R$ ${Number(p.valorTotal || 0).toFixed(2)}</strong> • Data: ${escaparHtml_(String(p.data || ''))}
+        </div>
+        <div class="muted" style="font-size:12px;margin-top:3px">${escaparHtml_(String(p.resumoCompacto || '').slice(0, 220))}</div>
+        <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">
+          <button type="button" class="btn secondary" onclick="selecionarEventoPorIdNoModo_('${escaparAttr_(String(p.idEvento || ''))}')">Abrir evento</button>
+          <button type="button" class="btn primary" onclick="aprovarPendenciaFolhaCusto_('${escaparAttr_(String(p.id || ''))}')">Aprovar</button>
+        </div>
+      </div>
+    `).join('');
+  } catch (err) {
+    console.error('Erro ao carregar pendências de folha:', err);
+    box.innerHTML = '<span class="muted">Erro ao carregar pendências.</span>';
+  }
+}
+
+async function aprovarPendenciaFolhaCusto_(idFolha) {
+  const id = String(idFolha || '').trim();
+  if (!id) return;
+  const pendencia = pendenciasFolhaAprovacao.find(p => String(p.id || '').trim() === id);
+  const msg = pendencia
+    ? `Aprovar folha do evento ${pendencia.idEvento} no valor de R$ ${Number(pendencia.valorTotal || 0).toFixed(2)}?`
+    : 'Confirmar aprovação da folha de custos?';
+  if (!confirm(msg)) return;
+
+  showLoading('Aprovando folha de custos...');
+  try {
+    const resp = await Auth.apiCall('aprovarPendenciaFolhaCusto', { idFolha: id });
+    if (!resp || resp.sucesso !== true) {
+      alert(resp?.mensagem || 'Não foi possível aprovar a folha.');
+      return;
+    }
+    alert('Folha aprovada e lançada na Agenda com sucesso.');
+    await carregarPendenciasFolhaCustosAprovacao_();
+    if (pendencia && pendencia.idEvento) {
+      await selecionarEventoPorIdNoModo_(pendencia.idEvento);
+    }
+  } catch (err) {
+    tratarErroApi(err);
+  } finally {
+    hideLoading();
+  }
 }
 
 /* ================= FISCALIZAÇÃO ================= */
