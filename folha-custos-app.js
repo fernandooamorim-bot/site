@@ -33,6 +33,16 @@ const FOLHA_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutos
 let eventosAgendaFolhaCache = [];
 let eventosAgendaFolhaCarregando = false;
 const resumoFolhaEventoCache = new Map();
+let eventosComPropostaFolhaCache = new Set();
+let eventosComPropostaFolhaCacheTs = 0;
+
+function setAgendaRecomendadosLoading_(ativo, texto) {
+  const box = document.getElementById('agenda-evento-recomendados');
+  if (!box) return;
+  if (ativo) {
+    box.innerHTML = `<span class="muted">${String(texto || 'Carregando sugestões...')}</span>`;
+  }
+}
 
 const LOADING_MESSAGES = [
   'Verificando sessão...',
@@ -73,7 +83,10 @@ document.addEventListener('DOMContentLoaded', async function() {
 
     CURRENT_USER_EMAIL = String(auth.user.email || localStorage.getItem('auth_email') || '').trim();
     if (auth.user.nome) localStorage.setItem('auth_nome', String(auth.user.nome));
-    carregarEventosAgendaFolha_().catch(() => {});
+    setAgendaRecomendadosLoading_(true, 'Carregando sugestões...');
+    carregarEventosAgendaFolha_().catch(() => {
+      setAgendaRecomendadosLoading_(false);
+    });
 
     const cacheBoot = lerCacheFolhaCustos_();
     const podeInstantBoot = cacheFolhaValido_(cacheBoot);
@@ -633,6 +646,7 @@ async function carregarEventosAgendaFolha_(opts) {
   const mostrarLoadingBusca = options.mostrarLoadingBusca === true;
   if (eventosAgendaFolhaCarregando) return;
   eventosAgendaFolhaCarregando = true;
+  setAgendaRecomendadosLoading_(true, 'Carregando sugestões...');
   if (mostrarLoadingBusca) {
     setAgendaEventoBuscaLoading_(true, 'Carregando eventos da Agenda...');
   }
@@ -694,6 +708,54 @@ async function eventoAgendaTemFolhaAtivaPorResumo_(idEvento) {
     // Em caso de falha, não assume "sem folha" para evitar falso positivo.
     resumoFolhaEventoCache.set(id, true);
     return true;
+  }
+}
+
+function extrairMetaAgendaDaFolhaLocal_(folha) {
+  if (!folha || typeof folha !== 'object') return { idEvento: '', status: '' };
+  let meta = folha.Folhas_Custo || folha.folhas_custo || folha.folhasCusto || null;
+  if (typeof meta === 'string') {
+    try { meta = JSON.parse(meta); } catch (_) { meta = null; }
+  }
+  const agenda = (meta && typeof meta === 'object' && meta.agenda && typeof meta.agenda === 'object')
+    ? meta.agenda
+    : {};
+  return {
+    idEvento: String(
+      agenda.idEvento ||
+      agenda.idEventoAgenda ||
+      folha.idEvento ||
+      folha.idEventoAgenda ||
+      ''
+    ).trim(),
+    status: String(
+      agenda.statusAprovacao ||
+      folha.statusAprovacao ||
+      ''
+    ).trim().toUpperCase()
+  };
+}
+
+async function carregarEventosComPropostaFolha_() {
+  const agora = Date.now();
+  if ((agora - eventosComPropostaFolhaCacheTs) < 60000 && eventosComPropostaFolhaCache.size >= 0) {
+    return;
+  }
+  try {
+    const lista = await apiPost('getFolhasCusto', {});
+    const arr = Array.isArray(lista) ? lista : [];
+    const pendentes = new Set();
+    arr.forEach((f) => {
+      const meta = extrairMetaAgendaDaFolhaLocal_(f);
+      if (!meta.idEvento) return;
+      if (meta.status === 'PENDENTE_APROVACAO' || meta.status === 'PENDENTE' || meta.status === 'SOLICITADO') {
+        pendentes.add(meta.idEvento);
+      }
+    });
+    eventosComPropostaFolhaCache = pendentes;
+    eventosComPropostaFolhaCacheTs = agora;
+  } catch (e) {
+    console.warn('Falha ao carregar propostas pendentes da Folha:', e);
   }
 }
 
@@ -786,9 +848,15 @@ async function renderEventosAgendaRecomendados_() {
   const box = document.getElementById('agenda-evento-recomendados');
   if (!box) return;
 
+  if (eventosAgendaFolhaCarregando && !(eventosAgendaFolhaCache || []).length) {
+    box.innerHTML = '<span class="muted">Carregando sugestões...</span>';
+    return;
+  }
+
   const hoje = new Date();
   hoje.setHours(23, 59, 59, 999);
   box.innerHTML = '<span class="muted">Atualizando sugestões...</span>';
+  await carregarEventosComPropostaFolha_();
 
   const candidatos = (eventosAgendaFolhaCache || [])
     .map(ev => ({ ev: ev, dataObj: parseDataEventoAgenda_(ev.dataIso || ev.data) }))
@@ -799,6 +867,10 @@ async function renderEventosAgendaRecomendados_() {
   const recomendados = [];
   for (let i = 0; i < candidatos.length && recomendados.length < 6 && i < 200; i++) {
     const ev = candidatos[i];
+    const idEvento = String(ev?.id || '').trim();
+    if (idEvento && eventosComPropostaFolhaCache.has(idEvento)) {
+      continue;
+    }
     const statusLocal = statusFolhaLocalEvento_(ev);
     const temFolha = statusLocal === null
       ? await eventoAgendaTemFolhaAtivaPorResumo_(ev.id)
@@ -1727,6 +1799,11 @@ async function salvarFolhaCusto(opts) {
     hideLoading();
     
     if (resultado.success) {
+      if (enviarAprovacao && idEventoAgenda) {
+        eventosComPropostaFolhaCache.add(idEventoAgenda);
+        eventosComPropostaFolhaCacheTs = Date.now();
+        renderEventosAgendaRecomendados_().catch(() => {});
+      }
       alert(enviarAprovacao
         ? '✅ Folha registrada e enviada para aprovação na Agenda!'
         : '✅ Folha de custo salva com sucesso!');
