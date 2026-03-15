@@ -314,6 +314,26 @@
       -webkit-backdrop-filter: blur(4px);
     }
 
+    .agenda-offline-status {
+      display: none;
+      position: sticky;
+      top: var(--header-height);
+      z-index: 96;
+      margin: 0;
+      padding: 8px 14px;
+      background: #fff7ed;
+      border-bottom: 1px solid #fed7aa;
+      color: #9a3412;
+      font-size: 12px;
+      font-weight: 700;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .agenda-offline-status.show {
+      display: flex;
+    }
+
     .agenda-sync-status.show {
       display: flex;
     }
@@ -1654,6 +1674,10 @@
     <div class="header-info" id="headerInfo"></div>
   </div>
 
+  <div class="agenda-offline-status" id="agendaOfflineStatus" aria-live="polite">
+    <span>Modo offline: consulta da agenda com último cache salvo.</span>
+  </div>
+
   <div class="agenda-sync-status" id="agendaSyncStatus" aria-live="polite">
     <span class="agenda-sync-status-icon" aria-hidden="true"></span>
     <span id="agendaSyncStatusText"></span>
@@ -1850,6 +1874,7 @@ if (!AUTH.email || !AUTH.session) {
     AGENDA_CACHE_TIMEOUT: 300000,
     AGENDA_CACHE_INSTANT_BOOT: true,
     AGENDA_CACHE_NOTIFY_UPDATE: true,
+    AGENDA_OFFLINE_ATIVO: false,
     AGENDA_CORES_PERSONALIZADAS: true,
     AGENDA_LIMITE_TODOS: 200
   },
@@ -1870,11 +1895,14 @@ if (!AUTH.email || !AUTH.session) {
       ultimaAtualizacao: null,
       loading: false,
       mobileSecondaryOpen: false,
-      syncEmAndamento: false
+      syncEmAndamento: false,
+      offlineAtivo: false,
+      offlineListenersSet: false
 
     };
 
     const AGENDA_CACHE_KEY_PREFIX = 'agenda_cache_v2:';
+    const AGENDA_OFFLINE_CONFIG_CACHE_KEY = 'agenda_offline_config_v1';
 
     function isMusico() {
       if (!AppState.usuario) return false;
@@ -2297,6 +2325,12 @@ calcularDiasIntervalo(dataInicio, dataFim) {
         const el = document.getElementById('agendaSyncStatus');
         if (!el) return;
         el.classList.remove('show', 'success', 'slow');
+      },
+
+      atualizarStatusOffline() {
+        const el = document.getElementById('agendaOfflineStatus');
+        if (!el) return;
+        el.classList.toggle('show', !!AppState.offlineAtivo);
       },
 
       atualizarEstadoControlesMobile_() {
@@ -3282,6 +3316,7 @@ renderizarEventosDentro(evento) {
             AgendaController.carregarConfiguracoes(),
             AgendaController.carregarEventosComCache()
           ]);
+          await AgendaController.inicializarOfflineAgenda();
 
           // 3. Aplica configurações visuais
           AgendaController.aplicarConfigVirtualizacao();
@@ -3571,9 +3606,26 @@ renderizarEventosDentro(evento) {
         try {
           const res = await Auth.apiCall('carregarConfiguracoes');
           AppState.config = res || AppState.config;
+          try {
+            localStorage.setItem(AGENDA_OFFLINE_CONFIG_CACHE_KEY, JSON.stringify({
+              enabled: this.configBool('AGENDA_OFFLINE_ATIVO', false),
+              showCard: this.configBool('AGENDA_OFFLINE_INDEX_CARD', true),
+              ts: Date.now()
+            }));
+          } catch (_) {}
           return AppState.config;
         } catch (e) {
           Utils.error('Falha ao carregar configurações, usando padrão');
+          try {
+            const raw = localStorage.getItem(AGENDA_OFFLINE_CONFIG_CACHE_KEY);
+            if (raw) {
+              const parsed = JSON.parse(raw);
+              if (parsed && typeof parsed === 'object') {
+                AppState.config.AGENDA_OFFLINE_ATIVO = parsed.enabled === true;
+                AppState.config.AGENDA_OFFLINE_INDEX_CARD = parsed.showCard !== false;
+              }
+            }
+          } catch (_) {}
           return AppState.config;
         }
       },
@@ -3598,6 +3650,32 @@ renderizarEventosDentro(evento) {
     if (v === undefined || v === null || String(v).trim() === '') return !!padrao;
     const s = String(v).trim().toLowerCase();
     return ['true', '1', 'sim', 'yes', 'on'].includes(s);
+  },
+
+  async registrarServiceWorkerOfflineAgenda() {
+    if (!('serviceWorker' in navigator)) return;
+    try {
+      if (this.configBool('AGENDA_OFFLINE_ATIVO', false)) {
+        await navigator.serviceWorker.register('./sw-agenda.js', { scope: './' });
+      }
+    } catch (e) {
+      Utils.error('Falha ao registrar SW da agenda offline:', e);
+    }
+  },
+
+  async inicializarOfflineAgenda() {
+    await this.registrarServiceWorkerOfflineAgenda();
+    AppState.offlineAtivo = this.configBool('AGENDA_OFFLINE_ATIVO', false) && !navigator.onLine;
+    UI.atualizarStatusOffline();
+
+    if (AppState.offlineListenersSet) return;
+    const recalcular = () => {
+      AppState.offlineAtivo = this.configBool('AGENDA_OFFLINE_ATIVO', false) && !navigator.onLine;
+      UI.atualizarStatusOffline();
+    };
+    window.addEventListener('online', recalcular);
+    window.addEventListener('offline', recalcular);
+    AppState.offlineListenersSet = true;
   },
 
   getCacheKeyPersistente() {
@@ -3657,6 +3735,7 @@ renderizarEventosDentro(evento) {
   },
 
   async revalidarCacheEmSegundoPlano() {
+    if (AppState.offlineAtivo) return;
     if (AppState.syncEmAndamento) return;
 
     let slowTimer = null;
@@ -4017,6 +4096,10 @@ renderizarEventosDentro(evento) {
           const btnRecarregar = document.getElementById('btnRecarregar');
           if (btnRecarregar) {
             btnRecarregar.addEventListener('click', async () => {
+              if (AppState.offlineAtivo) {
+                UI.showToast('Modo offline ativo. Atualização exige internet.', 'warning', 2200);
+                return;
+              }
               Utils.log('🔄 Recarregando (limpando cache)...');
 
               // Limpa cache
@@ -4087,7 +4170,15 @@ renderizarEventosDentro(evento) {
     // ========================================
     // FUNÇÕES GLOBAIS (chamadas do HTML)
     // ========================================
+    function modoConsultaOfflineAtivo() {
+      return !!(AppState.offlineAtivo && !navigator.onLine);
+    }
+
     function editarEvento(eventoId) {
+      if (modoConsultaOfflineAtivo()) {
+        UI.showToast('Modo offline: edição indisponível no momento.', 'warning', 2200);
+        return;
+      }
       Utils.log('Editar evento:', eventoId);
       const id = String(eventoId || '').trim();
       if (!id) return;
@@ -4096,6 +4187,10 @@ renderizarEventosDentro(evento) {
     }
 
     function converterReserva(eventoId) {
+      if (modoConsultaOfflineAtivo()) {
+        UI.showToast('Modo offline: conversão indisponível no momento.', 'warning', 2200);
+        return;
+      }
       Utils.log('Converter reserva:', eventoId);
       const id = String(eventoId || '').trim();
       if (!id) return;
@@ -4104,6 +4199,10 @@ renderizarEventosDentro(evento) {
     }
 
     async function cancelarRegistro(eventoId) {
+      if (modoConsultaOfflineAtivo()) {
+        UI.showToast('Modo offline: cancelamento indisponível no momento.', 'warning', 2400);
+        return;
+      }
       const id = String(eventoId || '').trim();
       if (!id) return;
 

@@ -546,6 +546,51 @@
       margin-bottom: var(--space-md);
     }
 
+    .offline-banner {
+      display: none;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      background: #fff7ed;
+      border: 1px solid #fed7aa;
+      color: #9a3412;
+      border-radius: var(--radius-md);
+      padding: 10px 12px;
+      margin-bottom: var(--space-md);
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .offline-banner.show {
+      display: flex;
+    }
+
+    .offline-banner strong {
+      font-weight: 800;
+    }
+
+    .offline-banner .offline-agenda-btn {
+      border: 1px solid #fdba74;
+      background: #fff;
+      color: #9a3412;
+      border-radius: 999px;
+      padding: 6px 10px;
+      font-size: 11px;
+      font-weight: 700;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .offline-lock .nav-card.disabled-offline {
+      opacity: 0.52;
+      filter: grayscale(0.15);
+      cursor: not-allowed;
+      pointer-events: none;
+      transform: none !important;
+      box-shadow: var(--shadow-sm) !important;
+      border-color: var(--gray-300) !important;
+    }
+
     /* ============================================
        NAVIGATION GRID
        ============================================ */
@@ -1032,6 +1077,11 @@
         <h1 class="page-title">Painel Principal</h1>
       </div>
 
+      <div class="offline-banner anim-in" id="offlineBanner" aria-live="polite">
+        <span><strong>Modo offline:</strong> somente a Agenda (consulta) está disponível.</span>
+        <button class="offline-agenda-btn" type="button" onclick="abrir('agenda')">Abrir Agenda</button>
+      </div>
+
       <!-- Section Label -->
       <div class="section-label anim-in anim-d1">Acesso rápido</div>
 
@@ -1039,7 +1089,7 @@
       <div class="nav-grid">
 
         <!-- Card: Agenda -->
-        <div class="nav-card anim-in anim-d2" onclick="abrir('agenda')">
+        <div class="nav-card anim-in anim-d2" id="cardAgenda" onclick="abrir('agenda')">
           <div class="nav-card-top">
             <div class="nav-card-icon navy">
               <i data-lucide="calendar-days"></i>
@@ -1296,7 +1346,7 @@
         <i data-lucide="layout-grid"></i>
         <span>Início</span>
       </button>
-      <button class="bnav-item" onclick="abrir('agenda')">
+      <button class="bnav-item" id="bnavAgenda" onclick="abrir('agenda')">
         <i data-lucide="calendar-days"></i>
         <span>Agenda</span>
       </button>
@@ -1382,6 +1432,131 @@
     };
   }
 
+  const OFFLINE_CONFIG_CACHE_KEY = 'agenda_offline_config_v1';
+  const IndexOfflineState = {
+    enabled: false,
+    showCard: true,
+    active: false,
+    initialized: false
+  };
+
+  function boolConfig_(v, fallback) {
+    if (v === undefined || v === null || String(v).trim() === '') return !!fallback;
+    const s = String(v).trim().toLowerCase();
+    return s === 'true' || s === '1' || s === 'sim' || s === 'yes' || s === 'on';
+  }
+
+  function salvarConfigOfflineLocal_(cfg) {
+    try {
+      localStorage.setItem(OFFLINE_CONFIG_CACHE_KEY, JSON.stringify({
+        ts: Date.now(),
+        enabled: !!cfg.enabled,
+        showCard: !!cfg.showCard
+      }));
+    } catch (_) {}
+  }
+
+  function lerConfigOfflineLocal_() {
+    try {
+      const raw = localStorage.getItem(OFFLINE_CONFIG_CACHE_KEY);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      if (!parsed || typeof parsed !== 'object') return null;
+      return {
+        enabled: !!parsed.enabled,
+        showCard: parsed.showCard !== false
+      };
+    } catch (_) {
+      return null;
+    }
+  }
+
+  async function carregarConfigOfflineIndex_() {
+    let cfgApi = null;
+    try {
+      const resp = await Auth.apiCall('carregarConfiguracoes');
+      if (resp && typeof resp === 'object') cfgApi = resp;
+    } catch (_) {
+      cfgApi = null;
+    }
+
+    if (cfgApi) {
+      IndexOfflineState.enabled = boolConfig_(cfgApi.AGENDA_OFFLINE_ATIVO, false);
+      IndexOfflineState.showCard = boolConfig_(cfgApi.AGENDA_OFFLINE_INDEX_CARD, true);
+      salvarConfigOfflineLocal_({
+        enabled: IndexOfflineState.enabled,
+        showCard: IndexOfflineState.showCard
+      });
+      return;
+    }
+
+    const cacheLocal = lerConfigOfflineLocal_();
+    if (cacheLocal) {
+      IndexOfflineState.enabled = !!cacheLocal.enabled;
+      IndexOfflineState.showCard = cacheLocal.showCard !== false;
+    }
+  }
+
+  async function registrarServiceWorkerAgenda_() {
+    if (!('serviceWorker' in navigator)) return;
+    try {
+      if (IndexOfflineState.enabled) {
+        await navigator.serviceWorker.register('./sw-agenda.js', { scope: './' });
+      } else {
+        const regs = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(regs.map(function(r) {
+          try {
+            const url = (r && r.active && r.active.scriptURL) || '';
+            if (url.indexOf('/sw-agenda.js') !== -1) return r.unregister();
+          } catch (_) {}
+          return Promise.resolve();
+        }));
+      }
+    } catch (e) {
+      console.warn('SW offline agenda indisponível:', e);
+    }
+  }
+
+  function aplicarVisualOfflineIndex_() {
+    const offlineAgora = IndexOfflineState.enabled && !navigator.onLine;
+    IndexOfflineState.active = offlineAgora;
+
+    const banner = document.getElementById('offlineBanner');
+    if (banner) {
+      const show = offlineAgora && IndexOfflineState.showCard;
+      banner.classList.toggle('show', !!show);
+    }
+
+    const app = document.getElementById('app');
+    if (app) app.classList.toggle('offline-lock', !!offlineAgora);
+
+    const cards = document.querySelectorAll('.nav-card');
+    cards.forEach(function(card) {
+      const isAgenda = card.id === 'cardAgenda' || (card.getAttribute('onclick') || '').indexOf(\"abrir('agenda')\") >= 0;
+      card.classList.toggle('disabled-offline', offlineAgora && !isAgenda);
+    });
+
+    const bnav = document.querySelectorAll('.bnav-item');
+    bnav.forEach(function(btn) {
+      const isAgenda = btn.id === 'bnavAgenda' || (btn.getAttribute('onclick') || '').indexOf(\"abrir('agenda')\") >= 0;
+      btn.disabled = !!(offlineAgora && !isAgenda);
+      btn.style.opacity = (offlineAgora && !isAgenda) ? '0.45' : '';
+    });
+  }
+
+  async function inicializarOfflineIndex_() {
+    if (IndexOfflineState.initialized) {
+      aplicarVisualOfflineIndex_();
+      return;
+    }
+    await carregarConfigOfflineIndex_();
+    await registrarServiceWorkerAgenda_();
+    aplicarVisualOfflineIndex_();
+    window.addEventListener('online', aplicarVisualOfflineIndex_);
+    window.addEventListener('offline', aplicarVisualOfflineIndex_);
+    IndexOfflineState.initialized = true;
+  }
+
   /**
    * ============================================
    * BOOT — EXATAMENTE a mesma lógica do original
@@ -1397,6 +1572,7 @@
       onLoginSuccess({ email, perfil });
       aplicarPermissoes({ email, perfil });
       validarSessaoIndexEmSegundoPlano_();
+      inicializarOfflineIndex_();
       return;
     }
 
@@ -1485,6 +1661,7 @@
 
     // Warmup de navegação da Agenda para reduzir sensação de carregamento no clique do card.
     prefetchAgendaPage();
+    inicializarOfflineIndex_();
   }
 
   /**
@@ -1579,6 +1756,14 @@
    * ============================================
    */
   function abrir(pagina) {
+    if (IndexOfflineState.active && pagina !== 'agenda' && pagina !== 'home') {
+      try {
+        const banner = document.getElementById('offlineBanner');
+        if (banner) banner.classList.add('show');
+      } catch (_) {}
+      return;
+    }
+
     var rotas = {
       agenda: './agenda.html',
       novoEvento: './cadastro-evento.html',
