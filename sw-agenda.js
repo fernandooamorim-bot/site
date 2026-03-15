@@ -1,4 +1,4 @@
-const AGENDA_OFFLINE_CACHE = 'agenda-offline-v1';
+const AGENDA_OFFLINE_CACHE = 'agenda-offline-v3';
 
 const SHELL_FILES = [
   './',
@@ -68,9 +68,16 @@ self.addEventListener('fetch', (event) => {
           const cached = await caches.match(event.request);
           if (cached) return cached;
           if (isAgenda) return (await caches.match('./agenda.html')) || Response.error();
-          return (await caches.match('./index.html')) || Response.error();
+          if (isIndex) return (await caches.match('./index.html')) || Response.error();
+          return Response.error();
         })
     );
+    return;
+  }
+
+  if (isNavigate) {
+    // Demais páginas: sempre rede (não reutiliza HTML em cache para evitar tela desatualizada).
+    event.respondWith(fetch(event.request));
     return;
   }
 

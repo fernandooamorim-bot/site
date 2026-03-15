@@ -4515,6 +4515,19 @@ function preencherFormulario(evento) {
     });
   }
 }
+      if (!contextoEvento) {
+        const motivoAntigo = String(eventoOriginal?.observacoes ?? '');
+        const motivoNovo = String(dados?.motivoRegistro ?? '');
+        const jaExiste = alteracoes.some(a => a.campo === 'Motivo/Status');
+        if (!jaExiste && motivoAntigo !== motivoNovo) {
+          alteracoes.push({
+            campo: 'Motivo/Status',
+            valorAntigo: motivoAntigo || '(vazio)',
+            valorNovo: motivoNovo || '(vazio)',
+            impacto: null
+          });
+        }
+      }
       return alteracoes;
     }
     
