@@ -2312,6 +2312,10 @@ function getConverterFromURL() {
     duracao: false,
     projeto: false
   };
+  let atualizacaoMestreEmEdicao = {
+    contratante: false,
+    local: false
+  };
   let contratantesCache = [];
   let permissaoFinanceira = null;
 
@@ -3373,6 +3377,7 @@ async function salvarCadastroContratanteEdicao() {
     const res = await Auth.apiCall('atualizarContratante', { id, nome, telefone, email, cpfCnpj });
     if (!res?.sucesso) throw new Error(res?.mensagem || 'Falha ao atualizar contratante.');
     document.getElementById('nomeContratante').value = String(res.nome || nome);
+    atualizacaoMestreEmEdicao.contratante = true;
     atualizarAcoesContextuaisCadastro();
     fecharModalContratanteEdicao();
     mostrarAlerta('Cadastro do contratante atualizado.', 'success');
@@ -3442,6 +3447,7 @@ async function salvarCadastroLocalEdicao() {
     });
     if (!res?.sucesso) throw new Error(res?.mensagem || 'Falha ao atualizar local.');
     document.getElementById('nomeLocal').value = String(res.nome || nome);
+    atualizacaoMestreEmEdicao.local = true;
     atualizarAcoesContextuaisCadastro();
     fecharModalLocalEdicao();
     mostrarAlerta('Cadastro do local atualizado.', 'success');
@@ -4352,6 +4358,9 @@ async function validarImpactoFinanceiroAntesSalvar(callback) {
     }
     
 function preencherFormulario(evento) {
+  atualizacaoMestreEmEdicao.contratante = false;
+  atualizacaoMestreEmEdicao.local = false;
+
   const tipoRegistroAtual = String(evento?.tipoRegistro || 'Evento').trim();
   const ehEventoVisual = tipoRegistroAtual === 'Evento' || modoConversaoReserva;
 
@@ -4462,7 +4471,9 @@ function preencherFormulario(evento) {
         idEndereco: 'ID Local', nomeLocal: 'Local',
         valorTotal: 'Valor Total', idVendedor: 'Vendedor', valorBV: 'Valor BV',
         idBV: 'Parceiro BV', temNF: 'Tem NF',
-        look: 'Look', somResponsavel: 'Responsável Som', observacoes: 'Motivo/Observações'
+        look: 'Look', somResponsavel: 'Responsável Som',
+        observacoes: 'Observações',
+        motivoRegistro: 'Motivo/Status'
       };
       const impactos = {
         valorTotal: 'Comissões pendentes serão recalculadas',
@@ -4489,6 +4500,8 @@ function preencherFormulario(evento) {
       ? (eventoOriginal.nomeContratanteAtual ?? '')
       : campo === 'nomeLocal'
         ? (eventoOriginal.nomeLocalAtual ?? '')
+        : campo === 'motivoRegistro'
+          ? (eventoOriginal.observacoes ?? '')
         : (eventoOriginal[campo] ?? '')
   );
   const valorNovo = String(dados[campo] ?? '');
@@ -4641,6 +4654,7 @@ function preencherFormulario(evento) {
         temNF: ehEventoVisual ? document.getElementById('temNF').value : 'NÃO',
         look: ehEventoVisual ? document.getElementById('look').value : '',
         somResponsavel: ehEventoVisual ? document.getElementById('somResponsavel').value : '',
+        motivoRegistro: document.getElementById('motivoRegistro').value,
         observacoes: observacoesFinal,
         converterReserva: modoConversaoReserva ? true : false
       };
@@ -4716,10 +4730,14 @@ function preencherFormulario(evento) {
           const nomeLocAntigo = String(eventoOriginal?.nomeLocalAtual || '').trim();
 
           if (idContr && idContr === idContrAntigo && nomeContrNovo && nomeContrNovo !== nomeContrAntigo) {
-            dadosFormulario.aplicarNomeContratanteNoMestre = confirm('Aplicar o novo nome do contratante também no cadastro mestre?');
+            dadosFormulario.aplicarNomeContratanteNoMestre = atualizacaoMestreEmEdicao.contratante
+              ? false
+              : confirm('Aplicar o novo nome do contratante também no cadastro mestre?');
           }
           if (idLoc && idLoc === idLocAntigo && nomeLocNovo && nomeLocNovo !== nomeLocAntigo) {
-            dadosFormulario.aplicarNomeLocalNoMestre = confirm('Aplicar o novo nome do local também no cadastro mestre?');
+            dadosFormulario.aplicarNomeLocalNoMestre = atualizacaoMestreEmEdicao.local
+              ? false
+              : confirm('Aplicar o novo nome do local também no cadastro mestre?');
           }
 
           if (!validarCamposConversaoReserva(dadosFormulario)) {
