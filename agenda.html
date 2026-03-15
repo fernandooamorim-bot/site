@@ -888,7 +888,9 @@
     }
 
     .evento-titulo-row {
-      display: block;
+      display: flex;
+      align-items: center;
+      gap: 8px;
       min-width: 0;
       margin-bottom: 2px;
     }
@@ -915,7 +917,7 @@
       border: 1px solid var(--gray-300);
       background: var(--gray-100);
       color: var(--gray-700);
-      max-width: 46%;
+      max-width: 48%;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -930,30 +932,12 @@
       color: var(--gray-500);
     }
 
-    .evento-bottom-left {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      min-width: 0;
-      flex: 1;
-      overflow: hidden;
-    }
-
-    .evento-bottom-right {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      flex-shrink: 0;
-      white-space: nowrap;
-    }
-
     .evento-local {
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
       min-width: 0;
-      flex: 0 1 auto;
-      max-width: 62%;
+      max-width: 70%;
     }
 
     .status-badge {
@@ -1559,11 +1543,7 @@
       }
 
       .evento-projeto-chip {
-        max-width: 34vw;
-      }
-
-      .evento-local {
-        max-width: 48vw;
+        max-width: 42%;
       }
 
       .modal-content {
@@ -2667,14 +2647,12 @@ criarCardEvento(evento) {
 
         <div class="evento-titulo-row">
           <div class="evento-titulo">${tituloEvento}</div>
+          ${evento.projeto ? `<span class="evento-projeto-chip">${evento.projeto}</span>` : ''}
         </div>
 
         <div class="evento-bottomline">
-          <span class="evento-bottom-left">
-            <span class="evento-local">${evento.local || 'Local não informado'}</span>
-            ${evento.projeto ? `<span class="evento-projeto-chip">${evento.projeto}</span>` : ''}
-          </span>
-          <span class="evento-bottom-right">
+          <span class="evento-local">${evento.local || 'Local não informado'}</span>
+          <span>
             ${ehCancelado ? `<span class="status-badge status-reserva">Cancelado</span>` : ''}
             ${statusLabel ? `<span class="status-badge ${statusClass}">${statusLabel}</span>` : ''}
             ${temConflitos ? `<span class="conflict-badge">⚠ ${evento.eventosDentro.length} conflito${evento.eventosDentro.length > 1 ? 's' : ''}</span>` : ''}
@@ -3692,7 +3670,7 @@ renderizarEventosDentro(evento) {
 
       Utils.log('♻️ Mudança detectada no backend. Atualizando agenda em segundo plano...');
       if (notify) {
-        UI.showSyncStatus('Detectamos alterações na agenda. Atualizando agora...', 'info');
+        UI.showToast('Detectamos alterações na agenda. Atualizando agora...', 'info', 2000);
       }
       const eventosPromise = this.carregarEventos();
 
@@ -3700,7 +3678,6 @@ renderizarEventosDentro(evento) {
         slowTimer = setTimeout(() => {
           UI.showSyncStatus('Sincronização mais lenta que o normal. Você pode continuar usando a agenda enquanto atualizamos.', 'slow');
         }, 30000);
-        await new Promise(resolve => setTimeout(resolve, 900));
         UI.showSyncStatus('Sincronizando agenda...', 'info');
       }
 
@@ -3716,8 +3693,8 @@ renderizarEventosDentro(evento) {
       const filtro = AppState.filtroAtivo || (isPerfilRestritoAgenda() ? 'proximos' : 'todos');
       FiltroManager.aplicarFiltroRapido(filtro);
       if (notify) {
-        UI.showSyncStatus('Agenda atualizada com sucesso.', 'success');
-        setTimeout(() => UI.hideSyncStatus(), 2400);
+        UI.showToast('Agenda atualizada com sucesso.', 'success', 1800);
+        UI.hideSyncStatus();
       }
     } catch (e) {
       Utils.error('Revalidação em segundo plano falhou:', e);
