@@ -888,9 +888,7 @@
     }
 
     .evento-titulo-row {
-      display: flex;
-      align-items: center;
-      gap: 8px;
+      display: block;
       min-width: 0;
       margin-bottom: 2px;
     }
@@ -917,7 +915,7 @@
       border: 1px solid var(--gray-300);
       background: var(--gray-100);
       color: var(--gray-700);
-      max-width: 48%;
+      max-width: 46%;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -932,11 +930,29 @@
       color: var(--gray-500);
     }
 
+    .evento-bottom-left {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      min-width: 0;
+      flex: 1;
+    }
+
+    .evento-bottom-right {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      flex-shrink: 0;
+      white-space: nowrap;
+    }
+
     .evento-local {
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
-      max-width: 70%;
+      min-width: 0;
+      flex: 1;
+      max-width: none;
     }
 
     .status-badge {
@@ -1541,10 +1557,8 @@
         grid-template-columns: 1fr;
       }
 
-      .evento-header {
-        flex-direction: column;
-        gap: 8px;
-        padding-right: 70px;
+      .evento-projeto-chip {
+        max-width: 42%;
       }
 
       .modal-content {
@@ -2648,12 +2662,14 @@ criarCardEvento(evento) {
 
         <div class="evento-titulo-row">
           <div class="evento-titulo">${tituloEvento}</div>
-          ${evento.projeto ? `<span class="evento-projeto-chip">${evento.projeto}</span>` : ''}
         </div>
 
         <div class="evento-bottomline">
-          <span class="evento-local">${evento.local || 'Local não informado'}</span>
-          <span>
+          <span class="evento-bottom-left">
+            <span class="evento-local">${evento.local || 'Local não informado'}</span>
+            ${evento.projeto ? `<span class="evento-projeto-chip">${evento.projeto}</span>` : ''}
+          </span>
+          <span class="evento-bottom-right">
             ${ehCancelado ? `<span class="status-badge status-reserva">Cancelado</span>` : ''}
             ${statusLabel ? `<span class="status-badge ${statusClass}">${statusLabel}</span>` : ''}
             ${temConflitos ? `<span class="conflict-badge">⚠ ${evento.eventosDentro.length} conflito${evento.eventosDentro.length > 1 ? 's' : ''}</span>` : ''}
