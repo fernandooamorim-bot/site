@@ -32,6 +32,7 @@ const FOLHA_CACHE_KEY = 'folhaCustos:dataCache:v1';
 const FOLHA_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutos
 let eventosAgendaFolhaCache = [];
 let eventosAgendaFolhaCarregando = false;
+const resumoFolhaEventoCache = new Map();
 
 const LOADING_MESSAGES = [
   'Verificando sessão...',
@@ -649,6 +650,37 @@ function eventoAgendaTemFolhaAtiva_(ev) {
   return valorDireto > 0 || valorCustos > 0;
 }
 
+function statusFolhaLocalEvento_(ev) {
+  if (!ev || typeof ev !== 'object') return null;
+  if (Object.prototype.hasOwnProperty.call(ev, 'folhaCustoValor')) {
+    return Number(ev.folhaCustoValor || 0) > 0;
+  }
+  if (ev?.custos?.folha && Object.prototype.hasOwnProperty.call(ev.custos.folha, 'valor')) {
+    return Number(ev.custos.folha.valor || 0) > 0;
+  }
+  if (ev?.folha && Object.prototype.hasOwnProperty.call(ev.folha, 'valor')) {
+    return Number(ev.folha.valor || 0) > 0;
+  }
+  return null;
+}
+
+async function eventoAgendaTemFolhaAtivaPorResumo_(idEvento) {
+  const id = String(idEvento || '').trim();
+  if (!id) return false;
+  if (resumoFolhaEventoCache.has(id)) return resumoFolhaEventoCache.get(id) === true;
+  try {
+    const resumo = await Auth.apiCall('buscarResumoFinanceiroEvento', { idEvento: id });
+    const temFolha = Number(resumo?.folhaCustoValor || 0) > 0;
+    resumoFolhaEventoCache.set(id, temFolha);
+    return temFolha;
+  } catch (e) {
+    console.warn('Falha ao verificar folha no resumo financeiro do evento:', id, e);
+    // Em caso de falha, não assume "sem folha" para evitar falso positivo.
+    resumoFolhaEventoCache.set(id, true);
+    return true;
+  }
+}
+
 function parseDataEventoAgenda_(valor) {
   const raw = String(valor || '').trim();
   if (!raw) return null;
@@ -734,20 +766,29 @@ async function buscarEventoAgendaFolha_(q) {
   `).join('');
 }
 
-function renderEventosAgendaRecomendados_() {
+async function renderEventosAgendaRecomendados_() {
   const box = document.getElementById('agenda-evento-recomendados');
   if (!box) return;
 
   const hoje = new Date();
   hoje.setHours(23, 59, 59, 999);
+  box.innerHTML = '<span class="muted">Carregando sugestões...</span>';
 
-  const recomendados = (eventosAgendaFolhaCache || [])
-    .filter(ev => !eventoAgendaTemFolhaAtiva_(ev))
+  const candidatos = (eventosAgendaFolhaCache || [])
     .map(ev => ({ ev: ev, dataObj: parseDataEventoAgenda_(ev.dataIso || ev.data) }))
     .filter(item => item.dataObj && item.dataObj.getTime() <= hoje.getTime())
     .sort((a, b) => b.dataObj.getTime() - a.dataObj.getTime())
-    .slice(0, 6)
     .map(item => item.ev);
+
+  const recomendados = [];
+  for (let i = 0; i < candidatos.length && recomendados.length < 6 && i < 30; i++) {
+    const ev = candidatos[i];
+    const statusLocal = statusFolhaLocalEvento_(ev);
+    const temFolha = statusLocal === null
+      ? await eventoAgendaTemFolhaAtivaPorResumo_(ev.id)
+      : statusLocal;
+    if (!temFolha) recomendados.push(ev);
+  }
 
   if (!recomendados.length) {
     box.innerHTML = '<span class="muted">Nenhum evento pendente sem folha no momento.</span>';
