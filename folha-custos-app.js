@@ -34,13 +34,16 @@ let eventosAgendaFolhaCache = [];
 let eventosAgendaFolhaCarregando = false;
 const resumoFolhaEventoCache = new Map();
 let eventosComPropostaFolhaCache = new Set();
+let propostasPendentesPorEvento = new Map();
 let eventosComPropostaFolhaCacheTs = 0;
+let propostaPendenteAtual = null;
+let eventoSelecionadoTemFolhaAtiva = false;
 
 function setAgendaRecomendadosLoading_(ativo, texto) {
   const box = document.getElementById('agenda-evento-recomendados');
   if (!box) return;
   if (ativo) {
-    box.innerHTML = `<span class="muted">${String(texto || 'Carregando sugestões...')}</span>`;
+    box.innerHTML = `<span class="mini-loader"><span class="mini-loader-dot"></span>${String(texto || 'Carregando sugestões...')}</span>`;
   }
 }
 
@@ -214,9 +217,14 @@ function setupEventListeners() {
       if (badge) badge.classList.add('hidden');
       if (eventoData) eventoData.value = '';
       if (eventoNome) eventoNome.value = '';
+      propostaPendenteAtual = null;
+      eventoSelecionadoTemFolhaAtiva = false;
+      atualizarBotaoAcaoFolha_();
       buscarEventoAgendaFolha_(this.value);
     });
   }
+
+  atualizarBotaoAcaoFolha_();
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -745,17 +753,105 @@ async function carregarEventosComPropostaFolha_() {
     const lista = await apiPost('getFolhasCusto', {});
     const arr = Array.isArray(lista) ? lista : [];
     const pendentes = new Set();
+    const mapaPendentes = new Map();
     arr.forEach((f) => {
       const meta = extrairMetaAgendaDaFolhaLocal_(f);
       if (!meta.idEvento) return;
       if (meta.status === 'PENDENTE_APROVACAO' || meta.status === 'PENDENTE' || meta.status === 'SOLICITADO') {
         pendentes.add(meta.idEvento);
+        const atual = mapaPendentes.get(meta.idEvento);
+        const tsNovo = new Date(String(f?.criadoEm || '')).getTime() || 0;
+        const tsAtual = atual ? (new Date(String(atual?.criadoEm || '')).getTime() || 0) : 0;
+        if (!atual || tsNovo >= tsAtual) {
+          mapaPendentes.set(meta.idEvento, {
+            id: String(f?.id || '').trim(),
+            criadoEm: String(f?.criadoEm || '').trim(),
+            nomeEvento: String(f?.nomeEvento || '').trim()
+          });
+        }
       }
     });
     eventosComPropostaFolhaCache = pendentes;
+    propostasPendentesPorEvento = mapaPendentes;
     eventosComPropostaFolhaCacheTs = agora;
   } catch (e) {
     console.warn('Falha ao carregar propostas pendentes da Folha:', e);
+  }
+}
+
+function atualizarBotaoAcaoFolha_() {
+  const btn = document.getElementById('btn-enviar-aprovacao');
+  if (!btn) return;
+  if (propostaPendenteAtual && propostaPendenteAtual.id) {
+    btn.textContent = '♻️ Atualizar Proposta Pendente';
+    return;
+  }
+  if (eventoSelecionadoTemFolhaAtiva) {
+    btn.textContent = '📝 Enviar Revisão para Aprovação';
+    return;
+  }
+  btn.textContent = '✅ Registrar Folha e Enviar para Aprovação';
+}
+
+async function carregarPropostaPendenteParaEdicao_(idFolha) {
+  const id = String(idFolha || '').trim();
+  if (!id) return false;
+  try {
+    const detalhe = await apiPost('getFolhaCusto', { id: id });
+    if (!detalhe || !detalhe.id) return false;
+
+    propostaPendenteAtual = {
+      id: String(detalhe.id || '').trim(),
+      idEvento: String(detalhe.idEvento || detalhe.idEventoAgenda || '').trim()
+    };
+
+    const eventoForaCidade = document.getElementById('evento-fora-cidade');
+    if (eventoForaCidade) eventoForaCidade.checked = detalhe.foraCidade === true;
+
+    const mSelecionados = new Map();
+    const listaMusicos = Array.isArray(detalhe.musicos) ? detalhe.musicos : [];
+    listaMusicos.forEach((m) => {
+      const base = (musicos || []).find(mm => String(mm.id || '') === String(m.id || '')) || {
+        id: String(m.id || ''),
+        nome: String(m.nome || ''),
+        funcao: String(m.funcao || ''),
+        valorBase: Number(m.valorBase || 0)
+      };
+      mSelecionados.set(base.id, {
+        musico: base,
+        ajuste: {
+          adicionalExtra: Number(m.adicionalExtra || 0),
+          justificativa: String(m.justificativa || '')
+        }
+      });
+    });
+    musicosSelecionados = mSelecionados;
+
+    terceirizadosAtivos = Array.isArray(detalhe.terceirizados) ? detalhe.terceirizados.map(t => ({
+      nome: String(t.nome || ''),
+      categoria: String(t.categoria || ''),
+      valor: Number(t.valor || 0)
+    })) : [];
+
+    const p = detalhe.passagemDeSom;
+    passagemDeSomAtiva = !!(p && p.ativa);
+    passagemDeSomPorMusico = {};
+    if (passagemDeSomAtiva && Array.isArray(p.participantes)) {
+      p.participantes.forEach((idMusico) => { passagemDeSomPorMusico[String(idMusico)] = true; });
+    }
+    const passagemCheckbox = document.getElementById('passagem-de-som-checkbox');
+    if (passagemCheckbox) passagemCheckbox.checked = passagemDeSomAtiva;
+    const passagemBadge = document.getElementById('passagem-info');
+    if (passagemBadge) passagemBadge.classList.toggle('hidden', !passagemDeSomAtiva);
+
+    renderMusicos();
+    renderTerceirizados();
+    recalcular();
+    atualizarBotaoAcaoFolha_();
+    return true;
+  } catch (e) {
+    console.warn('Falha ao carregar proposta pendente para edição:', e);
+    return false;
   }
 }
 
@@ -813,6 +909,7 @@ async function buscarEventoAgendaFolha_(q) {
     await carregarEventosAgendaFolha_({ mostrarLoadingBusca: true });
     setAgendaEventoBuscaLoading_(false);
   }
+  await carregarEventosComPropostaFolha_();
 
   const list = (eventosAgendaFolhaCache || [])
     .filter(ev => {
@@ -835,8 +932,20 @@ async function buscarEventoAgendaFolha_(q) {
     <div style="padding:8px 10px;cursor:pointer;border-bottom:1px solid #eef2f7" onclick="selecionarEventoAgendaFolha_('${String(ev.id || '').replace(/'/g, "\\'")}')">
       <div>
         <strong>${String(ev.id || '')}</strong> • ${String(ev.contratante || 'Sem contratante')}
-        <span style="margin-left:6px;font-size:11px;padding:2px 6px;border-radius:999px;background:${eventoAgendaTemFolhaAtiva_(ev) ? '#fef3c7' : '#dcfce7'};color:${eventoAgendaTemFolhaAtiva_(ev) ? '#92400e' : '#166534'}">
-          ${eventoAgendaTemFolhaAtiva_(ev) ? 'Com folha ativa' : 'Sem folha'}
+        <span style="margin-left:6px;font-size:11px;padding:2px 6px;border-radius:999px;background:${
+          (String(ev?.id || '').trim() && eventosComPropostaFolhaCache.has(String(ev.id).trim()))
+            ? '#fff7ed'
+            : (eventoAgendaTemFolhaAtiva_(ev) ? '#fef3c7' : '#dcfce7')
+        };color:${
+          (String(ev?.id || '').trim() && eventosComPropostaFolhaCache.has(String(ev.id).trim()))
+            ? '#9a3412'
+            : (eventoAgendaTemFolhaAtiva_(ev) ? '#92400e' : '#166534')
+        }">
+          ${
+            (String(ev?.id || '').trim() && eventosComPropostaFolhaCache.has(String(ev.id).trim()))
+              ? 'Proposta pendente'
+              : (eventoAgendaTemFolhaAtiva_(ev) ? 'Com folha ativa' : 'Sem folha')
+          }
         </span>
       </div>
       <div class="muted" style="font-size:12px">${String(ev.tipoEvento || 'Evento')} • ${String(ev.data || '')}</div>
@@ -849,13 +958,13 @@ async function renderEventosAgendaRecomendados_() {
   if (!box) return;
 
   if (eventosAgendaFolhaCarregando && !(eventosAgendaFolhaCache || []).length) {
-    box.innerHTML = '<span class="muted">Carregando sugestões...</span>';
+    box.innerHTML = '<span class="mini-loader"><span class="mini-loader-dot"></span>Carregando sugestões...</span>';
     return;
   }
 
   const hoje = new Date();
   hoje.setHours(23, 59, 59, 999);
-  box.innerHTML = '<span class="muted">Atualizando sugestões...</span>';
+  box.innerHTML = '<span class="mini-loader"><span class="mini-loader-dot"></span>Atualizando sugestões...</span>';
   await carregarEventosComPropostaFolha_();
 
   const candidatos = (eventosAgendaFolhaCache || [])
@@ -892,10 +1001,11 @@ async function renderEventosAgendaRecomendados_() {
   `).join('');
 }
 
-function selecionarEventoAgendaFolha_(idEvento) {
+async function selecionarEventoAgendaFolha_(idEvento) {
   const id = String(idEvento || '').trim();
   const ev = (eventosAgendaFolhaCache || []).find(e => String(e.id || '').trim() === id);
   if (!ev) return;
+  await carregarEventosComPropostaFolha_();
 
   const inpBusca = document.getElementById('agenda-evento-busca');
   const inpId = document.getElementById('agenda-evento-id');
@@ -904,6 +1014,29 @@ function selecionarEventoAgendaFolha_(idEvento) {
   const badgeTxt = document.getElementById('agenda-evento-vinculo-texto');
   const eventoData = document.getElementById('evento-data');
   const eventoNome = document.getElementById('evento-nome');
+  const idNormalizado = String(ev.id || '').trim();
+  const pendente = idNormalizado ? propostasPendentesPorEvento.get(idNormalizado) : null;
+  propostaPendenteAtual = null;
+  eventoSelecionadoTemFolhaAtiva = false;
+
+  const statusLocal = statusFolhaLocalEvento_(ev);
+  eventoSelecionadoTemFolhaAtiva = statusLocal === true;
+  if (statusLocal === null) {
+    try {
+      eventoSelecionadoTemFolhaAtiva = await eventoAgendaTemFolhaAtivaPorResumo_(idNormalizado);
+    } catch (_) {}
+  }
+
+  if (eventoSelecionadoTemFolhaAtiva && !pendente) {
+    const okRevisao = confirm('Este evento já possui folha ativa. Deseja criar uma revisão para nova aprovação?');
+    if (!okRevisao) {
+      if (inpBusca) inpBusca.value = '';
+      if (inpId) inpId.value = '';
+      if (badge) badge.classList.add('hidden');
+      atualizarBotaoAcaoFolha_();
+      return;
+    }
+  }
 
   if (inpBusca) inpBusca.value = `${ev.id} — ${ev.contratante || ''}`;
   if (inpId) inpId.value = id;
@@ -914,8 +1047,21 @@ function selecionarEventoAgendaFolha_(idEvento) {
   }
   if (box) box.innerHTML = '';
   if (badge && badgeTxt) {
-    badgeTxt.textContent = `${ev.id} • ${ev.tipoEvento || 'Evento'} • ${ev.data || ''}`;
+    const sufixo = pendente ? ' • Proposta pendente carregável' : '';
+    badgeTxt.textContent = `${ev.id} • ${ev.tipoEvento || 'Evento'} • ${ev.data || ''}${sufixo}`;
     badge.classList.remove('hidden');
+  }
+  atualizarBotaoAcaoFolha_();
+  if (pendente && pendente.id) {
+    showLoading('Carregando proposta pendente...');
+    try {
+      const carregou = await carregarPropostaPendenteParaEdicao_(pendente.id);
+      if (!carregou) {
+        alert('Não foi possível carregar a proposta pendente. Você pode recalcular e enviar uma atualização manualmente.');
+      }
+    } finally {
+      hideLoading();
+    }
   }
   recalcular();
 }
@@ -1711,6 +1857,17 @@ async function salvarFolhaCusto(opts) {
     alert('Dados do evento não carregados. Selecione novamente o evento da Agenda.');
     return;
   }
+
+  await carregarEventosComPropostaFolha_();
+  const pendenciaExistente = propostasPendentesPorEvento.get(idEventoAgenda);
+  if (
+    pendenciaExistente &&
+    (!propostaPendenteAtual || String(propostaPendenteAtual.id || '').trim() !== String(pendenciaExistente.id || '').trim())
+  ) {
+    alert('Este evento já possui proposta pendente. Carregando para edição.');
+    await selecionarEventoAgendaFolha_(idEventoAgenda);
+    return;
+  }
   
   if (musicosSelecionados.size === 0) {
     alert('Por favor, selecione pelo menos um músico');
@@ -1744,7 +1901,7 @@ async function salvarFolhaCusto(opts) {
   const custoTotal = totalMusicos + totalAdicionais + totalTerceirizados;
   
   const folhaCusto = {
-    id: Date.now().toString(),
+    id: String((propostaPendenteAtual && propostaPendenteAtual.id) || Date.now()),
     data: eventoData,
     nomeEvento: eventoNome,
     idEvento: idEventoAgenda || '',
@@ -1805,9 +1962,11 @@ async function salvarFolhaCusto(opts) {
         renderEventosAgendaRecomendados_().catch(() => {});
       }
       alert(enviarAprovacao
-        ? '✅ Folha registrada e enviada para aprovação na Agenda!'
+        ? (propostaPendenteAtual
+            ? '✅ Proposta pendente atualizada e reenviada para aprovação!'
+            : '✅ Folha registrada e enviada para aprovação na Agenda!')
         : '✅ Folha de custo salva com sucesso!');
-      
+
       if (confirm('Deseja criar uma nova folha de custo?')) {
         limparFormulario();
       }
@@ -1839,6 +1998,9 @@ function limparFormulario() {
   if (agendaId) agendaId.value = '';
   if (agendaSug) agendaSug.innerHTML = '';
   if (agendaBadge) agendaBadge.classList.add('hidden');
+  propostaPendenteAtual = null;
+  eventoSelecionadoTemFolhaAtiva = false;
+  atualizarBotaoAcaoFolha_();
   renderEventosAgendaRecomendados_();
   // Limpar passagem de som
   document.getElementById('passagem-de-som-checkbox').checked = false;
