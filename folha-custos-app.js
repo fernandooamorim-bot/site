@@ -486,7 +486,17 @@ function formatarDataCompleta(dataString) {
 }
 
 function formatarDataSimples(dataString) {
-  const data = new Date(dataString);
+  const txt = String(dataString || '').trim();
+  let data = null;
+
+  // YYYY-MM-DD deve ser tratado como data local (sem deslocar por fuso)
+  if (/^\d{4}-\d{2}-\d{2}$/.test(txt)) {
+    const p = txt.split('-');
+    data = new Date(Number(p[0]), Number(p[1]) - 1, Number(p[2]));
+  } else {
+    data = new Date(txt);
+  }
+  if (isNaN(data.getTime())) return txt;
   
   const dia = String(data.getDate()).padStart(2, '0');
   const mes = String(data.getMonth() + 1).padStart(2, '0');
@@ -1689,7 +1699,24 @@ async function salvarFolhaCusto(opts) {
     statusAprovacao: enviarAprovacao ? 'PENDENTE_APROVACAO' : 'RASCUNHO',
     agendaSincronizado: false,
     criadoPor: CURRENT_USER_EMAIL || localStorage.getItem('auth_email') || '',
-    criadoEm: new Date().toISOString()
+    criadoEm: new Date().toISOString(),
+    // Persistência redundante em campo já existente da planilha externa (Folhas_Custo)
+    // para não depender de estrutura nova no utilitário externo.
+    Folhas_Custo: {
+      passagemDeSom: passagemDeSomAtiva ? {
+        ativa: true,
+        valorPorPessoa: valorPassagemDeSom,
+        participantes: musicosData.filter(m => m.adicionalPassagem > 0).map(m => m.id),
+        totalGasto: musicosData.reduce((sum, m) => sum + (m.adicionalPassagem || 0), 0)
+      } : null,
+      agenda: {
+        idEvento: idEventoAgenda || '',
+        statusAprovacao: enviarAprovacao ? 'PENDENTE_APROVACAO' : 'RASCUNHO',
+        agendaSincronizado: false,
+        enviadoPor: CURRENT_USER_EMAIL || localStorage.getItem('auth_email') || '',
+        enviadoEm: new Date().toISOString()
+      }
+    }
   };
   
   try {
