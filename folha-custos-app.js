@@ -781,7 +781,7 @@ async function renderEventosAgendaRecomendados_() {
     .map(item => item.ev);
 
   const recomendados = [];
-  for (let i = 0; i < candidatos.length && recomendados.length < 6 && i < 30; i++) {
+  for (let i = 0; i < candidatos.length && recomendados.length < 6 && i < 200; i++) {
     const ev = candidatos[i];
     const statusLocal = statusFolhaLocalEvento_(ev);
     const temFolha = statusLocal === null
