@@ -795,12 +795,45 @@ function atualizarBotaoAcaoFolha_() {
 
 async function carregarPropostaPendenteParaEdicao_(idFolha) {
   const id = String(idFolha || '').trim();
-  if (!id) return false;
+  const idEventoAtual = String(document.getElementById('agenda-evento-id')?.value || '').trim();
+  if (!id && !idEventoAtual) return false;
   try {
-    const detalheResp = await apiPost('getFolhaCusto', { id: id });
-    const detalhe = (detalheResp && typeof detalheResp === 'object')
-      ? (detalheResp.folha || detalheResp.data || detalheResp)
-      : null;
+    let detalhe = null;
+
+    if (id) {
+      try {
+        const detalheResp = await apiPost('getFolhaCusto', { id: id });
+        detalhe = (detalheResp && typeof detalheResp === 'object')
+          ? (detalheResp.folha || detalheResp.data || detalheResp)
+          : null;
+      } catch (_) {
+        detalhe = null;
+      }
+    }
+
+    if (!detalhe || !detalhe.id) {
+      const listaResp = await apiPost('getFolhasCusto', {});
+      const lista = Array.isArray(listaResp) ? listaResp : [];
+      detalhe = lista.find((f) => String(f?.id || '').trim() === id) || null;
+
+      if ((!detalhe || !detalhe.id) && idEventoAtual) {
+        const pendentesEvento = lista.filter((f) => {
+          const meta = extrairMetaAgendaDaFolhaLocal_(f);
+          const idEvento = String(meta.idEvento || '').trim();
+          const status = String(meta.status || '').trim().toUpperCase();
+          return idEvento === idEventoAtual && (
+            status === 'PENDENTE_APROVACAO' || status === 'PENDENTE' || status === 'SOLICITADO'
+          );
+        });
+        pendentesEvento.sort((a, b) => {
+          const ta = new Date(String(a?.criadoEm || '')).getTime() || 0;
+          const tb = new Date(String(b?.criadoEm || '')).getTime() || 0;
+          return tb - ta;
+        });
+        detalhe = pendentesEvento[0] || null;
+      }
+    }
+
     if (!detalhe || !detalhe.id) return false;
 
     propostaPendenteAtual = {
