@@ -797,7 +797,10 @@ async function carregarPropostaPendenteParaEdicao_(idFolha) {
   const id = String(idFolha || '').trim();
   if (!id) return false;
   try {
-    const detalhe = await apiPost('getFolhaCusto', { id: id });
+    const detalheResp = await apiPost('getFolhaCusto', { id: id });
+    const detalhe = (detalheResp && typeof detalheResp === 'object')
+      ? (detalheResp.folha || detalheResp.data || detalheResp)
+      : null;
     if (!detalhe || !detalhe.id) return false;
 
     propostaPendenteAtual = {
