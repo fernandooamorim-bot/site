@@ -974,6 +974,7 @@ let asaasActionType = 'plano_parcelado';
 let eventoSelecionadoMeta = null;
 let asaasMensagensCliente = { completa: '', curta: '' };
 let asaasContatoEvento = { whatsapp: '', email: '', cpfCnpj: '' };
+let eventoRequerVinculoContratante = false;
 let ajustesDetalhadosComissao = [];
 let previewComissaoAtual = null;
 let fiscalEventosCache = [];
@@ -2361,6 +2362,31 @@ async function selectEvento(ev){
   resumo.innerHTML = '<span class="muted">Carregando resumo financeiro...</span>';
 
   try {
+  let alertaVinculoHtml = '';
+  eventoRequerVinculoContratante = false;
+  if (['recebimento', 'estorno', 'pixautomatico'].includes(String(mode || ''))) {
+    try {
+      const statusVinculo = await Auth.apiCall('financeiroGarantirVinculoContratanteEvento', {
+        idEvento: idEventoReal
+      });
+      if (statusVinculo && statusVinculo.requerConfirmacao === true) {
+        eventoRequerVinculoContratante = true;
+        const nomeContrato = String(statusVinculo.nomeContratanteEvento || ev.contratante || 'Contratante').trim();
+        alertaVinculoHtml = `
+          <div style="margin-top:10px;padding:10px;border-radius:10px;background:#fff7ed;border:1px solid #fdba74;color:#9a3412">
+            ⚠️ Este evento ainda não possui <strong>ID de contratante</strong> vinculado na matriz.
+            <div style="margin-top:6px">Contratante atual: <strong>${escaparHtml_(nomeContrato)}</strong></div>
+            <div style="margin-top:8px">
+              <button type="button" class="btn" onclick="regularizarVinculoContratanteSelecionado_()">Regularizar agora</button>
+            </div>
+          </div>
+        `;
+      }
+    } catch (errStatusVinculo) {
+      console.warn('Falha ao verificar vínculo de contratante no resumo:', errStatusVinculo);
+    }
+  }
+
   const fin = await Auth.apiCall('buscarResumoFinanceiroEvento', {
     idEvento: idEventoReal
   });
@@ -2418,6 +2444,7 @@ async function selectEvento(ev){
   resumo.innerHTML = `
     <div><strong>Evento:</strong> ${ev.tipoEvento}</div>
     <div><strong>Contratante:</strong> ${ev.contratante}</div>
+    ${alertaVinculoHtml}
     <div class="divider"></div>
     <div><strong>Valor total do evento:</strong> R$ ${vt.toFixed(2)}</div>
     <div><strong>Valor recebido até agora:</strong> R$ ${vr.toFixed(2)}</div>
@@ -2453,6 +2480,21 @@ async function selectEvento(ev){
 } catch (err) {
   console.error('Erro ao carregar resumo financeiro:', err);
   resumo.innerHTML = '<span class="muted">Erro ao carregar resumo financeiro</span>';
+}
+
+async function regularizarVinculoContratanteSelecionado_() {
+  if (!eventoSelecionado) return alert('Selecione um evento.');
+  try {
+    const resultado = await garantirVinculoContratanteFinanceiro_(eventoSelecionado, 'a operação financeira');
+    if (resultado && resultado.cancelado) return;
+    if (resultado && resultado.sucesso === true) {
+      eventoRequerVinculoContratante = false;
+      await selecionarEventoPorIdNoModo_(eventoSelecionado);
+      alert('Vínculo do contratante regularizado com sucesso.');
+    }
+  } catch (err) {
+    tratarErroApi(err);
+  }
 }
 }
 
