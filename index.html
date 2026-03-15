@@ -1532,13 +1532,13 @@
 
     const cards = document.querySelectorAll('.nav-card');
     cards.forEach(function(card) {
-      const isAgenda = card.id === 'cardAgenda' || (card.getAttribute('onclick') || '').indexOf(\"abrir('agenda')\") >= 0;
+      const isAgenda = card.id === 'cardAgenda' || (card.getAttribute('onclick') || '').indexOf("abrir('agenda')") >= 0;
       card.classList.toggle('disabled-offline', offlineAgora && !isAgenda);
     });
 
     const bnav = document.querySelectorAll('.bnav-item');
     bnav.forEach(function(btn) {
-      const isAgenda = btn.id === 'bnavAgenda' || (btn.getAttribute('onclick') || '').indexOf(\"abrir('agenda')\") >= 0;
+      const isAgenda = btn.id === 'bnavAgenda' || (btn.getAttribute('onclick') || '').indexOf("abrir('agenda')") >= 0;
       btn.disabled = !!(offlineAgora && !isAgenda);
       btn.style.opacity = (offlineAgora && !isAgenda) ? '0.45' : '';
     });
