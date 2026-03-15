@@ -1534,7 +1534,7 @@ async function salvarFolhaCusto(opts) {
   };
   
   try {
-    showLoading(enviarAprovacao ? 'Enviando proposta para aprovação...' : 'Salvando folha de custo...');
+    showLoading(enviarAprovacao ? 'Registrando folha e enviando para aprovação...' : 'Salvando folha de custo...');
     
     const resultado = await apiPost('salvarFolhaCusto', { data: folhaCusto });
     
@@ -1542,7 +1542,7 @@ async function salvarFolhaCusto(opts) {
     
     if (resultado.success) {
       alert(enviarAprovacao
-        ? '✅ Proposta enviada para aprovação na Agenda!'
+        ? '✅ Folha registrada e enviada para aprovação na Agenda!'
         : '✅ Folha de custo salva com sucesso!');
       
       if (confirm('Deseja criar uma nova folha de custo?')) {
