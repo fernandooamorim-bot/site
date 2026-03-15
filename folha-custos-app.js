@@ -745,8 +745,9 @@ function extrairMetaAgendaDaFolhaLocal_(folha) {
 }
 
 async function carregarEventosComPropostaFolha_() {
+  const force = arguments.length > 0 ? arguments[0] === true : false;
   const agora = Date.now();
-  if ((agora - eventosComPropostaFolhaCacheTs) < 60000 && eventosComPropostaFolhaCache.size >= 0) {
+  if (!force && (agora - eventosComPropostaFolhaCacheTs) < 10000 && eventosComPropostaFolhaCache.size >= 0) {
     return;
   }
   try {
@@ -777,6 +778,18 @@ async function carregarEventosComPropostaFolha_() {
   } catch (e) {
     console.warn('Falha ao carregar propostas pendentes da Folha:', e);
   }
+}
+
+async function classificarStatusEventoAutocomplete_(ev) {
+  const idEvento = String(ev?.id || '').trim();
+  if (!idEvento) return 'sem_folha';
+  if (eventosComPropostaFolhaCache.has(idEvento)) return 'pendente';
+
+  const statusLocal = statusFolhaLocalEvento_(ev);
+  if (statusLocal === true) return 'folha_ativa';
+
+  const temFolhaResumo = await eventoAgendaTemFolhaAtivaPorResumo_(idEvento);
+  return temFolhaResumo ? 'folha_ativa' : 'sem_folha';
 }
 
 function atualizarBotaoAcaoFolha_() {
@@ -982,7 +995,7 @@ async function buscarEventoAgendaFolha_(q) {
     await carregarEventosAgendaFolha_({ mostrarLoadingBusca: true });
     setAgendaEventoBuscaLoading_(false);
   }
-  await carregarEventosComPropostaFolha_();
+  await carregarEventosComPropostaFolha_(true);
 
   const list = (eventosAgendaFolhaCache || [])
     .filter(ev => {
@@ -1001,29 +1014,27 @@ async function buscarEventoAgendaFolha_(q) {
     return;
   }
 
-  box.innerHTML = list.map(ev => `
+  const statusList = await Promise.all(list.map(ev => classificarStatusEventoAutocomplete_(ev)));
+
+  box.innerHTML = list.map((ev, idx) => {
+    const status = statusList[idx];
+    const ehPendente = status === 'pendente';
+    const ehFolhaAtiva = status === 'folha_ativa';
+    const badgeBg = ehPendente ? '#fff7ed' : (ehFolhaAtiva ? '#fef3c7' : '#dcfce7');
+    const badgeColor = ehPendente ? '#9a3412' : (ehFolhaAtiva ? '#92400e' : '#166534');
+    const badgeTxt = ehPendente ? 'Proposta pendente' : (ehFolhaAtiva ? 'Com folha ativa' : 'Sem folha');
+    return `
     <div style="padding:8px 10px;cursor:pointer;border-bottom:1px solid #eef2f7" onclick="selecionarEventoAgendaFolha_('${String(ev.id || '').replace(/'/g, "\\'")}')">
       <div>
         <strong>${String(ev.id || '')}</strong> • ${String(ev.contratante || 'Sem contratante')}
-        <span style="margin-left:6px;font-size:11px;padding:2px 6px;border-radius:999px;background:${
-          (String(ev?.id || '').trim() && eventosComPropostaFolhaCache.has(String(ev.id).trim()))
-            ? '#fff7ed'
-            : (eventoAgendaTemFolhaAtiva_(ev) ? '#fef3c7' : '#dcfce7')
-        };color:${
-          (String(ev?.id || '').trim() && eventosComPropostaFolhaCache.has(String(ev.id).trim()))
-            ? '#9a3412'
-            : (eventoAgendaTemFolhaAtiva_(ev) ? '#92400e' : '#166534')
-        }">
-          ${
-            (String(ev?.id || '').trim() && eventosComPropostaFolhaCache.has(String(ev.id).trim()))
-              ? 'Proposta pendente'
-              : (eventoAgendaTemFolhaAtiva_(ev) ? 'Com folha ativa' : 'Sem folha')
-          }
+        <span style="margin-left:6px;font-size:11px;padding:2px 6px;border-radius:999px;background:${badgeBg};color:${badgeColor}">
+          ${badgeTxt}
         </span>
       </div>
       <div class="muted" style="font-size:12px">${String(ev.tipoEvento || 'Evento')} • ${String(ev.data || '')}</div>
     </div>
-  `).join('');
+  `;
+  }).join('');
 }
 
 async function renderEventosAgendaRecomendados_() {
