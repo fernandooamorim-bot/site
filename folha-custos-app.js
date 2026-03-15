@@ -988,24 +988,34 @@ async function carregarUltimaFolhaAprovadaParaRevisao_(idEvento) {
   try {
     const listaResp = await apiPost('getFolhasCusto', {});
     const lista = Array.isArray(listaResp) ? listaResp : [];
-    const aprovadas = lista.filter((f) => {
+    const doEvento = lista.filter((f) => {
       const meta = extrairMetaAgendaDaFolhaLocal_(f);
       const idEventoFolha = String(meta.idEvento || '').trim();
-      const status = String(meta.status || '').trim().toUpperCase();
-      const sincronizado = (f?.agendaSincronizado === true) ||
-        String(f?.agendaSincronizado || '').trim().toLowerCase() === 'true' ||
-        (parseObjectMaybeJson_(f?.Folhas_Custo)?.agenda?.agendaSincronizado === true);
-      return idEventoFolha === idEvt && (status === 'APROVADO' || sincronizado);
+      return idEventoFolha === idEvt;
     });
-    if (!aprovadas.length) return false;
+    if (!doEvento.length) return false;
 
-    aprovadas.sort((a, b) => {
+    const ordenadas = doEvento.slice().sort((a, b) => {
+      const metaA = extrairMetaAgendaDaFolhaLocal_(a);
+      const metaB = extrairMetaAgendaDaFolhaLocal_(b);
+      const statusA = String(metaA.status || '').trim().toUpperCase();
+      const statusB = String(metaB.status || '').trim().toUpperCase();
+      const syncA = (a?.agendaSincronizado === true) ||
+        String(a?.agendaSincronizado || '').trim().toLowerCase() === 'true' ||
+        (parseObjectMaybeJson_(a?.Folhas_Custo)?.agenda?.agendaSincronizado === true);
+      const syncB = (b?.agendaSincronizado === true) ||
+        String(b?.agendaSincronizado || '').trim().toLowerCase() === 'true' ||
+        (parseObjectMaybeJson_(b?.Folhas_Custo)?.agenda?.agendaSincronizado === true);
+      const prioridadeA = (statusA === 'APROVADO' || syncA) ? 1 : 0;
+      const prioridadeB = (statusB === 'APROVADO' || syncB) ? 1 : 0;
+      if (prioridadeA !== prioridadeB) return prioridadeB - prioridadeA;
+
       const tb = new Date(String(b?.aprovadoEm || b?.ultimaAtualizacao || b?.criadoEm || '')).getTime() || 0;
       const ta = new Date(String(a?.aprovadoEm || a?.ultimaAtualizacao || a?.criadoEm || '')).getTime() || 0;
       return tb - ta;
     });
 
-    const base = aprovadas[0];
+    const base = ordenadas[0];
     const detalhe = await obterDetalheFolhaPorIdComFallback_(String(base.id || '').trim(), idEvt);
     if (!detalhe) return false;
     return preencherFormularioComFolha_(detalhe, 'revisao');
@@ -1227,7 +1237,7 @@ async function selecionarEventoAgendaFolha_(idEvento) {
     try {
       const carregouRevisao = await carregarUltimaFolhaAprovadaParaRevisao_(idNormalizado);
       if (!carregouRevisao) {
-        alert('Não foi possível carregar a última folha aprovada. Você pode iniciar uma revisão manualmente.');
+        console.info('Sem registro anterior no utilitário para este evento. Revisão seguirá em branco.');
       }
     } finally {
       hideLoading();
