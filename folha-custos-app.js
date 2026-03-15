@@ -618,10 +618,14 @@ function parseDataFolhaLocal_(valor) {
   return isNaN(d.getTime()) ? null : d;
 }
 
-async function carregarEventosAgendaFolha_() {
+async function carregarEventosAgendaFolha_(opts) {
+  const options = opts && typeof opts === 'object' ? opts : {};
+  const mostrarLoadingBusca = options.mostrarLoadingBusca === true;
   if (eventosAgendaFolhaCarregando) return;
   eventosAgendaFolhaCarregando = true;
-  setAgendaEventoBuscaLoading_(true, 'Carregando eventos da Agenda...');
+  if (mostrarLoadingBusca) {
+    setAgendaEventoBuscaLoading_(true, 'Carregando eventos da Agenda...');
+  }
   try {
     const resp = await Auth.apiCall('listarEventosBootstrap', { incluirCancelados: false });
     const lista = Array.isArray(resp?.eventos) ? resp.eventos : [];
@@ -640,7 +644,9 @@ async function carregarEventosAgendaFolha_() {
     renderEventosAgendaRecomendados_();
   } finally {
     eventosAgendaFolhaCarregando = false;
-    setAgendaEventoBuscaLoading_(false);
+    if (mostrarLoadingBusca) {
+      setAgendaEventoBuscaLoading_(false);
+    }
   }
 }
 
@@ -732,7 +738,7 @@ async function buscarEventoAgendaFolha_(q) {
 
   if (!eventosAgendaFolhaCache.length) {
     setAgendaEventoBuscaLoading_(true, 'Buscando eventos...');
-    await carregarEventosAgendaFolha_();
+    await carregarEventosAgendaFolha_({ mostrarLoadingBusca: true });
     setAgendaEventoBuscaLoading_(false);
   }
 
@@ -772,7 +778,7 @@ async function renderEventosAgendaRecomendados_() {
 
   const hoje = new Date();
   hoje.setHours(23, 59, 59, 999);
-  box.innerHTML = '<span class="muted">Carregando sugestões...</span>';
+  box.innerHTML = '<span class="muted">Atualizando sugestões...</span>';
 
   const candidatos = (eventosAgendaFolhaCache || [])
     .map(ev => ({ ev: ev, dataObj: parseDataEventoAgenda_(ev.dataIso || ev.data) }))
@@ -797,7 +803,7 @@ async function renderEventosAgendaRecomendados_() {
 
   box.innerHTML = recomendados.map(ev => `
     <button type="button"
-      style="margin:0 6px 6px 0;padding:6px 10px;border:1px solid #dbe4f0;border-radius:999px;background:#fff;color:#1f2937;cursor:pointer"
+      style="margin:0 8px 8px 0;padding:8px 12px;border:1px solid #bfdbfe;border-radius:12px;background:linear-gradient(180deg,#eff6ff 0%,#dbeafe 100%);color:#1e3a8a;cursor:pointer;font-weight:600;box-shadow:0 1px 2px rgba(30,58,138,.12)"
       onclick="selecionarEventoAgendaFolha_('${String(ev.id || '').replace(/'/g, "\\'")}')">
       ${String(ev.id || '')} • ${String(ev.contratante || 'Sem contratante')} • ${String(ev.data || '')}
     </button>
