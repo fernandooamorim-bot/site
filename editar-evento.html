@@ -1989,6 +1989,14 @@
           <div id="motivoReuniaoOutroWrapEdicao" class="hidden" style="margin-bottom:8px;">
             <input type="text" id="motivoReuniaoOutroEdicao" placeholder="Descreva o motivo da reunião">
           </div>
+          <div id="motivoReservaPresetWrapEdicao" class="hidden" style="margin-bottom:8px;">
+            <select id="motivoReservaPresetEdicao">
+              <option value="">Selecione o motivo...</option>
+            </select>
+          </div>
+          <div id="motivoReservaOutroWrapEdicao" class="hidden" style="margin-bottom:8px;">
+            <input type="text" id="motivoReservaOutroEdicao" placeholder="Descreva o motivo da reserva">
+          </div>
           <div id="motivoRegistroTextoWrap">
             <input type="text" id="motivoRegistro" placeholder="Informe o motivo">
           </div>
@@ -2404,7 +2412,20 @@ function getConverterFromURL() {
     'Reunião Fernando',
     'Reunião Final'
   ];
+  const MOTIVOS_RESERVA_PADRAO_FALLBACK_EDICAO = [
+    'Aguardando Confirmação',
+    'Proposta Enviada',
+    'Em Negociação',
+    'Pré-Reserva',
+    'A Definir',
+    'Aguardando Pagamento de Sinal',
+    'Sinal Recebido - Aguardando Contrato',
+    'Aguardando Retorno do Cliente',
+    'Data em Análise',
+    'Pendente de Aprovação Interna'
+  ];
   let motivosReuniaoPadraoEdicao = [...MOTIVOS_REUNIAO_PADRAO_FALLBACK_EDICAO];
+  let motivosReservaPadraoEdicao = [...MOTIVOS_RESERVA_PADRAO_FALLBACK_EDICAO];
 
   function parseListaConfigEdicao_(valor) {
     return String(valor || '')
@@ -2431,6 +2452,19 @@ function getConverterFromURL() {
       ? String(outro.value || '').trim()
       : String(select.value || '').trim();
     motivoInput.value = normalizarMotivoReuniaoEdicao_(base);
+  }
+
+  function sincronizarMotivoReservaEdicao_() {
+    const tipoAtual = String(eventoOriginal?.tipoRegistro || '').trim();
+    if (tipoAtual !== 'Reserva') return;
+    const select = document.getElementById('motivoReservaPresetEdicao');
+    const outro = document.getElementById('motivoReservaOutroEdicao');
+    const motivoInput = document.getElementById('motivoRegistro');
+    if (!select || !outro || !motivoInput) return;
+    const base = select.value === '__OUTRO__'
+      ? String(outro.value || '').trim()
+      : String(select.value || '').trim();
+    motivoInput.value = base;
   }
 
   function popularMotivosReuniaoEdicao_(motivoAtual = '') {
@@ -2471,6 +2505,46 @@ function getConverterFromURL() {
       outroWrap.classList.add('hidden');
     }
     sincronizarMotivoReuniaoEdicao_();
+  }
+
+  function popularMotivosReservaEdicao_(motivoAtual = '') {
+    const select = document.getElementById('motivoReservaPresetEdicao');
+    const outroWrap = document.getElementById('motivoReservaOutroWrapEdicao');
+    const outro = document.getElementById('motivoReservaOutroEdicao');
+    if (!select || !outroWrap || !outro) return;
+
+    const lista = (motivosReservaPadraoEdicao || []).filter(Boolean);
+    const motivoNormalizado = String(motivoAtual || '').trim();
+
+    select.innerHTML = '<option value="">Selecione o motivo...</option>';
+    lista.forEach((motivo) => {
+      const opt = document.createElement('option');
+      opt.value = motivo;
+      opt.textContent = motivo;
+      select.appendChild(opt);
+    });
+    const optOutro = document.createElement('option');
+    optOutro.value = '__OUTRO__';
+    optOutro.textContent = 'Outro...';
+    select.appendChild(optOutro);
+
+    const motivoNaLista = lista.find((item) =>
+      String(item).trim().toLocaleLowerCase('pt-BR') === motivoNormalizado.toLocaleLowerCase('pt-BR')
+    );
+    if (motivoNaLista) {
+      select.value = motivoNaLista;
+      outro.value = '';
+      outroWrap.classList.add('hidden');
+    } else if (motivoNormalizado) {
+      select.value = '__OUTRO__';
+      outro.value = motivoNormalizado;
+      outroWrap.classList.remove('hidden');
+    } else {
+      select.value = '';
+      outro.value = '';
+      outroWrap.classList.add('hidden');
+    }
+    sincronizarMotivoReservaEdicao_();
   }
 
   function dropdownsEssenciaisProntos() {
@@ -3660,7 +3734,10 @@ function configurarVisibilidadeCamposPorTipoEdicao_(tipoOriginal) {
   const inputMotivo = document.getElementById('motivoRegistro');
   const motivoReuniaoPresetWrap = document.getElementById('motivoReuniaoPresetWrapEdicao');
   const motivoReuniaoOutroWrap = document.getElementById('motivoReuniaoOutroWrapEdicao');
+  const motivoReservaPresetWrap = document.getElementById('motivoReservaPresetWrapEdicao');
+  const motivoReservaOutroWrap = document.getElementById('motivoReservaOutroWrapEdicao');
   const motivoRegistroTextoWrap = document.getElementById('motivoRegistroTextoWrap');
+  const motivoReservaPreset = document.getElementById('motivoReservaPresetEdicao');
   const inputContratante = document.getElementById('nomeContratante');
   const inputLocal = document.getElementById('nomeLocal');
   const inputHora = document.getElementById('horaInicio');
@@ -3704,7 +3781,8 @@ function configurarVisibilidadeCamposPorTipoEdicao_(tipoOriginal) {
 
   if (inputTipoEvento) inputTipoEvento.required = isEvento;
   if (inputProjeto) inputProjeto.required = false;
-  if (inputMotivo) inputMotivo.required = !isEvento;
+  if (inputMotivo) inputMotivo.required = !isEvento && !isReuniao && !isReserva;
+  if (motivoReservaPreset) motivoReservaPreset.required = isReserva;
   if (inputContratante) inputContratante.required = isEvento;
   if (inputLocal) inputLocal.required = isEvento;
   if (inputHora) inputHora.required = isEvento || isReuniao;
@@ -3716,6 +3794,8 @@ function configurarVisibilidadeCamposPorTipoEdicao_(tipoOriginal) {
       inputMotivo.placeholder = 'Motivo padronizado da reunião';
       inputMotivo.readOnly = false;
       if (motivoReuniaoPresetWrap) motivoReuniaoPresetWrap.classList.remove('hidden');
+      if (motivoReservaPresetWrap) motivoReservaPresetWrap.classList.add('hidden');
+      if (motivoReservaOutroWrap) motivoReservaOutroWrap.classList.add('hidden');
       if (motivoRegistroTextoWrap) motivoRegistroTextoWrap.classList.add('hidden');
       popularMotivosReuniaoEdicao_(inputMotivo.value);
     } else if (isBloqueio) {
@@ -3724,13 +3804,23 @@ function configurarVisibilidadeCamposPorTipoEdicao_(tipoOriginal) {
       inputMotivo.readOnly = false;
       if (motivoReuniaoPresetWrap) motivoReuniaoPresetWrap.classList.add('hidden');
       if (motivoReuniaoOutroWrap) motivoReuniaoOutroWrap.classList.add('hidden');
+      if (motivoReservaPresetWrap) motivoReservaPresetWrap.classList.add('hidden');
+      if (motivoReservaOutroWrap) motivoReservaOutroWrap.classList.add('hidden');
       if (motivoRegistroTextoWrap) motivoRegistroTextoWrap.classList.remove('hidden');
-    } else {
+    } else if (isReserva) {
       labelMotivo.textContent = 'Motivo/Status da Reserva';
       inputMotivo.placeholder = 'Ex: Aguardando confirmação, proposta enviada...';
       inputMotivo.readOnly = false;
       if (motivoReuniaoPresetWrap) motivoReuniaoPresetWrap.classList.add('hidden');
       if (motivoReuniaoOutroWrap) motivoReuniaoOutroWrap.classList.add('hidden');
+      if (motivoReservaPresetWrap) motivoReservaPresetWrap.classList.remove('hidden');
+      if (motivoRegistroTextoWrap) motivoRegistroTextoWrap.classList.add('hidden');
+      popularMotivosReservaEdicao_(inputMotivo.value);
+    } else {
+      if (motivoReuniaoPresetWrap) motivoReuniaoPresetWrap.classList.add('hidden');
+      if (motivoReuniaoOutroWrap) motivoReuniaoOutroWrap.classList.add('hidden');
+      if (motivoReservaPresetWrap) motivoReservaPresetWrap.classList.add('hidden');
+      if (motivoReservaOutroWrap) motivoReservaOutroWrap.classList.add('hidden');
       if (motivoRegistroTextoWrap) motivoRegistroTextoWrap.classList.remove('hidden');
     }
   }
@@ -4406,7 +4496,8 @@ async function validarImpactoFinanceiroAntesSalvar(callback) {
         resTipos,
         resDuracoes,
         resProjetos,
-        resMotivosReuniao
+        resMotivosReuniao,
+        resMotivosReserva
       ] = await Promise.allSettled([
         carregarComCache('cerimonialistas', async () => {
           const resposta = await Auth.apiCall('listarCerimonialistas', {});
@@ -4440,6 +4531,10 @@ async function validarImpactoFinanceiroAntesSalvar(callback) {
         }),
         carregarComCache('motivosReuniao', async () => {
           const resposta = await Auth.apiCall('obterConfig', { chave: 'REUNIAO_MOTIVOS_PADRAO' });
+          return parseListaConfigEdicao_(resposta);
+        }),
+        carregarComCache('motivosReserva', async () => {
+          const resposta = await Auth.apiCall('obterConfig', { chave: 'RESERVA_MOTIVOS_PADRAO' });
           return parseListaConfigEdicao_(resposta);
         })
       ]);
@@ -4511,7 +4606,12 @@ async function validarImpactoFinanceiroAntesSalvar(callback) {
         const lista = Array.isArray(resMotivosReuniao.value) ? resMotivosReuniao.value : [];
         if (lista.length) motivosReuniaoPadraoEdicao = lista;
       }
+      if (resMotivosReserva.status === 'fulfilled') {
+        const lista = Array.isArray(resMotivosReserva.value) ? resMotivosReserva.value : [];
+        if (lista.length) motivosReservaPadraoEdicao = lista;
+      }
       popularMotivosReuniaoEdicao_(document.getElementById('motivoRegistro')?.value || '');
+      popularMotivosReservaEdicao_(document.getElementById('motivoRegistro')?.value || '');
 
       if (autoFill) tentarPreencherEventoAposDropdowns();
     }
@@ -4931,6 +5031,7 @@ function formatarValorResumoAlteracao_(campo, valor, origem) {
     
     function coletarDadosFormulario() {
       sincronizarMotivoReuniaoEdicao_();
+      sincronizarMotivoReservaEdicao_();
       const tipoRegistroAtual = String(eventoOriginal?.tipoRegistro || 'Evento').trim();
       const ehEventoVisual = tipoRegistroAtual === 'Evento' || modoConversaoReserva;
       const ehReservaVisual = tipoRegistroAtual === 'Reserva' && !modoConversaoReserva;
@@ -5287,6 +5388,9 @@ window.addEventListener('load', async () => {
     const selectMotivoReuniao = document.getElementById('motivoReuniaoPresetEdicao');
     const inputMotivoReuniaoOutro = document.getElementById('motivoReuniaoOutroEdicao');
     const wrapMotivoReuniaoOutro = document.getElementById('motivoReuniaoOutroWrapEdicao');
+    const selectMotivoReserva = document.getElementById('motivoReservaPresetEdicao');
+    const inputMotivoReservaOutro = document.getElementById('motivoReservaOutroEdicao');
+    const wrapMotivoReservaOutro = document.getElementById('motivoReservaOutroWrapEdicao');
 
     if (selectMotivoReuniao && inputMotivoReuniaoOutro && wrapMotivoReuniaoOutro) {
       selectMotivoReuniao.addEventListener('change', () => {
@@ -5296,6 +5400,15 @@ window.addEventListener('load', async () => {
         sincronizarMotivoReuniaoEdicao_();
       });
       inputMotivoReuniaoOutro.addEventListener('input', sincronizarMotivoReuniaoEdicao_);
+    }
+    if (selectMotivoReserva && inputMotivoReservaOutro && wrapMotivoReservaOutro) {
+      selectMotivoReserva.addEventListener('change', () => {
+        const mostrarOutro = selectMotivoReserva.value === '__OUTRO__';
+        wrapMotivoReservaOutro.classList.toggle('hidden', !mostrarOutro);
+        if (!mostrarOutro) inputMotivoReservaOutro.value = '';
+        sincronizarMotivoReservaEdicao_();
+      });
+      inputMotivoReservaOutro.addEventListener('input', sincronizarMotivoReservaEdicao_);
     }
   });
   </script>

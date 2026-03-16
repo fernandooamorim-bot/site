@@ -1279,6 +1279,14 @@
             <div id="motivoReuniaoOutroWrap" style="display:none; margin-bottom:8px;">
               <input type="text" id="motivoReuniaoOutro" placeholder="Descreva o motivo da reunião">
             </div>
+            <div id="motivoReservaPresetWrap" style="display:none; margin-bottom:8px;">
+              <select id="motivoReservaPreset">
+                <option value="">Selecione o motivo...</option>
+              </select>
+            </div>
+            <div id="motivoReservaOutroWrap" style="display:none; margin-bottom:8px;">
+              <input type="text" id="motivoReservaOutro" placeholder="Descreva o motivo da reserva">
+            </div>
             <div id="motivoTextoWrap">
               <input type="text" id="motivo" placeholder="">
             </div>
@@ -1749,7 +1757,20 @@
       'Reunião Fernando',
       'Reunião Final'
     ];
+    const MOTIVOS_RESERVA_PADRAO_FALLBACK = [
+      'Aguardando Confirmação',
+      'Proposta Enviada',
+      'Em Negociação',
+      'Pré-Reserva',
+      'A Definir',
+      'Aguardando Pagamento de Sinal',
+      'Sinal Recebido - Aguardando Contrato',
+      'Aguardando Retorno do Cliente',
+      'Data em Análise',
+      'Pendente de Aprovação Interna'
+    ];
     let motivosReuniaoPadrao = [...MOTIVOS_REUNIAO_PADRAO_FALLBACK];
+    let motivosReservaPadrao = [...MOTIVOS_RESERVA_PADRAO_FALLBACK];
 
     function parseListaConfigCadastro_(valor) {
       return String(valor || '')
@@ -1776,6 +1797,19 @@
         ? String(outro.value || '').trim()
         : String(select.value || '').trim();
       inputMotivo.value = normalizarMotivoReuniaoCadastro_(valorBase);
+    }
+
+    function sincronizarMotivoReservaCadastro_() {
+      const tipo = String(document.getElementById('tipoRegistro')?.value || '').trim();
+      if (tipo !== 'Reserva') return;
+      const select = document.getElementById('motivoReservaPreset');
+      const outro = document.getElementById('motivoReservaOutro');
+      const inputMotivo = document.getElementById('motivo');
+      if (!select || !outro || !inputMotivo) return;
+      const valorBase = select.value === '__OUTRO__'
+        ? String(outro.value || '').trim()
+        : String(select.value || '').trim();
+      inputMotivo.value = valorBase;
     }
 
     function popularMotivosReuniaoCadastro_(motivoAtual = '') {
@@ -1826,6 +1860,56 @@
         console.warn('Falha ao carregar REUNIAO_MOTIVOS_PADRAO, usando padrão.', err);
       }
       popularMotivosReuniaoCadastro_(document.getElementById('motivo')?.value || '');
+    }
+
+    function popularMotivosReservaCadastro_(motivoAtual = '') {
+      const select = document.getElementById('motivoReservaPreset');
+      const outroWrap = document.getElementById('motivoReservaOutroWrap');
+      const outro = document.getElementById('motivoReservaOutro');
+      if (!select || !outroWrap || !outro) return;
+
+      const lista = (motivosReservaPadrao || []).filter(Boolean);
+      const motivoNormalizado = String(motivoAtual || '').trim();
+      select.innerHTML = '<option value="">Selecione o motivo...</option>';
+      lista.forEach((motivo) => {
+        const opt = document.createElement('option');
+        opt.value = motivo;
+        opt.textContent = motivo;
+        select.appendChild(opt);
+      });
+      const optOutro = document.createElement('option');
+      optOutro.value = '__OUTRO__';
+      optOutro.textContent = 'Outro...';
+      select.appendChild(optOutro);
+
+      const motivoNaLista = lista.find((item) =>
+        String(item).trim().toLocaleLowerCase('pt-BR') === motivoNormalizado.toLocaleLowerCase('pt-BR')
+      );
+      if (motivoNaLista) {
+        select.value = motivoNaLista;
+        outro.value = '';
+        outroWrap.style.display = 'none';
+      } else if (motivoNormalizado) {
+        select.value = '__OUTRO__';
+        outro.value = motivoNormalizado;
+        outroWrap.style.display = 'block';
+      } else {
+        select.value = '';
+        outro.value = '';
+        outroWrap.style.display = 'none';
+      }
+      sincronizarMotivoReservaCadastro_();
+    }
+
+    async function carregarMotivosReservaPadraoCadastro_() {
+      try {
+        const bruto = await Auth.apiCall('obterConfig', { chave: 'RESERVA_MOTIVOS_PADRAO' });
+        const lista = parseListaConfigCadastro_(bruto);
+        if (lista.length) motivosReservaPadrao = lista;
+      } catch (err) {
+        console.warn('Falha ao carregar RESERVA_MOTIVOS_PADRAO, usando padrão.', err);
+      }
+      popularMotivosReservaCadastro_(document.getElementById('motivo')?.value || '');
     }
     
     // Inicialização
@@ -1901,15 +1985,21 @@ window.onload = function () {
       const campoMotivo = document.getElementById('motivo');
       const motivoReuniaoPresetWrap = document.getElementById('motivoReuniaoPresetWrap');
       const motivoReuniaoOutroWrap = document.getElementById('motivoReuniaoOutroWrap');
+      const motivoReservaPresetWrap = document.getElementById('motivoReservaPresetWrap');
+      const motivoReservaOutroWrap = document.getElementById('motivoReservaOutroWrap');
       const motivoTextoWrap = document.getElementById('motivoTextoWrap');
       const motivoReuniaoPreset = document.getElementById('motivoReuniaoPreset');
+      const motivoReservaPreset = document.getElementById('motivoReservaPreset');
       if (isReuniao) {
         if (labelMotivo) labelMotivo.textContent = 'Motivo da Reunião';
         campoMotivo.placeholder = 'Motivo padronizado da reunião';
         campoMotivo.readOnly = false;
         motivoReuniaoPresetWrap.style.display = 'block';
+        motivoReservaPresetWrap.style.display = 'none';
+        motivoReservaOutroWrap.style.display = 'none';
         motivoTextoWrap.style.display = 'none';
         if (motivoReuniaoPreset) motivoReuniaoPreset.required = true;
+        if (motivoReservaPreset) motivoReservaPreset.required = false;
         popularMotivosReuniaoCadastro_(campoMotivo.value);
       } else if (isBloqueio) {
         if (labelMotivo) labelMotivo.textContent = 'Motivo do Bloqueio';
@@ -1917,21 +2007,30 @@ window.onload = function () {
         campoMotivo.readOnly = false;
         motivoReuniaoPresetWrap.style.display = 'none';
         motivoReuniaoOutroWrap.style.display = 'none';
+        motivoReservaPresetWrap.style.display = 'none';
+        motivoReservaOutroWrap.style.display = 'none';
         motivoTextoWrap.style.display = 'block';
         if (motivoReuniaoPreset) motivoReuniaoPreset.required = false;
+        if (motivoReservaPreset) motivoReservaPreset.required = false;
       } else if (isReserva) {
         if (labelMotivo) labelMotivo.textContent = 'Motivo/Status da Reserva';
         campoMotivo.placeholder = 'Ex: Aguardando confirmação, proposta enviada, data em negociação...';
         campoMotivo.readOnly = false;
         motivoReuniaoPresetWrap.style.display = 'none';
         motivoReuniaoOutroWrap.style.display = 'none';
-        motivoTextoWrap.style.display = 'block';
+        motivoReservaPresetWrap.style.display = 'block';
+        motivoTextoWrap.style.display = 'none';
         if (motivoReuniaoPreset) motivoReuniaoPreset.required = false;
+        if (motivoReservaPreset) motivoReservaPreset.required = true;
+        popularMotivosReservaCadastro_(campoMotivo.value);
       } else {
         motivoReuniaoPresetWrap.style.display = 'none';
         motivoReuniaoOutroWrap.style.display = 'none';
+        motivoReservaPresetWrap.style.display = 'none';
+        motivoReservaOutroWrap.style.display = 'none';
         motivoTextoWrap.style.display = 'block';
         if (motivoReuniaoPreset) motivoReuniaoPreset.required = false;
+        if (motivoReservaPreset) motivoReservaPreset.required = false;
       }
       
       // Campo Data Fim (só para bloqueios)
@@ -2041,7 +2140,7 @@ window.onload = function () {
 
       // Required nos campos
       document.getElementById('tipoEvento').required = isEvento;
-      document.getElementById('motivo').required = !isEvento && !isReuniao;
+      document.getElementById('motivo').required = !isEvento && !isReuniao && !isReserva;
       document.getElementById('valorTotal').required = isEvento;
       document.getElementById('idVendedor').required = isEvento;
 
@@ -2547,6 +2646,7 @@ window.onload = function () {
         });
       });
       carregarMotivosReuniaoPadraoCadastro_();
+      carregarMotivosReservaPadraoCadastro_();
 
       // CONFIG COMISSÃO PADRÃO
       Auth.apiCall('obterConfig', { chave: 'COMISSAO_PADRAO_PERCENTUAL' }).then(percentual => {
@@ -2568,6 +2668,9 @@ window.onload = function () {
       const selectMotivoReuniao = document.getElementById('motivoReuniaoPreset');
       const inputMotivoReuniaoOutro = document.getElementById('motivoReuniaoOutro');
       const wrapMotivoReuniaoOutro = document.getElementById('motivoReuniaoOutroWrap');
+      const selectMotivoReserva = document.getElementById('motivoReservaPreset');
+      const inputMotivoReservaOutro = document.getElementById('motivoReservaOutro');
+      const wrapMotivoReservaOutro = document.getElementById('motivoReservaOutroWrap');
 
       if (selectMotivoReuniao && inputMotivoReuniaoOutro && wrapMotivoReuniaoOutro) {
         selectMotivoReuniao.addEventListener('change', () => {
@@ -2577,6 +2680,15 @@ window.onload = function () {
           sincronizarMotivoReuniaoCadastro_();
         });
         inputMotivoReuniaoOutro.addEventListener('input', sincronizarMotivoReuniaoCadastro_);
+      }
+      if (selectMotivoReserva && inputMotivoReservaOutro && wrapMotivoReservaOutro) {
+        selectMotivoReserva.addEventListener('change', () => {
+          const mostrarOutro = selectMotivoReserva.value === '__OUTRO__';
+          wrapMotivoReservaOutro.style.display = mostrarOutro ? 'block' : 'none';
+          if (!mostrarOutro) inputMotivoReservaOutro.value = '';
+          sincronizarMotivoReservaCadastro_();
+        });
+        inputMotivoReservaOutro.addEventListener('input', sincronizarMotivoReservaCadastro_);
       }
     });
     // Autocomplete (código mantido)
@@ -2855,6 +2967,7 @@ window.onload = function () {
     // Salvar evento
     function salvarEvento() {
       sincronizarMotivoReuniaoCadastro_();
+      sincronizarMotivoReservaCadastro_();
       const form = document.getElementById('formEvento');
       if (!form.checkValidity()) {
         form.reportValidity();
