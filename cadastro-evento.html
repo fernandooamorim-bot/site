@@ -1722,17 +1722,17 @@
         </div>
         <h3 style="color:#10b981;margin:0 0 8px 0;font-size:18px;">${escapeHtmlSimples_(titulo)}</h3>
         <p style="color:#64748b;font-size:14px;margin:0 0 14px 0;">${escapeHtmlSimples_(msg || '')}</p>
-        <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
-          <button type="button" class="btn btn-primary" style="min-width:150px;max-width:100%;flex:1 1 150px;display:inline-flex;align-items:center;justify-content:center;gap:6px;" onclick="irPosCadastro_('agenda')">
-            <i data-lucide="calendar-days" style="width:16px;height:16px;"></i> Ver agenda
-          </button>
-          <button type="button" class="btn btn-secondary" style="min-width:150px;max-width:100%;flex:1 1 150px;display:inline-flex;align-items:center;justify-content:center;gap:6px;" onclick="irPosCadastro_('novo')">
+        <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;">
+          <button type="button" class="btn btn-secondary" style="display:inline-flex;align-items:center;justify-content:center;gap:6px;" onclick="irPosCadastro_('novo')">
             <i data-lucide="plus-circle" style="width:16px;height:16px;"></i> Cadastrar outro
           </button>
-        </div>
-        <button type="button" class="btn" style="margin-top:10px;background:#0f1a2e;color:#fff;min-width:140px;display:inline-flex;align-items:center;justify-content:center;gap:6px;" onclick="irPosCadastro_('menu')">
+          <button type="button" class="btn btn-secondary" style="display:inline-flex;align-items:center;justify-content:center;gap:6px;" onclick="irPosCadastro_('agenda')">
+            <i data-lucide="calendar-days" style="width:16px;height:16px;"></i> Ver agenda
+          </button>
+          <button type="button" class="btn btn-primary" style="grid-column:1 / -1;justify-self:center;display:inline-flex;align-items:center;justify-content:center;gap:6px;" onclick="irPosCadastro_('menu')">
           <i data-lucide="house" style="width:16px;height:16px;"></i> Menu
         </button>
+        </div>
       `;
       if (window.lucide) window.lucide.createIcons();
       if (callback) callback();
