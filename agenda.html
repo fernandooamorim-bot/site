@@ -3441,6 +3441,7 @@ renderizarEventosDentro(evento) {
           // 1. Carrega usuário
           await AgendaController.carregarUsuario();
           AgendaController.aplicarRestricoesPerfil();
+          AgendaController.hidratarConfigLocalRapida_();
 
           // 1.1 Renderização instantânea com cache (se existir)
           const renderizouCacheInstantaneo = AgendaController.bootstrapInstantaneoComCache();
@@ -3750,6 +3751,9 @@ renderizarEventosDentro(evento) {
             localStorage.setItem(AGENDA_OFFLINE_CONFIG_CACHE_KEY, JSON.stringify({
               enabled: this.configBool('AGENDA_OFFLINE_ATIVO', false),
               showCard: this.configBool('AGENDA_OFFLINE_INDEX_CARD', true),
+              tituloCaseMode: String(AppState.config?.AGENDA_TITULO_CASE_MODE || 'TITLE_PT').trim().toUpperCase(),
+              tituloStopwords: String(AppState.config?.AGENDA_TITULO_STOPWORDS_PT || '').trim(),
+              horaViradaMadrugada: String(AppState.config?.AGENDA_HORA_VIRADA_MADRUGADA || '').trim(),
               ts: Date.now()
             }));
           } catch (_) {}
@@ -3763,11 +3767,39 @@ renderizarEventosDentro(evento) {
               if (parsed && typeof parsed === 'object') {
                 AppState.config.AGENDA_OFFLINE_ATIVO = parsed.enabled === true;
                 AppState.config.AGENDA_OFFLINE_INDEX_CARD = parsed.showCard !== false;
+                if (parsed.tituloCaseMode) {
+                  AppState.config.AGENDA_TITULO_CASE_MODE = String(parsed.tituloCaseMode).trim().toUpperCase();
+                }
+                if (parsed.tituloStopwords) {
+                  AppState.config.AGENDA_TITULO_STOPWORDS_PT = String(parsed.tituloStopwords).trim();
+                }
+                if (parsed.horaViradaMadrugada !== undefined && parsed.horaViradaMadrugada !== null) {
+                  AppState.config.AGENDA_HORA_VIRADA_MADRUGADA = String(parsed.horaViradaMadrugada).trim();
+                }
               }
             }
           } catch (_) {}
           return AppState.config;
         }
+      },
+
+      hidratarConfigLocalRapida_() {
+        try {
+          const raw = localStorage.getItem(AGENDA_OFFLINE_CONFIG_CACHE_KEY);
+          if (!raw) return;
+          const parsed = JSON.parse(raw);
+          if (!parsed || typeof parsed !== 'object') return;
+
+          if (parsed.tituloCaseMode) {
+            AppState.config.AGENDA_TITULO_CASE_MODE = String(parsed.tituloCaseMode).trim().toUpperCase();
+          }
+          if (parsed.tituloStopwords) {
+            AppState.config.AGENDA_TITULO_STOPWORDS_PT = String(parsed.tituloStopwords).trim();
+          }
+          if (parsed.horaViradaMadrugada !== undefined && parsed.horaViradaMadrugada !== null) {
+            AppState.config.AGENDA_HORA_VIRADA_MADRUGADA = String(parsed.horaViradaMadrugada).trim();
+          }
+        } catch (_) {}
       },
 
   /**

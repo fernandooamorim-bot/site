@@ -3691,10 +3691,37 @@ function registroEhEvento() {
   return tipo === 'Evento' || modoConversaoReserva;
 }
 
+function formatarDataHoraConversaoReserva_() {
+  const agora = new Date();
+  const d = String(agora.getDate()).padStart(2, '0');
+  const m = String(agora.getMonth() + 1).padStart(2, '0');
+  const a = agora.getFullYear();
+  const h = String(agora.getHours()).padStart(2, '0');
+  const min = String(agora.getMinutes()).padStart(2, '0');
+  return `${d}/${m}/${a} ${h}:${min}`;
+}
+
+function aplicarObservacaoConversaoReserva_() {
+  if (!modoConversaoReserva) return;
+  const obsEl = document.getElementById('observacoes');
+  if (!obsEl) return;
+
+  const marcadorRegex = /(?:^|\|)\s*Reserva convertida em:/i;
+  let observacaoAtual = String(obsEl.value || '').trim();
+
+  if (!marcadorRegex.test(observacaoAtual)) {
+    const marcador = `Reserva convertida em: ${formatarDataHoraConversaoReserva_()}`;
+    observacaoAtual = observacaoAtual ? `${observacaoAtual} | ${marcador}` : marcador;
+  }
+
+  obsEl.value = observacaoAtual;
+}
+
 function ativarConversaoReserva() {
   if (!eventoOriginal || String(eventoOriginal.tipoRegistro || '').trim() !== 'Reserva') return;
   modoConversaoReserva = true;
   renderizarStatusTipoRegistro(eventoOriginal);
+  aplicarObservacaoConversaoReserva_();
   const sectionFinanceiro = document.getElementById('sectionFinanceiro');
   if (sectionFinanceiro) sectionFinanceiro.classList.remove('hidden');
   const statusConversao = document.getElementById('statusConversaoReserva');
@@ -4696,6 +4723,9 @@ function preencherFormulario(evento) {
   document.getElementById('somResponsavel').value = evento.somResponsavel || '';
   document.getElementById('observacoes').value = ehEventoVisual ? (evento.observacoes || '') : '';
   document.getElementById('motivoRegistro').value = !ehEventoVisual ? (evento.observacoes || '') : '';
+  if (modoConversaoReserva) {
+    aplicarObservacaoConversaoReserva_();
+  }
 
   aplicarFallbackReferenciasMestre(evento);
   renderizarStatusTipoRegistro(evento);
@@ -5092,7 +5122,6 @@ function formatarValorResumoAlteracao_(campo, valor, origem) {
       if (!dados.idVendedor) erros.push('Selecione o Vendedor responsável.');
       if (!dados.idContratante) erros.push('Regularize o Contratante (vínculo por ID).');
       if (!dados.idEndereco) erros.push('Regularize o Local (vínculo por ID).');
-      if (!dados.observacoes) erros.push('Informe o Motivo/Status da Reserva.');
       if (erros.length) {
         atualizarIndicadoresVinculoConversao();
         const focoId = !dados.idContratante ? 'nomeContratante' : (!dados.idEndereco ? 'nomeLocal' : '');
