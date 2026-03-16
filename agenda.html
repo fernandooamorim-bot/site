@@ -1876,7 +1876,9 @@ if (!AUTH.email || !AUTH.session) {
     AGENDA_CACHE_NOTIFY_UPDATE: true,
     AGENDA_OFFLINE_ATIVO: false,
     AGENDA_CORES_PERSONALIZADAS: true,
-    AGENDA_LIMITE_TODOS: 200
+    AGENDA_LIMITE_TODOS: 200,
+    AGENDA_TITULO_CASE_MODE: 'TITLE_PT',
+    AGENDA_TITULO_STOPWORDS_PT: 'de,da,do,das,dos,e,com,para,por,na,no,nas,nos'
   },
 
   // Cache de eventos
@@ -2207,6 +2209,69 @@ if (!AUTH.email || !AUTH.session) {
           'N/A': 'Não se aplica'
         };
         return labels[status] || status;
+      },
+
+      limparEspacosTituloAgenda(texto) {
+        return String(texto || '').replace(/\s+/g, ' ').trim();
+      },
+
+      obterStopwordsTituloAgenda_() {
+        const fallback = 'de,da,do,das,dos,e,com,para,por,na,no,nas,nos';
+        const bruto = String(AppState.config?.AGENDA_TITULO_STOPWORDS_PT || fallback);
+        return new Set(
+          bruto
+            .split(/[\n,;|]/)
+            .map((s) => s.trim().toLocaleLowerCase('pt-BR'))
+            .filter(Boolean)
+        );
+      },
+
+      capitalizarPalavraPt_(palavra, isInicioSegmento, stopwords) {
+        const match = String(palavra || '').match(/^([^A-Za-zÀ-ÿ0-9]*)([A-Za-zÀ-ÿ0-9]+)([^A-Za-zÀ-ÿ0-9]*)$/u);
+        if (!match) return palavra;
+        const prefixo = match[1] || '';
+        const mioloOriginal = match[2] || '';
+        const sufixo = match[3] || '';
+
+        const mioloLower = mioloOriginal.toLocaleLowerCase('pt-BR');
+        if (!isInicioSegmento && stopwords.has(mioloLower)) {
+          return `${prefixo}${mioloLower}${sufixo}`;
+        }
+        const capitalizado = mioloLower.charAt(0).toLocaleUpperCase('pt-BR') + mioloLower.slice(1);
+        return `${prefixo}${capitalizado}${sufixo}`;
+      },
+
+      toTitlePtAgenda(texto) {
+        const limpo = this.limparEspacosTituloAgenda(texto);
+        if (!limpo) return limpo;
+        const stopwords = this.obterStopwordsTituloAgenda_();
+        const tokens = limpo.split(' ');
+        const separadoresSegmento = new Set(['-', '–', '—', ':', '|', '→']);
+        let inicioSegmento = true;
+
+        const out = tokens.map((token) => {
+          if (separadoresSegmento.has(token)) {
+            inicioSegmento = true;
+            return token;
+          }
+          const partes = token.split('-');
+          const partesFmt = partes.map((parte, idx) => {
+            const fmt = this.capitalizarPalavraPt_(parte, inicioSegmento || idx > 0, stopwords);
+            inicioSegmento = false;
+            return fmt;
+          });
+          return partesFmt.join('-');
+        });
+        return out.join(' ');
+      },
+
+      formatarTituloAgenda(texto) {
+        const limpo = this.limparEspacosTituloAgenda(texto);
+        if (!limpo) return limpo;
+        const modo = String(AppState.config?.AGENDA_TITULO_CASE_MODE || 'TITLE_PT').trim().toUpperCase();
+        if (modo === 'UPPER') return limpo.toLocaleUpperCase('pt-BR');
+        if (modo === 'ORIGINAL') return limpo;
+        return this.toTitlePtAgenda(limpo);
       },
 calcularDiasIntervalo(dataInicio, dataFim) {
     try {
@@ -2681,7 +2746,7 @@ criarCardEvento(evento) {
     && pessoaReuniao.toLocaleLowerCase('pt-BR') !== motivoReuniao.toLocaleLowerCase('pt-BR');
   const conteudoReservaRaw = String(evento.contratante || observacaoParaTitulo || evento.tipoEvento || 'Sem detalhes').trim();
   const conteudoReserva = limparPrefixoReserva(conteudoReservaRaw) || 'Sem detalhes';
-  const tituloEvento = isReuniaoOuBloqueio
+  const tituloEventoRaw = isReuniaoOuBloqueio
     ? (isReuniao
       ? `${motivoReuniao}${pessoaDiferenteDoMotivo ? ' - ' + pessoaReuniao : ''}`
       : `${tipoRegistro}${baseTituloReuniaoBloqueio ? ' - ' + baseTituloReuniaoBloqueio : ''}`)
@@ -2690,6 +2755,7 @@ criarCardEvento(evento) {
     : (isLegado
       ? (evento.contratante || `${evento.tipoEvento || evento.tipo || '-'}`)
       : `${evento.tipoEvento || evento.tipo || '-'}${evento.contratante ? ' - ' + evento.contratante : ''}`);
+  const tituloEvento = Utils.formatarTituloAgenda(tituloEventoRaw);
   const exibirStatusFinanceiroNoCard = (evento.tipo === 'Evento') && !isProducao();
   const exibirStatusNoCard = exibirStatusFinanceiroNoCard || evento.tipo === 'Reserva';
   const statusLabel = evento.tipo === 'Reserva'
