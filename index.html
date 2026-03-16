@@ -1448,7 +1448,10 @@
 
   function salvarConfigOfflineLocal_(cfg) {
     try {
+      const existenteRaw = localStorage.getItem(OFFLINE_CONFIG_CACHE_KEY);
+      const existente = existenteRaw ? JSON.parse(existenteRaw) : {};
       localStorage.setItem(OFFLINE_CONFIG_CACHE_KEY, JSON.stringify({
+        ...(existente && typeof existente === 'object' ? existente : {}),
         ts: Date.now(),
         enabled: !!cfg.enabled,
         showCard: !!cfg.showCard
