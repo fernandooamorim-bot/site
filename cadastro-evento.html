@@ -1352,7 +1352,7 @@
             <div class="hybrid-field">
               <input type="text" id="contratanteNome" placeholder="Digite o nome ou selecione">
               <input type="hidden" id="idContratante">
-              <button type="button" class="add-new-btn" onclick="abrirModalContratante()">
+              <button type="button" id="btnNovoContratanteCadastro" class="add-new-btn" onclick="abrirModalContratante()">
                 ➕ Novo
               </button>
             </div>
@@ -1376,7 +1376,7 @@
             <div class="hybrid-field">
               <input type="text" id="localNome" placeholder="Digite o nome do local" >
               <input type="hidden" id="idEndereco">
-              <button type="button" class="add-new-btn" onclick="abrirModalEndereco()">
+              <button type="button" id="btnNovoLocalCadastro" class="add-new-btn" onclick="abrirModalEndereco()">
                 ➕ Novo
               </button>
             </div>
@@ -1962,6 +1962,14 @@ window.onload = function () {
       
       // BLOQUEIO: Esconde TODA seção de Pessoas e Local
       document.getElementById('secaoPessoasLocal').style.display = isBloqueio ? 'none' : 'block';
+      const btnNovoContratanteCadastro = document.getElementById('btnNovoContratanteCadastro');
+      const btnNovoLocalCadastro = document.getElementById('btnNovoLocalCadastro');
+      if (btnNovoContratanteCadastro) {
+        btnNovoContratanteCadastro.style.display = isReuniao ? 'none' : 'inline-flex';
+      }
+      if (btnNovoLocalCadastro) {
+        btnNovoLocalCadastro.style.display = isReuniao ? 'none' : 'inline-flex';
+      }
       
       // Seção de valores (SÓ EVENTO)
       document.getElementById('secaoValores').style.display = isEvento ? 'block' : 'none';
