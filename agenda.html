@@ -2645,13 +2645,39 @@ criarCardEvento(evento) {
 
   const isLegado = String(evento.id || '').startsWith('LG-');
   const tipoRegistro = String(evento.tipo || '').trim();
-  const isReuniaoOuBloqueio = tipoRegistro === 'Reunião' || tipoRegistro === 'Bloqueio';
+  const isReuniao = tipoRegistro === 'Reunião';
+  const isBloqueio = tipoRegistro === 'Bloqueio';
+  const isReuniaoOuBloqueio = isReuniao || isBloqueio;
   const isReserva = tipoRegistro === 'Reserva';
   const observacaoRaw = String(evento.observacoes || '').trim();
   const observacaoTecnicaLegado = /^\[LEGADO\]/i.test(observacaoRaw) || /arquivo=|aba=|linha=|conf=|issues=/i.test(observacaoRaw);
   const observacaoParaTitulo = observacaoTecnicaLegado ? '' : observacaoRaw;
+  const limparDuplicacaoPrefixo = (texto, prefixo) => {
+    const bruto = String(texto || '').trim();
+    const tipo = String(prefixo || '').trim();
+    if (!bruto || !tipo) return bruto;
+    const escaped = tipo.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    if (bruto.toLocaleLowerCase('pt-BR') === tipo.toLocaleLowerCase('pt-BR')) return '';
+    return bruto.replace(new RegExp(`^${escaped}\\b\\s*[-:|–—]?\\s*`, 'i'), '').trim();
+  };
+  const normalizarMotivoReuniao = (texto) => {
+    const base = String(texto || '').trim();
+    if (!base) return 'Reunião';
+    if (/^reuni[aã]o\b/i.test(base)) return base;
+    return `Reunião - ${base}`;
+  };
+  const baseTituloReuniaoBloqueio = limparDuplicacaoPrefixo(
+    observacaoParaTitulo || evento.contratante || '',
+    tipoRegistro
+  );
+  const motivoReuniao = normalizarMotivoReuniao(observacaoParaTitulo);
+  const pessoaReuniao = String(evento.contratante || '').trim();
+  const pessoaDiferenteDoMotivo = pessoaReuniao
+    && pessoaReuniao.toLocaleLowerCase('pt-BR') !== motivoReuniao.toLocaleLowerCase('pt-BR');
   const tituloEvento = isReuniaoOuBloqueio
-    ? (observacaoParaTitulo || evento.contratante || `${evento.tipoEvento || evento.tipo || '-'}`)
+    ? (isReuniao
+      ? `${motivoReuniao}${pessoaDiferenteDoMotivo ? ' - ' + pessoaReuniao : ''}`
+      : `${tipoRegistro}${baseTituloReuniaoBloqueio ? ' - ' + baseTituloReuniaoBloqueio : ''}`)
     : isReserva
       ? `${evento.tipoEvento || 'Reserva'}${evento.contratante ? ' - ' + evento.contratante : (observacaoParaTitulo ? ' - ' + observacaoParaTitulo : '')}`
     : (isLegado

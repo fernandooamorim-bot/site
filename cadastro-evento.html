@@ -1248,6 +1248,14 @@
           <!-- BLOQUEIO/REUNIÃO: Motivo -->
           <div id="campoMotivo" class="form-group" style="display: none;">
             <label for="motivo" class="required">Motivo</label>
+            <div id="motivoReuniaoPresetWrap" style="display:none; margin-bottom:8px;">
+              <select id="motivoReuniaoPreset">
+                <option value="">Selecione o motivo...</option>
+              </select>
+            </div>
+            <div id="motivoReuniaoOutroWrap" style="display:none; margin-bottom:8px;">
+              <input type="text" id="motivoReuniaoOutro" placeholder="Descreva o motivo da reunião">
+            </div>
             <input type="text" id="motivo" placeholder="">
           </div>
 
@@ -1709,6 +1717,91 @@
     let enderecos = [];
     let vendedores = [];
     let parceirosBV = [];
+    const MOTIVOS_REUNIAO_PADRAO_FALLBACK = [
+      'Reunião Geral',
+      'Reunião de Repertório',
+      'Reunião Suê',
+      'Reunião Fernando',
+      'Reunião Final'
+    ];
+    let motivosReuniaoPadrao = [...MOTIVOS_REUNIAO_PADRAO_FALLBACK];
+
+    function parseListaConfigCadastro_(valor) {
+      return String(valor || '')
+        .split(/[\n,;|]/)
+        .map(s => s.trim())
+        .filter(Boolean);
+    }
+
+    function normalizarMotivoReuniaoCadastro_(texto) {
+      const base = String(texto || '').trim();
+      if (!base) return '';
+      if (/^reuni[aã]o\b/i.test(base)) return base;
+      return `Reunião - ${base}`;
+    }
+
+    function sincronizarMotivoReuniaoCadastro_() {
+      const tipo = String(document.getElementById('tipoRegistro')?.value || '').trim();
+      if (tipo !== 'Reunião') return;
+      const select = document.getElementById('motivoReuniaoPreset');
+      const outro = document.getElementById('motivoReuniaoOutro');
+      const inputMotivo = document.getElementById('motivo');
+      if (!select || !outro || !inputMotivo) return;
+      const valorBase = select.value === '__OUTRO__'
+        ? String(outro.value || '').trim()
+        : String(select.value || '').trim();
+      inputMotivo.value = normalizarMotivoReuniaoCadastro_(valorBase);
+    }
+
+    function popularMotivosReuniaoCadastro_(motivoAtual = '') {
+      const select = document.getElementById('motivoReuniaoPreset');
+      const outroWrap = document.getElementById('motivoReuniaoOutroWrap');
+      const outro = document.getElementById('motivoReuniaoOutro');
+      if (!select || !outroWrap || !outro) return;
+
+      const lista = (motivosReuniaoPadrao || []).filter(Boolean);
+      const motivoNormalizado = normalizarMotivoReuniaoCadastro_(motivoAtual);
+      select.innerHTML = '<option value="">Selecione o motivo...</option>';
+      lista.forEach((motivo) => {
+        const opt = document.createElement('option');
+        opt.value = motivo;
+        opt.textContent = motivo;
+        select.appendChild(opt);
+      });
+      const optOutro = document.createElement('option');
+      optOutro.value = '__OUTRO__';
+      optOutro.textContent = 'Outro...';
+      select.appendChild(optOutro);
+
+      const motivoNaLista = lista.find((item) =>
+        String(item).trim().toLocaleLowerCase('pt-BR') === motivoNormalizado.toLocaleLowerCase('pt-BR')
+      );
+      if (motivoNaLista) {
+        select.value = motivoNaLista;
+        outro.value = '';
+        outroWrap.style.display = 'none';
+      } else if (motivoNormalizado) {
+        select.value = '__OUTRO__';
+        outro.value = motivoNormalizado.replace(/^reuni[aã]o\b\s*[-:|–—]?\s*/i, '').trim();
+        outroWrap.style.display = 'block';
+      } else {
+        select.value = '';
+        outro.value = '';
+        outroWrap.style.display = 'none';
+      }
+      sincronizarMotivoReuniaoCadastro_();
+    }
+
+    async function carregarMotivosReuniaoPadraoCadastro_() {
+      try {
+        const bruto = await Auth.apiCall('obterConfig', { chave: 'REUNIAO_MOTIVOS_PADRAO' });
+        const lista = parseListaConfigCadastro_(bruto);
+        if (lista.length) motivosReuniaoPadrao = lista;
+      } catch (err) {
+        console.warn('Falha ao carregar REUNIAO_MOTIVOS_PADRAO, usando padrão.', err);
+      }
+      popularMotivosReuniaoCadastro_(document.getElementById('motivo')?.value || '');
+    }
     
     // Inicialização
 window.onload = function () {
@@ -1779,13 +1872,28 @@ window.onload = function () {
       document.getElementById('campoMotivo').style.display = (isBloqueio || isReuniao || isReserva) ? 'block' : 'none';
       
       // Altera placeholder do motivo baseado no tipo
+      const labelMotivo = document.querySelector('label[for="motivo"]');
       const campoMotivo = document.getElementById('motivo');
+      const motivoReuniaoPresetWrap = document.getElementById('motivoReuniaoPresetWrap');
+      const motivoReuniaoOutroWrap = document.getElementById('motivoReuniaoOutroWrap');
       if (isReuniao) {
-        campoMotivo.placeholder = 'Ex: Reunião de Repertório, Reunião Geral, Reunião de Planejamento...';
+        if (labelMotivo) labelMotivo.textContent = 'Motivo da Reunião';
+        campoMotivo.placeholder = 'Motivo padronizado da reunião';
+        campoMotivo.readOnly = true;
+        motivoReuniaoPresetWrap.style.display = 'block';
+        popularMotivosReuniaoCadastro_(campoMotivo.value);
       } else if (isBloqueio) {
+        if (labelMotivo) labelMotivo.textContent = 'Motivo do Bloqueio';
         campoMotivo.placeholder = 'Ex: Férias, Viagem, Manutenção, Folga...';
+        campoMotivo.readOnly = false;
+        motivoReuniaoPresetWrap.style.display = 'none';
+        motivoReuniaoOutroWrap.style.display = 'none';
       } else if (isReserva) {
+        if (labelMotivo) labelMotivo.textContent = 'Motivo/Status da Reserva';
         campoMotivo.placeholder = 'Ex: Aguardando confirmação, proposta enviada, data em negociação...';
+        campoMotivo.readOnly = false;
+        motivoReuniaoPresetWrap.style.display = 'none';
+        motivoReuniaoOutroWrap.style.display = 'none';
       }
       
       // Campo Data Fim (só para bloqueios)
@@ -2392,6 +2500,7 @@ window.onload = function () {
           select.innerHTML += `<option value="${t}">${t}</option>`;
         });
       });
+      carregarMotivosReuniaoPadraoCadastro_();
 
       // CONFIG COMISSÃO PADRÃO
       Auth.apiCall('obterConfig', { chave: 'COMISSAO_PADRAO_PERCENTUAL' }).then(percentual => {
@@ -2409,6 +2518,21 @@ window.onload = function () {
         }
       });
     }
+    document.addEventListener('DOMContentLoaded', () => {
+      const selectMotivoReuniao = document.getElementById('motivoReuniaoPreset');
+      const inputMotivoReuniaoOutro = document.getElementById('motivoReuniaoOutro');
+      const wrapMotivoReuniaoOutro = document.getElementById('motivoReuniaoOutroWrap');
+
+      if (selectMotivoReuniao && inputMotivoReuniaoOutro && wrapMotivoReuniaoOutro) {
+        selectMotivoReuniao.addEventListener('change', () => {
+          const mostrarOutro = selectMotivoReuniao.value === '__OUTRO__';
+          wrapMotivoReuniaoOutro.style.display = mostrarOutro ? 'block' : 'none';
+          if (!mostrarOutro) inputMotivoReuniaoOutro.value = '';
+          sincronizarMotivoReuniaoCadastro_();
+        });
+        inputMotivoReuniaoOutro.addEventListener('input', sincronizarMotivoReuniaoCadastro_);
+      }
+    });
     // Autocomplete (código mantido)
     function configurarAutocomplete(inputId, hiddenId, dados) {
       const input = document.getElementById(inputId);
@@ -2658,6 +2782,7 @@ window.onload = function () {
     
     // Salvar evento
     function salvarEvento() {
+      sincronizarMotivoReuniaoCadastro_();
       const form = document.getElementById('formEvento');
       if (!form.checkValidity()) {
         form.reportValidity();
@@ -2783,6 +2908,8 @@ if ((tipoRegistro === 'Evento' || tipoRegistro === 'Reunião' || tipoRegistro ==
       }
       // REUNIÃO ou BLOQUEIO
       else {
+        dados.tipoEvento = '';
+        dados.projeto = '';
         dados.motivo = document.getElementById('motivo').value;
         dados.observacoes = document.getElementById('observacoes').value;
       }
