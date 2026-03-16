@@ -652,6 +652,19 @@
       border-bottom: none;
     }
 
+    .autocomplete-item.autocomplete-status {
+      color: var(--gray-500);
+      cursor: default;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+    }
+
+    .autocomplete-item.autocomplete-status:hover {
+      background: transparent;
+    }
+
     /* ============================================
        SEARCH RESULTS
        ============================================ */
@@ -1976,7 +1989,9 @@
           <div id="motivoReuniaoOutroWrapEdicao" class="hidden" style="margin-bottom:8px;">
             <input type="text" id="motivoReuniaoOutroEdicao" placeholder="Descreva o motivo da reunião">
           </div>
-          <input type="text" id="motivoRegistro" placeholder="Informe o motivo">
+          <div id="motivoRegistroTextoWrap">
+            <input type="text" id="motivoRegistro" placeholder="Informe o motivo">
+          </div>
         </div>
         
         <div id="secaoPessoasLocalCamposEdicao">
@@ -3645,6 +3660,7 @@ function configurarVisibilidadeCamposPorTipoEdicao_(tipoOriginal) {
   const inputMotivo = document.getElementById('motivoRegistro');
   const motivoReuniaoPresetWrap = document.getElementById('motivoReuniaoPresetWrapEdicao');
   const motivoReuniaoOutroWrap = document.getElementById('motivoReuniaoOutroWrapEdicao');
+  const motivoRegistroTextoWrap = document.getElementById('motivoRegistroTextoWrap');
   const inputContratante = document.getElementById('nomeContratante');
   const inputLocal = document.getElementById('nomeLocal');
   const inputHora = document.getElementById('horaInicio');
@@ -3698,8 +3714,9 @@ function configurarVisibilidadeCamposPorTipoEdicao_(tipoOriginal) {
     if (isReuniao) {
       labelMotivo.textContent = 'Motivo da Reunião';
       inputMotivo.placeholder = 'Motivo padronizado da reunião';
-      inputMotivo.readOnly = true;
+      inputMotivo.readOnly = false;
       if (motivoReuniaoPresetWrap) motivoReuniaoPresetWrap.classList.remove('hidden');
+      if (motivoRegistroTextoWrap) motivoRegistroTextoWrap.classList.add('hidden');
       popularMotivosReuniaoEdicao_(inputMotivo.value);
     } else if (isBloqueio) {
       labelMotivo.textContent = 'Motivo do Bloqueio';
@@ -3707,12 +3724,14 @@ function configurarVisibilidadeCamposPorTipoEdicao_(tipoOriginal) {
       inputMotivo.readOnly = false;
       if (motivoReuniaoPresetWrap) motivoReuniaoPresetWrap.classList.add('hidden');
       if (motivoReuniaoOutroWrap) motivoReuniaoOutroWrap.classList.add('hidden');
+      if (motivoRegistroTextoWrap) motivoRegistroTextoWrap.classList.remove('hidden');
     } else {
       labelMotivo.textContent = 'Motivo/Status da Reserva';
       inputMotivo.placeholder = 'Ex: Aguardando confirmação, proposta enviada...';
       inputMotivo.readOnly = false;
       if (motivoReuniaoPresetWrap) motivoReuniaoPresetWrap.classList.add('hidden');
       if (motivoReuniaoOutroWrap) motivoReuniaoOutroWrap.classList.add('hidden');
+      if (motivoRegistroTextoWrap) motivoRegistroTextoWrap.classList.remove('hidden');
     }
   }
 
@@ -4088,19 +4107,39 @@ async function carregarEventoPorId(idEvento) {
 // ===============================
 let autocompleteTimer = null;
 
+function mostrarStatusAutocompleteContratante_(html) {
+  const list = document.getElementById('autocompleteList');
+  if (!list) return;
+  list.innerHTML = `<div class="autocomplete-item autocomplete-status">${html}</div>`;
+  list.classList.add('show');
+}
+
 function autocompleteContratante(termo) {
   clearTimeout(autocompleteTimer);
 
+  const valor = String(termo || '').trim();
+  if (!valor) {
+    document.getElementById('autocompleteList')?.classList.remove('show');
+    return;
+  }
+  if (valor.length < 2) {
+    mostrarStatusAutocompleteContratante_('Digite 2+ letras...');
+    return;
+  }
+
+  mostrarStatusAutocompleteContratante_('<span class="troca-spinner"></span>Carregando...');
+
   autocompleteTimer = setTimeout(() => {
-    executarAutocompleteContratante(termo);
+    executarAutocompleteContratante(valor);
   }, 200);
 }
 
 function executarAutocompleteContratante(termo) {
   const list = document.getElementById('autocompleteList');
+  if (!list) return;
 
   if (!termo || termo.length < 2) {
-    list.classList.remove('show');
+    mostrarStatusAutocompleteContratante_('Digite 2+ letras...');
     return;
   }
 
@@ -4111,7 +4150,7 @@ function executarAutocompleteContratante(termo) {
     .slice(0, 10);
 
   if (!matches.length) {
-    list.classList.remove('show');
+    mostrarStatusAutocompleteContratante_('Nenhum resultado encontrado.');
     return;
   }
 

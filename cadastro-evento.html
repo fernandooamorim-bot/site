@@ -981,6 +981,29 @@
       border-bottom: none;
     }
 
+    .autocomplete-items .autocomplete-status {
+      color: var(--gray-500);
+      cursor: default;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+    }
+
+    .autocomplete-items .autocomplete-status:hover {
+      background: transparent;
+    }
+
+    .ac-inline-spinner {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      border: 2px solid rgba(15,26,46,0.2);
+      border-top-color: var(--navy-500);
+      animation: spin 0.8s linear infinite;
+      flex-shrink: 0;
+    }
+
     /* ============================================
        INFO BADGE
        ============================================ */
@@ -1256,7 +1279,9 @@
             <div id="motivoReuniaoOutroWrap" style="display:none; margin-bottom:8px;">
               <input type="text" id="motivoReuniaoOutro" placeholder="Descreva o motivo da reunião">
             </div>
-            <input type="text" id="motivo" placeholder="">
+            <div id="motivoTextoWrap">
+              <input type="text" id="motivo" placeholder="">
+            </div>
           </div>
 
           <div id="campoProjeto" class="form-group">
@@ -1876,11 +1901,15 @@ window.onload = function () {
       const campoMotivo = document.getElementById('motivo');
       const motivoReuniaoPresetWrap = document.getElementById('motivoReuniaoPresetWrap');
       const motivoReuniaoOutroWrap = document.getElementById('motivoReuniaoOutroWrap');
+      const motivoTextoWrap = document.getElementById('motivoTextoWrap');
+      const motivoReuniaoPreset = document.getElementById('motivoReuniaoPreset');
       if (isReuniao) {
         if (labelMotivo) labelMotivo.textContent = 'Motivo da Reunião';
         campoMotivo.placeholder = 'Motivo padronizado da reunião';
-        campoMotivo.readOnly = true;
+        campoMotivo.readOnly = false;
         motivoReuniaoPresetWrap.style.display = 'block';
+        motivoTextoWrap.style.display = 'none';
+        if (motivoReuniaoPreset) motivoReuniaoPreset.required = true;
         popularMotivosReuniaoCadastro_(campoMotivo.value);
       } else if (isBloqueio) {
         if (labelMotivo) labelMotivo.textContent = 'Motivo do Bloqueio';
@@ -1888,12 +1917,21 @@ window.onload = function () {
         campoMotivo.readOnly = false;
         motivoReuniaoPresetWrap.style.display = 'none';
         motivoReuniaoOutroWrap.style.display = 'none';
+        motivoTextoWrap.style.display = 'block';
+        if (motivoReuniaoPreset) motivoReuniaoPreset.required = false;
       } else if (isReserva) {
         if (labelMotivo) labelMotivo.textContent = 'Motivo/Status da Reserva';
         campoMotivo.placeholder = 'Ex: Aguardando confirmação, proposta enviada, data em negociação...';
         campoMotivo.readOnly = false;
         motivoReuniaoPresetWrap.style.display = 'none';
         motivoReuniaoOutroWrap.style.display = 'none';
+        motivoTextoWrap.style.display = 'block';
+        if (motivoReuniaoPreset) motivoReuniaoPreset.required = false;
+      } else {
+        motivoReuniaoPresetWrap.style.display = 'none';
+        motivoReuniaoOutroWrap.style.display = 'none';
+        motivoTextoWrap.style.display = 'block';
+        if (motivoReuniaoPreset) motivoReuniaoPreset.required = false;
       }
       
       // Campo Data Fim (só para bloqueios)
@@ -1995,7 +2033,7 @@ window.onload = function () {
 
       // Required nos campos
       document.getElementById('tipoEvento').required = isEvento;
-      document.getElementById('motivo').required = !isEvento;
+      document.getElementById('motivo').required = !isEvento && !isReuniao;
       document.getElementById('valorTotal').required = isEvento;
       document.getElementById('idVendedor').required = isEvento;
 
@@ -2537,41 +2575,67 @@ window.onload = function () {
     function configurarAutocomplete(inputId, hiddenId, dados) {
       const input = document.getElementById(inputId);
       const hidden = document.getElementById(hiddenId);
+      if (!input || !hidden) return;
+      let debounceTimer = null;
+
+      const removerListaAtual = () => {
+        const listaAtual = input.parentNode?.querySelector('.autocomplete-items');
+        if (listaAtual) listaAtual.remove();
+      };
+
+      const criarLista = () => {
+        removerListaAtual();
+        const lista = document.createElement('div');
+        lista.className = 'autocomplete-items';
+        input.parentNode.appendChild(lista);
+        return lista;
+      };
+
+      const renderStatus = (lista, html) => {
+        lista.innerHTML = `<div class="autocomplete-status">${html}</div>`;
+      };
       
       input.addEventListener('input', function() {
         const valor = this.value.toLowerCase();
         hidden.value = '';
-        
-        let lista = document.querySelector('.autocomplete-items');
-        if (lista) lista.remove();
-        
+
+        clearTimeout(debounceTimer);
+        removerListaAtual();
+
         if (!valor) return;
-        
-        const filtrados = dados.filter(d => 
-          d.nome.toLowerCase().includes(valor)
-        );
-        
-        if (filtrados.length === 0) return;
-        
-        lista = document.createElement('div');
-        lista.className = 'autocomplete-items';
-        input.parentNode.appendChild(lista);
-        
-        filtrados.forEach(item => {
-          const div = document.createElement('div');
-          div.innerHTML = item.nome;
-          div.addEventListener('click', function() {
-            input.value = item.nome;
-            hidden.value = item.id;
-            lista.remove();
+
+        const lista = criarLista();
+        if (valor.length < 2) {
+          renderStatus(lista, 'Digite 2+ letras...');
+          return;
+        }
+
+        renderStatus(lista, '<span class="ac-inline-spinner"></span>Carregando...');
+        const termoSnapshot = valor;
+        debounceTimer = setTimeout(() => {
+          if (String(input.value || '').toLowerCase() !== termoSnapshot) return;
+          const filtrados = dados.filter(d => d.nome.toLowerCase().includes(termoSnapshot));
+          if (filtrados.length === 0) {
+            renderStatus(lista, 'Nenhum resultado encontrado.');
+            return;
+          }
+          lista.innerHTML = '';
+          filtrados.forEach(item => {
+            const div = document.createElement('div');
+            div.textContent = item.nome;
+            div.addEventListener('click', function() {
+              input.value = item.nome;
+              hidden.value = item.id;
+              removerListaAtual();
+            });
+            lista.appendChild(div);
           });
-          lista.appendChild(div);
-        });
+        }, 180);
       });
       
       document.addEventListener('click', function(e) {
         if (e.target !== input) {
-          const lista = document.querySelector('.autocomplete-items');
+          const lista = input.parentNode?.querySelector('.autocomplete-items');
           if (lista) lista.remove();
         }
       });
