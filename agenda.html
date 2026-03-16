@@ -1898,6 +1898,7 @@ if (!AUTH.email || !AUTH.session) {
       loading: false,
       mobileSecondaryOpen: false,
       syncEmAndamento: false,
+      syncRunId: 0,
       offlineAtivo: false,
       offlineListenersSet: false
 
@@ -3912,27 +3913,32 @@ renderizarEventosDentro(evento) {
 
     let slowTimer = null;
     const notify = this.configBool('AGENDA_CACHE_NOTIFY_UPDATE', true);
+    const runId = ++AppState.syncRunId;
+    const isRunAtivo = () => runId === AppState.syncRunId;
     try {
       AppState.syncEmAndamento = true;
       const syncInfo = await this.obterAgendaSyncInfo();
+      if (!isRunAtivo()) return;
       const versaoAtual = String(syncInfo.version || '');
       const versaoCache = String(AppState.cache.syncVersion || '');
       if (versaoAtual === versaoCache) return;
 
       Utils.log('♻️ Mudança detectada no backend. Atualizando agenda em segundo plano...');
-      if (notify) {
+      if (notify && isRunAtivo()) {
         UI.showToast('Detectamos alterações na agenda. Atualizando agora...', 'info', 2000);
       }
       const eventosPromise = this.carregarEventos();
 
-      if (notify) {
+      if (notify && isRunAtivo()) {
         slowTimer = setTimeout(() => {
+          if (!isRunAtivo()) return;
           UI.showSyncStatus('Sincronização mais lenta que o normal. Você pode continuar usando a agenda enquanto atualizamos.', 'slow');
         }, 30000);
         UI.showSyncStatus('Sincronizando agenda...', 'info');
       }
 
       const eventosAtualizados = await eventosPromise;
+      if (!isRunAtivo()) return;
       AppState.cache = {
         timestamp: Date.now(),
         dados: eventosAtualizados,
@@ -3943,16 +3949,16 @@ renderizarEventosDentro(evento) {
 
       const filtro = AppState.filtroAtivo || (isPerfilRestritoAgenda() ? 'proximos' : 'todos');
       FiltroManager.aplicarFiltroRapido(filtro);
-      if (notify) {
+      if (notify && isRunAtivo()) {
         UI.showToast('Agenda atualizada com sucesso.', 'success', 1800);
         UI.hideSyncStatus();
       }
     } catch (e) {
       Utils.error('Revalidação em segundo plano falhou:', e);
-      UI.hideSyncStatus();
+      if (isRunAtivo()) UI.hideSyncStatus();
     } finally {
       if (slowTimer) clearTimeout(slowTimer);
-      AppState.syncEmAndamento = false;
+      if (isRunAtivo()) AppState.syncEmAndamento = false;
     }
   },
 
@@ -4273,6 +4279,9 @@ renderizarEventosDentro(evento) {
                 return;
               }
               Utils.log('🔄 Recarregando (limpando cache)...');
+              AppState.syncRunId += 1;
+              AppState.syncEmAndamento = false;
+              UI.hideSyncStatus();
 
               // Limpa cache
               AppState.cache = {
