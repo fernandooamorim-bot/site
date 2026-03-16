@@ -2538,12 +2538,15 @@ calcularDiasIntervalo(dataInicio, dataFim) {
       return;
     }
 
-    // NOVA LÓGICA: Usa virtualização ou renderização normal
-    if (AppState.virtualizacao.enabled && eventos.length >= AppState.virtualizacao.threshold) {
-      this.renderizarEventosVirtualizados(eventos);
-    } else {
-      this.renderizarEventosNormal(eventos);
-    }
+	      // NOVA LÓGICA: Usa virtualização ou renderização normal
+	    const thresholdVirtual = Number(AppState.virtualizacao.threshold) || 100;
+	    const todosLimite = Number(AppState.config?.AGENDA_LIMITE_TODOS) || 200;
+	    const evitarVirtualizacaoNoTodos = AppState.filtroAtivo === 'todos' && eventos.length <= Math.max(todosLimite, 200);
+	    if (AppState.virtualizacao.enabled && eventos.length >= thresholdVirtual && !evitarVirtualizacaoNoTodos) {
+	      this.renderizarEventosVirtualizados(eventos);
+	    } else {
+	      this.renderizarEventosNormal(eventos);
+	    }
 
     // Atualiza contador
     document.getElementById('eventoCount').textContent = `${eventos.length} eventos`;
@@ -4300,16 +4303,19 @@ renderizarEventosDentro(evento) {
               `;
 
               // Recarrega
-              await AgendaController.carregarEventosComCache();
-              AgendaController.atualizarFiltrosAnuaisRapidos();
-              const filtroPadrao = isPerfilRestritoAgenda()
-                ? 'proximos'
-                : (AppState.config.AGENDA_FILTRO_PADRAO || 'todos');
-              FiltroManager.aplicarFiltroRapido(filtroPadrao);
+	              await AgendaController.carregarEventosComCache();
+	              AgendaController.atualizarFiltrosAnuaisRapidos();
+	              const filtroAtual = String(AppState.filtroAtivo || '').trim();
+	              const filtroAplicar = filtroAtual
+	                ? filtroAtual
+	                : (isPerfilRestritoAgenda()
+	                  ? 'proximos'
+	                  : (AppState.config.AGENDA_FILTRO_PADRAO || 'todos'));
+	              FiltroManager.aplicarFiltroRapido(filtroAplicar);
 
-              Utils.log('✅ Atualização concluída');
-            });
-          }
+	              Utils.log('✅ Atualização concluída');
+	            });
+	          }
 
           // Botão toggle filtros no footer
           const btnToggleFilters = document.getElementById('btnToggleFilters');
