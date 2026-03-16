@@ -2327,6 +2327,18 @@ calcularDiasIntervalo(dataInicio, dataFim) {
     // GERENCIADOR DE INTERFACE
     // ========================================
     const UI = {
+      deveUsarVirtualizacao_(eventos) {
+        const lista = Array.isArray(eventos) ? eventos : [];
+        const thresholdVirtual = Number(AppState.virtualizacao.threshold) || 100;
+        const todosLimite = Number(AppState.config?.AGENDA_LIMITE_TODOS) || 200;
+        const evitarVirtualizacaoNoTodos = AppState.filtroAtivo === 'todos' && lista.length <= Math.max(todosLimite, 200);
+        return !!(
+          AppState.virtualizacao.enabled &&
+          lista.length >= thresholdVirtual &&
+          !evitarVirtualizacaoNoTodos
+        );
+      },
+
       showLoading() {
         Utils.log('Mostrando loading...');
         const container = document.getElementById('eventosContainer');
@@ -2539,10 +2551,7 @@ calcularDiasIntervalo(dataInicio, dataFim) {
     }
 
 	      // NOVA LÓGICA: Usa virtualização ou renderização normal
-	    const thresholdVirtual = Number(AppState.virtualizacao.threshold) || 100;
-	    const todosLimite = Number(AppState.config?.AGENDA_LIMITE_TODOS) || 200;
-	    const evitarVirtualizacaoNoTodos = AppState.filtroAtivo === 'todos' && eventos.length <= Math.max(todosLimite, 200);
-	    if (AppState.virtualizacao.enabled && eventos.length >= thresholdVirtual && !evitarVirtualizacaoNoTodos) {
+	    if (this.deveUsarVirtualizacao_(eventos)) {
 	      this.renderizarEventosVirtualizados(eventos);
 	    } else {
 	      this.renderizarEventosNormal(eventos);
@@ -4237,13 +4246,11 @@ renderizarEventosDentro(evento) {
             if (agora - ultimoScroll < 100) return;
 
             scrollTimeout = setTimeout(() => {
-              const threshold = AppState.virtualizacao.threshold || 50;
               const modoCardsAtivo = AppState.modoVisualizacao !== 'planilha';
 
               if (modoCardsAtivo &&
-                  AppState.virtualizacao.enabled &&
                   AppState.eventosFiltrados &&
-                  AppState.eventosFiltrados.length >= threshold) {
+                  UI.deveUsarVirtualizacao_(AppState.eventosFiltrados)) {
 
                 UI.renderizarEventosVirtualizados(AppState.eventosFiltrados);
                 ultimoScroll = Date.now();
