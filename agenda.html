@@ -416,6 +416,18 @@
       -ms-overflow-style: none;
     }
 
+    .historico-recorte-info {
+      display: none;
+      margin: -4px 16px 10px;
+      font-size: 12px;
+      color: var(--gray-500);
+      line-height: 1.35;
+    }
+
+    .historico-recorte-info.show {
+      display: block;
+    }
+
     .filters-quick::-webkit-scrollbar {
       display: none;
     }
@@ -1693,6 +1705,7 @@
       <button class="filter-btn" data-filter="mesAtual">Mês Atual</button>
       <button class="filter-btn" data-filter="todos">Todos</button>
     </div>
+    <div class="historico-recorte-info" id="historicoRecorteInfo"></div>
 
     <button class="mobile-more-options" id="mobileMoreOptions" aria-expanded="false">
       <i data-lucide="sliders-horizontal" style="width:14px;height:14px"></i>
@@ -2450,6 +2463,21 @@ calcularDiasIntervalo(dataInicio, dataFim) {
         const el = document.getElementById('agendaOfflineStatus');
         if (!el) return;
         el.classList.toggle('show', !!AppState.offlineAtivo);
+      },
+
+      atualizarAvisoRecorteHistorico_(filtroAtivo) {
+        const el = document.getElementById('historicoRecorteInfo');
+        if (!el) return;
+        const filtro = String(filtroAtivo || '').trim();
+        if (filtro !== 'todos') {
+          el.classList.remove('show');
+          el.textContent = '';
+          return;
+        }
+        const diasRaw = Number(String(AppState.config?.AGENDA_PASSADO_DIAS_BOOT || '').trim());
+        const dias = (!isNaN(diasRaw) && diasRaw >= 0 && diasRaw <= 3650) ? Math.floor(diasRaw) : 90;
+        el.textContent = `Agenda mostra eventos passados até ${dias} dias.`;
+        el.classList.add('show');
       },
 
       atualizarEstadoControlesMobile_() {
@@ -3319,6 +3347,7 @@ renderizarEventosDentro(evento) {
         const eventosOrdenados = this.ordenarEventosAgenda(eventosFiltrados);
         AppState.eventosFiltrados = eventosOrdenados;
         UI.renderizarEventos(eventosOrdenados);
+        UI.atualizarAvisoRecorteHistorico_(tipo);
         UI.atualizarHeader();
       },
 
@@ -3398,6 +3427,7 @@ renderizarEventosDentro(evento) {
           AppState.filtroAtivo = 'personalizado';
           AppState.eventosFiltrados = eventosOrdenados;
           UI.renderizarEventos(eventosOrdenados);
+          UI.atualizarAvisoRecorteHistorico_('personalizado');
           UI.atualizarHeader();
 
           // Fecha filtros avançados
