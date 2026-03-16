@@ -1324,42 +1324,87 @@
       letter-spacing: -0.2px;
     }
 
+    .confirm-intro {
+      margin-bottom: 10px;
+      color: var(--gray-500);
+      font-size: 14px;
+      line-height: 1.45;
+    }
+
     /* ============================================
        CHANGES LIST (modal)
        ============================================ */
+    .changes-meta {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin: 0 0 14px;
+    }
+
+    .changes-meta-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      border-radius: var(--radius-full);
+      border: 1px solid var(--gray-300);
+      background: var(--gray-100);
+      color: var(--gray-700);
+      font-size: 12px;
+      font-weight: 700;
+      padding: 5px 10px;
+      line-height: 1;
+    }
+
+    .changes-meta-chip.alerta {
+      background: #fff7ed;
+      border-color: #fed7aa;
+      color: #9a3412;
+    }
+
     .changes-list {
       list-style: none;
       margin: 16px 0;
     }
 
     .change-item {
-      padding: 14px;
-      margin-bottom: 8px;
-      background: var(--gray-50);
+      padding: 13px 14px;
+      margin-bottom: 10px;
+      background: linear-gradient(180deg, #f9fbff 0%, #f7f9fc 100%);
+      border: 1px solid var(--gray-200);
       border-left: 3px solid var(--navy-500);
-      border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+      border-radius: 10px;
     }
 
     .change-field {
       font-weight: 700;
-      color: var(--navy-600);
-      margin-bottom: 4px;
+      color: var(--navy-700);
+      margin-bottom: 6px;
       font-size: 13px;
       letter-spacing: -0.1px;
     }
 
     .change-values {
       font-size: 13px;
-      color: var(--gray-500);
+      color: var(--gray-600);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
     }
 
     .change-old {
-      color: var(--danger-color);
+      color: #b91c1c;
       text-decoration: line-through;
+      text-decoration-thickness: 1.3px;
+    }
+
+    .change-arrow {
+      color: var(--gray-400);
+      font-weight: 700;
     }
 
     .change-new {
-      color: var(--success-color);
+      color: #047857;
       font-weight: 700;
     }
 
@@ -1393,6 +1438,15 @@
 
     .validation-item:last-child {
       margin-bottom: 0;
+    }
+
+    #modalConfirmacao .actions {
+      position: sticky;
+      bottom: 0;
+      margin-top: 18px;
+      padding-top: 12px;
+      background: #fff;
+      border-top: 1px solid var(--gray-200);
     }
 
     /* ============================================
@@ -2078,9 +2132,11 @@
     <div class="modal">
       <div class="modal-title">Confirmar Alterações</div>
       
-      <p style="margin-bottom: 20px; color: #666;">
+      <p class="confirm-intro">
         As seguintes alterações serão realizadas no evento:
       </p>
+
+      <div id="resumoAlteracoesMeta" class="changes-meta"></div>
       
       <ul id="listaAlteracoes" class="changes-list"></ul>
       
@@ -4403,6 +4459,95 @@ function preencherFormulario(evento) {
   // Calcular horário fim após carregar os dados
   setTimeout(calcularHorarioFim, 300);
 }
+
+function obterLabelPorSelect_(idSelect, value) {
+  const val = String(value ?? '').trim();
+  if (!val) return '';
+  const sel = document.getElementById(idSelect);
+  if (!sel) return '';
+  const opt = Array.from(sel.options || []).find(o => String(o.value ?? '').trim() === val);
+  if (!opt) return '';
+  const txt = String(opt.textContent || '').trim();
+  if (!txt || txt === '-- Selecione --' || txt === 'Selecione...') return '';
+  return txt;
+}
+
+function formatarDuracaoResumo_(valor) {
+  const mins = Number(valor);
+  if (!Number.isFinite(mins) || mins <= 0) return String(valor || '');
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  if (m === 0) return `${h}h`;
+  return `${h}h${m}`;
+}
+
+function formatarDataIsoResumo_(valor) {
+  const s = String(valor || '').trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  const [a, m, d] = s.split('-');
+  return `${d}/${m}/${a}`;
+}
+
+function formatarValorResumoAlteracao_(campo, valor, origem) {
+  const raw = String(valor ?? '').trim();
+  if (!raw) return '(vazio)';
+
+  if (campo === 'dataEvento' || campo === 'dataFim') {
+    return formatarDataIsoResumo_(raw);
+  }
+
+  if (campo === 'duracao') {
+    return formatarDuracaoResumo_(raw);
+  }
+
+  if (campo === 'valorTotal' || campo === 'valorBV') {
+    const num = Number(raw);
+    if (Number.isFinite(num)) return formatarNumeroBREdicao_(num, 2);
+    return raw;
+  }
+
+  if (campo === 'idCerimonialista') {
+    const label = obterLabelPorSelect_('idCerimonialista', raw);
+    return label || raw;
+  }
+
+  if (campo === 'idVendedor') {
+    const label = obterLabelPorSelect_('idVendedor', raw);
+    return label || raw;
+  }
+
+  if (campo === 'idBV') {
+    const label = obterLabelPorSelect_('idBV', raw);
+    return label || raw;
+  }
+
+  if (campo === 'idContratante') {
+    if (origem === 'old') {
+      const nome = String(eventoOriginal?.nomeContratanteAtual || '').trim();
+      return nome || raw;
+    }
+    const nomeAtual = String(document.getElementById('nomeContratante')?.value || '').trim();
+    return nomeAtual || raw;
+  }
+
+  if (campo === 'idEndereco') {
+    if (origem === 'old') {
+      const nome = String(eventoOriginal?.nomeLocalAtual || '').trim();
+      return nome || raw;
+    }
+    const nomeAtual = String(document.getElementById('nomeLocal')?.value || '').trim();
+    return nomeAtual || raw;
+  }
+
+  if (campo === 'temNF') {
+    const t = raw.toUpperCase();
+    if (t === 'SIM' || t === 'TRUE' || t === '1') return 'Sim';
+    if (t === 'NÃO' || t === 'NAO' || t === 'FALSE' || t === '0') return 'Não';
+    return raw;
+  }
+
+  return raw;
+}
     
   // mostrarStatusFinanceiro REMOVIDA: nenhuma função deve mais escrever na div #statusFinanceiro, exceto lógica de permissão financeira.
     
@@ -4421,15 +4566,28 @@ function preencherFormulario(evento) {
         return;
       }
       const lista = document.getElementById('listaAlteracoes');
+      const meta = document.getElementById('resumoAlteracoesMeta');
       lista.innerHTML = '';
+      if (meta) {
+        const qtd = alteracoes.length;
+        const qtdImpacto = alteracoes.filter(a => !!a.impacto).length;
+        meta.innerHTML = `
+          <span class="changes-meta-chip">✏️ ${qtd} alteração${qtd !== 1 ? 'ões' : ''}</span>
+          ${qtdImpacto ? `<span class="changes-meta-chip alerta">⚠ ${qtdImpacto} ponto${qtdImpacto !== 1 ? 's' : ''} de atenção</span>` : ''}
+        `;
+      }
+
       alteracoes.forEach(alt => {
         const li = document.createElement('li');
         li.className = 'change-item';
+        const valorAntigoFmt = formatarValorResumoAlteracao_(alt.idCampo || '', alt.valorAntigoRaw ?? alt.valorAntigo, 'old');
+        const valorNovoFmt = formatarValorResumoAlteracao_(alt.idCampo || '', alt.valorNovoRaw ?? alt.valorNovo, 'new');
         let html = `
           <div class="change-field">${alt.campo}</div>
           <div class="change-values">
-            <span class="change-old">${alt.valorAntigo}</span> → 
-            <span class="change-new">${alt.valorNovo}</span>
+            <span class="change-old">${valorAntigoFmt}</span>
+            <span class="change-arrow">→</span>
+            <span class="change-new">${valorNovoFmt}</span>
           </div>
         `;
         if (alt.impacto) html += `<div class="change-impact">💡 ${alt.impacto}</div>`;
@@ -4466,9 +4624,9 @@ function preencherFormulario(evento) {
       const campos = {
         dataEvento: 'Data do Evento', horaInicio: 'Hora de Início',
         duracao: 'Duração', tipoEvento: 'Tipo de Evento', projeto: 'Formato/Projeto',
-        idContratante: 'ID Contratante', nomeContratante: 'Contratante',
+        idContratante: 'Contratante (vínculo)', nomeContratante: 'Contratante',
         idCerimonialista: 'Cerimonialista',
-        idEndereco: 'ID Local', nomeLocal: 'Local',
+        idEndereco: 'Local (vínculo)', nomeLocal: 'Local',
         valorTotal: 'Valor Total', idVendedor: 'Vendedor', valorBV: 'Valor BV',
         idBV: 'Parceiro BV', temNF: 'Tem NF',
         look: 'Look', somResponsavel: 'Responsável Som',
@@ -4508,9 +4666,12 @@ function preencherFormulario(evento) {
 
   if (valorAntigo !== valorNovo) {
     alteracoes.push({
+      idCampo: campo,
       campo: campos[campo],
       valorAntigo: valorAntigo || '(vazio)',
       valorNovo: valorNovo || '(vazio)',
+      valorAntigoRaw: valorAntigo,
+      valorNovoRaw: valorNovo,
       impacto: impactos[campo] || null
     });
   }
@@ -4521,9 +4682,12 @@ function preencherFormulario(evento) {
         const jaExiste = alteracoes.some(a => a.campo === 'Motivo/Status');
         if (!jaExiste && motivoAntigo !== motivoNovo) {
           alteracoes.push({
+            idCampo: 'motivoRegistro',
             campo: 'Motivo/Status',
             valorAntigo: motivoAntigo || '(vazio)',
             valorNovo: motivoNovo || '(vazio)',
+            valorAntigoRaw: motivoAntigo,
+            valorNovoRaw: motivoNovo,
             impacto: null
           });
         }
