@@ -1913,6 +1913,7 @@ function submitSaidaEvento() {
     valor: valor,
     dataSaida: dataSaida,
     observacoes: observacoes,
+    origemProcessamento: 'CENTRAL_SAIDAS',
     linkComprovante: comprovante,
     operationKey: obterOuCriarOperationKey('saida')
   };
@@ -2282,6 +2283,7 @@ async function processarBVEventoFinanceiro_(idEvento, valorBV) {
       tipoOperacao: 'SAIDA_EVENTO',
       tipoSaida: 'BV_EVENTO',
       autoFiscalizacao: 'TRUE',
+      origemProcessamento: 'FISCALIZACAO',
       idEvento: idEvento,
       valor: Number(valorBV || 0),
       dataSaida: hojeLocalISO(),
