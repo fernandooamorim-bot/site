@@ -985,6 +985,8 @@ let buscaEventoSeq = 0;
 const buscaEventoCache = new Map();
 const BUSCA_EVENTO_DEBOUNCE_MS = 260;
 const BUSCA_EVENTO_CACHE_TTL_MS = 60000;
+const vinculoContratanteCache = new Map();
+const VINCULO_CONTRATANTE_CACHE_TTL_MS = 120000;
 
 const ALERTAS_LABEL = {
   EVENTO_OCORREU_SEM_RECEBIMENTO: 'Evento já ocorreu e não teve recebimento',
@@ -2384,10 +2386,49 @@ function filtrarListaLocalBuscaEvento_(list, termo) {
       String(ev.id || ''),
       String(ev.contratante || ''),
       String(ev.tipoEvento || ''),
-      String(ev.tipoRegistro || '')
+      String(ev.tipoRegistro || ''),
+      String(ev.dataFormatada || '')
     ].join(' ').toLowerCase();
     return hay.includes(t);
   });
+}
+
+function filtrarEventosFinanceirosValidos_(list) {
+  return (list || []).filter(ev => {
+    const tipoRegistro = String((ev && ev.tipoRegistro) || 'Evento').trim().toUpperCase();
+    return tipoRegistro === 'EVENTO';
+  });
+}
+
+function parseDataBuscaEvento_(termo) {
+  const t = String(termo || '').trim();
+  const m = t.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (!m) return '';
+  const dd = Number(m[1]);
+  const mm = Number(m[2]);
+  const yyyy = Number(m[3]);
+  if (!(yyyy >= 2000 && yyyy <= 2100)) return '';
+  if (!(mm >= 1 && mm <= 12)) return '';
+  if (!(dd >= 1 && dd <= 31)) return '';
+  return `${String(yyyy).padStart(4, '0')}-${String(mm).padStart(2, '0')}-${String(dd).padStart(2, '0')}`;
+}
+
+function obterVinculoContratanteCache_(idEvento) {
+  const id = String(idEvento || '').trim();
+  if (!id) return null;
+  const entry = vinculoContratanteCache.get(id);
+  if (!entry) return null;
+  if ((Date.now() - Number(entry.ts || 0)) > VINCULO_CONTRATANTE_CACHE_TTL_MS) {
+    vinculoContratanteCache.delete(id);
+    return null;
+  }
+  return entry.status || null;
+}
+
+function setVinculoContratanteCache_(idEvento, status) {
+  const id = String(idEvento || '').trim();
+  if (!id) return;
+  vinculoContratanteCache.set(id, { ts: Date.now(), status: status || null });
 }
 
 async function executarBuscaEvento_(termo, seq) {
@@ -2401,7 +2442,7 @@ async function executarBuscaEvento_(termo, seq) {
   const cacheExato = obterCacheBuscaEvento_(termoKey);
   if (cacheExato) {
     if (seq !== buscaEventoSeq) return;
-    renderSugestoesEvento_(cacheExato);
+    renderSugestoesEvento_(filtrarEventosFinanceirosValidos_(cacheExato));
     return;
   }
 
@@ -2417,7 +2458,7 @@ async function executarBuscaEvento_(termo, seq) {
     preview = filtrarListaLocalBuscaEvento_(listaValida, termoKey).slice(0, 20);
   });
   if (preview && preview.length && seq === buscaEventoSeq) {
-    renderSugestoesEvento_(preview);
+    renderSugestoesEvento_(filtrarEventosFinanceirosValidos_(preview));
   }
 
   // 3) Fonte da verdade (API)
@@ -2425,10 +2466,14 @@ async function executarBuscaEvento_(termo, seq) {
     if ((!preview || !preview.length) && seq === buscaEventoSeq) {
       box.innerHTML = '<div class="muted" style="padding:8px 10px">Consultando eventos...</div>';
     }
-    const list = await Auth.apiCall('buscarEventoPorContratante', { nome: termoKey });
+    const dataISO = parseDataBuscaEvento_(termoKey);
+    const list = dataISO
+      ? await Auth.apiCall('buscarEventoPorData', { data: dataISO })
+      : await Auth.apiCall('buscarEventoPorContratante', { nome: termoKey });
     if (seq !== buscaEventoSeq) return;
-    setCacheBuscaEvento_(termoKey, list || []);
-    renderSugestoesEvento_(list || []);
+    const listFinal = filtrarEventosFinanceirosValidos_(list || []);
+    setCacheBuscaEvento_(termoKey, listFinal);
+    renderSugestoesEvento_(listFinal);
   } catch (err) {
     if (seq !== buscaEventoSeq) return;
     console.error('Erro ao buscar evento:', err);
@@ -2458,9 +2503,13 @@ async function selectEvento(ev){
   eventoRequerVinculoContratante = false;
   if (['recebimento', 'estorno', 'pixautomatico'].includes(String(mode || ''))) {
     try {
-      const statusVinculo = await Auth.apiCall('financeiroGarantirVinculoContratanteEvento', {
-        idEvento: idEventoReal
-      });
+      let statusVinculo = obterVinculoContratanteCache_(idEventoReal);
+      if (!statusVinculo) {
+        statusVinculo = await Auth.apiCall('financeiroGarantirVinculoContratanteEvento', {
+          idEvento: idEventoReal
+        });
+        setVinculoContratanteCache_(idEventoReal, statusVinculo);
+      }
       if (statusVinculo && statusVinculo.requerConfirmacao === true) {
         eventoRequerVinculoContratante = true;
         const nomeContrato = String(statusVinculo.nomeContratanteEvento || ev.contratante || 'Contratante').trim();
@@ -2585,6 +2634,7 @@ async function regularizarVinculoContratanteSelecionado_() {
     });
     if (resultado && resultado.sucesso === true) {
       eventoRequerVinculoContratante = false;
+      setVinculoContratanteCache_(String(eventoSelecionado || '').trim(), resultado);
       await selecionarEventoPorIdNoModo_(eventoSelecionado);
       alert('Vínculo do contratante regularizado com sucesso.');
       return;
@@ -3707,9 +3757,13 @@ async function garantirVinculoContratanteFinanceiro_(idEvento, origem) {
   if (!id) return { sucesso: false, cancelado: true };
 
   const contexto = String(origem || 'operação financeira').trim();
-  const status = await Auth.apiCall('financeiroGarantirVinculoContratanteEvento', {
-    idEvento: id
-  });
+  let status = obterVinculoContratanteCache_(id);
+  if (!status) {
+    status = await Auth.apiCall('financeiroGarantirVinculoContratanteEvento', {
+      idEvento: id
+    });
+    setVinculoContratanteCache_(id, status);
+  }
 
   if (status && status.sucesso === true) return status;
   if (!status || status.requerConfirmacao !== true) {
@@ -3733,6 +3787,7 @@ async function garantirVinculoContratanteFinanceiro_(idEvento, origem) {
     if (!regularizado || regularizado.sucesso !== true) {
       throw new Error(regularizado?.mensagem || 'Falha ao regularizar contratante.');
     }
+    setVinculoContratanteCache_(id, regularizado);
     return regularizado;
   } finally {
     hideLoading();
