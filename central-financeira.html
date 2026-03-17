@@ -2699,6 +2699,12 @@ async function gerarPixAsaasEvento_() {
   if (!ehProprietario_()) return alert('Ação restrita ao proprietário.');
   if (!eventoSelecionado) return alert('Selecione um evento primeiro.');
 
+  const btn = event?.target;
+  if (lockSubmit) return;
+  lockSubmit = true;
+  bloquearBotao(btn);
+  showLoading('Validando dados para PIX Asaas...');
+
   try {
     const vinculacao = await garantirVinculoContratanteFinanceiro_(eventoSelecionado, 'a geração do PIX Asaas');
     if (vinculacao && vinculacao.cancelado) return;
@@ -2706,9 +2712,6 @@ async function gerarPixAsaasEvento_() {
     tratarErroApi(errVinculo);
     return;
   }
-
-  const btn = event?.target;
-  if (lockSubmit) return;
 
   const valor = parseValorSeguro(document.getElementById('asaasValor')?.value || '');
   const vencimento = String(document.getElementById('asaasVencimento')?.value || '').trim();
@@ -2719,8 +2722,6 @@ async function gerarPixAsaasEvento_() {
   const qtdParcelas = Number(document.getElementById('asaasQtdParcelas')?.value || 0);
   const periodicidade = String(document.getElementById('asaasPeriodicidade')?.value || 'mensal').trim();
 
-  lockSubmit = true;
-  bloquearBotao(btn);
   showLoading('Gerando cobrança PIX Asaas...');
   try {
     const payload = { idEvento: eventoSelecionado };
@@ -3747,34 +3748,28 @@ async function submitRecebimento(){
   const valor = parseValorSeguro(valorRaw);
   if (!valor) return alert('Informe um valor válido maior que zero.');
 
+  lockSubmit = true;
+  bloquearBotao(btn);
+  showLoading('Validando recebimento...');
+
   try {
     const vinculacao = await garantirVinculoContratanteFinanceiro_(eventoSelecionado, 'o recebimento');
     if (vinculacao && vinculacao.cancelado) return;
-  } catch (errVinculo) {
-    tratarErroApi(errVinculo);
-    return;
-  }
 
-  lockSubmit = true;
-  bloquearBotao(btn);
-  showLoading('Registrando recebimento...');
+    showLoading('Registrando recebimento...');
 
-  const payload = {
-    tipoOperacao:'RECEBIMENTO',
-    idEvento:eventoSelecionado,
-    valor: valor,
-    dataRecebimento:document.getElementById('data').value,
-    formaPagamento:document.getElementById('forma').value,
-    linkComprovante:document.getElementById('comprovante').value,
-    observacoes:document.getElementById('obs').value,
-    operationKey: obterOuCriarOperationKey('recebimento')
-  };
+    const payload = {
+      tipoOperacao:'RECEBIMENTO',
+      idEvento:eventoSelecionado,
+      valor: valor,
+      dataRecebimento:document.getElementById('data').value,
+      formaPagamento:document.getElementById('forma').value,
+      linkComprovante:document.getElementById('comprovante').value,
+      observacoes:document.getElementById('obs').value,
+      operationKey: obterOuCriarOperationKey('recebimento')
+    };
 
-  try {
     const resp = await Auth.apiCall('apiRegistrarRecebimento', payload);
-    hideLoading();
-    lockSubmit = false;
-    liberarBotao(btn);
 
     if (!resp || resp.sucesso !== true) {
       alert(resp?.mensagem || 'Erro ao registrar recebimento');
@@ -3785,10 +3780,11 @@ async function submitRecebimento(){
     resetRecebimentoForm();
     alert('Recebimento registrado');
   } catch (err) {
+    tratarErroApi(err);
+  } finally {
     hideLoading();
     lockSubmit = false;
     liberarBotao(btn);
-    tratarErroApi(err);
   }
 }
 
