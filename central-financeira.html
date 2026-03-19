@@ -680,7 +680,7 @@
 
     .fiscal-toolbar {
       display: grid;
-      grid-template-columns: minmax(300px, 1.5fr) minmax(190px, 1fr) minmax(230px, auto);
+      grid-template-columns: minmax(280px, 1.5fr) minmax(180px, 1fr) minmax(210px, auto);
       gap: 10px;
       margin-bottom: 12px;
       align-items: end;
@@ -815,6 +815,23 @@
     }
 
     @media (min-width: 901px) {
+      body[data-mode="fiscalizacao"] .main {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 340px;
+        gap: 16px;
+        align-items: start;
+      }
+
+      body[data-mode="fiscalizacao"] #form.box {
+        min-width: 0;
+      }
+
+      body[data-mode="fiscalizacao"] .side {
+        width: 340px;
+        max-width: 340px;
+        flex: 0 0 340px;
+      }
+
       body[data-mode="fiscalizacao"] .fiscal-lista {
         max-height: none;
         overflow: visible;
