@@ -743,6 +743,58 @@
       color: var(--gray-700);
       margin-bottom: 4px;
     }
+    .rf-preview-line {
+      font-size: 13px;
+      color: var(--gray-700);
+      margin-top: 3px;
+    }
+    .rf-preview-line strong {
+      color: var(--navy-700);
+    }
+    .rf-status-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2px 8px;
+      border-radius: 999px;
+      border: 1px solid var(--gray-300);
+      background: var(--gray-100);
+      color: var(--gray-700);
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.1px;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+    .rf-status-badge.ok {
+      border-color: #86d5a8;
+      background: #eaf9f0;
+      color: #0d7a48;
+    }
+    .rf-status-badge.warn {
+      border-color: #f0c67a;
+      background: #fff7e8;
+      color: #9a5b0a;
+    }
+    .rf-status-badge.danger {
+      border-color: #efadad;
+      background: #fff0f0;
+      color: #9f2323;
+    }
+    .rf-status-badge.muted {
+      border-color: var(--gray-300);
+      background: var(--gray-100);
+      color: var(--gray-600);
+    }
+    .rf-saida-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-top: 5px;
+      font-size: 13px;
+      color: var(--gray-700);
+    }
     .rf-list {
       display: grid;
       gap: 6px;
@@ -1220,6 +1272,21 @@ function labelAlerta_(codigo) {
 
 function labelDivergencia_(codigo) {
   return DIVERGENCIAS_LABEL[codigo] || humanizarCodigoTecnico_(codigo);
+}
+
+function normalizarStatusBadgeResumo_(statusRaw) {
+  const s = String(statusRaw || '').trim().toUpperCase();
+  if (!s || s === 'N/A' || s === 'NA') return { label: 'Não configurado', cls: 'muted' };
+  if (s === 'PROCESSADO' || s === 'QUITADO') return { label: s, cls: 'ok' };
+  if (s === 'PENDENTE' || s === 'PARCIAL' || s === 'AGUARDANDO') return { label: s, cls: 'warn' };
+  if (s === 'ERRO' || s === 'CANCELADO') return { label: s, cls: 'danger' };
+  return { label: s, cls: 'muted' };
+}
+
+function montarBadgeResumo_(statusRaw, labelOverride) {
+  const meta = normalizarStatusBadgeResumo_(statusRaw);
+  const label = String(labelOverride || meta.label || '').trim() || 'N/A';
+  return `<span class="rf-status-badge ${meta.cls}">${escaparHtml_(label)}</span>`;
 }
 
 function aplicarPermissoesTelaFinanceira() {
@@ -2722,16 +2789,29 @@ async function selectEvento(ev){
   const valorNF = Number(fin.valorNF || 0);
   const statusNF = String(fin.statusNF || 'N/A');
   const folhaValor = Number(fin.folhaCustoValor || 0);
-  const bvBadge = fin.bvPendente ? '⚠️ PENDENTE' : (statusBV || 'N/A');
-  const nfBadge = fin.nfPendente ? '⚠️ PENDENTE' : (statusNF || 'N/A');
-  const folhaBadge = fin.folhaPendente ? '⚠️ NÃO REGISTRADA' : 'PROCESSADA';
+  const valorComissaoPagaTotal = Number(fin.valorComissaoPagaMov || fin.valorComissaoPagaEspelho || 0);
+  const valorComissaoEsperadaTotal = Number(fin.valorComissaoCalculado || 0);
+  const statusComissaoResumo = valorComissaoEsperadaTotal <= 0
+    ? 'NA'
+    : String(fin.statusComissaoEspelho || 'AGUARDANDO');
+  const bvBadgeHtml = valorBV > 0
+    ? montarBadgeResumo_(fin.bvPendente ? 'PENDENTE' : statusBV)
+    : montarBadgeResumo_('NA', 'Não configurado');
+  const nfBadgeHtml = fin.temNF
+    ? montarBadgeResumo_(fin.nfPendente ? 'PENDENTE' : statusNF)
+    : montarBadgeResumo_('NA', 'Não configurado');
+  const folhaBadgeHtml = fin.folhaPendente
+    ? montarBadgeResumo_('PENDENTE', 'Não registrado')
+    : montarBadgeResumo_('PROCESSADO');
+  const comissaoBadgeHtml = montarBadgeResumo_(
+    statusComissaoResumo,
+    statusComissaoResumo === 'NA' ? 'Não configurado' : ''
+  );
   const alertas = Array.isArray(fin.alertas) ? fin.alertas : [];
   const divergencias = Array.isArray(fin.divergencias) ? fin.divergencias : [];
 
   if (String(mode || '') === 'recebimento') {
     const pctRecebido = vt > 0 ? Math.max(0, Math.min(100, (vr / vt) * 100)) : 0;
-    const valorComissaoPaga = Number(fin.valorComissaoPagaMov || fin.valorComissaoPagaEspelho || 0);
-    const valorComissaoEsperada = Number(fin.valorComissaoCalculado || 0);
     const valorDigitado = parseValorSeguro(document.getElementById('valor')?.value || '', { allowZero: true }) || 0;
     const prevRecebido = Number((vr + valorDigitado).toFixed(2));
     const prevPendente = Number(Math.max(vt - prevRecebido, 0).toFixed(2));
@@ -2772,7 +2852,9 @@ async function selectEvento(ev){
           <div class="rf-title">Prévia do novo lançamento</div>
           <div id="rfPreviewTexto">
             ${valorDigitado > 0
-              ? `+ R$ ${valorDigitado.toFixed(2)} • Novo recebido: R$ ${prevRecebido.toFixed(2)} • Novo pendente: R$ ${prevPendente.toFixed(2)}`
+              ? `<div class="rf-preview-line">Entrada informada: <strong>R$ ${valorDigitado.toFixed(2)}</strong></div>
+                 <div class="rf-preview-line">Saldo após lançamento: <strong>R$ ${prevRecebido.toFixed(2)}</strong> recebidos</div>
+                 <div class="rf-preview-line">${prevRecebido > vt ? 'Excedente após lançamento' : 'Em aberto após lançamento'}: <strong>R$ ${Math.abs(prevPendente).toFixed(2)}</strong></div>`
               : 'Digite um valor para simular impacto no saldo.'}
           </div>
         </div>
@@ -2783,10 +2865,10 @@ async function selectEvento(ev){
         ` : ''}
         <div class="rf-card">
           <div class="rf-title">Saídas do evento (resumo)</div>
-          <div>• BV: R$ ${valorBV.toFixed(2)} — <strong>${bvBadge}</strong></div>
-          <div>• NF: ${fin.temNF ? ('R$ ' + valorNF.toFixed(2)) : 'Não configurada'} — <strong>${nfBadge}</strong></div>
-          <div>• Folha de custo: R$ ${folhaValor.toFixed(2)} — <strong>${folhaBadge}</strong></div>
-          <div>• Comissão paga: R$ ${valorComissaoPaga.toFixed(2)} / Esperada: R$ ${valorComissaoEsperada.toFixed(2)}</div>
+          <div class="rf-saida-row"><span>BV: R$ ${valorBV.toFixed(2)}</span>${bvBadgeHtml}</div>
+          <div class="rf-saida-row"><span>NF: ${fin.temNF ? ('R$ ' + valorNF.toFixed(2)) : 'Não configurado'}</span>${nfBadgeHtml}</div>
+          <div class="rf-saida-row"><span>Folha de custo: R$ ${folhaValor.toFixed(2)}</span>${folhaBadgeHtml}</div>
+          <div class="rf-saida-row"><span>Comissão: R$ ${valorComissaoPagaTotal.toFixed(2)} paga / R$ ${valorComissaoEsperadaTotal.toFixed(2)} esperada</span>${comissaoBadgeHtml}</div>
           ${extraHtml}
         </div>
         <div class="rf-card">
@@ -2811,10 +2893,10 @@ async function selectEvento(ev){
       <div><strong>Status:</strong> ${statusFinal}</div>
       <div class="divider"></div>
       <div><strong>Saídas do evento (resumo):</strong></div>
-      <div>• BV: R$ ${valorBV.toFixed(2)} — <strong>${bvBadge}</strong></div>
-      <div>• NF: ${fin.temNF ? ('R$ ' + valorNF.toFixed(2)) : 'Não configurada'} — <strong>${nfBadge}</strong></div>
-      <div>• Folha de custo: R$ ${folhaValor.toFixed(2)} — <strong>${folhaBadge}</strong></div>
-      <div>• Comissão paga: R$ ${Number(fin.valorComissaoPagaMov || fin.valorComissaoPagaEspelho || 0).toFixed(2)}</div>
+      <div class="rf-saida-row"><span>BV: R$ ${valorBV.toFixed(2)}</span>${bvBadgeHtml}</div>
+      <div class="rf-saida-row"><span>NF: ${fin.temNF ? ('R$ ' + valorNF.toFixed(2)) : 'Não configurado'}</span>${nfBadgeHtml}</div>
+      <div class="rf-saida-row"><span>Folha de custo: R$ ${folhaValor.toFixed(2)}</span>${folhaBadgeHtml}</div>
+      <div class="rf-saida-row"><span>Comissão: R$ ${valorComissaoPagaTotal.toFixed(2)} paga / R$ ${valorComissaoEsperadaTotal.toFixed(2)} esperada</span>${comissaoBadgeHtml}</div>
       ${alertas.length ? `<div class="divider"></div><div><strong>Alertas:</strong> ${alertas.map(a => `⚠️ ${labelAlerta_(a)}`).join(' • ')}</div>` : ''}
       ${divergencias.length ? `<div style="margin-top:6px"><strong>Divergências:</strong> ${divergencias.map(d => `🧩 ${labelDivergencia_(d)}`).join(' • ')}</div>` : ''}
     `;
@@ -3925,7 +4007,9 @@ function atualizarPreviewRecebimentoResumo_(){
   const prevRecebido = Number((vr + valorDigitado).toFixed(2));
   const prevPendente = Number(Math.max(vt - prevRecebido, 0).toFixed(2));
   box.innerHTML = valorDigitado > 0
-    ? `+ R$ ${valorDigitado.toFixed(2)} • Novo recebido: R$ ${prevRecebido.toFixed(2)} • Novo pendente: R$ ${prevPendente.toFixed(2)}`
+    ? `<div class="rf-preview-line">Entrada informada: <strong>R$ ${valorDigitado.toFixed(2)}</strong></div>
+       <div class="rf-preview-line">Saldo após lançamento: <strong>R$ ${prevRecebido.toFixed(2)}</strong> recebidos</div>
+       <div class="rf-preview-line">${prevRecebido > vt ? 'Excedente após lançamento' : 'Em aberto após lançamento'}: <strong>R$ ${Math.abs(prevPendente).toFixed(2)}</strong></div>`
     : 'Digite um valor para simular impacto no saldo.';
 
   const dataLancamento = String(document.getElementById('data')?.value || '');
