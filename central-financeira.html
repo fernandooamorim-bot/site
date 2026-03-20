@@ -907,7 +907,7 @@
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 5px 9px;
-      margin-top: 4px;
+      margin-top: 6px;
       font-size: 12px;
       color: var(--gray-700);
     }
@@ -949,6 +949,34 @@
       height: 100%;
       width: 0;
       background: linear-gradient(90deg, var(--navy-600), var(--navy-400));
+    }
+    .cs-details {
+      margin-top: 6px;
+      border-top: 1px dashed #d6deee;
+      padding-top: 6px;
+    }
+    .cs-summary {
+      cursor: pointer;
+      list-style: none;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      font-size: 12px;
+      color: var(--navy-600);
+      font-weight: 800;
+      user-select: none;
+    }
+    .cs-summary::-webkit-details-marker {
+      display: none;
+    }
+    .cs-summary .ico {
+      font-size: 12px;
+      color: var(--gray-500);
+      transition: transform 0.16s ease;
+    }
+    .cs-details[open] .cs-summary .ico {
+      transform: rotate(180deg);
     }
     .cs-alert {
       margin-top: 6px;
@@ -3858,19 +3886,22 @@ function carregarResumoVendedor(){
             </div>
             ${badgeStatus}
           </div>
-          <div class="cs-row">
-            <div>Base comissão: <strong>R$ ${Number(ev.baseComissao || 0).toFixed(2)}</strong></div>
-            <div>Regra: <strong>${escaparHtml_(String(ev.regraComissao || ev.comissaoTipo || 'N/A'))}</strong></div>
-            <div>Paga / Esperada: <strong>R$ ${valorPaga.toFixed(2)} / R$ ${valorEsperada.toFixed(2)}</strong></div>
-            <div>Progresso: <strong>${progresso.toFixed(1)}%</strong></div>
-          </div>
           <div class="cs-audit">
             <div>• Recebimento registrado em: <strong>${escaparHtml_(String(ev.dataRecebimento || '—'))}</strong></div>
             <div>• Valor recebido: <strong>R$ ${Number(ev.valorRecebido || 0).toFixed(2)}</strong></div>
             <div class="cs-pending">Comissão pendente: R$ ${valorPendente}</div>
           </div>
-          <div class="cs-progress"><span style="width:${Math.max(0, Math.min(100, progresso)).toFixed(1)}%"></span></div>
           ${ajuste !== 0 ? `<div class="cs-alert">⚠️ Ajuste por estorno aplicado nesta comissão (-R$ ${Math.abs(ajuste).toFixed(2)})</div>` : ``}
+          <details class="cs-details">
+            <summary class="cs-summary"><span>Ver detalhes técnicos</span><span class="ico">⌄</span></summary>
+            <div class="cs-row">
+              <div>Base comissão: <strong>R$ ${Number(ev.baseComissao || 0).toFixed(2)}</strong></div>
+              <div>Regra: <strong>${escaparHtml_(String(ev.regraComissao || ev.comissaoTipo || 'N/A'))}</strong></div>
+              <div>Paga / Esperada: <strong>R$ ${valorPaga.toFixed(2)} / R$ ${valorEsperada.toFixed(2)}</strong></div>
+              <div>Progresso: <strong>${progresso.toFixed(1)}%</strong></div>
+            </div>
+            <div class="cs-progress"><span style="width:${Math.max(0, Math.min(100, progresso)).toFixed(1)}%"></span></div>
+          </details>
         </article>
       `;
     });
