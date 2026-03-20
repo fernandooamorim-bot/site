@@ -837,6 +837,126 @@
       text-decoration: underline;
     }
 
+    .cs-wrap {
+      display: grid;
+      gap: 10px;
+    }
+    .cs-kpi {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+    }
+    .cs-kpi-item {
+      border: 1px solid var(--gray-200);
+      border-radius: 10px;
+      padding: 8px 10px;
+      background: #fbfcff;
+    }
+    .cs-kpi-item .k {
+      font-size: 11px;
+      color: var(--gray-500);
+      font-weight: 700;
+      margin-bottom: 2px;
+    }
+    .cs-kpi-item .v {
+      font-size: 15px;
+      color: var(--navy-700);
+      font-weight: 800;
+    }
+    .cs-list {
+      display: grid;
+      gap: 8px;
+      max-height: 60vh;
+      overflow: auto;
+      padding-right: 2px;
+    }
+    .cs-item {
+      border: 1px solid var(--gray-200);
+      border-radius: 12px;
+      padding: 9px 10px;
+      background: #fff;
+    }
+    .cs-item.warn {
+      border-color: #f0c67a;
+      background: #fff7e8;
+    }
+    .cs-item.danger {
+      border-color: #efadad;
+      background: #fff0f0;
+    }
+    .cs-top {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 5px;
+    }
+    .cs-event {
+      font-size: 13px;
+      color: var(--navy-700);
+      font-weight: 800;
+      line-height: 1.35;
+    }
+    .cs-meta {
+      margin-top: 2px;
+      font-size: 11px;
+      color: var(--gray-500);
+      font-weight: 700;
+    }
+    .cs-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 5px 9px;
+      margin-top: 4px;
+      font-size: 12px;
+      color: var(--gray-700);
+    }
+    .cs-row strong {
+      color: var(--navy-700);
+    }
+    .cs-audit {
+      margin-top: 6px;
+      padding-top: 6px;
+      border-top: 1px dashed #d6deee;
+      font-size: 12px;
+      color: var(--gray-600);
+      line-height: 1.45;
+    }
+    .cs-pending {
+      margin-top: 5px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      border: 1px solid #f0c57b;
+      background: #fff7e8;
+      color: #8c5506;
+      border-radius: 999px;
+      padding: 4px 10px;
+      font-size: 12px;
+      font-weight: 800;
+      width: fit-content;
+    }
+    .cs-progress {
+      margin-top: 7px;
+      border: 1px solid #d9e2f1;
+      background: #eef2fa;
+      border-radius: 999px;
+      height: 8px;
+      overflow: hidden;
+    }
+    .cs-progress > span {
+      display: block;
+      height: 100%;
+      width: 0;
+      background: linear-gradient(90deg, var(--navy-600), var(--navy-400));
+    }
+    .cs-alert {
+      margin-top: 6px;
+      font-size: 12px;
+      font-weight: 700;
+      color: #9f1f1f;
+    }
+
     .fiscal-toolbar {
       display: grid;
       grid-template-columns: minmax(320px, 1.7fr) minmax(180px, 1fr);
@@ -978,6 +1098,12 @@
         grid-template-columns: 1fr;
       }
       .rf-item {
+        grid-template-columns: 1fr;
+      }
+      .cs-kpi {
+        grid-template-columns: 1fr;
+      }
+      .cs-row {
         grid-template-columns: 1fr;
       }
     }
@@ -3679,57 +3805,82 @@ function carregarResumoVendedor(){
 `;
     }
 
-    // 4️⃣ Render normal
+    // 4️⃣ Render normal (layout profissional de resumo)
     const totalFinal = Number(preview.totalComissao || 0) + Number(preview.totalAjuste || 0);
+    const credito = Number(document.getElementById('ajCredito')?.value ? parseValorSeguro(document.getElementById('ajCredito').value, { allowZero: true }) : 0) || 0;
+    const debito = Number(document.getElementById('ajDebito')?.value ? parseValorSeguro(document.getElementById('ajDebito').value, { allowZero: true }) : 0) || 0;
+
     let html = `
-      <div><strong>Vendedor:</strong> ${vendedorSelecionado.nome}</div>
-      ${alertaAjusteHtml}
-      <div><strong>Eventos no fechamento:</strong> ${preview.totalEventos}</div>
-      <div><strong>Total de comissão a pagar:</strong> R$ ${totalFinal.toFixed(2)}</div>
-      <div id="resumoLiquidoComissao" style="margin-top:8px"></div>
-      <div class="divider"></div>
-      <div><strong>Detalhamento das Comissões (origem):</strong></div>
+      <div class="cs-wrap">
+        <div><strong>Vendedor:</strong> ${vendedorSelecionado.nome}</div>
+        ${alertaAjusteHtml}
+        <div class="cs-kpi">
+          <div class="cs-kpi-item"><div class="k">Eventos no fechamento</div><div class="v">${preview.totalEventos}</div></div>
+          <div class="cs-kpi-item"><div class="k">Comissão base</div><div class="v">R$ ${Number(preview.totalComissao || 0).toFixed(2)}</div></div>
+          <div class="cs-kpi-item"><div class="k">Crédito / Débito</div><div class="v">R$ ${credito.toFixed(2)} / R$ ${debito.toFixed(2)}</div></div>
+          <div class="cs-kpi-item"><div class="k">Total de comissão a pagar</div><div class="v">R$ ${totalFinal.toFixed(2)}</div></div>
+        </div>
+        <div id="resumoLiquidoComissao"></div>
+        <div class="divider"></div>
+        <div><strong>Detalhamento das Comissões</strong></div>
     `;
     if (preview.existeExcecao) {
       html += `
-        <div style="margin-top:12px;padding:10px;border-radius:8px;
-                    background:#7c2d12;color:#fed7aa;font-size:13px">
-          ⚠️ Atenção: uma ou mais comissões não puderam ter a origem do
-          recebimento validada automaticamente.<br>
+        <div class="rf-card warn">
+          ⚠️ Atenção: uma ou mais comissões não puderam ter a origem do recebimento validada automaticamente.
           Revise antes de confirmar o fechamento.
         </div>
       `;
     }
 
+    html += `<div class="cs-list">`;
     preview.eventos.forEach(ev => {
       const ajuste = Number(ev.ajusteComissao || 0);
-      const temAjuste = ajuste !== 0;
-
+      const valorPendente = Number(typeof ev.valorComissaoFinal !== 'undefined'
+        ? ev.valorComissaoFinal
+        : (Number(ev.valorComissao || 0) + ajuste)).toFixed(2);
+      const valorPaga = Number(ev.valorComissaoPaga || 0);
+      const valorEsperada = Number(ev.valorComissaoEsperada || 0);
+      const progresso = Number(ev.progressoComissao || (valorEsperada > 0 ? Math.max(0, Math.min(100, (valorPaga / valorEsperada) * 100)) : 0));
+      const statusItem = String(ev.statusComissaoEspelho || ev.statusComissao || 'PENDENTE').toUpperCase();
+      const badgeStatus = montarBadgeResumo_(statusItem, statusItem === 'NA' ? 'Não configurado' : '');
+      const cardClass = (statusItem === 'ERRO')
+        ? 'cs-item danger'
+        : (statusItem === 'PENDENTE' || statusItem === 'PARCIAL' || statusItem === 'AGUARDANDO')
+          ? 'cs-item warn'
+          : 'cs-item';
       html += `
-        <div style="margin-top:10px;padding-top:10px;border-top:1px solid #1e293b">
-          <div><strong>${ev.nomeEvento}</strong></div>
-          <div class="muted">
-            • Recebimento registrado em: ${ev.dataRecebimento || '—'}
-          </div>
-          <div class="muted">
-            • Valor recebido: R$ ${Number(ev.valorRecebido || 0).toFixed(2)}
-          </div>
-          <div>
-            Comissão pendente: <strong>R$ ${Number(ev.valorComissao || 0).toFixed(2)}</strong>
-          </div>
-          ${Number(ev.ajusteComissao || 0) !== 0 ? `
-            <div style="margin-top:6px;color:#facc15;font-size:13px">
-              ⚠️ Ajuste por estorno aplicado nesta comissão (-R$ ${Math.abs(ev.ajusteComissao).toFixed(2)})
+        <article class="${cardClass}">
+          <div class="cs-top">
+            <div>
+              <div class="cs-event">${escaparHtml_(String(ev.nomeEvento || 'Evento'))}</div>
+              <div class="cs-meta">ID: ${escaparHtml_(String(ev.idEvento || '—'))}</div>
             </div>
-          ` : ``}
-        </div>
+            ${badgeStatus}
+          </div>
+          <div class="cs-row">
+            <div>Base comissão: <strong>R$ ${Number(ev.baseComissao || 0).toFixed(2)}</strong></div>
+            <div>Regra: <strong>${escaparHtml_(String(ev.regraComissao || ev.comissaoTipo || 'N/A'))}</strong></div>
+            <div>Paga / Esperada: <strong>R$ ${valorPaga.toFixed(2)} / R$ ${valorEsperada.toFixed(2)}</strong></div>
+            <div>Progresso: <strong>${progresso.toFixed(1)}%</strong></div>
+          </div>
+          <div class="cs-audit">
+            <div>• Recebimento registrado em: <strong>${escaparHtml_(String(ev.dataRecebimento || '—'))}</strong></div>
+            <div>• Valor recebido: <strong>R$ ${Number(ev.valorRecebido || 0).toFixed(2)}</strong></div>
+            <div class="cs-pending">Comissão pendente: R$ ${valorPendente}</div>
+          </div>
+          <div class="cs-progress"><span style="width:${Math.max(0, Math.min(100, progresso)).toFixed(1)}%"></span></div>
+          ${ajuste !== 0 ? `<div class="cs-alert">⚠️ Ajuste por estorno aplicado nesta comissão (-R$ ${Math.abs(ajuste).toFixed(2)})</div>` : ``}
+        </article>
       `;
     });
+    html += `</div>`;
 
     html += `
       <div class="divider"></div>
       <div class="muted">
         ⚠️ Confirme os valores acima. Após o fechamento, as comissões serão marcadas como PAGAS e não poderão ser revertidas.
+      </div>
       </div>
     `;
 
