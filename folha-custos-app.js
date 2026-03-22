@@ -953,8 +953,29 @@ function preencherFormularioComFolha_(detalhe, modo) {
   const p = parseObjectMaybeJson_(detalhe.passagemDeSom) || parseObjectMaybeJson_(metaFolha?.passagemDeSom);
   passagemDeSomAtiva = !!(p && p.ativa);
   passagemDeSomPorMusico = {};
-  if (passagemDeSomAtiva && Array.isArray(p.participantes)) {
-    p.participantes.forEach((idMusico) => { passagemDeSomPorMusico[String(idMusico)] = true; });
+  if (passagemDeSomAtiva) {
+    const idsSelecionados = Array.from(mSelecionados.keys()).map((id) => String(id || '').trim()).filter(Boolean);
+    const participantes = Array.isArray(p?.participantes)
+      ? p.participantes.map((id) => String(id || '').trim()).filter(Boolean)
+      : [];
+
+    if (participantes.length > 0) {
+      // Nova regra (mais precisa): define explicitamente quem NÃO participa.
+      const participantesSet = new Set(participantes);
+      idsSelecionados.forEach((idMusico) => {
+        passagemDeSomPorMusico[idMusico] = participantesSet.has(idMusico);
+      });
+    } else {
+      // Compatibilidade com legado: derive pelos adicionais por músico quando não há participantes.
+      const possuiMarcacaoLegado = listaMusicos.some((m) => Object.prototype.hasOwnProperty.call(m || {}, 'adicionalPassagem'));
+      if (possuiMarcacaoLegado) {
+        listaMusicos.forEach((m) => {
+          const idMusico = String(m?.id || '').trim();
+          if (!idMusico) return;
+          passagemDeSomPorMusico[idMusico] = Number(m?.adicionalPassagem || 0) > 0;
+        });
+      }
+    }
   }
   const passagemCheckbox = document.getElementById('passagem-de-som-checkbox');
   if (passagemCheckbox) passagemCheckbox.checked = passagemDeSomAtiva;
