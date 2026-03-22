@@ -2749,11 +2749,12 @@ criarCardEvento(evento) {
     horarioResumo = `${diasIntervalo} ${diasIntervalo === 1 ? 'dia' : 'dias'}`;
   }
 
+  const isLegado = String(evento.id || '').startsWith('LG-');
   const tipoRegistro = String(evento.tipo || '').trim();
   const isReuniao = tipoRegistro === 'Reunião';
   const isBloqueio = tipoRegistro === 'Bloqueio';
+  const isReuniaoOuBloqueio = isReuniao || isBloqueio;
   const isReserva = tipoRegistro === 'Reserva';
-  const isEvento = tipoRegistro === 'Evento';
   const observacaoRaw = String(evento.observacoes || '').trim();
   const observacaoTecnicaLegado = /^\[LEGADO\]/i.test(observacaoRaw) || /arquivo=|aba=|linha=|conf=|issues=/i.test(observacaoRaw);
   const observacaoParaTitulo = observacaoTecnicaLegado ? '' : observacaoRaw;
@@ -2765,70 +2766,36 @@ criarCardEvento(evento) {
     if (bruto.toLocaleLowerCase('pt-BR') === tipo.toLocaleLowerCase('pt-BR')) return '';
     return bruto.replace(new RegExp(`^${escaped}\\b\\s*[-:|–—]?\\s*`, 'i'), '').trim();
   };
-  const limparDuplicacaoPrefixoLista = (texto, prefixos = []) => {
-    let valor = String(texto || '').trim();
-    for (const p of prefixos) {
-      if (!valor) break;
-      valor = limparDuplicacaoPrefixo(valor, p);
-    }
-    return valor;
-  };
-  const contemTexto = (textoBase, textoBusca) => {
-    const base = String(textoBase || '').trim().toLocaleLowerCase('pt-BR');
-    const busca = String(textoBusca || '').trim().toLocaleLowerCase('pt-BR');
-    return !!base && !!busca && base.includes(busca);
-  };
   const normalizarMotivoReuniao = (texto) => {
     const base = String(texto || '').trim();
     if (!base) return 'Reunião';
     if (/^reuni[aã]o\b/i.test(base)) return base;
     return `Reunião - ${base}`;
   };
-  const limparPrefixoReserva = (texto) => limparDuplicacaoPrefixoLista(texto, [
-    'Pré-Reserva',
-    'Pré Reserva',
-    'Pre-Reserva',
-    'Pre Reserva',
-    'Reserva'
-  ]);
-
-  const tipoEvento = String(evento.tipoEvento || '').trim();
-  const contratante = String(evento.contratante || '').trim();
-  const tipoEventoGenerico = !tipoEvento || /^evento$/i.test(tipoEvento);
-
-  const motivoReuniao = normalizarMotivoReuniao(observacaoParaTitulo || tipoEvento);
+  const limparPrefixoReserva = (texto) => {
+    const base = String(texto || '').trim();
+    if (!base) return '';
+    return base.replace(/^reserva\b\s*[-:|–—]?\s*/i, '').trim();
+  };
+  const baseTituloReuniaoBloqueio = limparDuplicacaoPrefixo(
+    observacaoParaTitulo || evento.contratante || '',
+    tipoRegistro
+  );
+  const motivoReuniao = normalizarMotivoReuniao(observacaoParaTitulo);
   const pessoaReuniao = String(evento.contratante || '').trim();
   const pessoaDiferenteDoMotivo = pessoaReuniao
-    && !contemTexto(motivoReuniao, pessoaReuniao);
-  const conteudoReservaRaw = String(contratante || observacaoParaTitulo || tipoEvento || 'Sem detalhes').trim();
+    && pessoaReuniao.toLocaleLowerCase('pt-BR') !== motivoReuniao.toLocaleLowerCase('pt-BR');
+  const conteudoReservaRaw = String(evento.contratante || observacaoParaTitulo || evento.tipoEvento || 'Sem detalhes').trim();
   const conteudoReserva = limparPrefixoReserva(conteudoReservaRaw) || 'Sem detalhes';
-
-  const baseBloqueio = limparDuplicacaoPrefixo(
-    observacaoParaTitulo || contratante || tipoEvento || '',
-    'Bloqueio'
-  );
-
-  let tituloEventoRaw = '-';
-  if (isReuniao) {
-    tituloEventoRaw = `${motivoReuniao}${pessoaDiferenteDoMotivo ? ' - ' + pessoaReuniao : ''}`;
-  } else if (isBloqueio) {
-    tituloEventoRaw = `Bloqueio${baseBloqueio ? ' - ' + baseBloqueio : ''}`;
-  } else if (isReserva) {
-    tituloEventoRaw = `Reserva - ${conteudoReserva}`;
-  } else if (isEvento) {
-    if (tipoEventoGenerico) {
-      tituloEventoRaw = contratante || 'Evento';
-    } else {
-      const contratanteSemDuplicacao = limparDuplicacaoPrefixo(contratante, tipoEvento);
-      tituloEventoRaw = contratanteSemDuplicacao
-        ? `${tipoEvento} - ${contratanteSemDuplicacao}`
-        : (contratante ? `${tipoEvento} - ${contratante}` : tipoEvento);
-    }
-  } else {
-    const baseTitulo = observacaoParaTitulo || contratante || tipoEvento || '';
-    tituloEventoRaw = `${tipoRegistro || 'Registro'}${baseTitulo ? ' - ' + baseTitulo : ''}`;
-  }
-
+  const tituloEventoRaw = isReuniaoOuBloqueio
+    ? (isReuniao
+      ? `${motivoReuniao}${pessoaDiferenteDoMotivo ? ' - ' + pessoaReuniao : ''}`
+      : `${tipoRegistro}${baseTituloReuniaoBloqueio ? ' - ' + baseTituloReuniaoBloqueio : ''}`)
+    : isReserva
+      ? `Reserva - ${conteudoReserva}`
+    : (isLegado
+      ? (evento.contratante || `${evento.tipoEvento || evento.tipo || '-'}`)
+      : `${evento.tipoEvento || evento.tipo || '-'}${evento.contratante ? ' - ' + evento.contratante : ''}`);
   const tituloEvento = Utils.formatarTituloAgenda(tituloEventoRaw);
   const exibirStatusFinanceiroNoCard = (evento.tipo === 'Evento') && !isProducao();
   const exibirStatusNoCard = exibirStatusFinanceiroNoCard || evento.tipo === 'Reserva';
