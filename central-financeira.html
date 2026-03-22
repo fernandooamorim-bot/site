@@ -914,6 +914,14 @@
     .cs-row strong {
       color: var(--navy-700);
     }
+    .cs-base-note {
+      display: block;
+      margin-top: 2px;
+      font-size: 11px;
+      color: var(--gray-500);
+      font-weight: 500;
+      line-height: 1.35;
+    }
     .cs-audit {
       margin-top: 6px;
       padding-top: 6px;
@@ -3877,6 +3885,16 @@ function carregarResumoVendedor(){
         : (statusItem === 'PENDENTE' || statusItem === 'PARCIAL' || statusItem === 'AGUARDANDO')
           ? 'cs-item warn'
           : 'cs-item';
+      const valorBaseComissao = Number(ev.baseComissao || 0);
+      const valorNFComissao = Number(ev.valorNF || 0);
+      const valorBVComissao = Number(ev.valorBV || 0);
+      const valorContratoComissao = Number(ev.valorContrato || 0) > 0
+        ? Number(ev.valorContrato || 0)
+        : Number((valorBaseComissao + valorNFComissao + valorBVComissao).toFixed(2));
+      const partesBaseComissao = [`contrato R$ ${valorContratoComissao.toFixed(2)}`];
+      if (valorNFComissao > 0) partesBaseComissao.push(`- NF R$ ${valorNFComissao.toFixed(2)}`);
+      if (valorBVComissao > 0) partesBaseComissao.push(`- BV R$ ${valorBVComissao.toFixed(2)}`);
+      const baseComissaoDetalhada = partesBaseComissao.join(' ');
       html += `
         <article class="${cardClass}">
           <div class="cs-top">
@@ -3895,7 +3913,10 @@ function carregarResumoVendedor(){
           <details class="cs-details">
             <summary class="cs-summary"><span>Ver detalhes técnicos</span><span class="ico">⌄</span></summary>
             <div class="cs-row">
-              <div>Base comissão: <strong>R$ ${Number(ev.baseComissao || 0).toFixed(2)}</strong></div>
+              <div>
+                Base comissão: <strong>R$ ${valorBaseComissao.toFixed(2)}</strong>
+                <span class="cs-base-note">(${baseComissaoDetalhada})</span>
+              </div>
               <div>Regra: <strong>${escaparHtml_(String(ev.regraComissao || ev.comissaoTipo || 'N/A'))}</strong></div>
               <div>Paga / Esperada: <strong>R$ ${valorPaga.toFixed(2)} / R$ ${valorEsperada.toFixed(2)}</strong></div>
               <div>Progresso: <strong>${progresso.toFixed(1)}%</strong></div>
