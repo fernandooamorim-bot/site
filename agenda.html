@@ -2829,6 +2829,18 @@ criarCardEvento(evento) {
     tituloEventoRaw = `${tipoRegistro || 'Registro'}${baseTitulo ? ' - ' + baseTitulo : ''}`;
   }
 
+  // Blindagem: evento com tipo específico não deve perder o prefixo de tipo no título.
+  if (isEvento && !tipoEventoGenerico && tipoEvento) {
+    const tituloLower = String(tituloEventoRaw || '').toLocaleLowerCase('pt-BR');
+    const tipoLower = tipoEvento.toLocaleLowerCase('pt-BR');
+    if (!tituloLower.includes(tipoLower)) {
+      const baseSemDuplicacao = limparDuplicacaoPrefixo(String(tituloEventoRaw || contratante || '').trim(), tipoEvento)
+        || contratante
+        || 'Sem detalhes';
+      tituloEventoRaw = `${tipoEvento} - ${baseSemDuplicacao}`;
+    }
+  }
+
   const tituloEvento = Utils.formatarTituloAgenda(tituloEventoRaw);
   const exibirStatusFinanceiroNoCard = (evento.tipo === 'Evento') && !isProducao();
   const exibirStatusNoCard = exibirStatusFinanceiroNoCard || evento.tipo === 'Reserva';
