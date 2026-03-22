@@ -154,8 +154,9 @@ function setupEventListeners() {
         passagemDeSomAtiva = this.checked;
         if (this.checked) {
           musicosSelecionados.forEach((_, musicoId) => {
-            if (!(musicoId in passagemDeSomPorMusico)) {
-              passagemDeSomPorMusico[musicoId] = true;
+            const idNorm = normalizarIdMusico_(musicoId);
+            if (!(idNorm in passagemDeSomPorMusico)) {
+              passagemDeSomPorMusico[idNorm] = true;
             }
           });
         } else {
@@ -1330,7 +1331,8 @@ function createMusicoCard(musico) {
   const valorBase = musico.valorBase || 0;
   const adicionalAuto = calcularAdicionalAutomatico();
   const adicionalExtra = (dados && dados.ajuste) ? (dados.ajuste.adicionalExtra || 0) : 0;
-  const passagem = musicoTemPassagem(musico.id) ? valorPassagemDeSom : 0;  // ← NOVO
+  const musicoIdNorm = normalizarIdMusico_(musico.id);
+  const passagem = musicoTemPassagem(musicoIdNorm) ? valorPassagemDeSom : 0;  // ← NOVO
   const total = valorBase + adicionalAuto + adicionalExtra + passagem;  // ← ATUALIZADO
   
   div.innerHTML = `
@@ -1381,9 +1383,9 @@ function createMusicoCard(musico) {
           <label>
             <input 
               type="checkbox" 
-              id="passagem-${musico.id}" 
-              ${passagemDeSomPorMusico[musico.id] !== false ? 'checked' : ''}
-              onchange="togglePassagemMusico('${musico.id}')"
+              id="passagem-${musicoIdNorm}" 
+              ${passagemDeSomPorMusico[musicoIdNorm] !== false ? 'checked' : ''}
+              onchange="togglePassagemMusico('${musicoIdNorm}')"
             >
             <span class="passagem-som-label">🎵 Passagem de Som</span>
             <span class="passagem-som-valor">+R$ ${valorPassagemDeSom.toFixed(2)}</span>
@@ -1646,6 +1648,10 @@ function adicionarCheckboxesPassagemNosCards() {
   }
 }
 
+function normalizarIdMusico_(idMusico) {
+  return String(idMusico || '').trim();
+}
+
 function removerCheckboxesPassagemDosCards() {
   // ✅ SIMPLIFICADO: Apenas re-renderizar os cards
   renderMusicos();
@@ -1657,10 +1663,11 @@ function removerCheckboxesPassagemDosCards() {
 }
 
 function togglePassagemMusico(musicoId) {
-  const checkbox = document.getElementById(`passagem-${musicoId}`);
+  const idNorm = normalizarIdMusico_(musicoId);
+  const checkbox = document.getElementById(`passagem-${idNorm}`);
   if (!checkbox) return;
 
-  passagemDeSomPorMusico[musicoId] = checkbox.checked;
+  passagemDeSomPorMusico[idNorm] = checkbox.checked;
 
   // 🔄 força atualizar visual do card
   renderMusicos();
@@ -1668,8 +1675,9 @@ function togglePassagemMusico(musicoId) {
 }
 
 function musicoTemPassagem(musicoId) {
+  const idNorm = normalizarIdMusico_(musicoId);
   if (!passagemDeSomAtiva) return false;
-  if (passagemDeSomPorMusico[musicoId] === false) return false;
+  if (passagemDeSomPorMusico[idNorm] === false) return false;
   return true;
 }
 
