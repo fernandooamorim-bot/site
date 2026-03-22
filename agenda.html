@@ -2773,6 +2773,20 @@ criarCardEvento(evento) {
     }
     return valor;
   };
+  const normalizarSeparadoresTitulo = (texto) => String(texto || '')
+    .replace(/\s{2,}/g, ' ')
+    .replace(/^\s*[-:|–—]+\s*/g, '')
+    .replace(/\s*[-:|–—]+\s*$/g, '')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+  const limparDuplicacaoTermoNoTexto = (texto, termo) => {
+    const base = String(texto || '').trim();
+    const alvo = String(termo || '').trim();
+    if (!base || !alvo) return base;
+    const escaped = alvo.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const semDuplicacao = base.replace(new RegExp(`\\b${escaped}\\b`, 'ig'), ' ');
+    return normalizarSeparadoresTitulo(semDuplicacao);
+  };
   const contemTexto = (textoBase, textoBusca) => {
     const base = String(textoBase || '').trim().toLocaleLowerCase('pt-BR');
     const busca = String(textoBusca || '').trim().toLocaleLowerCase('pt-BR');
@@ -2791,6 +2805,14 @@ criarCardEvento(evento) {
     'Pre Reserva',
     'Reserva'
   ]);
+  const limparDuplicacaoReservaNoTexto = (texto) => {
+    const base = String(texto || '').trim();
+    if (!base) return '';
+    const semMarcador = base
+      .replace(/\bpr[ée]\s*[- ]?\s*reserva\b/ig, ' ')
+      .replace(/\breserva\b/ig, ' ');
+    return normalizarSeparadoresTitulo(semMarcador);
+  };
 
   const tipoEvento = String(evento.tipoEvento || '').trim();
   const contratante = String(evento.contratante || '').trim();
@@ -2801,7 +2823,7 @@ criarCardEvento(evento) {
   const pessoaDiferenteDoMotivo = pessoaReuniao
     && !contemTexto(motivoReuniao, pessoaReuniao);
   const conteudoReservaRaw = String(contratante || observacaoParaTitulo || tipoEvento || 'Sem detalhes').trim();
-  const conteudoReserva = limparPrefixoReserva(conteudoReservaRaw) || 'Sem detalhes';
+  const conteudoReserva = limparDuplicacaoReservaNoTexto(limparPrefixoReserva(conteudoReservaRaw)) || 'Sem detalhes';
 
   const baseBloqueio = limparDuplicacaoPrefixo(
     observacaoParaTitulo || contratante || tipoEvento || '',
@@ -2819,7 +2841,8 @@ criarCardEvento(evento) {
     if (tipoEventoGenerico) {
       tituloEventoRaw = contratante || 'Evento';
     } else {
-      const contratanteSemDuplicacao = limparDuplicacaoPrefixo(contratante, tipoEvento);
+      const contratanteSemPrefixo = limparDuplicacaoPrefixo(contratante, tipoEvento);
+      const contratanteSemDuplicacao = limparDuplicacaoTermoNoTexto(contratanteSemPrefixo, tipoEvento) || contratanteSemPrefixo;
       tituloEventoRaw = contratanteSemDuplicacao
         ? `${tipoEvento} - ${contratanteSemDuplicacao}`
         : (contratante ? `${tipoEvento} - ${contratante}` : tipoEvento);
