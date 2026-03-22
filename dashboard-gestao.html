@@ -1100,11 +1100,20 @@
       btn.textContent = `Incluir cancelados c/ movimentação: ${auditoriaComercialState.incluirCanceladosComMov ? 'Sim' : 'Não'}`;
     }
 
-    function montarAnos() {
+    function montarAnos(anosDisponiveis) {
       const y = new Date().getFullYear();
       const sel = document.getElementById('anoRef');
-      const anos = [y - 1, y, y + 1];
-      sel.innerHTML = anos.map(a => `<option value="${a}" ${a === y ? 'selected' : ''}>${a}</option>`).join('');
+      if (!sel) return;
+      const atualSelecionado = Number(sel.value || y);
+      let anos = Array.isArray(anosDisponiveis)
+        ? anosDisponiveis.map((a) => Number(a)).filter((a) => Number.isFinite(a) && a > 0)
+        : [];
+      if (!anos.length) anos = [y - 1, y, y + 1];
+      if (!anos.includes(y)) anos.push(y);
+      if (!anos.includes(atualSelecionado)) anos.push(atualSelecionado);
+      anos = Array.from(new Set(anos)).sort((a, b) => a - b);
+      const alvoSelecionado = anos.includes(atualSelecionado) ? atualSelecionado : y;
+      sel.innerHTML = anos.map(a => `<option value="${a}" ${a === alvoSelecionado ? 'selected' : ''}>${a}</option>`).join('');
       sel.onchange = () => carregarDashboard();
     }
 
@@ -1382,6 +1391,7 @@
         const resp = await Auth.apiCall('obterDashboardGestao', { ano: ano, incluirCancelados: false });
         if (!resp || resp.sucesso !== true) throw new Error(resp?.mensagem || 'Falha ao obter dashboard');
         dashboardData = resp;
+        montarAnos(resp?.anosDisponiveis);
         if (ehProprietario() && ticketState.ano !== ano) {
           const box = document.getElementById('ticketMedioBox');
           if (box) box.innerHTML = `<div class="empty" style="margin-top:0">Sob demanda: clique em Aplicar para carregar o ticket médio de ${ano}.</div>`;
