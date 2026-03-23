@@ -294,6 +294,21 @@
       </div>
       <div class="toolbar-right">
         <select id="anoRef"></select>
+        <select id="mesRef">
+          <option value="0">Todos os meses</option>
+          <option value="1">Janeiro</option>
+          <option value="2">Fevereiro</option>
+          <option value="3">Março</option>
+          <option value="4">Abril</option>
+          <option value="5">Maio</option>
+          <option value="6">Junho</option>
+          <option value="7">Julho</option>
+          <option value="8">Agosto</option>
+          <option value="9">Setembro</option>
+          <option value="10">Outubro</option>
+          <option value="11">Novembro</option>
+          <option value="12">Dezembro</option>
+        </select>
         <button id="btnAtualizarDashboard" class="btn outline" onclick="carregarDashboard(this)">Atualizar</button>
         <span id="dashboardUpdateStatus" class="toolbar-status hidden"></span>
       </div>
@@ -632,6 +647,13 @@
     }
     function getAnoSelecionado() {
       return Number(document.getElementById('anoRef')?.value || new Date().getFullYear());
+    }
+    function getMesSelecionado() {
+      return Number(document.getElementById('mesRef')?.value || 0);
+    }
+    function obterBucketMensal_(lista, mes) {
+      if (!Array.isArray(lista) || !mes) return null;
+      return lista.find((x) => Number(x?.mes) === Number(mes)) || null;
     }
     function parseDataEventoInfo(dataEvento) {
       if (!dataEvento) return null;
@@ -1115,6 +1137,11 @@
       const alvoSelecionado = anos.includes(atualSelecionado) ? atualSelecionado : y;
       sel.innerHTML = anos.map(a => `<option value="${a}" ${a === alvoSelecionado ? 'selected' : ''}>${a}</option>`).join('');
       sel.onchange = () => carregarDashboard();
+      const selMes = document.getElementById('mesRef');
+      if (selMes && !selMes.dataset.bound) {
+        selMes.onchange = () => renderDashboard();
+        selMes.dataset.bound = '1';
+      }
     }
 
     function preencherUser() {
@@ -1422,53 +1449,90 @@
       const ev = r.eventos || {};
       const fin = r.financeiro || {};
       const saidas = r.saidas || {};
-      const riscos = Array.isArray(d.riscos) ? d.riscos : [];
+      const riscosAno = Array.isArray(d.riscos) ? d.riscos : [];
       const vendedores = Array.isArray(d.vendedores) ? d.vendedores : [];
       const mensal = Array.isArray(d.mensal) ? d.mensal : [];
       const visaoMensal = d.visaoMensal || {};
       const funil = d.funil || {};
-      const prox = Array.isArray(d.proximos30dias) ? d.proximos30dias : [];
+      const proxAno = Array.isArray(d.proximos30dias) ? d.proximos30dias : [];
+      const mesSelecionado = getMesSelecionado();
+      const modoMensal = mesSelecionado >= 1 && mesSelecionado <= 12;
+      const bucketContratadoMes = obterBucketMensal_(visaoMensal?.contratado, mesSelecionado);
+      const bucketRecebidoMes = obterBucketMensal_(visaoMensal?.recebidoHibrido, mesSelecionado);
+      const bucketComissaoMes = obterBucketMensal_(visaoMensal?.comissaoGeradaEvento, mesSelecionado);
+      const bucketComissaoPagaMes = obterBucketMensal_(visaoMensal?.comissaoPagaEvento, mesSelecionado);
+      const bucketSaidasMes = obterBucketMensal_(visaoMensal?.saidasEvento, mesSelecionado);
+      const bucketLiquidoMes = obterBucketMensal_(visaoMensal?.liquidoEvento, mesSelecionado);
+      const riscos = modoMensal
+        ? riscosAno.filter((rItem) => Number(parseDataEventoInfo(rItem?.dataEvento)?.mes || 0) === mesSelecionado)
+        : riscosAno;
+      const prox = modoMensal
+        ? proxAno.filter((pItem) => Number(parseDataEventoInfo(pItem?.dataEvento)?.mes || 0) === mesSelecionado)
+        : proxAno;
 
       if (modoComercialSocioAdmin()) {
-        const comissaoGeradaBaseEvento = num(visaoMensal?.totais?.comissaoGeradaEvento);
-        const comissaoPagaBaseEvento = num(visaoMensal?.totais?.comissaoPagaEvento);
-        const comissaoPendenteBaseEvento = num(visaoMensal?.totais?.comissaoPendenteEvento);
+        const comissaoGeradaBaseEvento = modoMensal ? num(bucketComissaoMes?.valor) : num(visaoMensal?.totais?.comissaoGeradaEvento);
+        const comissaoPagaBaseEvento = modoMensal ? num(bucketComissaoPagaMes?.valor) : num(visaoMensal?.totais?.comissaoPagaEvento);
+        const comissaoPendenteBaseEvento = modoMensal
+          ? Math.max(0, Number((comissaoGeradaBaseEvento - comissaoPagaBaseEvento).toFixed(2)))
+          : num(visaoMensal?.totais?.comissaoPendenteEvento);
+        const contratoRef = modoMensal ? num(bucketContratadoMes?.valor) : num(fin.contrato);
+        const recebidoRef = modoMensal ? num(bucketRecebidoMes?.valor) : num(fin.recebido);
+        const percRef = contratoRef > 0 ? Number(((recebidoRef / contratoRef) * 100).toFixed(2)) : 0;
+        const eventosRef = modoMensal ? Number(bucketContratadoMes?.eventos || 0) : Number(ev.total || 0);
         document.getElementById('kLblContrato').textContent = 'Vendido';
         document.getElementById('kLblRecebido').textContent = 'Recebido';
         document.getElementById('kLblPendente').textContent = 'Comissão Gerada';
         document.getElementById('kLblBV').textContent = 'Comissão Paga';
         document.getElementById('kLblNF').textContent = 'Comissão Pendente';
         document.getElementById('kLblRiscos').textContent = 'Comercial';
-        document.getElementById('kSubRiscos').textContent = 'eventos no ano';
-        document.getElementById('kContrato').textContent = fmt(fin.contrato);
-        document.getElementById('kEventos').textContent = `${Number(ev.total || 0)} eventos`;
-        document.getElementById('kRecebido').textContent = fmt(fin.recebido);
-        document.getElementById('kPerc').textContent = `${Number(fin.percRecebido || 0).toFixed(2)}% recebido`;
+        document.getElementById('kSubRiscos').textContent = modoMensal ? 'eventos no mês' : 'eventos no ano';
+        document.getElementById('kContrato').textContent = fmt(contratoRef);
+        document.getElementById('kEventos').textContent = `${eventosRef} eventos`;
+        document.getElementById('kRecebido').textContent = fmt(recebidoRef);
+        document.getElementById('kPerc').textContent = `${percRef.toFixed(2)}% recebido`;
         document.getElementById('kPendente').textContent = fmt(comissaoGeradaBaseEvento);
-        document.getElementById('kPendEvt').textContent = 'base mês do evento';
+        document.getElementById('kPendEvt').textContent = modoMensal ? 'base do mês selecionado' : 'base mês do evento';
         document.getElementById('kBV').textContent = fmt(comissaoPagaBaseEvento);
-        document.getElementById('kBVPend').textContent = 'base mês do evento';
+        document.getElementById('kBVPend').textContent = modoMensal ? 'no mês selecionado' : 'base mês do evento';
         document.getElementById('kNF').textContent = fmt(comissaoPendenteBaseEvento);
         document.getElementById('kNFPend').textContent = 'comissão pendente';
-        document.getElementById('kRiscos').textContent = `${Number(ev.total || 0)}`;
+        document.getElementById('kRiscos').textContent = `${eventosRef}`;
       } else {
+        const contratoRef = modoMensal ? num(bucketContratadoMes?.valor) : num(fin.contrato);
+        const recebidoRef = modoMensal ? num(bucketRecebidoMes?.valor) : num(fin.recebido);
+        const pendenteRef = modoMensal ? Math.max(0, Number((contratoRef - recebidoRef).toFixed(2))) : num(fin.pendente);
+        const percRef = contratoRef > 0 ? Number(((recebidoRef / contratoRef) * 100).toFixed(2)) : 0;
+        const eventosRef = modoMensal ? Number(bucketContratadoMes?.eventos || 0) : Number(ev.total || 0);
+        const bvPagoRef = modoMensal ? num(bucketSaidasMes?.bvPago) : null;
+        const nfPagoRef = modoMensal ? num(bucketSaidasMes?.nfPago) : null;
         document.getElementById('kLblContrato').textContent = 'Contrato';
         document.getElementById('kLblRecebido').textContent = 'Recebido';
         document.getElementById('kLblPendente').textContent = 'Pendente';
         document.getElementById('kLblBV').textContent = 'BV';
         document.getElementById('kLblNF').textContent = 'NF';
         document.getElementById('kLblRiscos').textContent = 'Riscos';
-        document.getElementById('kSubRiscos').textContent = 'alertas críticos';
-        document.getElementById('kContrato').textContent = fmt(fin.contrato);
-        document.getElementById('kEventos').textContent = `${Number(ev.total || 0)} eventos`;
-        document.getElementById('kRecebido').textContent = fmt(fin.recebido);
-        document.getElementById('kPerc').textContent = `${Number(fin.percRecebido || 0).toFixed(2)}% recebido`;
-        document.getElementById('kPendente').textContent = fmt(fin.pendente);
-        document.getElementById('kPendEvt').textContent = `${Number(ev.parciais || 0) + Number(ev.abertos || 0)} eventos`;
-        document.getElementById('kBV').textContent = `${Number(saidas.bvProcessado || 0)} pagos`;
-        document.getElementById('kBVPend').textContent = `${Number(saidas.bvPendente || 0)} pendente(s)`;
-        document.getElementById('kNF').textContent = `${Number(saidas.nfProcessada || 0)} processadas`;
-        document.getElementById('kNFPend').textContent = `${Number(saidas.nfPendente || 0)} pendente(s)`;
+        document.getElementById('kSubRiscos').textContent = modoMensal ? 'alertas críticos no mês' : 'alertas críticos';
+        document.getElementById('kContrato').textContent = fmt(contratoRef);
+        document.getElementById('kEventos').textContent = `${eventosRef} eventos`;
+        document.getElementById('kRecebido').textContent = fmt(recebidoRef);
+        document.getElementById('kPerc').textContent = `${percRef.toFixed(2)}% recebido`;
+        document.getElementById('kPendente').textContent = fmt(pendenteRef);
+        document.getElementById('kPendEvt').textContent = modoMensal
+          ? 'saldo do mês selecionado'
+          : `${Number(ev.parciais || 0) + Number(ev.abertos || 0)} eventos`;
+        document.getElementById('kBV').textContent = modoMensal
+          ? fmt(bvPagoRef)
+          : `${Number(saidas.bvProcessado || 0)} pagos`;
+        document.getElementById('kBVPend').textContent = modoMensal
+          ? 'BV pago no mês'
+          : `${Number(saidas.bvPendente || 0)} pendente(s)`;
+        document.getElementById('kNF').textContent = modoMensal
+          ? fmt(nfPagoRef)
+          : `${Number(saidas.nfProcessada || 0)} processadas`;
+        document.getElementById('kNFPend').textContent = modoMensal
+          ? 'NF paga no mês'
+          : `${Number(saidas.nfPendente || 0)} pendente(s)`;
         document.getElementById('kRiscos').textContent = `${riscos.filter(x => x.severidade === 'CRITICO').length}`;
       }
 
@@ -1476,9 +1540,9 @@
       renderMensalHibrido(visaoMensal);
       renderResultadoMensal(visaoMensal);
       renderFunil(funil);
-      renderRiscos(riscos);
+      renderRiscos(riscos, modoMensal);
       renderVendedores(vendedores);
-      renderProximos(prox);
+      renderProximos(prox, modoMensal);
       const auditBox = document.getElementById('auditoriaContent');
       if (auditBox && !auditBox.classList.contains('hidden')) {
         carregarAuditoriaMensal(false);
@@ -1683,6 +1747,8 @@
       const box = document.getElementById('auditoriaContent');
       const topBox = document.getElementById('auditoriaTop5');
       if (!box) return;
+      const mesSelecionado = getMesSelecionado();
+      const modoMensal = mesSelecionado >= 1 && mesSelecionado <= 12;
       const meses = {};
       for (let mes = 1; mes <= 12; mes++) meses[mes] = [];
       const linhasAno = [];
@@ -1693,6 +1759,7 @@
         const anoEvento = linha.anoEvento;
         if (!mes || mes < 1 || mes > 12) return;
         if (Number(anoEvento) !== Number(ano)) return;
+        if (modoMensal && Number(mes) !== Number(mesSelecionado)) return;
         if (!linha.ocorrido) return;
         const statusGeral = obterStatusEvento(ev);
         if (statusGeral === 'CANCELADO') return;
@@ -1705,9 +1772,9 @@
         .filter(m => meses[m].length > 0);
 
       if (!mesesComDados.length) {
-        box.innerHTML = `<div class="empty" style="margin-top:0">Sem eventos para auditoria no ano ${ano}.</div>`;
+        box.innerHTML = `<div class="empty" style="margin-top:0">Sem eventos para auditoria ${modoMensal ? `no mês ${String(mesSelecionado).padStart(2, '0')}/${ano}` : `no ano ${ano}` }.</div>`;
         if (topBox) topBox.innerHTML = '';
-        setAuditoriaHint(`Sem eventos realizados para auditoria em ${ano}.`, 'warn');
+        setAuditoriaHint(`Sem eventos realizados para auditoria ${modoMensal ? `em ${String(mesSelecionado).padStart(2, '0')}/${ano}` : `em ${ano}`}.`, 'warn');
         return;
       }
 
@@ -1784,7 +1851,7 @@
 
       box.innerHTML = html;
       if (topBox) renderTopMargens(linhasAno);
-      setAuditoriaHint(`Auditoria realizada de ${ano}: ${linhasAno.length} evento(s) já ocorridos.`, 'ok');
+      setAuditoriaHint(`Auditoria realizada ${modoMensal ? `em ${String(mesSelecionado).padStart(2, '0')}/${ano}` : `de ${ano}`}: ${linhasAno.length} evento(s) já ocorridos.`, 'ok');
     }
 
     async function carregarAuditoriaMensal(force = false) {
@@ -1865,11 +1932,14 @@
       const box = document.getElementById('auditoriaComercialContent');
       const note = document.getElementById('auditoriaComercialNote');
       if (!box) return;
+      const mesSelecionado = getMesSelecionado();
+      const modoMensal = mesSelecionado >= 1 && mesSelecionado <= 12;
       const linhas = (Array.isArray(eventos) ? eventos : [])
         .map(ev => {
           if (!ehEventoComercial(ev)) return null;
           const dataInfo = parseDataEventoInfo(ev?.dataEvento);
           if (!dataInfo || Number(dataInfo.ano) !== Number(ano)) return null;
+          if (modoMensal && Number(dataInfo.mes || 0) !== Number(mesSelecionado)) return null;
           const statusGeral = obterStatusEvento(ev);
           if (statusGeral === 'CANCELADO') {
             if (!(auditoriaComercialState.incluirCanceladosComMov && eventoCanceladoComMovimento(ev))) return null;
@@ -1892,9 +1962,9 @@
         .filter(Boolean)
         .sort((a, b) => (a.mes - b.mes) || (a.dia - b.dia) || a.nome.localeCompare(b.nome, 'pt-BR'));
       if (!linhas.length) {
-        box.innerHTML = `<div class="empty" style="margin-top:0">Sem eventos para comissões por evento em ${ano}.</div>`;
+        box.innerHTML = `<div class="empty" style="margin-top:0">Sem eventos para comissões por evento ${modoMensal ? `em ${String(mesSelecionado).padStart(2, '0')}/${ano}` : `em ${ano}` }.</div>`;
         if (note) note.classList.add('hidden');
-        setAuditoriaComercialHint(`Sem eventos no recorte de ${ano}.`, 'warn');
+        setAuditoriaComercialHint(`Sem eventos no recorte ${modoMensal ? `de ${String(mesSelecionado).padStart(2, '0')}/${ano}` : `de ${ano}`}.`, 'warn');
         return;
       }
       const html = `
@@ -1925,7 +1995,7 @@
       `;
       box.innerHTML = html;
       if (note) note.classList.remove('hidden');
-      setAuditoriaComercialHint(`Comissões por evento atualizada: ${linhas.length} evento(s).`, 'ok');
+      setAuditoriaComercialHint(`Comissões por evento atualizada ${modoMensal ? `(${String(mesSelecionado).padStart(2, '0')}/${ano})` : ''}: ${linhas.length} evento(s).`, 'ok');
     }
     async function carregarAuditoriaComercial(force = false) {
       if (auditoriaComercialState.loading) return;
@@ -1997,10 +2067,10 @@
       `;
     }
 
-    function renderRiscos(riscos) {
+    function renderRiscos(riscos, filtroMensal = false) {
       const box = document.getElementById('riscosBox');
       if (!riscos.length) {
-        box.innerHTML = `<div class="empty">Nenhum risco crítico identificado no recorte atual.</div>`;
+        box.innerHTML = `<div class="empty">Nenhum risco crítico identificado ${filtroMensal ? 'no mês selecionado' : 'no recorte atual'}.</div>`;
         return;
       }
       box.innerHTML = riscos.slice(0, 16).map(r => `
@@ -2036,10 +2106,10 @@
       `).join('');
     }
 
-    function renderProximos(lista) {
+    function renderProximos(lista, filtroMensal = false) {
       const box = document.getElementById('proxBox');
       if (!lista.length) {
-        box.innerHTML = `<div class="empty">Sem eventos financeiros nos próximos 30 dias.</div>`;
+        box.innerHTML = `<div class="empty">${filtroMensal ? 'Sem eventos financeiros no mês selecionado dentro dos próximos 30 dias.' : 'Sem eventos financeiros nos próximos 30 dias.'}</div>`;
         return;
       }
       box.innerHTML = lista.map(x => `
