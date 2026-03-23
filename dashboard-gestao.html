@@ -104,7 +104,7 @@
     .kpi .lbl{font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.5px}
     .kpi .val{margin-top:6px;font-size:22px;font-weight:800;letter-spacing:-.4px}
     .kpi .sub{margin-top:4px;font-size:12px;color:var(--muted)}
-    .kpis-secondary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:0 0 12px}
+    .kpis-secondary{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;margin:0 0 12px}
     .kpi.soft-ok .val{color:#0d8a5d}
     .kpi.soft-warn .val{color:#9a6d08}
     .kpi .sub-line{margin-top:6px;font-size:11px;color:var(--muted)}
@@ -343,6 +343,12 @@
         <div class="lbl">Não Executados (Geral)</div>
         <div class="val" id="kRecebFuturoGeral">R$ 0,00</div>
         <div class="sub" id="kRecebFuturoGeralSub">recebido de eventos futuros (todos os anos)</div>
+      </div>
+      <div class="kpi">
+        <div class="lbl">Líquido Realizado</div>
+        <div class="val" id="kLiquidoRealizado">R$ 0,00</div>
+        <div class="sub" id="kLiquidoRealizadoSub">recebido - saídas processadas (provisório)</div>
+        <div class="sub-line" id="kLiquidoRealizadoLinha">Somente eventos já executados.</div>
       </div>
     </div>
     <div id="insightsBlock" class="insights-kpis">
@@ -993,8 +999,13 @@
       const linhas = Array.isArray(rowsAno) ? rowsAno : [];
       const linhasAll = Array.isArray(rowsAllAtivos) ? rowsAllAtivos : [];
       const ano = getAnoSelecionado();
-      const realizados = linhas.filter(x => !!x?.ocorrido);
-      const futuros = linhas.filter(x => !x?.ocorrido);
+      const mes = getMesSelecionado();
+      const modoMensal = mes >= 1 && mes <= 12;
+      const linhasRecorte = modoMensal
+        ? linhas.filter(x => Number(x?.mesEvento || 0) === mes)
+        : linhas;
+      const realizados = linhasRecorte.filter(x => !!x?.ocorrido);
+      const futuros = linhasRecorte.filter(x => !x?.ocorrido);
       const futurosGlobais = linhasAll.filter(x => !x?.ocorrido);
       const futurosComReceb = futuros.filter(x => num(x?.recebido) > 0);
       const futurosGlobaisComReceb = futurosGlobais.filter(x => num(x?.recebido) > 0);
@@ -1003,20 +1014,26 @@
       const recebidoFuturoGeral = futurosGlobais.reduce((s, x) => s + num(x?.recebido), 0);
       const recebidoTotal = recebidoRealizado + recebidoFuturo;
       const expo = recebidoTotal > 0 ? (recebidoFuturo / recebidoTotal) * 100 : 0;
+      const liquidoRealizado = realizados.reduce((s, x) => s + num(x?.liquido), 0);
 
       const setTxt = (id, val) => {
         const el = document.getElementById(id);
         if (el) el.textContent = val;
       };
       setTxt('kRecebRealizado', fmt(recebidoRealizado));
-      setTxt('kRecebRealizadoSub', `${realizados.length} evento(s) já executado(s) em ${ano}`);
+      setTxt('kRecebRealizadoSub', `${realizados.length} evento(s) já executado(s) ${modoMensal ? `em ${String(mes).padStart(2, '0')}/${ano}` : `em ${ano}`}`);
       setTxt('kRecebFuturo', fmt(recebidoFuturo));
-      setTxt('kRecebFuturoSub', `${futurosComReceb.length} evento(s) futuro(s) com recebimento em ${ano}`);
+      setTxt('kRecebFuturoSub', `${futurosComReceb.length} evento(s) futuro(s) com recebimento ${modoMensal ? `em ${String(mes).padStart(2, '0')}/${ano}` : `em ${ano}`}`);
       setTxt('kExpoFuturo', fmtPct(expo));
-      setTxt('kExpoFuturoSub', `sobre o recebido total de ${ano}`);
+      setTxt('kExpoFuturoSub', `sobre o recebido total ${modoMensal ? `de ${String(mes).padStart(2, '0')}/${ano}` : `de ${ano}`}`);
       setTxt('kExpoFuturoLinha', `Passivo operacional: ${fmt(recebidoFuturo)}`);
       setTxt('kRecebFuturoGeral', fmt(recebidoFuturoGeral));
       setTxt('kRecebFuturoGeralSub', `${futurosGlobaisComReceb.length} evento(s) futuro(s) com recebimento (todos os anos)`);
+      setTxt('kLiquidoRealizado', fmt(liquidoRealizado));
+      setTxt('kLiquidoRealizadoSub', `${realizados.length} evento(s) já executado(s) • provisório`);
+      setTxt('kLiquidoRealizadoLinha', modoMensal
+        ? `Recorte ${String(mes).padStart(2, '0')}/${ano}: recebido - saídas processadas`
+        : `Ano ${ano}: recebido - saídas processadas (eventos já executados)`);
     }
     async function carregarInsightsComerciais(force = false) {
       const ano = getAnoSelecionado();
@@ -1139,7 +1156,10 @@
       sel.onchange = () => carregarDashboard();
       const selMes = document.getElementById('mesRef');
       if (selMes && !selMes.dataset.bound) {
-        selMes.onchange = () => renderDashboard();
+        selMes.onchange = () => {
+          renderDashboard();
+          if (ehProprietario()) carregarInsightsComerciais(false).catch(() => {});
+        };
         selMes.dataset.bound = '1';
       }
     }
