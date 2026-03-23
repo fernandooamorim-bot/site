@@ -368,26 +368,6 @@
         <div class="sub-line" id="kLiquidoRealizadoLinha">Somente eventos já executados.</div>
       </div>
     </div>
-    <div class="resultado-kpis hidden" id="cardIndicadoresResultado">
-      <div class="resultado-kpi">
-        <div class="lbl">Taxa de Pendências</div>
-        <div class="val" id="kTaxaPendencias">0,0%</div>
-        <div class="sub" id="kTaxaPendenciasSub">eventos executados com pendência financeira</div>
-        <span class="badge warn" id="kTaxaPendenciasBadge">Provisório</span>
-      </div>
-      <div class="resultado-kpi">
-        <div class="lbl">Líquido Projetado</div>
-        <div class="val" id="kLiquidoProjetado">R$ 0,00</div>
-        <div class="sub" id="kLiquidoProjetadoSub">contrato - saídas estimadas (ano)</div>
-        <div class="sub-line" id="kLiquidoProjetadoLinha">Estimativa com base no status atual.</div>
-      </div>
-      <div class="resultado-kpi">
-        <div class="lbl">Waterfall do Resultado</div>
-        <div class="waterfall" id="kWaterfallResultado">
-          <div class="empty" style="margin-top:0">Carregando composição...</div>
-        </div>
-      </div>
-    </div>
     <div id="insightsBlock" class="insights-kpis">
       <div class="insight-kpi">
         <div class="head">
@@ -584,7 +564,6 @@
     const META_PCT_PADRAO = 30;
     const META_CACHE_KEY = 'dashboard:metaAnoAnterior:v1';
     const INSIGHTS_CACHE_KEY = 'dashboard:insightsComerciais:v1';
-    const RESULTADO_KPI_CACHE_KEY = 'dashboard:resultadoKpis:v1';
     const INSIGHTS_CACHE_TTL_MS = 10 * 60 * 1000;
     const TICKET_CACHE_KEY = 'dashboard:ticketMedio:v2';
     const TICKET_CACHE_TTL_MS = 10 * 60 * 1000;
@@ -618,13 +597,6 @@
     const ticketOptionsState = {
       loadedAno: null
     };
-    const resultadoKpiState = {
-      loaded: false,
-      loading: false,
-      ano: null,
-      mes: null,
-      data: null
-    };
     const syncState = {
       agendaVersion: '',
       agendaAt: 0
@@ -641,7 +613,6 @@
       return [
         'kpisBlock',
         'kpisExecucaoRow',
-        'cardIndicadoresResultado',
         'insightsBlock',
         'cardVisaoMesEvento',
         'cardResultadoMensal',
@@ -1081,149 +1052,6 @@
         ? `Recorte ${String(mes).padStart(2, '0')}/${ano}: recebido - saídas processadas`
         : `Ano ${ano}: recebido - saídas processadas (eventos já executados)`);
     }
-    function renderIndicadoresResultado(data, ano, mes) {
-      if (modoComercialSocioAdmin()) return;
-      const modoMensal = Number(mes) >= 1 && Number(mes) <= 12;
-      const totalExecutados = Number(data?.totalExecutados || 0);
-      const executadosComPendencia = Number(data?.executadosComPendencia || 0);
-      const taxaPendencias = totalExecutados > 0
-        ? (executadosComPendencia / totalExecutados) * 100
-        : 0;
-      const badge = document.getElementById('kTaxaPendenciasBadge');
-      if (badge) {
-        badge.classList.remove('ok', 'warn');
-        const semPendencias = executadosComPendencia === 0;
-        badge.classList.add(semPendencias ? 'ok' : 'warn');
-        badge.textContent = semPendencias ? 'Consolidado' : 'Provisório';
-      }
-      const setTxt = (id, val) => {
-        const el = document.getElementById(id);
-        if (el) el.textContent = val;
-      };
-      setTxt('kTaxaPendencias', `${taxaPendencias.toFixed(1)}%`);
-      setTxt('kTaxaPendenciasSub', `${executadosComPendencia} de ${totalExecutados} evento(s) executado(s) com pendência operacional`);
-
-      const contrato = num(data?.contrato);
-      const saidasProcessadas = num(data?.saidasProcessadas);
-      const saidasPendentesEstimadas = num(data?.saidasPendentesEstimadas);
-      const liquidoProjetado = contrato - (saidasProcessadas + saidasPendentesEstimadas);
-      setTxt('kLiquidoProjetado', fmt(liquidoProjetado));
-      setTxt('kLiquidoProjetadoSub', modoMensal
-        ? `projeção de ${String(mes).padStart(2, '0')}/${ano}`
-        : `projeção de ${ano}`);
-      setTxt('kLiquidoProjetadoLinha', `Contrato ${fmt(contrato)} - Saídas previstas ${fmt(saidasProcessadas + saidasPendentesEstimadas)}`);
-
-      const recebido = num(data?.recebido);
-      const pendente = Math.max(0, contrato - recebido);
-      const waterfall = document.getElementById('kWaterfallResultado');
-      if (waterfall) {
-        const max = Math.max(1, contrato, recebido, saidasProcessadas, liquidoProjetado < 0 ? Math.abs(liquidoProjetado) : liquidoProjetado);
-        const pct = (v) => Math.max(0, Math.min(100, (Math.abs(num(v)) / max) * 100)).toFixed(1);
-        waterfall.innerHTML = `
-          <div class="waterfall-row"><div class="k">Contrato</div><div class="track"><div class="fill" style="width:${pct(contrato)}%"></div></div><div class="v">${fmt(contrato)}</div></div>
-          <div class="waterfall-row"><div class="k">Recebido</div><div class="track"><div class="fill" style="width:${pct(recebido)}%"></div></div><div class="v">${fmt(recebido)}</div></div>
-          <div class="waterfall-row"><div class="k">Pendente</div><div class="track"><div class="fill warn" style="width:${pct(pendente)}%"></div></div><div class="v">${fmt(pendente)}</div></div>
-          <div class="waterfall-row"><div class="k">Saídas Prev.</div><div class="track"><div class="fill warn" style="width:${pct(saidasProcessadas + saidasPendentesEstimadas)}%"></div></div><div class="v">${fmt(saidasProcessadas + saidasPendentesEstimadas)}</div></div>
-          <div class="waterfall-row"><div class="k">Líquido Proj.</div><div class="track"><div class="fill ${liquidoProjetado < 0 ? 'danger' : ''}" style="width:${pct(liquidoProjetado)}%"></div></div><div class="v">${fmt(liquidoProjetado)}</div></div>
-        `;
-      }
-    }
-    async function carregarIndicadoresResultado(force = false) {
-      if (modoComercialSocioAdmin()) return;
-      if (resultadoKpiState.loading) return;
-      const ano = getAnoSelecionado();
-      const mes = getMesSelecionado();
-      if (!force && resultadoKpiState.loaded && resultadoKpiState.ano === ano && resultadoKpiState.mes === mes && resultadoKpiState.data) {
-        renderIndicadoresResultado(resultadoKpiState.data, ano, mes);
-        return;
-      }
-      const cacheKey = `${RESULTADO_KPI_CACHE_KEY}:${ano}:${mes}`;
-      const cache = !force ? lerCacheJson(cacheKey, 10 * 60 * 1000) : null;
-      if (cache) {
-        resultadoKpiState.loaded = true;
-        resultadoKpiState.ano = ano;
-        resultadoKpiState.mes = mes;
-        resultadoKpiState.data = cache;
-        renderIndicadoresResultado(cache, ano, mes);
-        return;
-      }
-      try {
-        resultadoKpiState.loading = true;
-        const resp = await Auth.apiCall('listarEventosFinanceiros');
-        const eventos = Array.isArray(resp) ? resp : (resp?.eventos || []);
-        const dados = {
-          contrato: 0,
-          recebido: 0,
-          saidasProcessadas: 0,
-          saidasPendentesEstimadas: 0,
-          totalExecutados: 0,
-          executadosComPendencia: 0
-        };
-        eventos.forEach((ev) => {
-          if (!ehEventoComercial(ev)) return;
-          const info = parseDataEventoInfo(ev?.dataEvento);
-          if (!info || Number(info.ano) !== Number(ano)) return;
-          if (mes >= 1 && mes <= 12 && Number(info.mes) !== Number(mes)) return;
-          if (obterStatusEvento(ev) === 'CANCELADO') return;
-          const contrato = num(ev?.valorContrato);
-          const recebido = num(ev?.totalRecebido || (num(ev?.valorContrato) - num(ev?.valorPendente)));
-          const c = ev?.comissao?.valores || {};
-          const comissaoPaga = num(c?.pago);
-          const comissaoPendente = num(c?.pendente);
-          const bvValor = num(ev?.bv?.valor);
-          const nfValor = num(ev?.nf?.valor);
-          const folhaValor = num(ev?.custos?.folha?.valor || ev?.folha?.valor || ev?.folhaCustoValor);
-          const bvStatus = normalizarStatus(ev?.bv?.status);
-          const nfStatus = normalizarStatus(ev?.nf?.status);
-          const folhaStatus = normalizarStatus(ev?.custos?.folha?.status || ev?.folha?.status || ev?.folhaCustoStatus);
-          const bvPago = (bvStatus === 'PROCESSADO' || bvStatus === 'QUITADO') ? bvValor : 0;
-          const nfPago = (nfStatus === 'PROCESSADO' || nfStatus === 'QUITADO') ? nfValor : 0;
-          const folhaPaga = (folhaStatus === 'PROCESSADO' || folhaStatus === 'QUITADO') ? folhaValor : 0;
-          const saidasPagas = comissaoPaga + bvPago + nfPago + folhaPaga;
-          const bvPend = (bvValor > 0 && bvPago <= 0) ? bvValor : 0;
-          const nfPend = (nfValor > 0 && nfPago <= 0) ? nfValor : 0;
-          const folhaPend = (folhaValor > 0 && folhaPaga <= 0) ? folhaValor : 0;
-          const saidasPend = comissaoPendente + bvPend + nfPend + folhaPend;
-          dados.contrato += contrato;
-          dados.recebido += recebido;
-          dados.saidasProcessadas += saidasPagas;
-          dados.saidasPendentesEstimadas += saidasPend;
-          if (eventoJaOcorreu(info)) {
-            dados.totalExecutados += 1;
-            const statusComissao = normalizarStatus(ev?.comissao?.status);
-            const pendenciaComissao = comissaoPendente > 0
-              || ['PENDENTE', 'PARCIAL', 'AGUARDANDO', 'ERRO'].includes(statusComissao)
-              || eventoTemAlerta(ev, 'COMISSAO_PENDENTE')
-              || eventoTemAlerta(ev, 'COMISSAO_INCONSISTENTE');
-            const pendenciaBV = bvPend > 0
-              || eventoTemAlerta(ev, 'BV_PENDENTE')
-              || eventoTemAlerta(ev, 'EVENTO_QUITADO_COM_BV_PENDENTE');
-            const pendenciaNF = nfPend > 0
-              || eventoTemAlerta(ev, 'EVENTO_QUITADO_COM_NF_PENDENTE');
-            const pendenciaFolha = folhaPend > 0
-              || eventoTemAlerta(ev, 'FOLHA_NAO_REGISTRADA')
-              || eventoTemAlerta(ev, 'DUPLICIDADE_FOLHA_PROCESSADA')
-              || !!ev?.acoes?.podeRegistrarFolha;
-            if (pendenciaComissao || pendenciaBV || pendenciaNF || pendenciaFolha) {
-              dados.executadosComPendencia += 1;
-            }
-          }
-        });
-        ['contrato', 'recebido', 'saidasProcessadas', 'saidasPendentesEstimadas'].forEach((k) => {
-          dados[k] = Number(num(dados[k]).toFixed(2));
-        });
-        salvarCacheJson(cacheKey, dados);
-        resultadoKpiState.loaded = true;
-        resultadoKpiState.ano = ano;
-        resultadoKpiState.mes = mes;
-        resultadoKpiState.data = dados;
-        renderIndicadoresResultado(dados, ano, mes);
-      } catch (e) {
-        console.error('Erro ao carregar indicadores de resultado:', e);
-      } finally {
-        resultadoKpiState.loading = false;
-      }
-    }
     async function carregarInsightsComerciais(force = false) {
       const ano = getAnoSelecionado();
       const cacheKey = INSIGHTS_CACHE_KEY + ':' + ano;
@@ -1348,11 +1176,10 @@
         selMes.onchange = () => {
           renderDashboard();
           if (!modoComercialSocioAdmin()) {
-            setDashboardSectionLoading(true, getAnoSelecionado(), ['insightsBlock', 'cardIndicadoresResultado']);
+            setDashboardSectionLoading(true, getAnoSelecionado(), ['insightsBlock']);
             Promise.allSettled([
-              carregarInsightsComerciais(false),
-              carregarIndicadoresResultado(false)
-            ]).finally(() => setDashboardSectionLoading(false, getAnoSelecionado(), ['insightsBlock', 'cardIndicadoresResultado']));
+              carregarInsightsComerciais(false)
+            ]).finally(() => setDashboardSectionLoading(false, getAnoSelecionado(), ['insightsBlock']));
           }
         };
         selMes.dataset.bound = '1';
@@ -1392,7 +1219,6 @@
       show('cardResultadoMensal', !comercial);
       show('cardRiscos', !comercial);
       show('cardFunil', !comercial);
-      show('cardIndicadoresResultado', !comercial);
       show('cardAuditoriaComercial', comercial);
       show('cardTicketMedio', proprietario);
       show('kpisExecucaoRow', proprietario);
@@ -1629,7 +1455,7 @@
           'cardRiscos',
           'cardRankingVendedores'
         ];
-        const asyncSections = ['insightsBlock', 'kpisExecucaoRow', 'cardIndicadoresResultado'];
+        const asyncSections = ['insightsBlock', 'kpisExecucaoRow'];
         setDashboardSectionLoading(true, ano, allSections);
         const resp = await Auth.apiCall('obterDashboardGestao', { ano: ano, incluirCancelados: false });
         if (!resp || resp.sucesso !== true) throw new Error(resp?.mensagem || 'Falha ao obter dashboard');
@@ -1643,8 +1469,7 @@
         setDashboardSectionLoading(false, ano, baseSections);
         const tarefasAsync = [
           renderMetaAnual(),
-          carregarInsightsComerciais(false),
-          carregarIndicadoresResultado(false)
+          carregarInsightsComerciais(false)
         ];
         await Promise.allSettled(tarefasAsync);
         setDashboardSectionLoading(false, ano, asyncSections);
