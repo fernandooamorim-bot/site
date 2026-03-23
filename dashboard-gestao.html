@@ -1101,7 +1101,7 @@
         if (el) el.textContent = val;
       };
       setTxt('kTaxaPendencias', `${taxaPendencias.toFixed(1)}%`);
-      setTxt('kTaxaPendenciasSub', `${executadosComPendencia} de ${totalExecutados} evento(s) executado(s) com pendência`);
+      setTxt('kTaxaPendenciasSub', `${executadosComPendencia} de ${totalExecutados} evento(s) executado(s) com pendência operacional`);
 
       const contrato = num(data?.contrato);
       const saidasProcessadas = num(data?.saidasProcessadas);
@@ -1190,7 +1190,21 @@
           dados.saidasPendentesEstimadas += saidasPend;
           if (eventoJaOcorreu(info)) {
             dados.totalExecutados += 1;
-            if (comissaoPendente > 0 || bvPend > 0 || nfPend > 0 || folhaPend > 0 || num(ev?.valorPendente) > 0) {
+            const statusComissao = normalizarStatus(ev?.comissao?.status);
+            const pendenciaComissao = comissaoPendente > 0
+              || ['PENDENTE', 'PARCIAL', 'AGUARDANDO', 'ERRO'].includes(statusComissao)
+              || eventoTemAlerta(ev, 'COMISSAO_PENDENTE')
+              || eventoTemAlerta(ev, 'COMISSAO_INCONSISTENTE');
+            const pendenciaBV = bvPend > 0
+              || eventoTemAlerta(ev, 'BV_PENDENTE')
+              || eventoTemAlerta(ev, 'EVENTO_QUITADO_COM_BV_PENDENTE');
+            const pendenciaNF = nfPend > 0
+              || eventoTemAlerta(ev, 'EVENTO_QUITADO_COM_NF_PENDENTE');
+            const pendenciaFolha = folhaPend > 0
+              || eventoTemAlerta(ev, 'FOLHA_NAO_REGISTRADA')
+              || eventoTemAlerta(ev, 'DUPLICIDADE_FOLHA_PROCESSADA')
+              || !!ev?.acoes?.podeRegistrarFolha;
+            if (pendenciaComissao || pendenciaBV || pendenciaNF || pendenciaFolha) {
               dados.executadosComPendencia += 1;
             }
           }
