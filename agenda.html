@@ -3706,6 +3706,12 @@ renderizarEventosDentro(evento) {
       },
 
       calcularNovidadesEntreSnapshots_(antes, depois) {
+        if (this.deveIgnorarPrimeiroDeltaNovidades_(antes)) {
+          AppState.novidades = { ids: {}, total: 0 };
+          this.atualizarBotaoNovidades_();
+          return;
+        }
+
         const mapaAntes = {};
         (Array.isArray(antes) ? antes : []).forEach(evt => {
           const id = String((evt && evt.id) || '').trim();
@@ -3736,6 +3742,24 @@ renderizarEventosDentro(evento) {
 
         AppState.novidades = { ids, total };
         this.atualizarBotaoNovidades_();
+      },
+
+      deveIgnorarPrimeiroDeltaNovidades_(antes) {
+        if (!Array.isArray(antes) || antes.length === 0) return true;
+
+        // Baseline seguro: cache antigo sem metadados de auditoria.
+        // Evita explosão inicial de "novidades" após deploy.
+        let comMetadado = 0;
+        for (let i = 0; i < antes.length; i++) {
+          const e = antes[i] || {};
+          if (
+            Object.prototype.hasOwnProperty.call(e, 'ultimaEdicaoMs') ||
+            Object.prototype.hasOwnProperty.call(e, 'dataCriacaoMs')
+          ) {
+            comMetadado++;
+          }
+        }
+        return comMetadado === 0;
       },
 
       assinaturaNovidadeEvento_(evt) {
