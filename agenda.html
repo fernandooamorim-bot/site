@@ -1704,6 +1704,7 @@
       <button class="filter-btn" data-filter="proximos7">Próximos 7 dias</button>
       <button class="filter-btn" data-filter="mesAtual">Mês Atual</button>
       <button class="filter-btn" data-filter="todos">Todos</button>
+      <button class="filter-btn" data-filter="novidades" id="btnFiltroNovidades" style="display:none">Novidades</button>
     </div>
     <div class="historico-recorte-info" id="historicoRecorteInfo"></div>
 
@@ -1913,7 +1914,11 @@ if (!AUTH.email || !AUTH.session) {
       syncEmAndamento: false,
       syncRunId: 0,
       offlineAtivo: false,
-      offlineListenersSet: false
+      offlineListenersSet: false,
+      novidades: {
+        ids: {},
+        total: 0
+      }
 
     };
 
@@ -1935,6 +1940,10 @@ if (!AUTH.email || !AUTH.session) {
     function isGestorAgenda() {
       if (!AppState.usuario || !AppState.usuario.perfil) return false;
       return ehPerfilGestorAgenda_(AppState.usuario.perfil);
+    }
+    function isProprietarioAgenda() {
+      if (!AppState.usuario || !AppState.usuario.perfil) return false;
+      return normalizarPerfilAgenda_(AppState.usuario.perfil) === 'proprietario';
     }
 
     function normalizarPerfilAgenda_(perfil) {
@@ -3280,6 +3289,9 @@ renderizarEventosDentro(evento) {
         if (isMusico() && tipo === 'todos') {
           tipo = 'proximos';
         }
+        if (tipo === 'novidades' && !isProprietarioAgenda()) {
+          tipo = isPerfilRestritoAgenda() ? 'proximos' : 'todos';
+        }
 
         AppState.filtroAtivo = tipo;
 
@@ -3374,6 +3386,13 @@ renderizarEventosDentro(evento) {
               if (!data) return false;
               data.setHours(0, 0, 0, 0);
               return data >= hoje;
+            });
+            break;
+
+          case 'novidades':
+            eventosFiltrados = eventosFiltrados.filter(e => {
+              const id = String((e && e.id) || '').trim();
+              return !!(id && AppState.novidades && AppState.novidades.ids && AppState.novidades.ids[id]);
             });
             break;
 
@@ -3667,14 +3686,80 @@ renderizarEventosDentro(evento) {
           nome: AUTH.nome,
           perfil: AUTH.perfil || 'Músico'
         };
+        this.atualizarVisibilidadeBotaoNovidades_();
 
         return AppState.usuario;
+      },
+
+      atualizarVisibilidadeBotaoNovidades_() {
+        const btn = document.getElementById('btnFiltroNovidades');
+        if (!btn) return;
+        btn.style.display = isProprietarioAgenda() ? '' : 'none';
+        this.atualizarBotaoNovidades_();
+      },
+
+      atualizarBotaoNovidades_() {
+        const btn = document.getElementById('btnFiltroNovidades');
+        if (!btn) return;
+        const total = Number(AppState.novidades?.total || 0);
+        btn.textContent = total > 0 ? `Novidades (${total})` : 'Novidades';
+      },
+
+      calcularNovidadesEntreSnapshots_(antes, depois) {
+        const mapaAntes = {};
+        (Array.isArray(antes) ? antes : []).forEach(evt => {
+          const id = String((evt && evt.id) || '').trim();
+          if (!id) return;
+          mapaAntes[id] = evt;
+        });
+
+        const ids = {};
+        let total = 0;
+        (Array.isArray(depois) ? depois : []).forEach(evt => {
+          const id = String((evt && evt.id) || '').trim();
+          if (!id) return;
+
+          const anterior = mapaAntes[id];
+          if (!anterior) {
+            ids[id] = true;
+            total++;
+            return;
+          }
+
+          const assinaturaAntes = this.assinaturaNovidadeEvento_(anterior);
+          const assinaturaDepois = this.assinaturaNovidadeEvento_(evt);
+          if (assinaturaAntes !== assinaturaDepois) {
+            ids[id] = true;
+            total++;
+          }
+        });
+
+        AppState.novidades = { ids, total };
+        this.atualizarBotaoNovidades_();
+      },
+
+      assinaturaNovidadeEvento_(evt) {
+        const statusGeral = String(evt?.statusGeral || '').trim().toUpperCase();
+        const ultimaEdicaoMs = Number(evt?.ultimaEdicaoMs || 0);
+        const dataCriacaoMs = Number(evt?.dataCriacaoMs || 0);
+        return [
+          String(evt?.id || ''),
+          statusGeral,
+          String(isNaN(ultimaEdicaoMs) ? 0 : ultimaEdicaoMs),
+          String(isNaN(dataCriacaoMs) ? 0 : dataCriacaoMs),
+          String(evt?.tipo || ''),
+          String(evt?.data || ''),
+          String(evt?.hora || ''),
+          String(evt?.contratante || ''),
+          String(evt?.local || '')
+        ].join('|');
       },
 
       aplicarRestricoesPerfil() {
         const viewToolbar = document.getElementById('viewToolbar');
         const btnMobileMore = document.getElementById('mobileMoreOptions');
         const filterStatusGeralGroup = document.getElementById('filterStatusGeralGroup');
+        this.atualizarVisibilidadeBotaoNovidades_();
         if (isGestorAgenda()) {
           if (filterStatusGeralGroup) filterStatusGeralGroup.style.display = 'flex';
           if (viewToolbar) viewToolbar.classList.add('show');
@@ -4049,6 +4134,13 @@ renderizarEventosDentro(evento) {
 
       const eventosAtualizados = await eventosPromise;
       if (!isRunAtivo()) return;
+      const eventosAnteriores = Array.isArray(AppState.cache?.dados) ? AppState.cache.dados : [];
+      if (isProprietarioAgenda()) {
+        this.calcularNovidadesEntreSnapshots_(eventosAnteriores, eventosAtualizados);
+      } else {
+        AppState.novidades = { ids: {}, total: 0 };
+        this.atualizarBotaoNovidades_();
+      }
       AppState.cache = {
         timestamp: Date.now(),
         dados: eventosAtualizados,
@@ -4397,6 +4489,8 @@ renderizarEventosDentro(evento) {
                 dados: null,
                 syncVersion: ''
               };
+              AppState.novidades = { ids: {}, total: 0 };
+              AgendaController.atualizarBotaoNovidades_();
               AgendaController.limparCachePersistente();
 
               // Mostra loading
