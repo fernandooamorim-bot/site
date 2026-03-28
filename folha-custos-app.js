@@ -192,9 +192,9 @@ function setupEventListeners() {
   });
   
   const adicionalExtra = document.getElementById('modal-adicional-extra');
-  if (adicionalExtra) {
-    adicionalExtra.addEventListener('input', atualizarTotalModal);
-  }
+  const descontoExtra = document.getElementById('modal-desconto-extra');
+  if (adicionalExtra) adicionalExtra.addEventListener('input', atualizarTotalModal);
+  if (descontoExtra) descontoExtra.addEventListener('input', atualizarTotalModal);
 
   // 🔁 NOVO: atualizar resumo ao digitar nome e data do evento
   const nomeEventoInput = document.getElementById('evento-nome');
@@ -898,6 +898,54 @@ async function obterDetalheFolhaPorIdComFallback_(id, idEventoAtual) {
   return (detalhe && detalhe.id) ? detalhe : null;
 }
 
+function normalizarNumeroMonetarioLocal_(valor) {
+  if (valor === null || typeof valor === 'undefined' || String(valor).trim() === '') return 0;
+  const n = Number(valor);
+  return Number.isFinite(n) ? Number(n.toFixed(2)) : 0;
+}
+
+function normalizarAjusteMusicoLocal_(ajusteRaw, musicoRaw) {
+  const ajuste = ajusteRaw && typeof ajusteRaw === 'object' ? ajusteRaw : {};
+  const musico = musicoRaw && typeof musicoRaw === 'object' ? musicoRaw : {};
+  const acrescimoInformado = Object.prototype.hasOwnProperty.call(ajuste, 'acrescimo');
+  const descontoInformado = Object.prototype.hasOwnProperty.call(ajuste, 'desconto');
+  const acrescimo = Math.max(0, normalizarNumeroMonetarioLocal_(ajuste.acrescimo));
+  const desconto = Math.max(0, normalizarNumeroMonetarioLocal_(ajuste.desconto));
+
+  let ajusteLiquido = 0;
+  if (acrescimoInformado || descontoInformado) {
+    ajusteLiquido = Number((acrescimo - desconto).toFixed(2));
+  } else {
+    const legado = normalizarNumeroMonetarioLocal_(
+      Object.prototype.hasOwnProperty.call(ajuste, 'adicionalExtra')
+        ? ajuste.adicionalExtra
+        : musico.adicionalExtra
+    );
+    ajusteLiquido = legado;
+  }
+
+  const acrescimoFinal = (acrescimoInformado || descontoInformado)
+    ? acrescimo
+    : Math.max(0, ajusteLiquido);
+  const descontoFinal = (acrescimoInformado || descontoInformado)
+    ? desconto
+    : Math.max(0, Number((-ajusteLiquido).toFixed(2)));
+
+  const justificativa = String(
+    ajuste.justificativa ||
+    musico.justificativa ||
+    ''
+  ).trim();
+
+  return {
+    acrescimo: Number(acrescimoFinal.toFixed(2)),
+    desconto: Number(descontoFinal.toFixed(2)),
+    adicionalExtra: Number((acrescimoFinal - descontoFinal).toFixed(2)),
+    ajusteLiquido: Number((acrescimoFinal - descontoFinal).toFixed(2)),
+    justificativa: justificativa
+  };
+}
+
 function preencherFormularioComFolha_(detalhe, modo) {
   if (!detalhe || !detalhe.id) return false;
   const metaFolha = parseObjectMaybeJson_(detalhe.Folhas_Custo || detalhe.folhas_custo || detalhe.folhasCusto);
@@ -934,12 +982,11 @@ function preencherFormularioComFolha_(detalhe, modo) {
       funcao: String(m.funcao || ''),
       valorBase: Number(m.valorBase || 0)
     };
+    const ajusteNormalizado = normalizarAjusteMusicoLocal_(m.ajuste || null, m);
+    const temAjuste = Math.abs(Number(ajusteNormalizado.ajusteLiquido || 0)) > 0.0001 || !!ajusteNormalizado.justificativa;
     mSelecionados.set(base.id, {
       musico: base,
-      ajuste: {
-        adicionalExtra: Number(m.adicionalExtra || 0),
-        justificativa: String(m.justificativa || '')
-      }
+      ajuste: temAjuste ? ajusteNormalizado : null
     });
   });
   musicosSelecionados = mSelecionados;
@@ -1330,7 +1377,9 @@ function createMusicoCard(musico) {
   
   const valorBase = musico.valorBase || 0;
   const adicionalAuto = calcularAdicionalAutomatico();
-  const adicionalExtra = (dados && dados.ajuste) ? (dados.ajuste.adicionalExtra || 0) : 0;
+  const ajusteInfo = normalizarAjusteMusicoLocal_(dados && dados.ajuste, {});
+  const adicionalExtra = Number(ajusteInfo.ajusteLiquido || 0);
+  const temAjusteVisual = Math.abs(adicionalExtra) > 0.0001 || !!ajusteInfo.justificativa;
   const musicoIdNorm = normalizarIdMusico_(musico.id);
   const passagem = musicoTemPassagem(musicoIdNorm) ? valorPassagemDeSom : 0;  // ← NOVO
   const total = valorBase + adicionalAuto + adicionalExtra + passagem;  // ← ATUALIZADO
@@ -1365,10 +1414,10 @@ function createMusicoCard(musico) {
             <span class="valor-amount">R$ ${passagem.toFixed(2)}</span>
           </div>
         ` : ''}
-        ${adicionalExtra > 0 ? `
+        ${Math.abs(adicionalExtra) > 0.0001 ? `
           <div class="valor-row">
-            <span class="valor-label">Adicional Extra</span>
-            <span class="valor-amount">R$ ${adicionalExtra.toFixed(2)}</span>
+            <span class="valor-label">Ajuste Negociado</span>
+            <span class="valor-amount">${adicionalExtra >= 0 ? '+' : '-'}R$ ${Math.abs(adicionalExtra).toFixed(2)}</span>
           </div>
         ` : ''}
         <div class="valor-row valor-total-row">
@@ -1400,8 +1449,8 @@ function createMusicoCard(musico) {
         </button>
       </div>
       
-      ${dados && dados.ajuste && dados.ajuste.justificativa ? `
-        <div class="adjustment-badge" title="${dados.ajuste.justificativa}">⚠️</div>
+      ${temAjusteVisual ? `
+        <div class="adjustment-badge" title="${ajusteInfo.justificativa || 'Ajuste aplicado'}">⚠️</div>
       ` : ''}
     ` : ''}
   `;
@@ -1478,7 +1527,7 @@ function abrirAjusteMusico(musicoId) {
   
   musicoEmAjuste = musicoId;
   const musico = dados.musico;
-  const ajuste = dados.ajuste || {};
+  const ajuste = normalizarAjusteMusicoLocal_(dados.ajuste, {});
   
   document.getElementById('modal-musico-nome').textContent = musico.nome;
   document.getElementById('modal-musico-funcao').textContent = musico.funcao;
@@ -1491,7 +1540,8 @@ function abrirAjusteMusico(musicoId) {
     ? `R$ ${adicionalAuto.toFixed(2)}` 
     : '-';
   
-  document.getElementById('modal-adicional-extra').value = ajuste.adicionalExtra || '';
+  document.getElementById('modal-adicional-extra').value = ajuste.acrescimo || '';
+  document.getElementById('modal-desconto-extra').value = ajuste.desconto || '';
   document.getElementById('modal-justificativa').value = ajuste.justificativa || '';
   
   atualizarTotalModal();
@@ -1507,9 +1557,10 @@ function atualizarTotalModal() {
   
   const valorBase = dados.musico.valorBase || 0;
   const adicionalAuto = calcularAdicionalAutomatico();
-  const adicionalExtra = parseFloat(document.getElementById('modal-adicional-extra').value) || 0;
-  
-  const total = valorBase + adicionalAuto + adicionalExtra;
+  const acrescimo = parseFloat(document.getElementById('modal-adicional-extra').value) || 0;
+  const desconto = parseFloat(document.getElementById('modal-desconto-extra').value) || 0;
+  const ajusteLiquido = acrescimo - desconto;
+  const total = valorBase + adicionalAuto + ajusteLiquido;
   
   document.getElementById('modal-total-final').textContent = `R$ ${total.toFixed(2)}`;
 }
@@ -1517,21 +1568,27 @@ function atualizarTotalModal() {
 function salvarAjusteMusico() {
   if (!musicoEmAjuste) return;
   
-  const adicionalExtra = parseFloat(document.getElementById('modal-adicional-extra').value) || 0;
+  const acrescimo = Math.max(0, parseFloat(document.getElementById('modal-adicional-extra').value) || 0);
+  const desconto = Math.max(0, parseFloat(document.getElementById('modal-desconto-extra').value) || 0);
+  const adicionalExtra = Number((acrescimo - desconto).toFixed(2));
   const justificativa = document.getElementById('modal-justificativa').value.trim();
   
-  if (adicionalExtra > 0 && !justificativa) {
-    alert('Por favor, informe a justificativa para o adicional extra');
+  if ((acrescimo > 0 || desconto > 0) && !justificativa) {
+    alert('Por favor, informe a justificativa para o acréscimo/desconto');
     return;
   }
   
   const dados = musicosSelecionados.get(musicoEmAjuste);
   if (!dados) return;
   
-  if (adicionalExtra > 0 || justificativa) {
+  if (acrescimo > 0 || desconto > 0 || justificativa) {
     dados.ajuste = {
+      acrescimo: Number(acrescimo.toFixed(2)),
+      desconto: Number(desconto.toFixed(2)),
       adicionalExtra: adicionalExtra,
-      justificativa: justificativa
+      ajusteLiquido: adicionalExtra,
+      justificativa: justificativa,
+      tipoAjuste: desconto > 0 && acrescimo === 0 ? 'DESCONTO' : (acrescimo > 0 && desconto === 0 ? 'ACRESCIMO' : 'MISTO')
     };
   } else {
     dados.ajuste = null;
@@ -1839,7 +1896,8 @@ function recalcular() {
   
   musicosSelecionados.forEach((dados, musicoId) => {
     const valorBase = dados.musico.valorBase || 0;
-    const adicionalExtra = (dados.ajuste && dados.ajuste.adicionalExtra) || 0;
+    const ajusteInfo = normalizarAjusteMusicoLocal_(dados.ajuste, {});
+    const adicionalExtra = Number(ajusteInfo.ajusteLiquido || 0);
     const passagem = musicoTemPassagem(musicoId) ? valorPassagemDeSom : 0;  // ← NOVO
     
     totalMusicos += valorBase;
@@ -1875,8 +1933,8 @@ function recalcular() {
   if (totalAdicionaisAuto > 0) {
     detalhamento.push(`R$ ${totalAdicionaisAuto.toFixed(2)} foraCidade`);
   }
-  if (totalAdicionaisExtras > 0) {
-    detalhamento.push(`R$ ${totalAdicionaisExtras.toFixed(2)} extras`);
+  if (Math.abs(totalAdicionaisExtras) > 0.0001) {
+    detalhamento.push(`${totalAdicionaisExtras >= 0 ? '+' : '-'}R$ ${Math.abs(totalAdicionaisExtras).toFixed(2)} ajustes negociados`);
   }
   if (totalPassagem > 0) {
     detalhamento.push(`R$ ${totalPassagem.toFixed(2)} passagemSom`);
@@ -1967,17 +2025,23 @@ if (passagemDeSomAtiva) {
 }
 
 // Adicionais extras individuais
-const extrasDetalhe = Array.from(musicosSelecionados.values())
-  .filter(dados => dados.ajuste && dados.ajuste.adicionalExtra > 0);
+const ajustesPositivos = Array.from(musicosSelecionados.values())
+  .map((dados) => normalizarAjusteMusicoLocal_(dados.ajuste, {}))
+  .filter((aj) => aj.ajusteLiquido > 0);
+const ajustesNegativos = Array.from(musicosSelecionados.values())
+  .map((dados) => normalizarAjusteMusicoLocal_(dados.ajuste, {}))
+  .filter((aj) => aj.ajusteLiquido < 0);
 
-if (extrasDetalhe.length > 0) {
-  const totalExtrasIndividuais = extrasDetalhe.reduce(
-    (sum, dados) => sum + dados.ajuste.adicionalExtra,
-    0
-  );
-
+if (ajustesPositivos.length > 0) {
+  const totalAjustesPositivos = ajustesPositivos.reduce((sum, aj) => sum + aj.ajusteLiquido, 0);
   linhasAdicionais.push(
-    `• Ajustes Extras Individuais (${extrasDetalhe.length} músico${extrasDetalhe.length > 1 ? 's' : ''}) – R$ ${totalExtrasIndividuais.toFixed(2)}`
+    `• Acréscimos Individuais (${ajustesPositivos.length} músico${ajustesPositivos.length > 1 ? 's' : ''}) – R$ ${totalAjustesPositivos.toFixed(2)}`
+  );
+}
+if (ajustesNegativos.length > 0) {
+  const totalAjustesNegativos = ajustesNegativos.reduce((sum, aj) => sum + Math.abs(aj.ajusteLiquido), 0);
+  linhasAdicionais.push(
+    `• Descontos Individuais (${ajustesNegativos.length} músico${ajustesNegativos.length > 1 ? 's' : ''}) – -R$ ${totalAjustesNegativos.toFixed(2)}`
   );
 }
 
@@ -2007,7 +2071,7 @@ if (linhasAdicionais.length > 0) {
   // TOTAIS
   // ===============================
   const totalExtras = Array.from(musicosSelecionados.values())
-    .reduce((sum, dados) => sum + ((dados.ajuste && dados.ajuste.adicionalExtra) || 0), 0);
+    .reduce((sum, dados) => sum + normalizarAjusteMusicoLocal_(dados.ajuste, {}).ajusteLiquido, 0);
 
   const totalAdicionais = (eventoForaCidade ? adicionalAuto * musicosSelecionados.size : 0)
     + totalExtras
@@ -2028,7 +2092,8 @@ if (linhasAdicionais.length > 0) {
   musicosSelecionados.forEach((dados, musicoId) => {
     const musico = dados.musico;
     const valorBase = musico.valorBase || 0;
-    const adicionalExtra = (dados.ajuste && dados.ajuste.adicionalExtra) || 0;
+    const ajusteInfo = normalizarAjusteMusicoLocal_(dados.ajuste, {});
+    const adicionalExtra = Number(ajusteInfo.ajusteLiquido || 0);
     const passagem = musicoTemPassagem(musicoId) ? valorPassagemDeSom : 0;
     const total = valorBase + (eventoForaCidade ? adicionalAuto : 0) + adicionalExtra + passagem;
 
@@ -2038,7 +2103,8 @@ if (linhasAdicionais.length > 0) {
     detalhes.push(`Cachê: R$ ${valorBase.toFixed(2)}`);
     if (eventoForaCidade) detalhes.push(`ForaCidade: R$ ${adicionalAuto.toFixed(2)}`);
     if (passagem > 0) detalhes.push(`PassagemSom: R$ ${passagem.toFixed(2)}`);
-    if (adicionalExtra > 0) detalhes.push(`Extra: R$ ${adicionalExtra.toFixed(2)}`);
+    if (adicionalExtra > 0) detalhes.push(`Acréscimo: R$ ${adicionalExtra.toFixed(2)}`);
+    if (adicionalExtra < 0) detalhes.push(`Desconto: -R$ ${Math.abs(adicionalExtra).toFixed(2)}`);
 
     resumo += `  ${detalhes.join(' | ')}\n\n`;
   });
@@ -2091,6 +2157,7 @@ async function salvarFolhaCusto(opts) {
   
   const musicosData = Array.from(musicosSelecionados.values()).map(dados => {
     const passagem = musicoTemPassagem(dados.musico.id) ? valorPassagemDeSom : 0;  // ← NOVO
+    const ajusteInfo = normalizarAjusteMusicoLocal_(dados.ajuste, {});
     
     return {
       id: dados.musico.id,
@@ -2098,17 +2165,28 @@ async function salvarFolhaCusto(opts) {
       funcao: dados.musico.funcao,
       valorBase: dados.musico.valorBase,
       adicionalAutomatico: adicionalAuto,
-      adicionalExtra: (dados.ajuste && dados.ajuste.adicionalExtra) || 0,
+      acrescimo: Number(ajusteInfo.acrescimo || 0),
+      desconto: Number(ajusteInfo.desconto || 0),
+      adicionalExtra: Number(ajusteInfo.ajusteLiquido || 0),
+      ajusteLiquido: Number(ajusteInfo.ajusteLiquido || 0),
       adicionalPassagem: passagem,  // ← NOVO
       adicionalMotivo: passagem > 0 ? 'Passagem de Som' : '',  // ← NOVO
-      justificativa: (dados.ajuste && dados.ajuste.justificativa) || '',
-      total: (dados.musico.valorBase || 0) + adicionalAuto + ((dados.ajuste && dados.ajuste.adicionalExtra) || 0) + passagem  // ← ATUALIZADO
+      justificativa: String(ajusteInfo.justificativa || ''),
+      ajusteAudit: {
+        acrescimo: Number(ajusteInfo.acrescimo || 0),
+        desconto: Number(ajusteInfo.desconto || 0),
+        liquido: Number(ajusteInfo.ajusteLiquido || 0),
+        ajustadoPor: CURRENT_USER_EMAIL || localStorage.getItem('auth_email') || '',
+        ajustadoEm: new Date().toISOString(),
+        justificativa: String(ajusteInfo.justificativa || '')
+      },
+      total: (dados.musico.valorBase || 0) + adicionalAuto + Number(ajusteInfo.ajusteLiquido || 0) + passagem  // ← ATUALIZADO
     };
   });
   
   const totalMusicos = musicosData.reduce((sum, m) => sum + (m.valorBase || 0), 0);
   const totalAdicionais = musicosData.reduce((sum, m) => 
-    sum + (m.adicionalAutomatico || 0) + (m.adicionalExtra || 0) + (m.adicionalPassagem || 0), 0);
+    sum + (m.adicionalAutomatico || 0) + (m.ajusteLiquido || m.adicionalExtra || 0) + (m.adicionalPassagem || 0), 0);
   const totalTerceirizados = terceirizadosAtivos.reduce((sum, item) => sum + (item.valor || 0), 0);
   const custoTotal = totalMusicos + totalAdicionais + totalTerceirizados;
   

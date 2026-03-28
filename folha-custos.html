@@ -491,14 +491,20 @@
           <div class="valor-separador"></div>
           
           <div class="form-group">
-            <label for="modal-adicional-extra">💡 Adicional Extra (opcional)</label>
+            <label for="modal-adicional-extra">💡 Acréscimo Negociado (opcional)</label>
             <input type="number" id="modal-adicional-extra" placeholder="0.00" step="0.01" min="0">
-            <small>Valores como drive extra, som, trabalho adicional, etc.</small>
+            <small>Use para aumentar o cachê pontualmente (ex.: drive extra, som, hora adicional).</small>
+          </div>
+
+          <div class="form-group">
+            <label for="modal-desconto-extra">💸 Desconto Negociado (opcional)</label>
+            <input type="number" id="modal-desconto-extra" placeholder="0.00" step="0.01" min="0">
+            <small>Use para reduzir o cachê pontualmente quando houver negociação para baixo.</small>
           </div>
           
           <div class="form-group">
-            <label for="modal-justificativa">Justificativa (obrigatória para ajustes)</label>
-            <textarea id="modal-justificativa" rows="3" placeholder="Ex: Fez som + drive extra"></textarea>
+            <label for="modal-justificativa">Justificativa (obrigatória para acréscimo/desconto)</label>
+            <textarea id="modal-justificativa" rows="3" placeholder="Ex: negociação especial deste evento"></textarea>
           </div>
 
           <div class="valor-separador"></div>
