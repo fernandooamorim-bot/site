@@ -39,6 +39,7 @@ let eventosComPropostaFolhaCacheTs = 0;
 let propostaPendenteAtual = null;
 let eventoSelecionadoTemFolhaAtiva = false;
 let reconciliandoPendenciasCache = false;
+let salvandoFolhaCusto = false;
 
 function setAgendaRecomendadosLoading_(ativo, texto) {
   const box = document.getElementById('agenda-evento-recomendados');
@@ -819,6 +820,7 @@ function classificarStatusEventoAutocompleteRapido_(ev) {
 function atualizarBotaoAcaoFolha_() {
   const btn = document.getElementById('btn-enviar-aprovacao');
   if (!btn) return;
+  if (btn.dataset.enviando === '1') return;
   if (propostaPendenteAtual && propostaPendenteAtual.id) {
     btn.textContent = '♻️ Atualizar Proposta Pendente';
     return;
@@ -828,6 +830,24 @@ function atualizarBotaoAcaoFolha_() {
     return;
   }
   btn.textContent = '✅ Registrar Folha e Enviar para Aprovação';
+}
+
+function setEstadoEnvioFolha_(ativo, texto) {
+  const btn = document.getElementById('btn-enviar-aprovacao');
+  if (!btn) return;
+  if (ativo) {
+    if (!btn.dataset.labelOriginal) btn.dataset.labelOriginal = btn.textContent || '';
+    btn.dataset.enviando = '1';
+    btn.disabled = true;
+    btn.textContent = texto || '⏳ Processando...';
+    return;
+  }
+  btn.disabled = false;
+  btn.dataset.enviando = '0';
+  if (btn.dataset.labelOriginal) {
+    btn.textContent = btn.dataset.labelOriginal;
+  }
+  atualizarBotaoAcaoFolha_();
 }
 
 function parseArrayMaybeJson_(v) {
@@ -2117,6 +2137,7 @@ if (linhasAdicionais.length > 0) {
 // ═══════════════════════════════════════════════════════════
 
 async function salvarFolhaCusto(opts) {
+  if (salvandoFolhaCusto) return;
   const options = opts && typeof opts === 'object' ? opts : {};
   const enviarAprovacao = options.enviarAprovacao !== false;
   const eventoData = document.getElementById('evento-data').value;
@@ -2133,118 +2154,121 @@ async function salvarFolhaCusto(opts) {
     return;
   }
 
-  await carregarEventosComPropostaFolha_();
-  const pendenciaExistente = propostasPendentesPorEvento.get(idEventoAgenda);
-  if (
-    pendenciaExistente &&
-    (!propostaPendenteAtual || String(propostaPendenteAtual.id || '').trim() !== String(pendenciaExistente.id || '').trim())
-  ) {
-    const desejaAtualizar = confirm('Este evento já possui uma proposta pendente. Deseja abrir essa proposta para atualização?');
-    if (!desejaAtualizar) {
+  const loadingMsg = enviarAprovacao
+    ? 'Registrando folha e enviando para aprovação...'
+    : 'Salvando folha de custo...';
+  salvandoFolhaCusto = true;
+  setEstadoEnvioFolha_(true, '⏳ Processando...');
+  showLoading(loadingMsg);
+
+  try {
+    await carregarEventosComPropostaFolha_();
+    const pendenciaExistente = propostasPendentesPorEvento.get(idEventoAgenda);
+    if (
+      pendenciaExistente &&
+      (!propostaPendenteAtual || String(propostaPendenteAtual.id || '').trim() !== String(pendenciaExistente.id || '').trim())
+    ) {
+      const desejaAtualizar = confirm('Este evento já possui uma proposta pendente. Deseja abrir essa proposta para atualização?');
+      if (!desejaAtualizar) {
+        return;
+      }
+      await selecionarEventoAgendaFolha_(idEventoAgenda);
       return;
     }
-    await selecionarEventoAgendaFolha_(idEventoAgenda);
-    return;
-  }
-  
-  if (musicosSelecionados.size === 0) {
-    alert('Por favor, selecione pelo menos um músico');
-    return;
-  }
-
-  const eventoForaCidade = document.getElementById('evento-fora-cidade').checked;
-  const adicionalAuto = calcularAdicionalAutomatico();
-  
-  const musicosData = Array.from(musicosSelecionados.values()).map(dados => {
-    const passagem = musicoTemPassagem(dados.musico.id) ? valorPassagemDeSom : 0;  // ← NOVO
-    const ajusteInfo = normalizarAjusteMusicoLocal_(dados.ajuste, {});
     
-    return {
-      id: dados.musico.id,
-      nome: dados.musico.nome,
-      funcao: dados.musico.funcao,
-      valorBase: dados.musico.valorBase,
-      adicionalAutomatico: adicionalAuto,
-      acrescimo: Number(ajusteInfo.acrescimo || 0),
-      desconto: Number(ajusteInfo.desconto || 0),
-      adicionalExtra: Number(ajusteInfo.ajusteLiquido || 0),
-      ajusteLiquido: Number(ajusteInfo.ajusteLiquido || 0),
-      adicionalPassagem: passagem,  // ← NOVO
-      adicionalMotivo: passagem > 0 ? 'Passagem de Som' : '',  // ← NOVO
-      justificativa: String(ajusteInfo.justificativa || ''),
-      ajusteAudit: {
+    if (musicosSelecionados.size === 0) {
+      alert('Por favor, selecione pelo menos um músico');
+      return;
+    }
+
+    const eventoForaCidade = document.getElementById('evento-fora-cidade').checked;
+    const adicionalAuto = calcularAdicionalAutomatico();
+    
+    const musicosData = Array.from(musicosSelecionados.values()).map(dados => {
+      const passagem = musicoTemPassagem(dados.musico.id) ? valorPassagemDeSom : 0;  // ← NOVO
+      const ajusteInfo = normalizarAjusteMusicoLocal_(dados.ajuste, {});
+      
+      return {
+        id: dados.musico.id,
+        nome: dados.musico.nome,
+        funcao: dados.musico.funcao,
+        valorBase: dados.musico.valorBase,
+        adicionalAutomatico: adicionalAuto,
         acrescimo: Number(ajusteInfo.acrescimo || 0),
         desconto: Number(ajusteInfo.desconto || 0),
-        liquido: Number(ajusteInfo.ajusteLiquido || 0),
-        ajustadoPor: CURRENT_USER_EMAIL || localStorage.getItem('auth_email') || '',
-        ajustadoEm: new Date().toISOString(),
-        justificativa: String(ajusteInfo.justificativa || '')
+        adicionalExtra: Number(ajusteInfo.ajusteLiquido || 0),
+        ajusteLiquido: Number(ajusteInfo.ajusteLiquido || 0),
+        adicionalPassagem: passagem,  // ← NOVO
+        adicionalMotivo: passagem > 0 ? 'Passagem de Som' : '',  // ← NOVO
+        justificativa: String(ajusteInfo.justificativa || ''),
+        ajusteAudit: {
+          acrescimo: Number(ajusteInfo.acrescimo || 0),
+          desconto: Number(ajusteInfo.desconto || 0),
+          liquido: Number(ajusteInfo.ajusteLiquido || 0),
+          ajustadoPor: CURRENT_USER_EMAIL || localStorage.getItem('auth_email') || '',
+          ajustadoEm: new Date().toISOString(),
+          justificativa: String(ajusteInfo.justificativa || '')
+        },
+        total: (dados.musico.valorBase || 0) + adicionalAuto + Number(ajusteInfo.ajusteLiquido || 0) + passagem  // ← ATUALIZADO
+      };
+    });
+    
+    const totalMusicos = musicosData.reduce((sum, m) => sum + (m.valorBase || 0), 0);
+    const totalAdicionais = musicosData.reduce((sum, m) => 
+      sum + (m.adicionalAutomatico || 0) + (m.ajusteLiquido || m.adicionalExtra || 0) + (m.adicionalPassagem || 0), 0);
+    const totalTerceirizados = terceirizadosAtivos.reduce((sum, item) => sum + (item.valor || 0), 0);
+    const custoTotal = totalMusicos + totalAdicionais + totalTerceirizados;
+    
+    const folhaCusto = {
+      id: String((propostaPendenteAtual && propostaPendenteAtual.id) || Date.now()),
+      data: eventoData,
+      nomeEvento: eventoNome,
+      idEvento: idEventoAgenda || '',
+      idEventoAgenda: idEventoAgenda || '',
+      foraCidade: eventoForaCidade,
+      musicos: musicosData,
+      terceirizados: terceirizadosAtivos,
+      totais: {
+        musicos: totalMusicos,
+        adicionais: totalAdicionais,
+        terceirizados: totalTerceirizados,
+        geral: custoTotal
       },
-      total: (dados.musico.valorBase || 0) + adicionalAuto + Number(ajusteInfo.ajusteLiquido || 0) + passagem  // ← ATUALIZADO
-    };
-  });
-  
-  const totalMusicos = musicosData.reduce((sum, m) => sum + (m.valorBase || 0), 0);
-  const totalAdicionais = musicosData.reduce((sum, m) => 
-    sum + (m.adicionalAutomatico || 0) + (m.ajusteLiquido || m.adicionalExtra || 0) + (m.adicionalPassagem || 0), 0);
-  const totalTerceirizados = terceirizadosAtivos.reduce((sum, item) => sum + (item.valor || 0), 0);
-  const custoTotal = totalMusicos + totalAdicionais + totalTerceirizados;
-  
-  const folhaCusto = {
-    id: String((propostaPendenteAtual && propostaPendenteAtual.id) || Date.now()),
-    data: eventoData,
-    nomeEvento: eventoNome,
-    idEvento: idEventoAgenda || '',
-    idEventoAgenda: idEventoAgenda || '',
-    foraCidade: eventoForaCidade,
-    musicos: musicosData,
-    terceirizados: terceirizadosAtivos,
-    totais: {
-      musicos: totalMusicos,
-      adicionais: totalAdicionais,
-      terceirizados: totalTerceirizados,
-      geral: custoTotal
-    },
 
-     passagemDeSom: passagemDeSomAtiva ? {  // ← NOVO
-      ativa: true,
-      valorPorPessoa: valorPassagemDeSom,
-      participantes: musicosData.filter(m => m.adicionalPassagem > 0).map(m => m.id),
-      totalGasto: musicosData.reduce((sum, m) => sum + (m.adicionalPassagem || 0), 0)
-    } : null,
-
-    resumo: document.getElementById('resumo-texto').textContent,
-    resumoCompacto: String(document.getElementById('resumo-texto').textContent || '').replace(/\s+/g, ' ').trim().slice(0, 480),
-    statusAprovacao: enviarAprovacao ? 'PENDENTE_APROVACAO' : 'RASCUNHO',
-    agendaSincronizado: false,
-    criadoPor: CURRENT_USER_EMAIL || localStorage.getItem('auth_email') || '',
-    criadoEm: new Date().toISOString(),
-    // Persistência redundante em campo já existente da planilha externa (Folhas_Custo)
-    // para não depender de estrutura nova no utilitário externo.
-    Folhas_Custo: {
-      passagemDeSom: passagemDeSomAtiva ? {
+      passagemDeSom: passagemDeSomAtiva ? {  // ← NOVO
         ativa: true,
         valorPorPessoa: valorPassagemDeSom,
         participantes: musicosData.filter(m => m.adicionalPassagem > 0).map(m => m.id),
         totalGasto: musicosData.reduce((sum, m) => sum + (m.adicionalPassagem || 0), 0)
       } : null,
-      agenda: {
-        idEvento: idEventoAgenda || '',
-        statusAprovacao: enviarAprovacao ? 'PENDENTE_APROVACAO' : 'RASCUNHO',
-        agendaSincronizado: false,
-        enviadoPor: CURRENT_USER_EMAIL || localStorage.getItem('auth_email') || '',
-        enviadoEm: new Date().toISOString()
+
+      resumo: document.getElementById('resumo-texto').textContent,
+      resumoCompacto: String(document.getElementById('resumo-texto').textContent || '').replace(/\s+/g, ' ').trim().slice(0, 480),
+      statusAprovacao: enviarAprovacao ? 'PENDENTE_APROVACAO' : 'RASCUNHO',
+      agendaSincronizado: false,
+      criadoPor: CURRENT_USER_EMAIL || localStorage.getItem('auth_email') || '',
+      criadoEm: new Date().toISOString(),
+      // Persistência redundante em campo já existente da planilha externa (Folhas_Custo)
+      // para não depender de estrutura nova no utilitário externo.
+      Folhas_Custo: {
+        passagemDeSom: passagemDeSomAtiva ? {
+          ativa: true,
+          valorPorPessoa: valorPassagemDeSom,
+          participantes: musicosData.filter(m => m.adicionalPassagem > 0).map(m => m.id),
+          totalGasto: musicosData.reduce((sum, m) => sum + (m.adicionalPassagem || 0), 0)
+        } : null,
+        agenda: {
+          idEvento: idEventoAgenda || '',
+          statusAprovacao: enviarAprovacao ? 'PENDENTE_APROVACAO' : 'RASCUNHO',
+          agendaSincronizado: false,
+          enviadoPor: CURRENT_USER_EMAIL || localStorage.getItem('auth_email') || '',
+          enviadoEm: new Date().toISOString()
+        }
       }
-    }
-  };
-  
-  try {
-    showLoading(enviarAprovacao ? 'Registrando folha e enviando para aprovação...' : 'Salvando folha de custo...');
-    
+    };
+
     const resultado = await apiPost('salvarFolhaCusto', { data: folhaCusto });
-    
-    hideLoading();
-    
+
     if (resultado.success) {
       if (enviarAprovacao && idEventoAgenda) {
         eventosComPropostaFolhaCache.add(idEventoAgenda);
@@ -2265,9 +2289,12 @@ async function salvarFolhaCusto(opts) {
     }
     
   } catch (error) {
-    hideLoading();
     console.error('❌ Erro ao salvar:', error);
     alert('Erro ao salvar folha de custo. Tente novamente.');
+  } finally {
+    hideLoading();
+    setEstadoEnvioFolha_(false);
+    salvandoFolhaCusto = false;
   }
 }
 

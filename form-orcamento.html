@@ -566,6 +566,11 @@
                 <span>Premium</span>
                 <input id="valorPremium" type="text" inputmode="decimal" placeholder="Valor (opcional)">
               </div>
+              <div class="opt-line">
+                <input id="propDebut" type="checkbox">
+                <span>Debut</span>
+                <input id="valorDebut" type="text" inputmode="decimal" placeholder="Valor (opcional)">
+              </div>
             </div>
           </div>
           <div class="field span-2">
@@ -744,6 +749,7 @@
       if (document.getElementById('propPocket').checked) propostas.push('pocket');
       if (document.getElementById('propGold').checked) propostas.push('gold');
       if (document.getElementById('propPremium').checked) propostas.push('premium');
+      if (document.getElementById('propDebut').checked) propostas.push('debut');
 
       return {
         nome: document.getElementById('nome').value.trim(),
@@ -753,6 +759,7 @@
         valorPocket: normalizarNumero_(document.getElementById('valorPocket').value),
         valorGold: normalizarNumero_(document.getElementById('valorGold').value),
         valorPremium: normalizarNumero_(document.getElementById('valorPremium').value),
+        valorDebut: normalizarNumero_(document.getElementById('valorDebut').value),
         observacoes: document.getElementById('observacoes').value.trim()
       };
     }
@@ -838,9 +845,9 @@
     }
 
     function limparFormulario_() {
-      ['nome', 'telefone', 'dataEvento', 'valorPocket', 'valorGold', 'valorPremium', 'observacoes']
+      ['nome', 'telefone', 'dataEvento', 'valorPocket', 'valorGold', 'valorPremium', 'valorDebut', 'observacoes']
         .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
-      ['propPocket', 'propGold', 'propPremium']
+      ['propPocket', 'propGold', 'propPremium', 'propDebut']
         .forEach(id => { const el = document.getElementById(id); if (el) el.checked = false; });
       const result = document.getElementById('resultBox');
       if (result) result.classList.remove('show');
@@ -921,7 +928,7 @@
       const btnCopyPdf = document.getElementById('btnCopyPdf');
       const btnCopyWhats = document.getElementById('btnCopyWhats');
       const tel = document.getElementById('telefone');
-      const valores = ['valorPocket', 'valorGold', 'valorPremium']
+      const valores = ['valorPocket', 'valorGold', 'valorPremium', 'valorDebut']
         .map(id => document.getElementById(id))
         .filter(Boolean);
 
