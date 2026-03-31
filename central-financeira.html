@@ -2119,6 +2119,16 @@ function atualizarResumoLiquidoComissao_() {
   const debito = parseValorSeguro(document.getElementById('ajDebito')?.value) || 0;
   const liquido = base + credito - debito;
 
+  const elCredDeb = document.getElementById('kpiCreditoDebito');
+  if (elCredDeb) {
+    elCredDeb.textContent = `R$ ${credito.toFixed(2)} / R$ ${debito.toFixed(2)}`;
+  }
+
+  const elTotalAjustado = document.getElementById('kpiTotalComAjustes');
+  if (elTotalAjustado) {
+    elTotalAjustado.textContent = `R$ ${liquido.toFixed(2)}`;
+  }
+
   card.innerHTML =
     `<strong>Valor líquido para transferir:</strong> R$ ${liquido.toFixed(2)} ` +
     `<span class="muted">(base R$ ${base.toFixed(2)} + crédito R$ ${credito.toFixed(2)} - débito R$ ${debito.toFixed(2)})</span>`;
@@ -3842,9 +3852,10 @@ function carregarResumoVendedor(){
     }
 
     // 4️⃣ Render normal (layout profissional de resumo)
-    const totalFinal = Number(preview.totalComissao || 0) + Number(preview.totalAjuste || 0);
+    const totalBase = Number(preview.totalComissao || 0) + Number(preview.totalAjuste || 0);
     const credito = Number(document.getElementById('ajCredito')?.value ? parseValorSeguro(document.getElementById('ajCredito').value, { allowZero: true }) : 0) || 0;
     const debito = Number(document.getElementById('ajDebito')?.value ? parseValorSeguro(document.getElementById('ajDebito').value, { allowZero: true }) : 0) || 0;
+    const totalComAjustes = totalBase + credito - debito;
 
     let html = `
       <div class="cs-wrap">
@@ -3853,8 +3864,8 @@ function carregarResumoVendedor(){
         <div class="cs-kpi">
           <div class="cs-kpi-item"><div class="k">Eventos no fechamento</div><div class="v">${preview.totalEventos}</div></div>
           <div class="cs-kpi-item"><div class="k">Comissão base</div><div class="v">R$ ${Number(preview.totalComissao || 0).toFixed(2)}</div></div>
-          <div class="cs-kpi-item"><div class="k">Crédito / Débito</div><div class="v">R$ ${credito.toFixed(2)} / R$ ${debito.toFixed(2)}</div></div>
-          <div class="cs-kpi-item"><div class="k">Total de comissão a pagar</div><div class="v">R$ ${totalFinal.toFixed(2)}</div></div>
+          <div class="cs-kpi-item"><div class="k">Crédito / Débito</div><div class="v" id="kpiCreditoDebito">R$ ${credito.toFixed(2)} / R$ ${debito.toFixed(2)}</div></div>
+          <div class="cs-kpi-item"><div class="k">Total com ajustes (fechamento)</div><div class="v" id="kpiTotalComAjustes">R$ ${totalComAjustes.toFixed(2)}</div></div>
         </div>
         <div id="resumoLiquidoComissao"></div>
         <div class="divider"></div>
