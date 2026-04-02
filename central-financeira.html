@@ -1335,6 +1335,12 @@ let fiscalAuditoriaCache = { ts: 0, resumo: null, mapa: null };
 let fiscalFiltroTimer = null;
 let fiscalListaFiltradaCache = [];
 let fiscalRenderLimit = 40;
+let fiscalRestoreScrollTop = null;
+let fiscalUiState = {
+  busca: '',
+  tipo: 'TODOS',
+  renderLimit: 40
+};
 const FISCAL_RENDER_STEP = 40;
 const FISCAL_AUDITORIA_CACHE_TTL_MS = 120000;
 let buscaEventoTimer = null;
@@ -2452,8 +2458,57 @@ function renderFiscalizacao() {
     </div>
   `;
 
+  restaurarEstadoFiscalizacaoUi_();
   resumo.innerHTML = '<span class="muted">Carregando auditoria financeira...</span>';
   carregarFiscalizacaoInicial_();
+}
+
+function capturarEstadoFiscalizacaoUi_() {
+  const buscaEl = document.getElementById('filtroFiscalBusca');
+  const tipoEl = document.getElementById('filtroFiscalTipo');
+  const listaEl = document.getElementById('listaFiscalizacao');
+  fiscalUiState = {
+    busca: String(buscaEl?.value || '').trim(),
+    tipo: String(tipoEl?.value || 'TODOS'),
+    renderLimit: Math.max(FISCAL_RENDER_STEP, Number(fiscalRenderLimit || FISCAL_RENDER_STEP))
+  };
+  if (listaEl) fiscalRestoreScrollTop = Number(listaEl.scrollTop || 0);
+  return fiscalUiState;
+}
+
+function restaurarEstadoFiscalizacaoUi_() {
+  const buscaEl = document.getElementById('filtroFiscalBusca');
+  const tipoEl = document.getElementById('filtroFiscalTipo');
+  if (buscaEl) buscaEl.value = String(fiscalUiState?.busca || '');
+  if (tipoEl) tipoEl.value = String(fiscalUiState?.tipo || 'TODOS');
+  fiscalRenderLimit = Math.max(FISCAL_RENDER_STEP, Number(fiscalUiState?.renderLimit || FISCAL_RENDER_STEP));
+}
+
+function atualizarStatusSincronizacaoFiscal_(texto, tipo) {
+  if (String(mode || '') !== 'fiscalizacao') return;
+  const status = String(texto || '').trim();
+  const classe = String(tipo || 'muted');
+  const elExistente = document.getElementById('fiscalResumoSync');
+  if (elExistente) {
+    elExistente.className = classe === 'ok' ? 'ok' : 'muted';
+    elExistente.textContent = status;
+    return;
+  }
+  if (!status) return;
+  const html = `<div id="fiscalResumoSync" class="${classe === 'ok' ? 'ok' : 'muted'}" style="margin-top:8px">${escaparHtml_(status)}</div>`;
+  if (resumo) {
+    const atual = String(resumo.innerHTML || '');
+    resumo.innerHTML = atual + html;
+  }
+}
+
+function formatarDataHoraCurtaFiscal_(dateObj) {
+  const d = dateObj instanceof Date ? dateObj : new Date();
+  const dd = String(d.getDate()).padStart(2, '0');
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const hh = String(d.getHours()).padStart(2, '0');
+  const mi = String(d.getMinutes()).padStart(2, '0');
+  return `${dd}/${mm} ${hh}:${mi}`;
 }
 
 function carregarFiscalizacaoInicial_() {
@@ -2472,22 +2527,33 @@ async function carregarFiscalizacao_(executarAuditoria, opts) {
   const forceAuditoria = op.forceAuditoria === true;
   const usarOverlay = op.usarOverlay === true;
   const listaEl = document.getElementById('listaFiscalizacao');
+  const estadoUiAntesRefresh = capturarEstadoFiscalizacaoUi_();
   try {
     if (usarOverlay) showLoading('Carregando fiscalização financeira...');
     if (listaEl) {
       listaEl.innerHTML = '<div class="muted">Atualizando eventos financeiros...</div>';
     }
+    atualizarStatusSincronizacaoFiscal_('Sincronizando eventos financeiros...', 'muted');
     fiscalEventosCache = await obterEventosFinanceiros_({ forceRefresh });
     atualizarBadgeFiscalizacao_(fiscalEventosCache);
     if (usarOverlay) hideLoading();
-    aplicarFiltrosFiscalizacao_(true);
+    if (forceRefresh) {
+      fiscalRenderLimit = Math.max(FISCAL_RENDER_STEP, Number(estadoUiAntesRefresh?.renderLimit || FISCAL_RENDER_STEP));
+      aplicarFiltrosFiscalizacao_(false);
+    } else {
+      aplicarFiltrosFiscalizacao_(true);
+    }
     if (executarAuditoria) {
       if (auditoriaEmBackground) {
         resumo.innerHTML = '<span class="muted">Lista pronta. Executando auditoria em segundo plano...</span>';
+        atualizarStatusSincronizacaoFiscal_('Auditoria em execução...', 'muted');
         executarAuditoriaFiscalizacao_(true, { force: forceAuditoria });
       } else {
+        atualizarStatusSincronizacaoFiscal_('Executando auditoria...', 'muted');
         await executarAuditoriaFiscalizacao_(true, { force: forceAuditoria });
       }
+    } else {
+      atualizarStatusSincronizacaoFiscal_(`Sincronizado em ${formatarDataHoraCurtaFiscal_(new Date())}.`, 'ok');
     }
     console.info('[CF][PERF] carregarFiscalizacao concluído em', Math.round(performance.now() - t0), 'ms');
   } catch (err) {
@@ -2517,6 +2583,7 @@ function aplicarResultadoAuditoriaFiscalizacao_(resumoAuditoria, mapaDivergencia
     <div><strong>Eventos com divergência:</strong> ${Number(r.eventosComDivergencia || 0)}</div>
     <div class="muted" style="margin-top:8px">Última auditoria executada agora.</div>
   `;
+  atualizarStatusSincronizacaoFiscal_(`Sincronizado em ${formatarDataHoraCurtaFiscal_(new Date())}.`, 'ok');
 }
 
 function agendarAplicarFiltrosFiscalizacao_(resetarPaginacao) {
@@ -2528,6 +2595,7 @@ function agendarAplicarFiltrosFiscalizacao_(resetarPaginacao) {
 
 function carregarMaisFiscalizacao_() {
   fiscalRenderLimit += FISCAL_RENDER_STEP;
+  fiscalUiState.renderLimit = fiscalRenderLimit;
   renderListaFiscalizacao_(fiscalListaFiltradaCache);
 }
 
@@ -2581,8 +2649,12 @@ function aplicarFiltrosFiscalizacao_(resetarPaginacao) {
   if (resetarPaginacao !== false) {
     fiscalRenderLimit = FISCAL_RENDER_STEP;
   }
-  const busca = String(document.getElementById('filtroFiscalBusca')?.value || '').trim().toLowerCase();
+  const buscaRaw = String(document.getElementById('filtroFiscalBusca')?.value || '').trim();
+  const busca = buscaRaw.toLowerCase();
   const tipo = String(document.getElementById('filtroFiscalTipo')?.value || 'TODOS');
+  fiscalUiState.busca = buscaRaw;
+  fiscalUiState.tipo = tipo;
+  fiscalUiState.renderLimit = fiscalRenderLimit;
   let lista = Array.isArray(fiscalEventosCache) ? [...fiscalEventosCache] : [];
 
   if (busca) {
@@ -2719,6 +2791,10 @@ function renderListaFiscalizacao_(lista) {
       ${restante > 0 ? `<button type="button" class="btn secondary" style="margin-left:8px" onclick="carregarMaisFiscalizacao_()">Carregar mais ${Math.min(FISCAL_RENDER_STEP, restante)}</button>` : ''}
     </div>
   `;
+  if (fiscalRestoreScrollTop !== null) {
+    box.scrollTop = Number(fiscalRestoreScrollTop || 0);
+    fiscalRestoreScrollTop = null;
+  }
 }
 
 function formatarDataFiscalizacao_(valor) {
