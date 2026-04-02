@@ -1915,6 +1915,7 @@ if (!AUTH.email || !AUTH.session) {
       syncRunId: 0,
       offlineAtivo: false,
       offlineListenersSet: false,
+      listenersRegistrados: false,
       novidades: {
         ids: {},
         total: 0
@@ -1924,6 +1925,7 @@ if (!AUTH.email || !AUTH.session) {
 
     const AGENDA_CACHE_KEY_PREFIX = 'agenda_cache_v2:';
     const AGENDA_OFFLINE_CONFIG_CACHE_KEY = 'agenda_offline_config_v1';
+    const AGENDA_NOVIDADES_KEY_PREFIX = 'agenda_novidades_v1:';
 
     function isMusico() {
       if (!AppState.usuario) return false;
@@ -2998,11 +3000,12 @@ criarCardEvento(evento) {
     const buffer = AppState.virtualizacao.buffer;
 
     // Índices visíveis
-    const startIndex = Math.max(0, Math.floor(scrollTop / itemHeight) - buffer);
-    const endIndex = Math.min(
+      const startIndexRaw = Math.max(0, Math.floor(scrollTop / itemHeight) - buffer);
+      const endIndex = Math.min(
       eventos.length,
       Math.ceil((scrollTop + viewportHeight) / itemHeight) + buffer
     );
+      const startIndex = Math.min(startIndexRaw, Math.max(0, endIndex - 1));
 
     AppState.virtualizacao.viewport = { start: startIndex, end: endIndex };
 
@@ -3686,6 +3689,7 @@ renderizarEventosDentro(evento) {
           nome: AUTH.nome,
           perfil: AUTH.perfil || 'Músico'
         };
+        this.carregarNovidadesPersistidas_();
         this.atualizarVisibilidadeBotaoNovidades_();
 
         return AppState.usuario;
@@ -3709,6 +3713,7 @@ renderizarEventosDentro(evento) {
         if (this.deveIgnorarPrimeiroDeltaNovidades_(antes)) {
           AppState.novidades = { ids: {}, total: 0 };
           this.atualizarBotaoNovidades_();
+          this.salvarNovidadesPersistidas_();
           return;
         }
 
@@ -3742,6 +3747,7 @@ renderizarEventosDentro(evento) {
 
         AppState.novidades = { ids, total };
         this.atualizarBotaoNovidades_();
+        this.salvarNovidadesPersistidas_();
       },
 
       deveIgnorarPrimeiroDeltaNovidades_(antes) {
@@ -4076,6 +4082,43 @@ renderizarEventosDentro(evento) {
     return AGENDA_CACHE_KEY_PREFIX + email + '|' + perfil;
   },
 
+  getNovidadesKeyPersistente_() {
+    const email = (AUTH.email || '').trim().toLowerCase();
+    const perfil = (AUTH.perfil || '').trim();
+    return AGENDA_NOVIDADES_KEY_PREFIX + email + '|' + perfil;
+  },
+
+  carregarNovidadesPersistidas_() {
+    try {
+      const raw = localStorage.getItem(this.getNovidadesKeyPersistente_());
+      if (!raw) return false;
+      const parsed = JSON.parse(raw);
+      const ids = (parsed && parsed.ids && typeof parsed.ids === 'object') ? parsed.ids : {};
+      const total = Number(parsed && parsed.total || 0);
+      AppState.novidades = {
+        ids: ids,
+        total: Number.isFinite(total) && total > 0 ? Math.floor(total) : 0
+      };
+      return true;
+    } catch (e) {
+      Utils.error('Falha ao ler novidades persistidas:', e);
+      return false;
+    }
+  },
+
+  salvarNovidadesPersistidas_() {
+    try {
+      const payload = {
+        ids: (AppState.novidades && AppState.novidades.ids) || {},
+        total: Number((AppState.novidades && AppState.novidades.total) || 0),
+        ts: Date.now()
+      };
+      localStorage.setItem(this.getNovidadesKeyPersistente_(), JSON.stringify(payload));
+    } catch (e) {
+      Utils.error('Falha ao salvar novidades persistidas:', e);
+    }
+  },
+
   carregarCachePersistente() {
     try {
       const raw = localStorage.getItem(this.getCacheKeyPersistente());
@@ -4164,6 +4207,7 @@ renderizarEventosDentro(evento) {
       } else {
         AppState.novidades = { ids: {}, total: 0 };
         this.atualizarBotaoNovidades_();
+        this.salvarNovidadesPersistidas_();
       }
       AppState.cache = {
         timestamp: Date.now(),
@@ -4174,7 +4218,20 @@ renderizarEventosDentro(evento) {
       this.atualizarFiltrosAnuaisRapidos();
 
       const filtro = AppState.filtroAtivo || (isPerfilRestritoAgenda() ? 'proximos' : 'todos');
-      FiltroManager.aplicarFiltroRapido(filtro);
+      if (filtro === 'personalizado') {
+        const advanced = document.getElementById('filtersAdvanced');
+        const estavaAberto = !!(advanced && advanced.classList.contains('show'));
+        FiltroManager.aplicarFiltrosAvancados();
+        if (estavaAberto && advanced) {
+          advanced.classList.add('show');
+          const icon = document.getElementById('toggleIcon');
+          const text = document.getElementById('toggleText');
+          if (icon) icon.textContent = '▲';
+          if (text) text.textContent = 'Ocultar Filtros';
+        }
+      } else {
+        FiltroManager.aplicarFiltroRapido(filtro);
+      }
       if (notify && isRunAtivo()) {
         UI.showToast('Agenda atualizada com sucesso.', 'success', 1800);
         UI.hideSyncStatus();
@@ -4368,6 +4425,11 @@ renderizarEventosDentro(evento) {
         Utils.log('Configurando event listeners...');
 
         try {
+          if (AppState.listenersRegistrados) {
+            Utils.log('⚙️ Event listeners já registrados; pulando nova vinculação.');
+            return;
+          }
+
           const btnModoCards = document.getElementById('btnModoCards');
           const btnModoPlanilha = document.getElementById('btnModoPlanilha');
           const btnExportarCsv = document.getElementById('btnExportarCsv');
@@ -4515,6 +4577,7 @@ renderizarEventosDentro(evento) {
               };
               AppState.novidades = { ids: {}, total: 0 };
               AgendaController.atualizarBotaoNovidades_();
+              AgendaController.salvarNovidadesPersistidas_();
               AgendaController.limparCachePersistente();
 
               // Mostra loading
@@ -4570,6 +4633,7 @@ renderizarEventosDentro(evento) {
             });
           }
 
+          AppState.listenersRegistrados = true;
           Utils.log('✅ Event listeners configurados');
         } catch (e) {
           Utils.error('Erro ao configurar event listeners:', e);
