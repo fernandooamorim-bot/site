@@ -457,6 +457,18 @@
         const mensagem = String(detalhesObj.mensagem || '').trim();
         return 'Erro de API durante a ação ' + (acao || 'N/A') + (codigo ? ' (código ' + codigo + ')' : '') + (mensagem ? ': ' + mensagem : '.');
       }
+      if (detalhesObj && Array.isArray(detalhesObj.alteracoes) && detalhesObj.alteracoes.length) {
+        const alteracoes = detalhesObj.alteracoes;
+        const resumoCampos = alteracoes.slice(0, 5).map(function (it) {
+          const campo = String((it && it.campo) || '').trim() || 'campo';
+          const antes = String((it && (it.antes !== undefined ? it.antes : it.de)) || '').trim() || '(vazio)';
+          const depois = String((it && (it.depois !== undefined ? it.depois : it.para)) || '').trim() || '(vazio)';
+          return campo + ': \"' + antes + '\" → \"' + depois + '\"';
+        }).join(' | ');
+        const sufixo = alteracoes.length > 5 ? ' | +' + (alteracoes.length - 5) + ' alterações.' : '';
+        const origem = String((detalhesObj.origem || detalhesObj.fonte || '')).trim();
+        return 'Alterações detectadas' + (origem ? ' (' + origem + ')' : '') + ': ' + resumoCampos + sufixo;
+      }
       if (detalhesObj && detalhesObj.tipo === 'CADASTRO_EDICAO_DETALHADA') {
         const alteracoes = Array.isArray(detalhesObj.alteracoes) ? detalhesObj.alteracoes : [];
         const nomeRegistro = String(detalhesObj.nomeRegistro || '').trim();
