@@ -300,6 +300,7 @@
       border-radius: 8px;
       padding: 8px;
       word-break: break-word;
+      white-space: pre-line;
     }
     .empty {
       border: 1px dashed var(--line);
@@ -494,13 +495,6 @@
       return raw;
     }
 
-    function resumirTextoAlteracao_(txt, maxLen) {
-      const limite = Number(maxLen || 70);
-      const raw = String(txt || '').trim();
-      if (raw.length <= limite) return raw;
-      return raw.slice(0, limite - 3) + '...';
-    }
-
     function humanizarOrigem_(origem) {
       const o = String(origem || '').trim();
       if (!o) return '';
@@ -512,20 +506,16 @@
       const rotulo = rotuloCampoAlteracao_(campo);
       const a = normalizarValorAlteracao_(campo, antes);
       const d = normalizarValorAlteracao_(campo, depois);
+      return rotulo + ': "' + a + '" → "' + d + '"';
+    }
 
-      if (campo === 'observacoes') {
-        return 'Observações foram atualizadas.';
-      }
-      if (campo === 'horaInicio' || campo === 'horaFim') {
-        return rotulo + ' ajustado para ' + d + '.';
-      }
-      if (a === '(vazio)') {
-        return rotulo + ' preenchido com ' + resumirTextoAlteracao_(d, 60) + '.';
-      }
-      if (d === '(vazio)') {
-        return rotulo + ' foi removido.';
-      }
-      return rotulo + ' alterado de ' + resumirTextoAlteracao_(a, 45) + ' para ' + resumirTextoAlteracao_(d, 45) + '.';
+    function montarListaCompletaAlteracoes_(alteracoes) {
+      return alteracoes.map(function (it) {
+        const campo = String((it && it.campo) || '').trim() || 'campo';
+        const antes = (it && (it.antes !== undefined ? it.antes : it.de));
+        const depois = (it && (it.depois !== undefined ? it.depois : it.para));
+        return '• ' + descreverAlteracao_(campo, antes, depois);
+      }).join('\n');
     }
 
     function humanizarAcao(log) {
@@ -553,17 +543,11 @@
       }
       if (detalhesObj && Array.isArray(detalhesObj.alteracoes) && detalhesObj.alteracoes.length) {
         const alteracoes = detalhesObj.alteracoes;
-        const resumoCampos = alteracoes.slice(0, 4).map(function (it) {
-          const campo = String((it && it.campo) || '').trim() || 'campo';
-          const antes = (it && (it.antes !== undefined ? it.antes : it.de));
-          const depois = (it && (it.depois !== undefined ? it.depois : it.para));
-          return descreverAlteracao_(campo, antes, depois);
-        }).join(' ');
-        const sufixo = alteracoes.length > 4 ? ' Mais ' + (alteracoes.length - 4) + ' alteração(ões).' : '';
+        const listaAlteracoes = montarListaCompletaAlteracoes_(alteracoes);
         const origem = String((detalhesObj.origem || detalhesObj.fonte || '')).trim();
         return 'Foram detectadas ' + alteracoes.length + ' alteração(ões)' +
           (origem ? ' na rotina ' + humanizarOrigem_(origem) : '') +
-          '. ' + resumoCampos + sufixo;
+          ':\n' + listaAlteracoes;
       }
       if (detalhesObj && detalhesObj.tipo === 'CADASTRO_EDICAO_DETALHADA') {
         const alteracoes = Array.isArray(detalhesObj.alteracoes) ? detalhesObj.alteracoes : [];
@@ -571,12 +555,9 @@
         if (!alteracoes.length) {
           return 'Cadastro atualizado sem mudança efetiva de campos.' + (nomeRegistro ? ' Registro: ' + nomeRegistro + '.' : '');
         }
-        const resumoCampos = alteracoes.slice(0, 4).map(function (it) {
-          return descreverAlteracao_(String(it.campo || ''), it.antes, it.depois);
-        }).join(' ');
-        const sufixo = alteracoes.length > 4 ? ' Mais ' + (alteracoes.length - 4) + ' alteração(ões).' : '';
+        const listaAlteracoes = montarListaCompletaAlteracoes_(alteracoes);
         return 'Edição de cadastro' + (nomeRegistro ? ' de ' + nomeRegistro : '') +
-          ': ' + resumoCampos + sufixo;
+          ':\n' + listaAlteracoes;
       }
 
       if (/CRIAR|CADASTRAR/.test(acao)) {
