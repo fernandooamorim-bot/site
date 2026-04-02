@@ -4169,25 +4169,41 @@ renderizarEventosDentro(evento) {
     return info;
   },
 
-  async revalidarCacheEmSegundoPlano() {
-    if (AppState.offlineAtivo) return;
-    if (AppState.syncEmAndamento) return;
+  async revalidarCacheEmSegundoPlano(opcoes = {}) {
+    const force = !!(opcoes && opcoes.force);
+    const toastSemMudanca = !!(opcoes && opcoes.toastSemMudanca);
+    const notify = Object.prototype.hasOwnProperty.call(opcoes || {}, 'notify')
+      ? !!opcoes.notify
+      : this.configBool('AGENDA_CACHE_NOTIFY_UPDATE', true);
+
+    if (AppState.offlineAtivo) return { status: 'offline' };
+    if (AppState.syncEmAndamento) return { status: 'in_progress' };
 
     let slowTimer = null;
-    const notify = this.configBool('AGENDA_CACHE_NOTIFY_UPDATE', true);
     const runId = ++AppState.syncRunId;
     const isRunAtivo = () => runId === AppState.syncRunId;
     try {
       AppState.syncEmAndamento = true;
       const syncInfo = await this.obterAgendaSyncInfo();
-      if (!isRunAtivo()) return;
+      if (!isRunAtivo()) return { status: 'superseded' };
       const versaoAtual = String(syncInfo.version || '');
       const versaoCache = String(AppState.cache.syncVersion || '');
-      if (versaoAtual === versaoCache) return;
+      if (!force && versaoAtual === versaoCache) {
+        if (notify && toastSemMudanca && isRunAtivo()) {
+          UI.showToast('Agenda já está atualizada.', 'info', 1600);
+        }
+        return { status: 'no_change' };
+      }
 
       Utils.log('♻️ Mudança detectada no backend. Atualizando agenda em segundo plano...');
       if (notify && isRunAtivo()) {
-        UI.showToast('Detectamos alterações na agenda. Atualizando agora...', 'info', 2000);
+        UI.showToast(
+          force
+            ? 'Atualização forçada iniciada. Sincronizando agenda...'
+            : 'Detectamos alterações na agenda. Atualizando agora...',
+          'info',
+          2000
+        );
       }
       const eventosPromise = this.carregarEventos();
 
@@ -4200,7 +4216,7 @@ renderizarEventosDentro(evento) {
       }
 
       const eventosAtualizados = await eventosPromise;
-      if (!isRunAtivo()) return;
+      if (!isRunAtivo()) return { status: 'superseded' };
       const eventosAnteriores = Array.isArray(AppState.cache?.dados) ? AppState.cache.dados : [];
       if (isProprietarioAgenda()) {
         this.calcularNovidadesEntreSnapshots_(eventosAnteriores, eventosAtualizados);
@@ -4236,9 +4252,11 @@ renderizarEventosDentro(evento) {
         UI.showToast('Agenda atualizada com sucesso.', 'success', 1800);
         UI.hideSyncStatus();
       }
+      return { status: 'updated' };
     } catch (e) {
       Utils.error('Revalidação em segundo plano falhou:', e);
       if (isRunAtivo()) UI.hideSyncStatus();
+      return { status: 'error', error: e };
     } finally {
       if (slowTimer) clearTimeout(slowTimer);
       if (isRunAtivo()) AppState.syncEmAndamento = false;
@@ -4559,49 +4577,25 @@ renderizarEventosDentro(evento) {
           // Botão recarregar
           const btnRecarregar = document.getElementById('btnRecarregar');
           if (btnRecarregar) {
-            btnRecarregar.addEventListener('click', async () => {
+            btnRecarregar.addEventListener('click', async (e) => {
               if (AppState.offlineAtivo) {
                 UI.showToast('Modo offline ativo. Atualização exige internet.', 'warning', 2200);
                 return;
               }
-              Utils.log('🔄 Recarregando (limpando cache)...');
-              AppState.syncRunId += 1;
-              AppState.syncEmAndamento = false;
-              UI.hideSyncStatus();
-
-              // Limpa cache
-              AppState.cache = {
-                timestamp: 0,
-                dados: null,
-                syncVersion: ''
-              };
-              AppState.novidades = { ids: {}, total: 0 };
-              AgendaController.atualizarBotaoNovidades_();
-              AgendaController.salvarNovidadesPersistidas_();
-              AgendaController.limparCachePersistente();
-
-              // Mostra loading
-              document.getElementById('eventosContainer').innerHTML = `
-                <div class="loading-container">
-                  <div class="loading-spinner"></div>
-                  <div class="loading-text">Atualizando eventos...</div>
-                </div>
-              `;
-
-              // Recarrega
-	              await AgendaController.carregarEventosComCache();
-	              AgendaController.atualizarFiltrosAnuaisRapidos();
-	              const filtroAtual = String(AppState.filtroAtivo || '').trim();
-	              const filtroAplicar = filtroAtual
-	                ? filtroAtual
-	                : (isPerfilRestritoAgenda()
-	                  ? 'proximos'
-	                  : (AppState.config.AGENDA_FILTRO_PADRAO || 'todos'));
-	              FiltroManager.aplicarFiltroRapido(filtroAplicar);
-
-	              Utils.log('✅ Atualização concluída');
-	            });
-	          }
+              // Shift + clique mantém atualização forçada como fallback.
+              const force = !!(e && e.shiftKey);
+              if (force) {
+                Utils.log('🔄 Atualização forçada solicitada pelo usuário (Shift+clique)');
+              } else {
+                Utils.log('🔄 Sincronização inteligente solicitada pelo usuário');
+              }
+              await AgendaController.revalidarCacheEmSegundoPlano({
+                notify: true,
+                toastSemMudanca: true,
+                force: force
+              });
+            });
+          }
 
           // Botão toggle filtros no footer
           const btnToggleFilters = document.getElementById('btnToggleFilters');
