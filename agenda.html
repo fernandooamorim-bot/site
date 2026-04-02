@@ -4172,18 +4172,25 @@ renderizarEventosDentro(evento) {
   async revalidarCacheEmSegundoPlano(opcoes = {}) {
     const force = !!(opcoes && opcoes.force);
     const toastSemMudanca = !!(opcoes && opcoes.toastSemMudanca);
+    const showCheckingStatus = !!(opcoes && opcoes.showCheckingStatus);
     const notify = Object.prototype.hasOwnProperty.call(opcoes || {}, 'notify')
       ? !!opcoes.notify
       : this.configBool('AGENDA_CACHE_NOTIFY_UPDATE', true);
 
     if (AppState.offlineAtivo) return { status: 'offline' };
-    if (AppState.syncEmAndamento) return { status: 'in_progress' };
+    if (AppState.syncEmAndamento) {
+      if (notify) UI.showToast('Sincronização já em andamento.', 'info', 1500);
+      return { status: 'in_progress' };
+    }
 
     let slowTimer = null;
     const runId = ++AppState.syncRunId;
     const isRunAtivo = () => runId === AppState.syncRunId;
     try {
       AppState.syncEmAndamento = true;
+      if (notify && showCheckingStatus && isRunAtivo()) {
+        UI.showSyncStatus('Verificando atualizações...', 'info');
+      }
       const syncInfo = await this.obterAgendaSyncInfo();
       if (!isRunAtivo()) return { status: 'superseded' };
       const versaoAtual = String(syncInfo.version || '');
@@ -4192,6 +4199,7 @@ renderizarEventosDentro(evento) {
         if (notify && toastSemMudanca && isRunAtivo()) {
           UI.showToast('Agenda já está atualizada.', 'info', 1600);
         }
+        if (notify && isRunAtivo()) UI.hideSyncStatus();
         return { status: 'no_change' };
       }
 
@@ -4584,16 +4592,24 @@ renderizarEventosDentro(evento) {
               }
               // Shift + clique mantém atualização forçada como fallback.
               const force = !!(e && e.shiftKey);
+              btnRecarregar.classList.add('loading');
+              btnRecarregar.style.pointerEvents = 'none';
               if (force) {
                 Utils.log('🔄 Atualização forçada solicitada pelo usuário (Shift+clique)');
               } else {
                 Utils.log('🔄 Sincronização inteligente solicitada pelo usuário');
               }
-              await AgendaController.revalidarCacheEmSegundoPlano({
-                notify: true,
-                toastSemMudanca: true,
-                force: force
-              });
+              try {
+                await AgendaController.revalidarCacheEmSegundoPlano({
+                  notify: true,
+                  toastSemMudanca: true,
+                  showCheckingStatus: true,
+                  force: force
+                });
+              } finally {
+                btnRecarregar.classList.remove('loading');
+                btnRecarregar.style.pointerEvents = '';
+              }
             });
           }
 
