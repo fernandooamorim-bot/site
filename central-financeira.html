@@ -4636,11 +4636,75 @@ function liberarBotao(btn) {
 function resetRecebimentoForm() {
   consumirOperationKey('recebimento');
   eventoSelecionado = null;
-  document.getElementById('valor').value = '';
-  document.getElementById('obs').value = '';
-  document.getElementById('comprovante').value = '';
-  document.getElementById('evSug').innerHTML = '';
+  eventoSelecionadoMeta = null;
+  ultimoResumoFinanceiro = null;
+  resumoRecebimentosRecentes = [];
+  const inputEvento = document.getElementById('inputEvento');
+  if (inputEvento) inputEvento.value = '';
+  const campoValor = document.getElementById('valor');
+  if (campoValor) campoValor.value = '';
+  const campoObs = document.getElementById('obs');
+  if (campoObs) campoObs.value = '';
+  const campoComp = document.getElementById('comprovante');
+  if (campoComp) campoComp.value = '';
+  const fileComp = document.getElementById('fileComprovanteRecebimento');
+  if (fileComp) fileComp.value = '';
+  const aviso = document.getElementById('avisoValorRecebimento');
+  if (aviso) aviso.remove();
+  const sug = document.getElementById('evSug');
+  if (sug) sug.innerHTML = '';
   resumo.innerHTML = '<span class="muted">Selecione um evento</span>';
+}
+
+function limparCamposLancamentoRecebimento_() {
+  const campoValor = document.getElementById('valor');
+  if (campoValor) campoValor.value = '';
+  const campoObs = document.getElementById('obs');
+  if (campoObs) campoObs.value = '';
+  const campoComp = document.getElementById('comprovante');
+  if (campoComp) campoComp.value = '';
+  const fileComp = document.getElementById('fileComprovanteRecebimento');
+  if (fileComp) fileComp.value = '';
+  const aviso = document.getElementById('avisoValorRecebimento');
+  if (aviso) aviso.remove();
+  atualizarPreviewRecebimentoResumo_();
+}
+
+function prepararTrocaEventoRecebimento_() {
+  if (String(mode || '') !== 'recebimento') return;
+  resetRecebimentoForm();
+  const campoValor = document.getElementById('valor');
+  const inputEvento = document.getElementById('inputEvento');
+  if (inputEvento) inputEvento.focus();
+  else if (campoValor) campoValor.focus();
+}
+
+function renderConfirmacaoRecebimentoNoResumo_(valorLancado) {
+  if (String(mode || '') !== 'recebimento') return;
+  const valor = Number(valorLancado || 0);
+  const container = document.createElement('div');
+  container.className = 'rf-card';
+  container.style.border = '1px solid #bbf7d0';
+  container.style.background = '#f0fdf4';
+  container.style.marginBottom = '10px';
+  container.innerHTML = `
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">
+      <div>
+        <strong>Recebimento registrado com sucesso.</strong>
+        <div class="muted" style="margin-top:4px">Último lançamento: R$ ${valor.toFixed(2)}</div>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button type="button" class="btn secondary" onclick="prepararTrocaEventoRecebimento_()">Trocar evento</button>
+      </div>
+    </div>
+  `;
+
+  const wrap = resumo.querySelector('.rf-wrap');
+  if (wrap) wrap.insertBefore(container, wrap.firstChild);
+  else resumo.prepend(container);
+
+  const campoValor = document.getElementById('valor');
+  if (campoValor) campoValor.focus();
 }
 
 function resetObrigacaoForm() {
@@ -4756,9 +4820,28 @@ async function submitRecebimento(){
       return;
     }
 
+    const eventoAtual = eventoSelecionado;
+    const metaAtual = eventoSelecionadoMeta
+      ? {
+          idEvento: String(eventoSelecionadoMeta.idEvento || eventoAtual || '').trim(),
+          contratante: String(eventoSelecionadoMeta.contratante || '').trim(),
+          tipoEvento: String(eventoSelecionadoMeta.tipoEvento || '').trim()
+        }
+      : null;
+
     consumirOperationKey('recebimento');
-    resetRecebimentoForm();
-    alert('Recebimento registrado');
+    limparCamposLancamentoRecebimento_();
+
+    if (eventoAtual) {
+      await selectEvento({
+        id: String(metaAtual?.idEvento || eventoAtual),
+        contratante: String(metaAtual?.contratante || ''),
+        tipoEvento: String(metaAtual?.tipoEvento || 'Evento')
+      });
+      renderConfirmacaoRecebimentoNoResumo_(valor);
+    } else {
+      alert('Recebimento registrado');
+    }
   } catch (err) {
     tratarErroApi(err);
   } finally {
