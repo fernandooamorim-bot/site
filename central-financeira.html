@@ -1517,12 +1517,96 @@ buttons.forEach(b=>{
       alert('Aguarde o carregamento completo da Central Financeira.');
       return;
     }
-    if(mode && mode !== b.dataset.mode &&
-       !confirm('Trocar operação limpa os dados atuais. Continuar?')) return;
+    if (mode && mode !== b.dataset.mode && possuiDadosNaoProcessadosNoModoAtual_()) {
+      if (!confirm('Há dados preenchidos que ainda não foram processados. Trocar de operação agora?')) return;
+    }
 
     ativarModoCentral_(b.dataset.mode);
   };
 });
+
+function inputTemArquivoSelecionado_(id) {
+  const el = document.getElementById(id);
+  return !!(el && el.files && el.files.length > 0);
+}
+
+function campoTextoPreenchido_(id) {
+  const el = document.getElementById(id);
+  if (!el) return false;
+  const atual = String(el.value || '').trim();
+  const inicial = String(el.defaultValue || '').trim();
+  return atual !== '' && atual !== inicial;
+}
+
+function campoMonetarioMaiorQueZero_(id) {
+  const el = document.getElementById(id);
+  if (!el) return false;
+  const atual = Number(parseValorSeguro(el.value || '', { allowZero: true }) || 0);
+  const inicial = Number(parseValorSeguro(el.defaultValue || '', { allowZero: true }) || 0);
+  return atual > 0 && atual !== inicial;
+}
+
+function checkboxMarcado_(id) {
+  const el = document.getElementById(id);
+  return !!(el && el.checked === true);
+}
+
+function possuiDadosNaoProcessadosNoModoAtual_() {
+  const modoAtual = String(mode || '');
+  if (!modoAtual) return false;
+
+  if (modoAtual === 'fiscalizacao') return false;
+
+  if (modoAtual === 'recebimento') {
+    return (
+      campoMonetarioMaiorQueZero_('valor') ||
+      campoTextoPreenchido_('comprovante') ||
+      campoTextoPreenchido_('obs') ||
+      inputTemArquivoSelecionado_('fileComprovanteRecebimento')
+    );
+  }
+
+  if (modoAtual === 'estorno') {
+    return (
+      campoMonetarioMaiorQueZero_('valorEstorno') ||
+      campoTextoPreenchido_('motivoEstorno')
+    );
+  }
+
+  if (modoAtual === 'obrigacao') {
+    return (
+      campoMonetarioMaiorQueZero_('valorSaida') ||
+      campoTextoPreenchido_('obsSaida') ||
+      campoTextoPreenchido_('comprovanteSaida') ||
+      inputTemArquivoSelecionado_('fileComprovanteSaida')
+    );
+  }
+
+  if (modoAtual === 'pixautomatico') {
+    return (
+      campoTextoPreenchido_('asaasCpfCnpj') ||
+      campoTextoPreenchido_('asaasWhatsapp') ||
+      campoTextoPreenchido_('asaasEmail') ||
+      campoMonetarioMaiorQueZero_('asaasValor') ||
+      campoTextoPreenchido_('asaasDescricao')
+    );
+  }
+
+  if (modoAtual === 'comissao') {
+    const ajustes = Array.isArray(ajustesDetalhadosComissao) ? ajustes : [];
+    const ajustePreenchido = ajustes.some(a =>
+      Number(a?.valor || 0) > 0 || String(a?.descricao || '').trim() !== ''
+    );
+    return (
+      ajustePreenchido ||
+      campoTextoPreenchido_('linkPagamento') ||
+      inputTemArquivoSelecionado_('fileComprovanteFechamento') ||
+      checkboxMarcado_('confirmarFechamento')
+    );
+  }
+
+  return false;
+}
 
 function ativarModoCentral_(novoModo) {
   mode = novoModo;
