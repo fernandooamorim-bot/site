@@ -30,8 +30,11 @@ let loadingMessageTimer = null;
 let loadingMessageIndex = 0;
 const FOLHA_CACHE_KEY = 'folhaCustos:dataCache:v1';
 const FOLHA_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutos
+const FOLHA_EVENTOS_AGENDA_CACHE_KEY = 'folhaCustos:eventosAgendaCache:v1';
+const FOLHA_EVENTOS_AGENDA_CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutos
 let eventosAgendaFolhaCache = [];
 let eventosAgendaFolhaCarregando = false;
+let eventosAgendaFolhaCacheTs = 0;
 const resumoFolhaEventoCache = new Map();
 let eventosComPropostaFolhaCache = new Set();
 let propostasPendentesPorEvento = new Map();
@@ -47,6 +50,54 @@ function setAgendaRecomendadosLoading_(ativo, texto) {
   if (ativo) {
     box.innerHTML = `<span class="mini-loader"><span class="mini-loader-dot"></span>${String(texto || 'Carregando sugestões...')}</span>`;
   }
+}
+
+function normalizarEventosAgendaFolha_(lista) {
+  return (Array.isArray(lista) ? lista : [])
+    .filter(ev => String(ev?.tipo || '').trim() === 'Evento')
+    .sort((a, b) => {
+      const aFolha = eventoAgendaTemFolhaAtiva_(a) ? 1 : 0;
+      const bFolha = eventoAgendaTemFolhaAtiva_(b) ? 1 : 0;
+      if (aFolha !== bFolha) return aFolha - bFolha; // sem folha primeiro
+      return String(a?.data || '').localeCompare(String(b?.data || ''));
+    });
+}
+
+function lerCacheEventosAgendaFolha_() {
+  try {
+    const raw = localStorage.getItem(FOLHA_EVENTOS_AGENDA_CACHE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch (_) {
+    return null;
+  }
+}
+
+function cacheEventosAgendaFolhaValido_(cache) {
+  return !!(cache && cache.ts && Array.isArray(cache.eventos));
+}
+
+function cacheEventosAgendaFolhaExpirado_(cache) {
+  if (!cache || !cache.ts) return true;
+  return (Date.now() - Number(cache.ts)) > FOLHA_EVENTOS_AGENDA_CACHE_TTL_MS;
+}
+
+function salvarCacheEventosAgendaFolha_(listaEventos) {
+  try {
+    localStorage.setItem(FOLHA_EVENTOS_AGENDA_CACHE_KEY, JSON.stringify({
+      ts: Date.now(),
+      eventos: Array.isArray(listaEventos) ? listaEventos : []
+    }));
+  } catch (e) {
+    console.warn('Falha ao salvar cache de eventos da Agenda (Folha):', e);
+  }
+}
+
+function hidratarEventosAgendaFolhaDoCache_() {
+  const cache = lerCacheEventosAgendaFolha_();
+  if (!cacheEventosAgendaFolhaValido_(cache) || cacheEventosAgendaFolhaExpirado_(cache)) return false;
+  eventosAgendaFolhaCache = normalizarEventosAgendaFolha_(cache.eventos || []);
+  eventosAgendaFolhaCacheTs = Number(cache.ts || 0);
+  return eventosAgendaFolhaCache.length > 0;
 }
 
 const LOADING_MESSAGES = [
@@ -89,6 +140,9 @@ document.addEventListener('DOMContentLoaded', async function() {
     CURRENT_USER_EMAIL = String(auth.user.email || localStorage.getItem('auth_email') || '').trim();
     if (auth.user.nome) localStorage.setItem('auth_nome', String(auth.user.nome));
     setAgendaRecomendadosLoading_(true, 'Carregando sugestões...');
+    if (hidratarEventosAgendaFolhaDoCache_()) {
+      renderEventosAgendaRecomendados_().catch(() => {});
+    }
     carregarEventosAgendaFolha_().catch(() => {
       setAgendaRecomendadosLoading_(false);
     });
@@ -655,6 +709,21 @@ function parseDataFolhaLocal_(valor) {
 async function carregarEventosAgendaFolha_(opts) {
   const options = opts && typeof opts === 'object' ? opts : {};
   const mostrarLoadingBusca = options.mostrarLoadingBusca === true;
+  const force = options.force === true;
+  const cache = lerCacheEventosAgendaFolha_();
+  const cacheValido = cacheEventosAgendaFolhaValido_(cache);
+  const cacheExpirado = cacheEventosAgendaFolhaExpirado_(cache);
+
+  if (!force && cacheValido && !cacheExpirado && (!eventosAgendaFolhaCache || !eventosAgendaFolhaCache.length)) {
+    eventosAgendaFolhaCache = normalizarEventosAgendaFolha_(cache.eventos || []);
+    eventosAgendaFolhaCacheTs = Number(cache.ts || 0);
+    renderEventosAgendaRecomendados_().catch(() => {});
+  }
+
+  if (!force && cacheValido && !cacheExpirado && eventosAgendaFolhaCache.length) {
+    return;
+  }
+
   if (eventosAgendaFolhaCarregando) return;
   eventosAgendaFolhaCarregando = true;
   setAgendaRecomendadosLoading_(true, 'Carregando sugestões...');
@@ -664,14 +733,9 @@ async function carregarEventosAgendaFolha_(opts) {
   try {
     const resp = await Auth.apiCall('listarEventosBootstrap', { incluirCancelados: false });
     const lista = Array.isArray(resp?.eventos) ? resp.eventos : [];
-    eventosAgendaFolhaCache = lista
-      .filter(ev => String(ev?.tipo || '').trim() === 'Evento')
-      .sort((a, b) => {
-        const aFolha = eventoAgendaTemFolhaAtiva_(a) ? 1 : 0;
-        const bFolha = eventoAgendaTemFolhaAtiva_(b) ? 1 : 0;
-        if (aFolha !== bFolha) return aFolha - bFolha; // sem folha primeiro
-        return String(a?.data || '').localeCompare(String(b?.data || ''));
-      });
+    eventosAgendaFolhaCache = normalizarEventosAgendaFolha_(lista);
+    eventosAgendaFolhaCacheTs = Date.now();
+    salvarCacheEventosAgendaFolha_(eventosAgendaFolhaCache);
     renderEventosAgendaRecomendados_();
   } catch (e) {
     console.warn('Falha ao carregar eventos da Agenda para vínculo da Folha:', e);
@@ -1164,6 +1228,10 @@ async function buscarEventoAgendaFolha_(q) {
   }
 
   if (!eventosAgendaFolhaCache.length) {
+    hidratarEventosAgendaFolhaDoCache_();
+  }
+
+  if (!eventosAgendaFolhaCache.length) {
     setAgendaEventoBuscaLoading_(true, 'Buscando eventos...');
     await carregarEventosAgendaFolha_({ mostrarLoadingBusca: true });
     setAgendaEventoBuscaLoading_(false);
@@ -1233,6 +1301,7 @@ async function renderEventosAgendaRecomendados_() {
     .map(item => item.ev);
 
   const recomendados = [];
+  const candidatosRefino = [];
   for (let i = 0; i < candidatos.length && recomendados.length < 6 && i < 200; i++) {
     const ev = candidatos[i];
     const idEvento = String(ev?.id || '').trim();
@@ -1240,10 +1309,14 @@ async function renderEventosAgendaRecomendados_() {
       continue;
     }
     const statusLocal = statusFolhaLocalEvento_(ev);
-    const temFolha = statusLocal === null
-      ? await eventoAgendaTemFolhaAtivaPorResumo_(ev.id)
-      : statusLocal;
-    if (!temFolha) recomendados.push(ev);
+    if (statusLocal === true) continue;
+    if (statusLocal === null && idEvento && resumoFolhaEventoCache.has(idEvento)) {
+      if (resumoFolhaEventoCache.get(idEvento) === true) continue;
+    }
+    recomendados.push(ev);
+    if (statusLocal === null && idEvento && !resumoFolhaEventoCache.has(idEvento)) {
+      candidatosRefino.push(idEvento);
+    }
   }
 
   if (!recomendados.length) {
@@ -1258,6 +1331,27 @@ async function renderEventosAgendaRecomendados_() {
       ${String(ev.id || '')} • ${String(ev.contratante || 'Sem contratante')} • ${String(ev.data || '')}
     </button>
   `).join('');
+
+  // Refinamento assíncrono: valida os "desconhecidos" sem bloquear o primeiro paint.
+  if (candidatosRefino.length) {
+    refinarEventosAgendaRecomendadosComResumo_(candidatosRefino).catch(() => {});
+  }
+}
+
+async function refinarEventosAgendaRecomendadosComResumo_(ids) {
+  const unicos = Array.from(new Set((ids || []).map(v => String(v || '').trim()).filter(Boolean))).slice(0, 20);
+  if (!unicos.length) return;
+
+  await Promise.all(unicos.map(async (idEvento) => {
+    try {
+      await eventoAgendaTemFolhaAtivaPorResumo_(idEvento);
+    } catch (_) {}
+  }));
+
+  const box = document.getElementById('agenda-evento-recomendados');
+  if (!box) return;
+  // Re-render após preencher cache de resumo para remover falsos positivos rapidamente.
+  renderEventosAgendaRecomendados_().catch(() => {});
 }
 
 async function selecionarEventoAgendaFolha_(idEvento) {
