@@ -1,0 +1,645 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Atividade do Sistema</title>
+  <script src="auth.js"></script>
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js" defer></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #f4f7fb;
+      --card: #ffffff;
+      --line: #dbe3ef;
+      --text: #0f172a;
+      --muted: #64748b;
+      --navy: #0f1a2e;
+      --gold: #e0bc6a;
+      --ok: #166534;
+      --ok-bg: #ecfdf3;
+      --warn: #9a6d08;
+      --warn-bg: #fff7e8;
+      --danger: #991b1b;
+      --danger-bg: #fef2f2;
+      --shadow: 0 10px 24px rgba(15, 23, 42, .08);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: 'Inter', sans-serif;
+      color: var(--text);
+      background: radial-gradient(circle at top right, #eef4ff 0%, #f7f9fe 48%, #f3f6fb 100%);
+    }
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 40;
+      background: var(--navy);
+      color: #fff;
+      border-bottom: 1px solid rgba(255,255,255,.08);
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+    .brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      cursor: pointer;
+    }
+    .back {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(224,188,106,.14);
+    }
+    .back i { width: 18px; height: 18px; color: var(--gold); }
+    .title {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 18px;
+      font-weight: 700;
+    }
+    .title i { width: 18px; height: 18px; color: var(--gold); }
+    .user-tag {
+      font-size: 12px;
+      color: rgba(255,255,255,.88);
+      border: 1px solid rgba(255,255,255,.14);
+      border-radius: 999px;
+      padding: 4px 9px;
+      background: rgba(255,255,255,.08);
+      max-width: 220px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .page {
+      max-width: 1320px;
+      margin: 0 auto;
+      padding: 14px;
+      display: grid;
+      gap: 12px;
+    }
+    .card {
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: var(--card);
+      box-shadow: var(--shadow);
+      padding: 14px;
+    }
+    .hero {
+      display: grid;
+      gap: 6px;
+    }
+    .hero h1 {
+      margin: 0;
+      font-size: 18px;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .hero h1 i { width: 18px; height: 18px; color: #2a5d9f; }
+    .hero p {
+      margin: 0;
+      font-size: 13px;
+      color: var(--muted);
+      line-height: 1.45;
+    }
+    .status {
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+    .status.err { color: var(--danger); font-weight: 600; }
+    .kpis {
+      display: grid;
+      gap: 10px;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+    }
+    .kpi {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: #fff;
+      padding: 11px;
+    }
+    .kpi .label {
+      font-size: 11px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: .02em;
+    }
+    .kpi .value {
+      margin-top: 6px;
+      font-size: 20px;
+      font-weight: 800;
+      color: #0b2146;
+    }
+    .kpi.err .value { color: var(--danger); }
+    .kpi.ok .value { color: var(--ok); }
+    .kpi.warn .value { color: var(--warn); }
+
+    .filters {
+      display: grid;
+      gap: 10px;
+      grid-template-columns: 140px 170px minmax(0, 1fr) 160px;
+      align-items: end;
+    }
+    .field {
+      display: grid;
+      gap: 6px;
+    }
+    .field label {
+      font-size: 11px;
+      color: var(--muted);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .03em;
+    }
+    .input, .select, .btn {
+      height: 38px;
+      border-radius: 10px;
+      border: 1px solid var(--line);
+      background: #fff;
+      color: var(--text);
+      font-size: 13px;
+      padding: 0 11px;
+      font-family: inherit;
+    }
+    .btn {
+      cursor: pointer;
+      font-weight: 600;
+      background: linear-gradient(180deg, #ffffff 0%, #f7faff 100%);
+    }
+    .btn.primary {
+      border-color: #244c7d;
+      color: #133862;
+      background: linear-gradient(180deg, #f1f6ff 0%, #e6f0ff 100%);
+    }
+
+    .coverage {
+      display: grid;
+      gap: 8px;
+    }
+    .coverage-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .badge {
+      font-size: 11px;
+      border-radius: 999px;
+      padding: 3px 9px;
+      border: 1px solid var(--line);
+      background: #f8fafc;
+      color: #334155;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .03em;
+    }
+    .badge.high {
+      color: var(--ok);
+      background: var(--ok-bg);
+      border-color: #bce7cc;
+    }
+    .badge.medium {
+      color: var(--warn);
+      background: var(--warn-bg);
+      border-color: #edd5a2;
+    }
+    .badge.low {
+      color: var(--danger);
+      background: var(--danger-bg);
+      border-color: #f6c7c7;
+    }
+    .coverage-list {
+      margin: 0;
+      padding-left: 18px;
+      color: #334155;
+      font-size: 13px;
+      line-height: 1.45;
+      display: grid;
+      gap: 4px;
+    }
+
+    .timeline {
+      display: grid;
+      gap: 8px;
+    }
+    .log-item {
+      border: 1px solid var(--line);
+      border-left: 4px solid #9fb3d4;
+      border-radius: 11px;
+      background: #fff;
+      padding: 10px;
+      display: grid;
+      gap: 7px;
+    }
+    .log-item.tipo-ERRO { border-left-color: #d23b3b; }
+    .log-item.tipo-CADASTRO { border-left-color: #2d8f58; }
+    .log-item.tipo-FINANCEIRO { border-left-color: #c28715; }
+    .log-item.tipo-AGENDA { border-left-color: #2a5d9f; }
+    .log-item.tipo-SISTEMA { border-left-color: #7c3aed; }
+
+    .log-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .log-left {
+      min-width: 0;
+      display: grid;
+      gap: 2px;
+    }
+    .log-title {
+      margin: 0;
+      font-size: 13px;
+      font-weight: 700;
+      color: #0f2140;
+    }
+    .log-sub {
+      font-size: 11px;
+      color: var(--muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 900px;
+    }
+    .log-type {
+      font-size: 10px;
+      font-weight: 800;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 2px 8px;
+      background: #f8fafc;
+      color: #334155;
+      text-transform: uppercase;
+      letter-spacing: .03em;
+    }
+    .log-type.ERRO { color: var(--danger); border-color: #f4c4c4; background: #fff6f6; }
+    .log-type.CADASTRO { color: var(--ok); border-color: #c4e8d1; background: #f4fff8; }
+    .log-type.FINANCEIRO { color: var(--warn); border-color: #ecd7a7; background: #fffaf1; }
+    .log-body {
+      font-size: 13px;
+      color: #1e293b;
+      line-height: 1.5;
+      background: #f8fbff;
+      border: 1px dashed #d7e3f5;
+      border-radius: 8px;
+      padding: 8px;
+      word-break: break-word;
+    }
+    .empty {
+      border: 1px dashed var(--line);
+      border-radius: 12px;
+      background: #fff;
+      color: var(--muted);
+      font-size: 13px;
+      padding: 14px;
+      text-align: center;
+    }
+
+    @media (max-width: 1100px) {
+      .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .filters { grid-template-columns: 1fr 1fr; }
+    }
+    @media (max-width: 760px) {
+      .kpis { grid-template-columns: 1fr; }
+      .filters { grid-template-columns: 1fr; }
+      .user-tag { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand" onclick="window.location.href='configuracoes.html'">
+      <div class="back"><i data-lucide="arrow-left"></i></div>
+      <div class="title"><i data-lucide="activity"></i><span>Atividade do Sistema</span></div>
+    </div>
+    <div class="user-tag" id="userTag">Carregando usuário...</div>
+  </header>
+
+  <main class="page">
+    <section class="card hero">
+      <h1><i data-lucide="clipboard-list"></i> Leitura Humanizada de Logs</h1>
+      <p>Visão somente leitura da aba LOGS, com filtros e interpretação em linguagem clara para tomada de decisão rápida.</p>
+      <div id="status" class="status">Carregando atividade...</div>
+    </section>
+
+    <section class="kpis">
+      <article class="kpi"><div class="label">Logs no período</div><div class="value" id="kpiTotal">-</div></article>
+      <article class="kpi err"><div class="label">Erros</div><div class="value" id="kpiErros">-</div></article>
+      <article class="kpi ok"><div class="label">Cadastros / Edições</div><div class="value" id="kpiCadastros">-</div></article>
+      <article class="kpi warn"><div class="label">Financeiro</div><div class="value" id="kpiFinanceiro">-</div></article>
+      <article class="kpi"><div class="label">Agenda / Sistema</div><div class="value" id="kpiSistema">-</div></article>
+    </section>
+
+    <section class="card">
+      <div class="filters">
+        <div class="field">
+          <label>Período</label>
+          <select id="fDias" class="select">
+            <option value="7">Últimos 7 dias</option>
+            <option value="15">Últimos 15 dias</option>
+            <option value="30" selected>Últimos 30 dias</option>
+            <option value="60">Últimos 60 dias</option>
+            <option value="90">Últimos 90 dias</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Tipo</label>
+          <select id="fTipo" class="select">
+            <option value="TODOS">Todos</option>
+            <option value="ERRO">Erros</option>
+            <option value="CADASTRO">Cadastros / Edições</option>
+            <option value="FINANCEIRO">Financeiro</option>
+            <option value="AGENDA">Agenda</option>
+            <option value="SISTEMA">Sistema</option>
+            <option value="OUTROS">Outros</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Busca</label>
+          <input id="fBusca" class="input" type="text" placeholder="Buscar por usuário, ação, tabela, ID, detalhes...">
+        </div>
+        <div class="field">
+          <label>&nbsp;</label>
+          <button id="btnAtualizar" class="btn primary">Atualizar agora</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="card coverage">
+      <div class="coverage-head">
+        <h3 style="margin:0;font-size:15px">Diagnóstico de Cobertura de Logs</h3>
+        <span id="coverageLevel" class="badge">-</span>
+      </div>
+      <ul id="coverageList" class="coverage-list"></ul>
+    </section>
+
+    <section class="card">
+      <h3 style="margin:0 0 10px 0;font-size:15px">Linha do Tempo</h3>
+      <div id="timeline" class="timeline"></div>
+    </section>
+  </main>
+
+  <script>
+    const uiState = {
+      logs: [],
+      resumo: { total: 0, porTipo: {} },
+      cobertura: { nivel: 'BAIXA', observacoes: [] },
+      loading: false
+    };
+
+    function normalizarPerfil(perfil) {
+      return String(perfil || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .trim()
+        .toLowerCase();
+    }
+
+    function escapeHtml(v) {
+      return String(v || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function setStatus(msg, isError) {
+      const el = document.getElementById('status');
+      if (!el) return;
+      el.textContent = String(msg || '');
+      el.className = isError ? 'status err' : 'status';
+    }
+
+    function fmtDate(value) {
+      if (!value) return '-';
+      const d = value instanceof Date ? value : new Date(value);
+      if (!(d instanceof Date) || isNaN(d.getTime())) return '-';
+      return d.toLocaleString('pt-BR');
+    }
+
+    function parseDetalhesComoObjeto(txt) {
+      const raw = String(txt || '').trim();
+      if (!raw) return null;
+      if (!(raw.startsWith('{') || raw.startsWith('['))) return null;
+      try {
+        return JSON.parse(raw);
+      } catch (_) {
+        return null;
+      }
+    }
+
+    function humanizarAcao(log) {
+      const acao = String(log.acao || '').trim().toUpperCase();
+      const tabela = String(log.tabela || '').trim().toUpperCase();
+      const idRegistro = String(log.idRegistro || '').trim();
+      const detalhesRaw = String(log.detalhes || '').trim();
+      const detalhesObj = parseDetalhesComoObjeto(detalhesRaw);
+
+      if (detalhesObj && detalhesObj.tipo === 'API_ERRO') {
+        const codigo = String(detalhesObj.codigo || '').trim();
+        const mensagem = String(detalhesObj.mensagem || '').trim();
+        return 'Erro de API durante a ação ' + (acao || 'N/A') + (codigo ? ' (código ' + codigo + ')' : '') + (mensagem ? ': ' + mensagem : '.');
+      }
+
+      if (/CRIAR|CADASTRAR/.test(acao)) {
+        return 'Cadastro realizado em ' + (tabela || 'entidade do sistema') + (idRegistro ? ' (ID ' + idRegistro + ').' : '.');
+      }
+      if (/EDITAR|ATUALIZAR/.test(acao)) {
+        return 'Registro atualizado em ' + (tabela || 'entidade do sistema') + (idRegistro ? ' (ID ' + idRegistro + ').' : '.');
+      }
+      if (/INATIVAR/.test(acao)) {
+        return 'Registro inativado em ' + (tabela || 'entidade do sistema') + (idRegistro ? ' (ID ' + idRegistro + ').' : '.');
+      }
+      if (/REATIVAR/.test(acao)) {
+        return 'Registro reativado em ' + (tabela || 'entidade do sistema') + (idRegistro ? ' (ID ' + idRegistro + ').' : '.');
+      }
+      if (/ERRO|FALHA/.test(acao)) {
+        return 'Falha operacional registrada em ' + (tabela || 'sistema') + (detalhesRaw ? ': ' + detalhesRaw : '.');
+      }
+      if (/COMISSAO|RECEBIMENTO|SAIDA|ESTORNO|NF|BV|PIX|ASAAS/.test(acao + ' ' + tabela)) {
+        return 'Movimento financeiro registrado em ' + (tabela || 'módulo financeiro') + (idRegistro ? ' (ref. ' + idRegistro + ').' : '.');
+      }
+
+      if (detalhesRaw) {
+        const limpo = detalhesRaw.length > 260 ? (detalhesRaw.slice(0, 257) + '...') : detalhesRaw;
+        return limpo;
+      }
+      return 'Ação registrada sem detalhes adicionais.';
+    }
+
+    function montarSubtitulo(log) {
+      const partes = [];
+      if (log.usuario) partes.push('Usuário: ' + log.usuario);
+      if (log.tabela) partes.push('Tabela: ' + log.tabela);
+      if (log.idRegistro) partes.push('ID: ' + log.idRegistro);
+      if (log.idLog) partes.push('Log: ' + log.idLog);
+      return partes.join(' • ');
+    }
+
+    function renderResumo() {
+      const porTipo = uiState.resumo && uiState.resumo.porTipo ? uiState.resumo.porTipo : {};
+      const total = Number(uiState.resumo.total || 0);
+      const erros = Number(porTipo.ERRO || 0);
+      const cad = Number(porTipo.CADASTRO || 0);
+      const fin = Number(porTipo.FINANCEIRO || 0);
+      const agenda = Number(porTipo.AGENDA || 0);
+      const sis = Number(porTipo.SISTEMA || 0);
+
+      document.getElementById('kpiTotal').textContent = String(total);
+      document.getElementById('kpiErros').textContent = String(erros);
+      document.getElementById('kpiCadastros').textContent = String(cad);
+      document.getElementById('kpiFinanceiro').textContent = String(fin);
+      document.getElementById('kpiSistema').textContent = String(agenda + sis);
+    }
+
+    function renderCobertura() {
+      const cobertura = uiState.cobertura || { nivel: 'BAIXA', observacoes: [] };
+      const nivel = String(cobertura.nivel || 'BAIXA').toUpperCase();
+      const badge = document.getElementById('coverageLevel');
+      if (badge) {
+        badge.textContent = 'Cobertura ' + nivel;
+        badge.className = 'badge ' + (nivel === 'ALTA' ? 'high' : (nivel === 'MEDIA' ? 'medium' : 'low'));
+      }
+      const box = document.getElementById('coverageList');
+      const obs = Array.isArray(cobertura.observacoes) ? cobertura.observacoes : [];
+      box.innerHTML = obs.map(function (x) { return '<li>' + escapeHtml(x) + '</li>'; }).join('');
+    }
+
+    function renderTimeline() {
+      const box = document.getElementById('timeline');
+      const lista = Array.isArray(uiState.logs) ? uiState.logs : [];
+      if (!lista.length) {
+        box.innerHTML = '<div class="empty">Nenhum log encontrado para os filtros atuais.</div>';
+        return;
+      }
+
+      box.innerHTML = lista.map(function (log) {
+        const tipo = String(log.tipo || 'OUTROS').toUpperCase();
+        const titulo = String(log.acao || 'Ação sem nome').trim() || 'Ação sem nome';
+        const descricaoHumana = humanizarAcao(log);
+        return [
+          '<article class="log-item tipo-' + escapeHtml(tipo) + '">',
+            '<div class="log-top">',
+              '<div class="log-left">',
+                '<h4 class="log-title">' + escapeHtml(titulo) + '</h4>',
+                '<div class="log-sub">' + escapeHtml(fmtDate(log.dataHora)) + (montarSubtitulo(log) ? (' • ' + escapeHtml(montarSubtitulo(log))) : '') + '</div>',
+              '</div>',
+              '<span class="log-type ' + escapeHtml(tipo) + '">' + escapeHtml(tipo) + '</span>',
+            '</div>',
+            '<div class="log-body">' + escapeHtml(descricaoHumana) + '</div>',
+          '</article>'
+        ].join('');
+      }).join('');
+    }
+
+    async function carregarAtividade() {
+      if (uiState.loading) return;
+      uiState.loading = true;
+      const btn = document.getElementById('btnAtualizar');
+      if (btn) {
+        btn.disabled = true;
+        btn.textContent = 'Atualizando...';
+      }
+      setStatus('Carregando logs e aplicando filtros...');
+
+      try {
+        const dias = Number(document.getElementById('fDias')?.value || 30);
+        const tipo = String(document.getElementById('fTipo')?.value || 'TODOS').trim().toUpperCase();
+        const busca = String(document.getElementById('fBusca')?.value || '').trim();
+
+        const resp = await Auth.apiCall('listarAtividadeSistemaReadOnly', {
+          dias: dias,
+          tipo: tipo,
+          busca: busca,
+          maxRows: 400
+        });
+
+        if (!resp || resp.ok === false) {
+          throw new Error(resp && resp.mensagem ? resp.mensagem : 'Falha ao carregar logs da atividade.');
+        }
+
+        uiState.logs = Array.isArray(resp.logs) ? resp.logs : [];
+        uiState.resumo = resp.resumo || { total: 0, porTipo: {} };
+        uiState.cobertura = resp.cobertura || { nivel: 'BAIXA', observacoes: [] };
+
+        renderResumo();
+        renderCobertura();
+        renderTimeline();
+        setStatus('Atividade carregada com sucesso.');
+      } catch (err) {
+        console.error('Erro ao carregar atividade do sistema:', err);
+        setStatus('Erro ao carregar atividade: ' + String(err && err.message ? err.message : err), true);
+        uiState.logs = [];
+        uiState.resumo = { total: 0, porTipo: {} };
+        uiState.cobertura = { nivel: 'BAIXA', observacoes: ['Falha ao carregar dados da aba LOGS.'] };
+        renderResumo();
+        renderCobertura();
+        renderTimeline();
+      } finally {
+        uiState.loading = false;
+        if (btn) {
+          btn.disabled = false;
+          btn.textContent = 'Atualizar agora';
+        }
+      }
+    }
+
+    function bindUi() {
+      document.getElementById('btnAtualizar')?.addEventListener('click', carregarAtividade);
+      document.getElementById('fDias')?.addEventListener('change', carregarAtividade);
+      document.getElementById('fTipo')?.addEventListener('change', carregarAtividade);
+
+      let buscaTimer = null;
+      document.getElementById('fBusca')?.addEventListener('input', function () {
+        clearTimeout(buscaTimer);
+        buscaTimer = setTimeout(carregarAtividade, 350);
+      });
+    }
+
+    async function init() {
+      try {
+        const auth = await Auth.apiCall('verificarUsuario');
+        if (!auth || !auth.ok || !auth.user) throw new Error('NOT_AUTH');
+        const perfil = normalizarPerfil(auth.user.perfil);
+        if (perfil !== 'proprietario') {
+          alert('Acesso permitido apenas ao proprietário.');
+          window.location.href = 'configuracoes.html';
+          return;
+        }
+
+        const nomeUsuario = String(auth.user.nome || auth.user.email || 'Proprietário').trim();
+        const userTag = document.getElementById('userTag');
+        if (userTag) userTag.textContent = nomeUsuario;
+
+        bindUi();
+        await carregarAtividade();
+      } catch (err) {
+        console.error('Erro ao abrir Atividade do Sistema:', err);
+        alert('Sessão inválida ou sem permissão.');
+        window.location.href = 'index.html';
+      } finally {
+        if (window.lucide) window.lucide.createIcons();
+      }
+    }
+
+    window.addEventListener('load', init);
+  </script>
+</body>
+</html>

@@ -574,6 +574,11 @@
         <p>Catálogo read-only das chaves da aba CONFIG com categorização automática.</p>
         <button class="btn" id="btnAbrirConfigReadonly">Abrir catálogo</button>
       </article>
+      <article class="module-card">
+        <h3><i data-lucide="activity"></i>Atividade do Sistema</h3>
+        <p>Leitura humanizada dos logs da aba LOGS com filtros por período, tipo e busca textual.</p>
+        <button class="btn" id="btnAbrirAtividadeSistema">Abrir atividade</button>
+      </article>
     </section>
 
     <section id="cadastrosPanel" class="hidden">
@@ -1367,6 +1372,9 @@
       });
       document.getElementById('btnAbrirConfigReadonly')?.addEventListener('click', () => {
         window.location.href = 'config-gerais.html';
+      });
+      document.getElementById('btnAbrirAtividadeSistema')?.addEventListener('click', () => {
+        window.location.href = 'atividade-sistema.html';
       });
       document.getElementById('btnVoltarModulos')?.addEventListener('click', voltarParaModulos);
 
