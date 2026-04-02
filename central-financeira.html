@@ -1327,7 +1327,10 @@ let pendenciasFolhaAprovacao = [];
 let ajustesDetalhadosComissao = [];
 let previewComissaoAtual = null;
 let fiscalEventosCache = [];
+let fiscalEventosCacheLoaded = false;
 let fiscalDivergenciasAuditoriaMap = new Map();
+let fiscalBadgeWarmPromise = null;
+let fiscalAuditoriaPromise = null;
 let buscaEventoTimer = null;
 let buscaEventoSeq = 0;
 const buscaEventoCache = new Map();
@@ -1527,19 +1530,60 @@ async function iniciarCentralFinanceira() {
     // Pré-carrega vendedores
     vendedoresCache = await Auth.apiCall('listarVendedores') || [];
     console.log('✅ Vendedores carregados:', vendedoresCache.length);
-    // Pré-carrega badge da fiscalização sem mudar o modo atual
-    try {
-      const listaFin = await Auth.apiCall('listarEventosFinanceiros');
-      const eventosFin = Array.isArray(listaFin) ? listaFin : (Array.isArray(listaFin?.eventos) ? listaFin.eventos : []);
-      atualizarBadgeFiscalizacao_(eventosFin);
-    } catch (e) {
-      console.warn('⚠️ Não foi possível pré-carregar badge da fiscalização:', e);
-      atualizarBadgeFiscalizacao_([]);
-    }
+    // Pré-aquece badge da fiscalização em background para não travar o boot.
+    preaquecerBadgeFiscalizacao_();
   } catch (err) {
     console.error('Erro ao iniciar Central Financeira:', err);
     alert('Erro ao carregar dados iniciais');
   }
+}
+
+function normalizarListaEventosFinanceiros_(lista) {
+  if (Array.isArray(lista)) return lista;
+  if (Array.isArray(lista?.eventos)) return lista.eventos;
+  return [];
+}
+
+async function preaquecerBadgeFiscalizacao_() {
+  if (fiscalBadgeWarmPromise) return fiscalBadgeWarmPromise;
+  fiscalBadgeWarmPromise = (async () => {
+    try {
+      const listaFin = await Auth.apiCall('listarEventosFinanceiros');
+      const eventosFin = normalizarListaEventosFinanceiros_(listaFin);
+      atualizarBadgeFiscalizacao_(eventosFin);
+      fiscalEventosCache = eventosFin;
+      fiscalEventosCacheLoaded = true;
+      return eventosFin;
+    } catch (e) {
+      console.warn('⚠️ Não foi possível pré-carregar badge da fiscalização:', e);
+      atualizarBadgeFiscalizacao_([]);
+      return [];
+    } finally {
+      fiscalBadgeWarmPromise = null;
+    }
+  })();
+  return fiscalBadgeWarmPromise;
+}
+
+async function obterEventosFinanceiros_(opts) {
+  const op = opts || {};
+  const forceRefresh = op.forceRefresh === true;
+  if (!forceRefresh && fiscalEventosCacheLoaded) return fiscalEventosCache;
+  if (!forceRefresh && fiscalBadgeWarmPromise) {
+    try {
+      const warmed = await fiscalBadgeWarmPromise;
+      if (Array.isArray(warmed)) {
+        fiscalEventosCache = warmed;
+        fiscalEventosCacheLoaded = true;
+        return warmed;
+      }
+    } catch (_) {}
+  }
+  const lista = await Auth.apiCall('listarEventosFinanceiros');
+  const eventos = normalizarListaEventosFinanceiros_(lista);
+  fiscalEventosCache = eventos;
+  fiscalEventosCacheLoaded = true;
+  return eventos;
 }
 
 async function aplicarRotaInicialFinanceira_() {
@@ -1595,8 +1639,7 @@ async function selecionarEventoPorIdNoModo_(idEvento) {
   if (!id) return false;
 
   try {
-    const lista = await Auth.apiCall('listarEventosFinanceiros');
-    const eventos = Array.isArray(lista) ? lista : (Array.isArray(lista?.eventos) ? lista.eventos : []);
+    const eventos = await obterEventosFinanceiros_({ forceRefresh: false });
     atualizarBadgeFiscalizacao_(eventos);
     const alvo = eventos.find(e => String(e.idEvento || '') === id);
     if (!alvo) return false;
@@ -2392,7 +2435,7 @@ function renderFiscalizacao() {
         <option value="LEGADO">Somente legado</option>
       </select>
       <div class="fiscal-toolbar-actions">
-        <button type="button" class="btn secondary" onclick="carregarFiscalizacao_(true)">Atualizar</button>
+        <button type="button" class="btn secondary" onclick="atualizarFiscalizacaoManual_()">Atualizar</button>
         <button type="button" class="btn primary" onclick="executarAuditoriaFiscalizacao_()">Auditar</button>
       </div>
     </div>
@@ -2402,21 +2445,42 @@ function renderFiscalizacao() {
   `;
 
   resumo.innerHTML = '<span class="muted">Carregando auditoria financeira...</span>';
-  carregarFiscalizacao_(true);
+  carregarFiscalizacaoInicial_();
 }
 
-async function carregarFiscalizacao_(executarAuditoria) {
+function carregarFiscalizacaoInicial_() {
+  carregarFiscalizacao_(true, { forceRefresh: false, auditoriaEmBackground: true });
+}
+
+function atualizarFiscalizacaoManual_() {
+  carregarFiscalizacao_(true, { forceRefresh: true, auditoriaEmBackground: false });
+}
+
+async function carregarFiscalizacao_(executarAuditoria, opts) {
+  const op = opts || {};
+  const forceRefresh = op.forceRefresh !== false;
+  const auditoriaEmBackground = op.auditoriaEmBackground === true;
+  const usarOverlay = op.usarOverlay === true;
+  const listaEl = document.getElementById('listaFiscalizacao');
   try {
-    showLoading('Carregando fiscalização financeira...');
-    fiscalEventosCache = await Auth.apiCall('listarEventosFinanceiros') || [];
+    if (usarOverlay) showLoading('Carregando fiscalização financeira...');
+    if (listaEl) {
+      listaEl.innerHTML = '<div class="muted">Atualizando eventos financeiros...</div>';
+    }
+    fiscalEventosCache = await obterEventosFinanceiros_({ forceRefresh });
     atualizarBadgeFiscalizacao_(fiscalEventosCache);
-    hideLoading();
+    if (usarOverlay) hideLoading();
     aplicarFiltrosFiscalizacao_();
     if (executarAuditoria) {
-      await executarAuditoriaFiscalizacao_(true);
+      if (auditoriaEmBackground) {
+        resumo.innerHTML = '<span class="muted">Lista pronta. Executando auditoria em segundo plano...</span>';
+        executarAuditoriaFiscalizacao_(true);
+      } else {
+        await executarAuditoriaFiscalizacao_(true);
+      }
     }
   } catch (err) {
-    hideLoading();
+    if (usarOverlay) hideLoading();
     console.error('Erro ao carregar fiscalização:', err);
     atualizarBadgeFiscalizacao_([]);
     resumo.innerHTML = '<span class="muted">Erro ao carregar fiscalização.</span>';
@@ -2424,6 +2488,8 @@ async function carregarFiscalizacao_(executarAuditoria) {
 }
 
 async function executarAuditoriaFiscalizacao_(silencioso) {
+  if (fiscalAuditoriaPromise) return fiscalAuditoriaPromise;
+  fiscalAuditoriaPromise = (async () => {
   try {
     if (!silencioso) showLoading('Executando auditoria de integridade...');
     const diag = await Auth.apiCall('diagnosticarIntegridadeFinanceira', { limit: 1000 });
@@ -2455,7 +2521,11 @@ async function executarAuditoriaFiscalizacao_(silencioso) {
     console.error('Erro na auditoria:', err);
     fiscalDivergenciasAuditoriaMap = new Map();
     resumo.innerHTML = '<span class="muted">Erro ao executar auditoria.</span>';
+  } finally {
+    fiscalAuditoriaPromise = null;
   }
+  })();
+  return fiscalAuditoriaPromise;
 }
 
 function aplicarFiltrosFiscalizacao_() {
@@ -2903,21 +2973,20 @@ async function selectEvento(ev){
     }
   }
 
-  const fin = await Auth.apiCall('buscarResumoFinanceiroEvento', {
+  const promessaResumoFinanceiro = Auth.apiCall('buscarResumoFinanceiroEvento', {
     idEvento: idEventoReal
   });
+  const promessaUltimosRecebimentos = String(mode || '') === 'recebimento'
+    ? Auth.apiCall('listarRecebimentosPorEvento', { idEvento: idEventoReal }).catch(errRec => {
+        console.warn('Falha ao carregar últimos recebimentos do resumo:', errRec);
+        return [];
+      })
+    : Promise.resolve([]);
+
+  const [fin, listaRec] = await Promise.all([promessaResumoFinanceiro, promessaUltimosRecebimentos]);
 
   ultimoResumoFinanceiro = fin;
-  resumoRecebimentosRecentes = [];
-  if (String(mode || '') === 'recebimento') {
-    try {
-      const listaRec = await Auth.apiCall('listarRecebimentosPorEvento', { idEvento: idEventoReal });
-      resumoRecebimentosRecentes = Array.isArray(listaRec) ? listaRec.slice(0, 5) : [];
-    } catch (errRec) {
-      console.warn('Falha ao carregar últimos recebimentos do resumo:', errRec);
-      resumoRecebimentosRecentes = [];
-    }
-  }
+  resumoRecebimentosRecentes = Array.isArray(listaRec) ? listaRec.slice(0, 5) : [];
 
   if (!fin) {
     resumo.innerHTML = '<span class="muted">Resumo financeiro indisponível</span>';
@@ -3086,8 +3155,10 @@ async function selectEvento(ev){
   }
 
   if (ehProprietario_() && mode === 'pixautomatico') {
-    await carregarContatoAsaasEvento_();
-    await carregarCobrancasAsaasEvento_();
+    await Promise.all([
+      carregarContatoAsaasEvento_(),
+      carregarCobrancasAsaasEvento_()
+    ]);
     limparMensagensAsaas_();
   }
 
