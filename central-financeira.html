@@ -1308,6 +1308,7 @@ let mode = null;
 let eventoSelecionado = null;
 let vendedorSelecionado = null;
 let vendedoresCache = [];
+let vendedoresWarmPromise = null;
 let comissoesPendentes = [];
 let perfilAtual = '';
 let perfilAtualNorm = '';
@@ -1499,7 +1500,7 @@ function ehSocio_() {
 }
 
 function podeAprovarFolhaCustos_() {
-  return ehProprietario_() || ehSocio_();
+  return ehProprietario_();
 }
 
 /* ================= INIT ================= */
@@ -1540,9 +1541,8 @@ function ativarModoCentral_(novoModo) {
 async function iniciarCentralFinanceira() {
   const t0 = performance.now();
   try {
-    // Pré-carrega vendedores
-    vendedoresCache = await Auth.apiCall('listarVendedores') || [];
-    console.log('✅ Vendedores carregados:', vendedoresCache.length);
+    // Pré-aquece vendedores em background (usado principalmente no módulo de comissão).
+    preaquecerVendedores_();
     // Pré-aquece badge da fiscalização em background para não travar o boot.
     preaquecerBadgeFiscalizacao_();
     console.info('[CF][PERF] iniciarCentralFinanceira concluído em', Math.round(performance.now() - t0), 'ms');
@@ -1550,6 +1550,24 @@ async function iniciarCentralFinanceira() {
     console.error('Erro ao iniciar Central Financeira:', err);
     alert('Erro ao carregar dados iniciais');
   }
+}
+
+async function preaquecerVendedores_() {
+  if (Array.isArray(vendedoresCache) && vendedoresCache.length > 0) return vendedoresCache;
+  if (vendedoresWarmPromise) return vendedoresWarmPromise;
+  vendedoresWarmPromise = (async () => {
+    try {
+      vendedoresCache = await Auth.apiCall('listarVendedores') || [];
+      console.log('✅ Vendedores carregados:', vendedoresCache.length);
+      return vendedoresCache;
+    } catch (err) {
+      console.warn('⚠️ Falha ao pré-carregar vendedores:', err);
+      return [];
+    } finally {
+      vendedoresWarmPromise = null;
+    }
+  })();
+  return vendedoresWarmPromise;
 }
 
 function normalizarListaEventosFinanceiros_(lista) {
@@ -2004,7 +2022,7 @@ async function garantirVendedoresCarregados(callback){
   }
 
   try {
-    vendedoresCache = await Auth.apiCall('listarVendedores') || [];
+    await preaquecerVendedores_();
     callback();
   } catch (err) {
     console.error('Erro ao carregar vendedores:', err);
@@ -2372,6 +2390,7 @@ function submitSaidaEvento() {
 }
 
 async function carregarPendenciasFolhaCustosAprovacao_() {
+  if (!ehProprietario_()) return;
   const box = document.getElementById('folhaPendenciasBox');
   if (!box) return;
   box.innerHTML = '<span class="muted">Carregando pendências...</span>';
@@ -2403,6 +2422,7 @@ async function carregarPendenciasFolhaCustosAprovacao_() {
 }
 
 async function aprovarPendenciaFolhaCusto_(idFolha) {
+  if (!ehProprietario_()) return alert('Ação restrita ao proprietário.');
   const id = String(idFolha || '').trim();
   if (!id) return;
   const pendencia = pendenciasFolhaAprovacao.find(p => String(p.id || '').trim() === id);
@@ -2419,7 +2439,14 @@ async function aprovarPendenciaFolhaCusto_(idFolha) {
       return;
     }
     alert('Folha aprovada e lançada na Agenda com sucesso.');
-    await carregarPendenciasFolhaCustosAprovacao_();
+    pendenciasFolhaAprovacao = (pendenciasFolhaAprovacao || []).filter(p => String(p.id || '').trim() !== id);
+    const box = document.getElementById('folhaPendenciasBox');
+    if (box && !pendenciasFolhaAprovacao.length) {
+      box.innerHTML = '<span class="muted">Sem pendências de folha para aprovação.</span>';
+    } else if (box) {
+      box.innerHTML = '<span class="muted">Atualizando pendências...</span>';
+    }
+    carregarPendenciasFolhaCustosAprovacao_().catch(() => {});
     if (pendencia && pendencia.idEvento) {
       await selecionarEventoPorIdNoModo_(pendencia.idEvento);
     }
