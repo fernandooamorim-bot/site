@@ -445,6 +445,79 @@
       }
     }
 
+    function rotuloCampoAlteracao_(campo) {
+      const key = String(campo || '').trim();
+      const mapa = {
+        horaInicio: 'Horário de início',
+        horaFim: 'Horário de término',
+        vendedor: 'Vendedor',
+        observacoes: 'Observações',
+        data: 'Data',
+        dataFim: 'Data final',
+        local: 'Local',
+        contratante: 'Contratante',
+        tipoEvento: 'Tipo de evento',
+        projeto: 'Projeto',
+        valorTotal: 'Valor total',
+        status: 'Status'
+      };
+      return mapa[key] || key || 'Campo';
+    }
+
+    function normalizarValorAlteracao_(campo, valor) {
+      const raw = String(valor === undefined || valor === null ? '' : valor).trim();
+      if (!raw) return '(vazio)';
+      const c = String(campo || '');
+
+      // Alguns logs históricos de hora vêm serializados como data 1899-12-30THH:mm:ss.
+      if (/hora/i.test(c)) {
+        const mHoraLegada = raw.match(/^1899-12-30T(\d{2}):(\d{2})(?::\d{2})?$/);
+        if (mHoraLegada) return mHoraLegada[1] + ':' + mHoraLegada[2];
+      }
+
+      const iso = raw.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::\d{2})?$/);
+      if (iso) {
+        const d = new Date(raw);
+        if (!isNaN(d.getTime())) return d.toLocaleString('pt-BR');
+      }
+
+      return raw;
+    }
+
+    function resumirTextoAlteracao_(txt, maxLen) {
+      const limite = Number(maxLen || 70);
+      const raw = String(txt || '').trim();
+      if (raw.length <= limite) return raw;
+      return raw.slice(0, limite - 3) + '...';
+    }
+
+    function humanizarOrigem_(origem) {
+      const o = String(origem || '').trim();
+      if (!o) return '';
+      if (o === 'salvarEdicaoEvento') return 'edição do evento';
+      return o;
+    }
+
+    function descreverAlteracao_(campo, antes, depois) {
+      const rotulo = rotuloCampoAlteracao_(campo);
+      const a = normalizarValorAlteracao_(campo, antes);
+      const d = normalizarValorAlteracao_(campo, depois);
+
+      if (campo === 'observacoes') {
+        return 'Observações foram atualizadas.';
+      }
+      if (campo === 'horaInicio' || campo === 'horaFim') {
+        return rotulo + ' ajustado para ' + d + '.';
+      }
+      if (a === '(vazio)') {
+        return rotulo + ' preenchido com ' + resumirTextoAlteracao_(d, 60) + '.';
+      }
+      if (d === '(vazio)') {
+        return rotulo + ' foi removido.';
+      }
+      return rotulo + ' alterado de ' + resumirTextoAlteracao_(a, 45) + ' para ' + resumirTextoAlteracao_(d, 45) + '.';
+    }
+
     function humanizarAcao(log) {
       const acao = String(log.acao || '').trim().toUpperCase();
       const tabela = String(log.tabela || '').trim().toUpperCase();
@@ -459,15 +532,17 @@
       }
       if (detalhesObj && Array.isArray(detalhesObj.alteracoes) && detalhesObj.alteracoes.length) {
         const alteracoes = detalhesObj.alteracoes;
-        const resumoCampos = alteracoes.slice(0, 5).map(function (it) {
+        const resumoCampos = alteracoes.slice(0, 4).map(function (it) {
           const campo = String((it && it.campo) || '').trim() || 'campo';
-          const antes = String((it && (it.antes !== undefined ? it.antes : it.de)) || '').trim() || '(vazio)';
-          const depois = String((it && (it.depois !== undefined ? it.depois : it.para)) || '').trim() || '(vazio)';
-          return campo + ': \"' + antes + '\" → \"' + depois + '\"';
-        }).join(' | ');
-        const sufixo = alteracoes.length > 5 ? ' | +' + (alteracoes.length - 5) + ' alterações.' : '';
+          const antes = (it && (it.antes !== undefined ? it.antes : it.de));
+          const depois = (it && (it.depois !== undefined ? it.depois : it.para));
+          return descreverAlteracao_(campo, antes, depois);
+        }).join(' ');
+        const sufixo = alteracoes.length > 4 ? ' Mais ' + (alteracoes.length - 4) + ' alteração(ões).' : '';
         const origem = String((detalhesObj.origem || detalhesObj.fonte || '')).trim();
-        return 'Alterações detectadas' + (origem ? ' (' + origem + ')' : '') + ': ' + resumoCampos + sufixo;
+        return 'Foram detectadas ' + alteracoes.length + ' alteração(ões)' +
+          (origem ? ' na rotina ' + humanizarOrigem_(origem) : '') +
+          '. ' + resumoCampos + sufixo;
       }
       if (detalhesObj && detalhesObj.tipo === 'CADASTRO_EDICAO_DETALHADA') {
         const alteracoes = Array.isArray(detalhesObj.alteracoes) ? detalhesObj.alteracoes : [];
@@ -475,14 +550,12 @@
         if (!alteracoes.length) {
           return 'Cadastro atualizado sem mudança efetiva de campos.' + (nomeRegistro ? ' Registro: ' + nomeRegistro + '.' : '');
         }
-        const resumoCampos = alteracoes.slice(0, 5).map(function (it) {
-          const campo = String(it.campo || '').trim() || 'campo';
-          const antes = String(it.antes || '').trim() || '(vazio)';
-          const depois = String(it.depois || '').trim() || '(vazio)';
-          return campo + ': \"' + antes + '\" → \"' + depois + '\"';
-        }).join(' | ');
-        const sufixo = alteracoes.length > 5 ? ' | +' + (alteracoes.length - 5) + ' alterações.' : '';
-        return 'Edição de cadastro' + (nomeRegistro ? ' de ' + nomeRegistro : '') + ': ' + resumoCampos + sufixo;
+        const resumoCampos = alteracoes.slice(0, 4).map(function (it) {
+          return descreverAlteracao_(String(it.campo || ''), it.antes, it.depois);
+        }).join(' ');
+        const sufixo = alteracoes.length > 4 ? ' Mais ' + (alteracoes.length - 4) + ' alteração(ões).' : '';
+        return 'Edição de cadastro' + (nomeRegistro ? ' de ' + nomeRegistro : '') +
+          ': ' + resumoCampos + sufixo;
       }
 
       if (/CRIAR|CADASTRAR/.test(acao)) {
