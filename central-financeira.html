@@ -1593,16 +1593,9 @@ function possuiDadosNaoProcessadosNoModoAtual_() {
   }
 
   if (modoAtual === 'comissao') {
-    const ajustes = Array.isArray(ajustesDetalhadosComissao) ? ajustes : [];
-    const ajustePreenchido = ajustes.some(a =>
-      Number(a?.valor || 0) > 0 || String(a?.descricao || '').trim() !== ''
-    );
-    return (
-      ajustePreenchido ||
-      campoTextoPreenchido_('linkPagamento') ||
-      inputTemArquivoSelecionado_('fileComprovanteFechamento') ||
-      checkboxMarcado_('confirmarFechamento')
-    );
+    // Comissão possui campos dinâmicos/autoajustáveis; para evitar falso-positivo
+    // que bloqueie a navegação, não exige confirmação ao trocar de módulo.
+    return false;
   }
 
   return false;
