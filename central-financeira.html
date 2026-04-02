@@ -1329,6 +1329,7 @@ let ajustesDetalhadosComissao = [];
 let previewComissaoAtual = null;
 let fiscalEventosCache = [];
 let fiscalEventosCacheLoaded = false;
+let fiscalEventosCacheTs = 0;
 let fiscalDivergenciasAuditoriaMap = new Map();
 let fiscalBadgeWarmPromise = null;
 let fiscalAuditoriaPromise = null;
@@ -1349,6 +1350,7 @@ let buscaEventoSeq = 0;
 const buscaEventoCache = new Map();
 const BUSCA_EVENTO_DEBOUNCE_MS = 260;
 const BUSCA_EVENTO_CACHE_TTL_MS = 60000;
+const BUSCA_EVENTO_LISTA_TTL_MS = 300000;
 const vinculoContratanteCache = new Map();
 const VINCULO_CONTRATANTE_CACHE_TTL_MS = 120000;
 
@@ -1653,6 +1655,38 @@ function normalizarListaEventosFinanceiros_(lista) {
   return [];
 }
 
+function normalizarEventoFinanceiroParaAutocomplete_(ev) {
+  const id = String(ev?.idEvento || ev?.id || ev?.ID_EVENTO || '').trim();
+  if (!id) return null;
+  const tipoEvento = String(ev?.tipoEvento || '').trim() || extrairTipoEventoFiscalizacao_(String(ev?.nomeEvento || 'Evento'));
+  const tipoRegistro = String(ev?.tipoRegistro || 'EVENTO').trim().toUpperCase();
+  const dataFormatada = formatarDataFiscalizacao_(ev?.dataEvento || ev?.dataFormatada || '');
+  const contratante = String(ev?.nomeContratante || ev?.contratante || ev?.nomeEvento || '').trim();
+  return {
+    id,
+    contratante,
+    tipoEvento,
+    tipoRegistro,
+    dataFormatada
+  };
+}
+
+function obterListaLocalBuscaEvento_() {
+  const base = Array.isArray(fiscalEventosCache) ? fiscalEventosCache : [];
+  if (!base.length) return [];
+  const map = new Map();
+  base.forEach(ev => {
+    const n = normalizarEventoFinanceiroParaAutocomplete_(ev);
+    if (!n || !n.id) return;
+    if (!map.has(n.id)) map.set(n.id, n);
+  });
+  return Array.from(map.values());
+}
+
+function cacheListaBuscaEventoEstaFresco_() {
+  return fiscalEventosCacheLoaded && fiscalEventosCacheTs > 0 && ((Date.now() - fiscalEventosCacheTs) <= BUSCA_EVENTO_LISTA_TTL_MS);
+}
+
 async function preaquecerBadgeFiscalizacao_() {
   if (fiscalBadgeWarmPromise) return fiscalBadgeWarmPromise;
   fiscalBadgeWarmPromise = (async () => {
@@ -1662,6 +1696,7 @@ async function preaquecerBadgeFiscalizacao_() {
       atualizarBadgeFiscalizacao_(eventosFin);
       fiscalEventosCache = eventosFin;
       fiscalEventosCacheLoaded = true;
+      fiscalEventosCacheTs = Date.now();
       return eventosFin;
     } catch (e) {
       console.warn('⚠️ Não foi possível pré-carregar badge da fiscalização:', e);
@@ -1684,6 +1719,7 @@ async function obterEventosFinanceiros_(opts) {
       if (Array.isArray(warmed)) {
         fiscalEventosCache = warmed;
         fiscalEventosCacheLoaded = true;
+        if (!fiscalEventosCacheTs) fiscalEventosCacheTs = Date.now();
         return warmed;
       }
     } catch (_) {}
@@ -1692,6 +1728,7 @@ async function obterEventosFinanceiros_(opts) {
   const eventos = normalizarListaEventosFinanceiros_(lista);
   fiscalEventosCache = eventos;
   fiscalEventosCacheLoaded = true;
+  fiscalEventosCacheTs = Date.now();
   return eventos;
 }
 
@@ -3125,6 +3162,12 @@ async function executarBuscaEvento_(termo, seq) {
 
   const box = document.getElementById('evSug');
   if (!box) return;
+  const cacheListaFresco = cacheListaBuscaEventoEstaFresco_();
+
+  // Se o cache base estiver velho, dispara refresh silencioso em background.
+  if (!cacheListaFresco) {
+    preaquecerBadgeFiscalizacao_().catch(() => {});
+  }
 
   // 1) Cache exato (rápido)
   const cacheExato = obterCacheBuscaEvento_(termoKey);
@@ -3149,9 +3192,19 @@ async function executarBuscaEvento_(termo, seq) {
     renderSugestoesEvento_(filtrarEventosFinanceirosValidos_(preview));
   }
 
+  // 2.5) Cache local da lista de eventos financeiros (rápido e compartilhado).
+  const previewLocal = filtrarListaLocalBuscaEvento_(obterListaLocalBuscaEvento_(), termoKey).slice(0, 20);
+  if (previewLocal.length && seq === buscaEventoSeq) {
+    renderSugestoesEvento_(filtrarEventosFinanceirosValidos_(previewLocal));
+    if (cacheListaFresco) {
+      setCacheBuscaEvento_(termoKey, previewLocal);
+      return;
+    }
+  }
+
   // 3) Fonte da verdade (API)
   try {
-    if ((!preview || !preview.length) && seq === buscaEventoSeq) {
+    if ((!preview || !preview.length) && (!previewLocal || !previewLocal.length) && seq === buscaEventoSeq) {
       box.innerHTML = '<div class="muted" style="padding:8px 10px">Consultando eventos...</div>';
     }
     const dataISO = parseDataBuscaEvento_(termoKey);
