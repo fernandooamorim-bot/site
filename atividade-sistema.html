@@ -434,6 +434,16 @@
       return d.toLocaleString('pt-BR');
     }
 
+    function formatarDataCurtaPtBr_(isoLike) {
+      const raw = String(isoLike || '').trim();
+      if (!raw) return '';
+      const m = raw.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+      if (m) return m[3] + '/' + m[2] + '/' + m[1];
+      const d = new Date(raw);
+      if (!isNaN(d.getTime())) return d.toLocaleDateString('pt-BR');
+      return raw;
+    }
+
     function parseDetalhesComoObjeto(txt) {
       const raw = String(txt || '').trim();
       if (!raw) return null;
@@ -529,6 +539,17 @@
         const codigo = String(detalhesObj.codigo || '').trim();
         const mensagem = String(detalhesObj.mensagem || '').trim();
         return 'Erro de API durante a ação ' + (acao || 'N/A') + (codigo ? ' (código ' + codigo + ')' : '') + (mensagem ? ': ' + mensagem : '.');
+      }
+      if (detalhesObj && detalhesObj.tipo === 'CRIACAO_EVENTO') {
+        const titulo = String(detalhesObj.tituloEvento || '').trim();
+        const dataEvento = formatarDataCurtaPtBr_(detalhesObj.dataEvento);
+        const contratante = String(detalhesObj.contratante || '').trim();
+        const tipoRegistro = String(detalhesObj.tipoRegistro || '').trim() || 'Registro';
+        const partes = [];
+        partes.push(tipoRegistro + ' criado' + (dataEvento ? (' para ' + dataEvento) : '') + '.');
+        if (titulo) partes.push('Título exibido: ' + titulo + '.');
+        if (contratante) partes.push('Contratante: ' + contratante + '.');
+        return partes.join(' ');
       }
       if (detalhesObj && Array.isArray(detalhesObj.alteracoes) && detalhesObj.alteracoes.length) {
         const alteracoes = detalhesObj.alteracoes;
