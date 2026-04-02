@@ -1331,6 +1331,12 @@ let fiscalEventosCacheLoaded = false;
 let fiscalDivergenciasAuditoriaMap = new Map();
 let fiscalBadgeWarmPromise = null;
 let fiscalAuditoriaPromise = null;
+let fiscalAuditoriaCache = { ts: 0, resumo: null, mapa: null };
+let fiscalFiltroTimer = null;
+let fiscalListaFiltradaCache = [];
+let fiscalRenderLimit = 40;
+const FISCAL_RENDER_STEP = 40;
+const FISCAL_AUDITORIA_CACHE_TTL_MS = 120000;
 let buscaEventoTimer = null;
 let buscaEventoSeq = 0;
 const buscaEventoCache = new Map();
@@ -1526,12 +1532,14 @@ function ativarModoCentral_(novoModo) {
 }
 
 async function iniciarCentralFinanceira() {
+  const t0 = performance.now();
   try {
     // Pré-carrega vendedores
     vendedoresCache = await Auth.apiCall('listarVendedores') || [];
     console.log('✅ Vendedores carregados:', vendedoresCache.length);
     // Pré-aquece badge da fiscalização em background para não travar o boot.
     preaquecerBadgeFiscalizacao_();
+    console.info('[CF][PERF] iniciarCentralFinanceira concluído em', Math.round(performance.now() - t0), 'ms');
   } catch (err) {
     console.error('Erro ao iniciar Central Financeira:', err);
     alert('Erro ao carregar dados iniciais');
@@ -2423,8 +2431,8 @@ function renderFiscalizacao() {
     <h3>🛡️ Fiscalização Financeira</h3>
     <div class="muted">Auditoria operacional com ações rápidas por evento.</div>
     <div class="fiscal-toolbar">
-      <input id="filtroFiscalBusca" placeholder="Buscar por ID ou nome do evento" oninput="aplicarFiltrosFiscalizacao_()">
-      <select id="filtroFiscalTipo" onchange="aplicarFiltrosFiscalizacao_()">
+      <input id="filtroFiscalBusca" placeholder="Buscar por ID ou nome do evento" oninput="agendarAplicarFiltrosFiscalizacao_()">
+      <select id="filtroFiscalTipo" onchange="agendarAplicarFiltrosFiscalizacao_(true)">
         <option value="TODOS">Todos</option>
         <option value="COM_ALERTA">Com alerta</option>
         <option value="COM_DIVERGENCIA">Com divergência</option>
@@ -2436,7 +2444,7 @@ function renderFiscalizacao() {
       </select>
       <div class="fiscal-toolbar-actions">
         <button type="button" class="btn secondary" onclick="atualizarFiscalizacaoManual_()">Atualizar</button>
-        <button type="button" class="btn primary" onclick="executarAuditoriaFiscalizacao_()">Auditar</button>
+        <button type="button" class="btn primary" onclick="executarAuditoriaFiscalizacao_(false, { force: true })">Auditar</button>
       </div>
     </div>
     <div id="listaFiscalizacao" class="fiscal-lista">
@@ -2453,13 +2461,15 @@ function carregarFiscalizacaoInicial_() {
 }
 
 function atualizarFiscalizacaoManual_() {
-  carregarFiscalizacao_(true, { forceRefresh: true, auditoriaEmBackground: false });
+  carregarFiscalizacao_(true, { forceRefresh: true, auditoriaEmBackground: false, forceAuditoria: true });
 }
 
 async function carregarFiscalizacao_(executarAuditoria, opts) {
+  const t0 = performance.now();
   const op = opts || {};
   const forceRefresh = op.forceRefresh !== false;
   const auditoriaEmBackground = op.auditoriaEmBackground === true;
+  const forceAuditoria = op.forceAuditoria === true;
   const usarOverlay = op.usarOverlay === true;
   const listaEl = document.getElementById('listaFiscalizacao');
   try {
@@ -2470,15 +2480,16 @@ async function carregarFiscalizacao_(executarAuditoria, opts) {
     fiscalEventosCache = await obterEventosFinanceiros_({ forceRefresh });
     atualizarBadgeFiscalizacao_(fiscalEventosCache);
     if (usarOverlay) hideLoading();
-    aplicarFiltrosFiscalizacao_();
+    aplicarFiltrosFiscalizacao_(true);
     if (executarAuditoria) {
       if (auditoriaEmBackground) {
         resumo.innerHTML = '<span class="muted">Lista pronta. Executando auditoria em segundo plano...</span>';
-        executarAuditoriaFiscalizacao_(true);
+        executarAuditoriaFiscalizacao_(true, { force: forceAuditoria });
       } else {
-        await executarAuditoriaFiscalizacao_(true);
+        await executarAuditoriaFiscalizacao_(true, { force: forceAuditoria });
       }
     }
+    console.info('[CF][PERF] carregarFiscalizacao concluído em', Math.round(performance.now() - t0), 'ms');
   } catch (err) {
     if (usarOverlay) hideLoading();
     console.error('Erro ao carregar fiscalização:', err);
@@ -2487,9 +2498,50 @@ async function carregarFiscalizacao_(executarAuditoria, opts) {
   }
 }
 
-async function executarAuditoriaFiscalizacao_(silencioso) {
+function auditoriaFiscalizacaoCacheValida_() {
+  return !!(
+    fiscalAuditoriaCache &&
+    fiscalAuditoriaCache.ts &&
+    (Date.now() - Number(fiscalAuditoriaCache.ts || 0)) <= FISCAL_AUDITORIA_CACHE_TTL_MS &&
+    fiscalAuditoriaCache.mapa instanceof Map &&
+    fiscalAuditoriaCache.resumo
+  );
+}
+
+function aplicarResultadoAuditoriaFiscalizacao_(resumoAuditoria, mapaDivergencias) {
+  fiscalDivergenciasAuditoriaMap = mapaDivergencias instanceof Map ? mapaDivergencias : new Map();
+  const r = resumoAuditoria || {};
+  resumo.innerHTML = `
+    <div><strong>Eventos analisados:</strong> ${Number(r.eventosAnalisados || 0)}</div>
+    <div><strong>Divergências:</strong> ${Number(r.divergencias || 0)}</div>
+    <div><strong>Eventos com divergência:</strong> ${Number(r.eventosComDivergencia || 0)}</div>
+    <div class="muted" style="margin-top:8px">Última auditoria executada agora.</div>
+  `;
+}
+
+function agendarAplicarFiltrosFiscalizacao_(resetarPaginacao) {
+  if (fiscalFiltroTimer) clearTimeout(fiscalFiltroTimer);
+  fiscalFiltroTimer = setTimeout(() => {
+    aplicarFiltrosFiscalizacao_(resetarPaginacao !== false);
+  }, 160);
+}
+
+function carregarMaisFiscalizacao_() {
+  fiscalRenderLimit += FISCAL_RENDER_STEP;
+  renderListaFiscalizacao_(fiscalListaFiltradaCache);
+}
+
+async function executarAuditoriaFiscalizacao_(silencioso, opts) {
+  const op = opts || {};
+  const force = op.force === true;
+  if (!force && auditoriaFiscalizacaoCacheValida_()) {
+    aplicarResultadoAuditoriaFiscalizacao_(fiscalAuditoriaCache.resumo, fiscalAuditoriaCache.mapa);
+    aplicarFiltrosFiscalizacao_(false);
+    return;
+  }
   if (fiscalAuditoriaPromise) return fiscalAuditoriaPromise;
   fiscalAuditoriaPromise = (async () => {
+  const t0 = performance.now();
   try {
     if (!silencioso) showLoading('Executando auditoria de integridade...');
     const diag = await Auth.apiCall('diagnosticarIntegridadeFinanceira', { limit: 1000 });
@@ -2499,23 +2551,20 @@ async function executarAuditoriaFiscalizacao_(silencioso) {
       resumo.innerHTML = '<span class="muted">Falha na auditoria de integridade.</span>';
       return;
     }
-    // Índice de divergências por evento para alinhar filtros da UI com o resumo da auditoria.
-    fiscalDivergenciasAuditoriaMap = new Map();
+    const mapaDivergencias = new Map();
     (diag.divergencias || []).forEach(d => {
       const id = String(d?.idEvento || '').trim();
       const tipo = String(d?.tipo || '').trim();
       if (!id) return;
-      if (!fiscalDivergenciasAuditoriaMap.has(id)) fiscalDivergenciasAuditoriaMap.set(id, []);
-      if (tipo) fiscalDivergenciasAuditoriaMap.get(id).push(tipo);
+      if (!mapaDivergencias.has(id)) mapaDivergencias.set(id, []);
+      if (tipo) mapaDivergencias.get(id).push(tipo);
     });
 
-    const r = diag.resumo || {};
-    resumo.innerHTML = `
-      <div><strong>Eventos analisados:</strong> ${Number(r.eventosAnalisados || 0)}</div>
-      <div><strong>Divergências:</strong> ${Number(r.divergencias || 0)}</div>
-      <div><strong>Eventos com divergência:</strong> ${Number(r.eventosComDivergencia || 0)}</div>
-      <div class="muted" style="margin-top:8px">Última auditoria executada agora.</div>
-    `;
+    const resumoAuditoria = diag.resumo || {};
+    fiscalAuditoriaCache = { ts: Date.now(), resumo: resumoAuditoria, mapa: mapaDivergencias };
+    aplicarResultadoAuditoriaFiscalizacao_(resumoAuditoria, mapaDivergencias);
+    aplicarFiltrosFiscalizacao_(false);
+    console.info('[CF][PERF] auditoriaFiscalizacao concluída em', Math.round(performance.now() - t0), 'ms');
   } catch (err) {
     if (!silencioso) hideLoading();
     console.error('Erro na auditoria:', err);
@@ -2528,7 +2577,10 @@ async function executarAuditoriaFiscalizacao_(silencioso) {
   return fiscalAuditoriaPromise;
 }
 
-function aplicarFiltrosFiscalizacao_() {
+function aplicarFiltrosFiscalizacao_(resetarPaginacao) {
+  if (resetarPaginacao !== false) {
+    fiscalRenderLimit = FISCAL_RENDER_STEP;
+  }
   const busca = String(document.getElementById('filtroFiscalBusca')?.value || '').trim().toLowerCase();
   const tipo = String(document.getElementById('filtroFiscalTipo')?.value || 'TODOS');
   let lista = Array.isArray(fiscalEventosCache) ? [...fiscalEventosCache] : [];
@@ -2597,6 +2649,7 @@ function aplicarFiltrosFiscalizacao_() {
     return normalizarDataFiscalSort_(a?.dataEvento) - normalizarDataFiscalSort_(b?.dataEvento);
   });
 
+  fiscalListaFiltradaCache = lista;
   renderListaFiscalizacao_(lista);
 }
 
@@ -2608,7 +2661,12 @@ function renderListaFiscalizacao_(lista) {
     return;
   }
 
-  box.innerHTML = lista.map(ev => {
+  const total = lista.length;
+  const limit = Math.max(1, Number(fiscalRenderLimit || FISCAL_RENDER_STEP));
+  const visiveis = lista.slice(0, limit);
+  const restante = Math.max(total - visiveis.length, 0);
+
+  box.innerHTML = visiveis.map(ev => {
     const alertas = Array.isArray(ev.alertas) ? ev.alertas : [];
     const alertasCriticos = alertas.filter(a => !alertaEhInformativo_(a));
     const divergencias = Array.isArray(ev.divergencias) ? ev.divergencias : [];
@@ -2655,7 +2713,12 @@ function renderListaFiscalizacao_(lista) {
         </div>
       </div>
     `;
-  }).join('');
+  }).join('') + `
+    <div class="muted" style="padding:8px 2px">
+      Exibindo ${visiveis.length} de ${total} evento(s).
+      ${restante > 0 ? `<button type="button" class="btn secondary" style="margin-left:8px" onclick="carregarMaisFiscalizacao_()">Carregar mais ${Math.min(FISCAL_RENDER_STEP, restante)}</button>` : ''}
+    </div>
+  `;
 }
 
 function formatarDataFiscalizacao_(valor) {
@@ -2927,6 +2990,7 @@ async function executarBuscaEvento_(termo, seq) {
 }
 
 async function selectEvento(ev){
+  const t0 = performance.now();
   if (buscaEventoTimer) clearTimeout(buscaEventoTimer);
   buscaEventoSeq++;
   const inp = document.getElementById('inputEvento');
@@ -3161,6 +3225,7 @@ async function selectEvento(ev){
     ]);
     limparMensagensAsaas_();
   }
+  console.info('[CF][PERF] selectEvento concluído em', Math.round(performance.now() - t0), 'ms', 'modo=', String(mode || ''));
 
 } catch (err) {
   console.error('Erro ao carregar resumo financeiro:', err);
