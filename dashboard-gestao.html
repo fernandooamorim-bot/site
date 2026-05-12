@@ -240,6 +240,33 @@
     .auditoria-row .status.ok{background:#effcf5;color:#0d8a5d;border-color:#b7ebd5}
     .auditoria-row .status.warn{background:#fff7e8;color:#9a6d08;border-color:#f3ddb2}
     .auditoria-row .status.info{background:#eff6ff;color:#1d4ed8;border-color:#bfdbfe}
+    .auditoria-status-wrap{justify-self:end;display:grid;gap:3px;justify-items:end}
+    .auditoria-status-reason{font-size:10px;color:var(--muted);max-width:130px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .aud-tip{position:relative;cursor:help}
+    .aud-tip::after{
+      content:attr(data-tip);
+      position:absolute;
+      left:50%;
+      bottom:calc(100% + 8px);
+      transform:translateX(-50%);
+      min-width:220px;
+      max-width:320px;
+      padding:8px 10px;
+      border-radius:8px;
+      background:#0f1a2e;
+      color:#fff;
+      font-size:11px;
+      font-weight:600;
+      line-height:1.35;
+      white-space:normal;
+      text-align:left;
+      box-shadow:0 8px 24px rgba(15,26,46,.25);
+      opacity:0;
+      pointer-events:none;
+      transition:opacity .15s ease;
+      z-index:50;
+    }
+    .aud-tip:hover::after,.aud-tip:focus-visible::after{opacity:1}
     .auditoria-note{font-size:11px;color:var(--muted);padding:0 10px 10px}
     .row{border:1px solid var(--line);border-radius:10px;padding:10px;background:#fff}
     .row-top{display:flex;justify-content:space-between;gap:8px}
@@ -1910,7 +1937,21 @@
           bv: lista.filter(x => x.pendencias.includes('BV pendente')).length,
           nf: lista.filter(x => x.pendencias.includes('NF pendente')).length
         };
-        const rows = lista.map(x => `
+        const rows = lista.map(x => {
+          const motivos = Array.isArray(x.pendencias) ? x.pendencias : [];
+          const motivoPrincipal = motivos[0] || '';
+          const resumoMotivos = motivos.length > 1 ? `${motivoPrincipal} +${motivos.length - 1}` : motivoPrincipal;
+          const statusLabel = x.ocorrido ? (x.statusValidacao === 'PROVISORIA' ? 'Provisório' : 'Validado') : 'Previsto';
+          const statusCls = x.ocorrido ? (x.statusValidacao === 'PROVISORIA' ? 'warn' : 'ok') : 'info';
+          const statusReason = x.ocorrido
+            ? (x.statusValidacao === 'PROVISORIA'
+              ? (resumoMotivos || 'Aguardando validação final')
+              : 'Sem pendências')
+            : (resumoMotivos || 'Aguardando execução');
+          const statusTooltip = motivos.length
+            ? `Motivos: ${motivos.join(' • ')}`
+            : (x.ocorrido ? 'Sem pendências de validação.' : 'Evento futuro, ainda não executado.');
+          return `
           <div class="auditoria-row ${x.ocorrido ? '' : 'future'}">
             <div class="dt">${x.dataEvento || '-'}</div>
             <div class="ev-wrap">
@@ -1918,14 +1959,18 @@
               ${x.pendencias.length ? `<div class="auditoria-alerts">${x.pendencias.map(p => `<span class="auditoria-alert">${p}</span>`).join('')}</div>` : ''}
             </div>
             <div class="num">${fmt(x.recebido)}</div>
-            <div class="num" title="Custos pagos: Comissão ${fmt(num(x?.custosPagosDetalhe?.comissao))} + BV ${fmt(num(x?.custosPagosDetalhe?.bv))} + NF ${fmt(num(x?.custosPagosDetalhe?.nf))} + Folha ${fmt(num(x?.custosPagosDetalhe?.folha))}">${fmt(x.saidas)}</div>
-            <div class="num ${num(x.provisoes) > 0 ? 'neg' : 'pos'}" title="Custos a pagar (provisão): Comissão ${fmt(num(x?.custosProvisaoDetalhe?.comissao))} + BV ${fmt(num(x?.custosProvisaoDetalhe?.bv))} + NF ${fmt(num(x?.custosProvisaoDetalhe?.nf))}">${fmt(num(x.provisoes))}</div>
+            <div class="num aud-tip" data-tip="Custos pagos: Comissão ${fmt(num(x?.custosPagosDetalhe?.comissao))} + BV ${fmt(num(x?.custosPagosDetalhe?.bv))} + NF ${fmt(num(x?.custosPagosDetalhe?.nf))} + Folha ${fmt(num(x?.custosPagosDetalhe?.folha))}">${fmt(x.saidas)}</div>
+            <div class="num ${num(x.provisoes) > 0 ? 'neg' : 'pos'} aud-tip" data-tip="Custos a pagar (provisão): Comissão ${fmt(num(x?.custosProvisaoDetalhe?.comissao))} + BV ${fmt(num(x?.custosProvisaoDetalhe?.bv))} + NF ${fmt(num(x?.custosProvisaoDetalhe?.nf))}">${fmt(num(x.provisoes))}</div>
             <div class="num ${x.liquido < 0 ? 'neg' : 'pos'}">${fmt(x.liquido)}</div>
             <div class="num ${num(x.liquidoProjetado) < 0 ? 'neg' : 'pos'}">${fmt(num(x.liquidoProjetado))}</div>
             <div class="num ${x.margemProjetada !== null && x.margemProjetada < 0 ? 'neg' : 'pos'}">${fmtPct(x.margemRecebido)} / ${fmtPct(x.margemProjetada)}</div>
-            <div class="status ${x.ocorrido ? (x.statusValidacao === 'PROVISORIA' ? 'warn' : 'ok') : 'info'}">${x.ocorrido ? (x.statusValidacao === 'PROVISORIA' ? 'Provisório' : 'Validado') : 'Previsto'}</div>
+            <div class="auditoria-status-wrap" title="${statusTooltip}">
+              <div class="status ${statusCls}">${statusLabel}</div>
+              <div class="auditoria-status-reason">${statusReason}</div>
+            </div>
           </div>
-        `).join('');
+        `;
+        }).join('');
 
         return `
           <details class="auditoria-mes" ${idx === 0 ? 'open' : ''}>
@@ -1934,8 +1979,8 @@
               <div class="auditoria-mes-meta">
                 <span class="auditoria-pill">${lista.length} evento${lista.length !== 1 ? 's' : ''}</span>
                 <span class="auditoria-pill">Recebido ${fmt(totalRecebido)}</span>
-                <span class="auditoria-pill" title="Custos pagos do mês: Comissão ${fmt(totalComissaoPaga)} + BV ${fmt(totalBvPago)} + NF ${fmt(totalNfPago)} + Folha ${fmt(totalFolhaPaga)}">Custos pagos ${fmt(totalSaidas)}</span>
-                <span class="auditoria-pill warn" title="Custos a pagar (provisão) do mês: Comissão ${fmt(totalComissaoProv)} + BV ${fmt(totalBvProv)} + NF ${fmt(totalNfProv)}">Custos a pagar ${fmt(totalProvisoes)}</span>
+                <span class="auditoria-pill aud-tip" data-tip="Custos pagos do mês: Comissão ${fmt(totalComissaoPaga)} + BV ${fmt(totalBvPago)} + NF ${fmt(totalNfPago)} + Folha ${fmt(totalFolhaPaga)}">Custos pagos ${fmt(totalSaidas)}</span>
+                <span class="auditoria-pill warn aud-tip" data-tip="Custos a pagar (provisão) do mês: Comissão ${fmt(totalComissaoProv)} + BV ${fmt(totalBvProv)} + NF ${fmt(totalNfProv)}">Custos a pagar ${fmt(totalProvisoes)}</span>
                 <span class="auditoria-pill ${totalLiquido < 0 ? 'neg' : 'pos'}">Lucro atual ${fmt(totalLiquido)}</span>
                 <span class="auditoria-pill ${totalLiquidoProjetado < 0 ? 'neg' : 'pos'}">Lucro projetado ${fmt(totalLiquidoProjetado)}</span>
                 <span class="auditoria-pill ${margemMesRecebido !== null && margemMesRecebido < 0 ? 'neg' : 'pos'}">Mrg atual ${fmtPct(margemMesRecebido)}</span>
