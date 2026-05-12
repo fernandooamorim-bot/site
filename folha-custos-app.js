@@ -26,6 +26,8 @@ let passagemDeSomPorMusico = {};
 let servicosDisponiveis = [];
 let categoriasServicos = [];
 let CURRENT_USER_EMAIL = '';
+let CURRENT_USER_PROFILE = '';
+let PODE_CONSULTAR_RESUMO_FINANCEIRO = false;
 let loadingMessageTimer = null;
 let loadingMessageIndex = 0;
 const FOLHA_CACHE_KEY = 'folhaCustos:dataCache:v1';
@@ -130,6 +132,8 @@ document.addEventListener('DOMContentLoaded', async function() {
       .replace(/[\u0300-\u036f]/g, '')
       .trim()
       .toLowerCase();
+    CURRENT_USER_PROFILE = perfil;
+    PODE_CONSULTAR_RESUMO_FINANCEIRO = (perfil === 'proprietario');
     const permitido = (perfil === 'proprietario' || perfil === 'producao');
     if (!permitido) {
       alert('Área disponível apenas para Proprietário e Produção.');
@@ -773,13 +777,25 @@ async function eventoAgendaTemFolhaAtivaPorResumo_(idEvento) {
   const id = String(idEvento || '').trim();
   if (!id) return false;
   if (resumoFolhaEventoCache.has(id)) return resumoFolhaEventoCache.get(id) === true;
+  if (!PODE_CONSULTAR_RESUMO_FINANCEIRO) {
+    const evLocal = (eventosAgendaFolhaCache || []).find(ev => String(ev?.id || '').trim() === id) || null;
+    const statusLocal = statusFolhaLocalEvento_(evLocal);
+    const temFolhaLocal = statusLocal === true;
+    resumoFolhaEventoCache.set(id, temFolhaLocal);
+    return temFolhaLocal;
+  }
   try {
     const resumo = await Auth.apiCall('buscarResumoFinanceiroEvento', { idEvento: id });
     const temFolha = Number(resumo?.folhaCustoValor || 0) > 0;
     resumoFolhaEventoCache.set(id, temFolha);
     return temFolha;
   } catch (e) {
-    console.warn('Falha ao verificar folha no resumo financeiro do evento:', id, e);
+    const codigo = String(e?.code || e?.codigo || '').toUpperCase();
+    const msg = String(e?.message || '').toUpperCase();
+    const semPermissao = codigo === 'SEM_PERMISSAO' || msg.indexOf('FORBIDDEN_ACTION') >= 0 || msg.indexOf('SEM_PERMISSAO') >= 0;
+    if (!semPermissao) {
+      console.warn('Falha ao verificar folha no resumo financeiro do evento:', id, e);
+    }
     // Em caso de falha, não assume "sem folha" para evitar falso positivo.
     resumoFolhaEventoCache.set(id, true);
     return true;
@@ -849,6 +865,7 @@ async function carregarEventosComPropostaFolha_() {
 }
 
 async function reconciliarPendenciasComFinanceiro_() {
+  if (!PODE_CONSULTAR_RESUMO_FINANCEIRO) return;
   if (reconciliandoPendenciasCache) return;
   reconciliandoPendenciasCache = true;
   try {
