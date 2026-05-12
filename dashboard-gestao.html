@@ -790,6 +790,12 @@
       el.classList.remove('ok', 'warn');
       if (cls) el.classList.add(cls);
     }
+    function montarResumoCustosTooltip_(partes, vazio) {
+      const lista = (Array.isArray(partes) ? partes : [])
+        .filter(p => p && Number(p.valor || 0) > 0)
+        .map(p => `${p.nome} ${fmt(Number(p.valor || 0))}`);
+      return lista.length ? lista.join(' + ') : String(vazio || 'Sem custo configurado');
+    }
     function atualizarBotoesVisaoAuditoria_() {
       const visao = String(auditoriaState.visao || 'OCORRIDOS');
       const cfg = [
@@ -1754,22 +1760,28 @@
       const totalRecebido = num(evento?.totalRecebido || (valorContrato - valorPendente));
       const comissaoPago = num(evento?.comissao?.valores?.pago);
       const comissaoPendente = num(evento?.comissao?.valores?.pendente);
-      const bvPago = num(evento?.bv?.valor);
-      const nfPago = num(evento?.nf?.valor);
+      const bvValor = num(evento?.bv?.valor);
+      const nfValor = num(evento?.nf?.valor);
       const folhaPago = num(evento?.custos?.folha?.valor || evento?.folha?.valor || evento?.folhaCustoValor);
-      const saidas = comissaoPago + bvPago + nfPago + folhaPago;
       const statusComissao = normalizarStatus(evento?.comissao?.status);
       const statusBv = normalizarStatus(evento?.bv?.status);
       const statusNf = normalizarStatus(evento?.nf?.status);
+      const bvPendente = (
+        statusBv === 'PENDENTE' ||
+        statusBv === 'AGUARDANDO' ||
+        eventoTemAlerta(evento, 'BV_PENDENTE') ||
+        eventoTemAlerta(evento, 'EVENTO_QUITADO_COM_BV_PENDENTE') ||
+        evento?.acoes?.podePagarBV
+      );
+      const bvPago = bvPendente ? 0 : bvValor;
+      const provisaoBV = bvPendente ? bvValor : 0;
+      // NF no fluxo atual já nasce como custo pago quando configurada no evento.
+      const nfPago = nfValor;
       const provisaoComissao = (statusComissao === 'PENDENTE' || statusComissao === 'PARCIAL' || statusComissao === 'AGUARDANDO' || statusComissao === 'ERRO')
         ? comissaoPendente
         : 0;
-      const provisaoBV = (statusBv === 'PENDENTE' || statusBv === 'AGUARDANDO' || eventoTemAlerta(evento, 'BV_PENDENTE') || eventoTemAlerta(evento, 'EVENTO_QUITADO_COM_BV_PENDENTE'))
-        ? num(evento?.bv?.valor)
-        : 0;
-      const provisaoNF = (statusNf === 'PENDENTE' || statusNf === 'AGUARDANDO' || eventoTemAlerta(evento, 'EVENTO_QUITADO_COM_NF_PENDENTE'))
-        ? num(evento?.nf?.valor)
-        : 0;
+      const provisaoNF = 0;
+      const saidas = comissaoPago + bvPago + nfPago + folhaPago;
       const totalProvisao = provisaoComissao + provisaoBV + provisaoNF;
       const liquido = totalRecebido - saidas;
       const liquidoProjetado = liquido - totalProvisao;
@@ -1785,13 +1797,7 @@
       ) {
         pendencias.push('Folha pendente');
       }
-      if (
-        statusBv === 'PENDENTE' ||
-        statusBv === 'AGUARDANDO' ||
-        eventoTemAlerta(evento, 'BV_PENDENTE') ||
-        eventoTemAlerta(evento, 'EVENTO_QUITADO_COM_BV_PENDENTE') ||
-        evento?.acoes?.podePagarBV
-      ) {
+      if (bvPendente) {
         pendencias.push('BV pendente');
       }
       if (
@@ -1959,12 +1965,21 @@
               ${x.pendencias.length ? `<div class="auditoria-alerts">${x.pendencias.map(p => `<span class="auditoria-alert">${p}</span>`).join('')}</div>` : ''}
             </div>
             <div class="num">${fmt(x.recebido)}</div>
-            <div class="num aud-tip" data-tip="Custos pagos: Comissão ${fmt(num(x?.custosPagosDetalhe?.comissao))} + BV ${fmt(num(x?.custosPagosDetalhe?.bv))} + NF ${fmt(num(x?.custosPagosDetalhe?.nf))} + Folha ${fmt(num(x?.custosPagosDetalhe?.folha))}">${fmt(x.saidas)}</div>
-            <div class="num ${num(x.provisoes) > 0 ? 'neg' : 'pos'} aud-tip" data-tip="Custos a pagar (provisão): Comissão ${fmt(num(x?.custosProvisaoDetalhe?.comissao))} + BV ${fmt(num(x?.custosProvisaoDetalhe?.bv))} + NF ${fmt(num(x?.custosProvisaoDetalhe?.nf))}">${fmt(num(x.provisoes))}</div>
+            <div class="num aud-tip" data-tip="${montarResumoCustosTooltip_([
+              { nome: 'Comissão', valor: num(x?.custosPagosDetalhe?.comissao) },
+              { nome: 'BV', valor: num(x?.custosPagosDetalhe?.bv) },
+              { nome: 'NF', valor: num(x?.custosPagosDetalhe?.nf) },
+              { nome: 'Folha', valor: num(x?.custosPagosDetalhe?.folha) }
+            ], 'Sem custo pago configurado')}">${fmt(x.saidas)}</div>
+            <div class="num ${num(x.provisoes) > 0 ? 'neg' : 'pos'} aud-tip" data-tip="${montarResumoCustosTooltip_([
+              { nome: 'Comissão', valor: num(x?.custosProvisaoDetalhe?.comissao) },
+              { nome: 'BV', valor: num(x?.custosProvisaoDetalhe?.bv) },
+              { nome: 'NF', valor: num(x?.custosProvisaoDetalhe?.nf) }
+            ], 'Sem custo a pagar configurado')}">${fmt(num(x.provisoes))}</div>
             <div class="num ${x.liquido < 0 ? 'neg' : 'pos'}">${fmt(x.liquido)}</div>
             <div class="num ${num(x.liquidoProjetado) < 0 ? 'neg' : 'pos'}">${fmt(num(x.liquidoProjetado))}</div>
             <div class="num ${x.margemProjetada !== null && x.margemProjetada < 0 ? 'neg' : 'pos'}">${fmtPct(x.margemRecebido)} / ${fmtPct(x.margemProjetada)}</div>
-            <div class="auditoria-status-wrap" title="${statusTooltip}">
+            <div class="auditoria-status-wrap aud-tip" data-tip="${statusTooltip.replace(/\"/g, '&quot;')}">
               <div class="status ${statusCls}">${statusLabel}</div>
               <div class="auditoria-status-reason">${statusReason}</div>
             </div>
@@ -1979,8 +1994,17 @@
               <div class="auditoria-mes-meta">
                 <span class="auditoria-pill">${lista.length} evento${lista.length !== 1 ? 's' : ''}</span>
                 <span class="auditoria-pill">Recebido ${fmt(totalRecebido)}</span>
-                <span class="auditoria-pill aud-tip" data-tip="Custos pagos do mês: Comissão ${fmt(totalComissaoPaga)} + BV ${fmt(totalBvPago)} + NF ${fmt(totalNfPago)} + Folha ${fmt(totalFolhaPaga)}">Custos pagos ${fmt(totalSaidas)}</span>
-                <span class="auditoria-pill warn aud-tip" data-tip="Custos a pagar (provisão) do mês: Comissão ${fmt(totalComissaoProv)} + BV ${fmt(totalBvProv)} + NF ${fmt(totalNfProv)}">Custos a pagar ${fmt(totalProvisoes)}</span>
+                <span class="auditoria-pill aud-tip" data-tip="${montarResumoCustosTooltip_([
+                  { nome: 'Comissão', valor: totalComissaoPaga },
+                  { nome: 'BV', valor: totalBvPago },
+                  { nome: 'NF', valor: totalNfPago },
+                  { nome: 'Folha', valor: totalFolhaPaga }
+                ], 'Sem custo pago no mês')}">Custos pagos ${fmt(totalSaidas)}</span>
+                <span class="auditoria-pill warn aud-tip" data-tip="${montarResumoCustosTooltip_([
+                  { nome: 'Comissão', valor: totalComissaoProv },
+                  { nome: 'BV', valor: totalBvProv },
+                  { nome: 'NF', valor: totalNfProv }
+                ], 'Sem custo a pagar no mês')}">Custos a pagar ${fmt(totalProvisoes)}</span>
                 <span class="auditoria-pill ${totalLiquido < 0 ? 'neg' : 'pos'}">Lucro atual ${fmt(totalLiquido)}</span>
                 <span class="auditoria-pill ${totalLiquidoProjetado < 0 ? 'neg' : 'pos'}">Lucro projetado ${fmt(totalLiquidoProjetado)}</span>
                 <span class="auditoria-pill ${margemMesRecebido !== null && margemMesRecebido < 0 ? 'neg' : 'pos'}">Mrg atual ${fmtPct(margemMesRecebido)}</span>
