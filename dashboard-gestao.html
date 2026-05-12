@@ -520,6 +520,12 @@
               <button id="btnAuditoriaVisaoOcorridos" class="btn outline hidden" onclick="setAuditoriaVisao('OCORRIDOS')">Ocorridos</button>
               <button id="btnAuditoriaVisaoAno" class="btn outline hidden" onclick="setAuditoriaVisao('ANO')">Todos do ano</button>
               <button id="btnAuditoriaVisaoFuturos" class="btn outline hidden" onclick="setAuditoriaVisao('FUTUROS')">Apenas futuros</button>
+              <select id="auditoriaOrdenacao" class="hidden" onchange="setAuditoriaOrdenacao(this.value)" title="Ordenação da lista de eventos da auditoria">
+                <option value="CRONO">Ordem cronológica</option>
+                <option value="PRIORIDADE">Prioridade (maior risco)</option>
+                <option value="MARGEM_PROJ_ASC">Menor margem projetada</option>
+                <option value="IMPACTO_PROV_DESC">Maior impacto de provisão</option>
+              </select>
             </div>
             <div id="auditoriaHint" class="auditoria-hint">Sob demanda: lucro atual (caixa) e lucro projetado (com provisões) por evento.</div>
           </div>
@@ -604,7 +610,8 @@
       loading: false,
       ano: null,
       eventos: [],
-      visao: 'OCORRIDOS'
+      visao: 'OCORRIDOS',
+      ordenacao: 'CRONO'
     };
     const auditoriaComercialState = {
       loaded: false,
@@ -816,6 +823,17 @@
         : 'OCORRIDOS';
       auditoriaState.visao = v;
       atualizarBotoesVisaoAuditoria_();
+      if (auditoriaState.loaded && Array.isArray(auditoriaState.eventos) && auditoriaState.eventos.length) {
+        renderAuditoriaMensal(auditoriaState.eventos, getAnoSelecionado());
+      }
+    }
+    function setAuditoriaOrdenacao(valor) {
+      const v = ['CRONO', 'PRIORIDADE', 'MARGEM_PROJ_ASC', 'IMPACTO_PROV_DESC'].includes(String(valor || '').toUpperCase())
+        ? String(valor).toUpperCase()
+        : 'CRONO';
+      auditoriaState.ordenacao = v;
+      const sel = document.getElementById('auditoriaOrdenacao');
+      if (sel && sel.value !== v) sel.value = v;
       if (auditoriaState.loaded && Array.isArray(auditoriaState.eventos) && auditoriaState.eventos.length) {
         renderAuditoriaMensal(auditoriaState.eventos, getAnoSelecionado());
       }
@@ -1912,7 +1930,28 @@
 
       const nomesMes = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
       const html = mesesComDados.sort((a, b) => a - b).map((mes, idx) => {
-        const lista = meses[mes].sort((a, b) => {
+        const ordenacao = String(auditoriaState.ordenacao || 'CRONO');
+        const prioridadeAuditoria_ = function (x) {
+          const pend = Array.isArray(x?.pendencias) ? x.pendencias.length : 0;
+          const margemProj = Number.isFinite(Number(x?.margemProjetada)) ? Number(x.margemProjetada) : 9999;
+          const impactoProv = Number(x?.provisoes || 0);
+          // score menor = prioridade maior
+          return (margemProj * 1000) - (impactoProv * 0.1) - (pend * 100);
+        };
+        const lista = [...meses[mes]].sort((a, b) => {
+          if (ordenacao === 'PRIORIDADE') {
+            const pa = prioridadeAuditoria_(a);
+            const pb = prioridadeAuditoria_(b);
+            if (pa !== pb) return pa - pb;
+          } else if (ordenacao === 'MARGEM_PROJ_ASC') {
+            const ma = Number.isFinite(Number(a?.margemProjetada)) ? Number(a.margemProjetada) : 9999;
+            const mb = Number.isFinite(Number(b?.margemProjetada)) ? Number(b.margemProjetada) : 9999;
+            if (ma !== mb) return ma - mb;
+          } else if (ordenacao === 'IMPACTO_PROV_DESC') {
+            const ia = Number(a?.provisoes || 0);
+            const ib = Number(b?.provisoes || 0);
+            if (ia !== ib) return ib - ia;
+          }
           const da = Number(a?.diaEvento || 0);
           const db = Number(b?.diaEvento || 0);
           if (da !== db) return da - db;
@@ -2086,6 +2125,7 @@
       const btnVisaoOcorridos = document.getElementById('btnAuditoriaVisaoOcorridos');
       const btnVisaoAno = document.getElementById('btnAuditoriaVisaoAno');
       const btnVisaoFuturos = document.getElementById('btnAuditoriaVisaoFuturos');
+      const selOrdenacao = document.getElementById('auditoriaOrdenacao');
       if (!box || !btn) return;
       const abrindo = box.classList.contains('hidden');
       if (!abrindo) {
@@ -2096,6 +2136,7 @@
         if (btnVisaoOcorridos) btnVisaoOcorridos.classList.add('hidden');
         if (btnVisaoAno) btnVisaoAno.classList.add('hidden');
         if (btnVisaoFuturos) btnVisaoFuturos.classList.add('hidden');
+        if (selOrdenacao) selOrdenacao.classList.add('hidden');
         setAuditoriaHint('Sob demanda: lucro atual (caixa) e lucro projetado (com provisões) por evento.');
         return;
       }
@@ -2106,6 +2147,10 @@
       if (btnVisaoOcorridos) btnVisaoOcorridos.classList.remove('hidden');
       if (btnVisaoAno) btnVisaoAno.classList.remove('hidden');
       if (btnVisaoFuturos) btnVisaoFuturos.classList.remove('hidden');
+      if (selOrdenacao) {
+        selOrdenacao.classList.remove('hidden');
+        selOrdenacao.value = String(auditoriaState.ordenacao || 'CRONO');
+      }
       atualizarBotoesVisaoAuditoria_();
       await carregarAuditoriaMensal(false);
     }
