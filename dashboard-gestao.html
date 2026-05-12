@@ -225,7 +225,7 @@
     .auditoria-pill.warn{color:#9a6d08;border-color:#f3ddb2;background:#fff7e8}
     .auditoria-pill.ok{color:#0d8a5d;border-color:#b7ebd5;background:#effcf5}
     .auditoria-list{padding:10px;display:grid;gap:6px}
-    .auditoria-row{display:grid;grid-template-columns:96px 1fr 108px 108px 120px 112px 126px 132px 118px;gap:8px;align-items:center;border:1px solid var(--line);border-radius:8px;padding:8px 10px;background:#fff}
+    .auditoria-row{display:grid;grid-template-columns:92px 1fr 110px 108px 108px 120px 112px 126px 132px 118px;gap:8px;align-items:center;border:1px solid var(--line);border-radius:8px;padding:8px 10px;background:#fff}
     .auditoria-row.head{background:#f8faff;font-weight:800;color:var(--muted)}
     .auditoria-row.future{background:#f8fbff}
     .auditoria-row .dt{font-size:12px;color:#4b5563;font-weight:700;white-space:nowrap}
@@ -314,7 +314,7 @@
     @media (max-width:1100px){.kpis{grid-template-columns:repeat(3,minmax(0,1fr))}.insights-kpis{grid-template-columns:1fr 1fr}}
     @media (max-width:1280px){.split{grid-template-columns:1fr 1fr}}
     @media (max-width:980px){.metric-grid{grid-template-columns:1fr}}
-    @media (max-width:980px){.auditoria-top5{grid-template-columns:1fr}.auditoria-row{grid-template-columns:72px 1fr 84px 84px 96px 90px 92px 98px 90px;font-size:11px}}
+    @media (max-width:980px){.auditoria-top5{grid-template-columns:1fr}.auditoria-row{grid-template-columns:68px 1fr 84px 84px 84px 96px 90px 92px 98px 90px;font-size:11px}}
     @media (max-width:860px){.grid{grid-template-columns:1fr}.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.kpis-secondary{grid-template-columns:1fr}.resultado-kpis{grid-template-columns:1fr}.insights-kpis{grid-template-columns:1fr}.split{grid-template-columns:1fr}.ticket-grid{grid-template-columns:1fr}}
     @media (min-width:768px){.bottom-nav{display:none}.container{padding-bottom:20px}}
     .hidden{display:none !important}
@@ -520,15 +520,16 @@
               <button id="btnAuditoriaVisaoOcorridos" class="btn outline hidden" onclick="setAuditoriaVisao('OCORRIDOS')">Ocorridos</button>
               <button id="btnAuditoriaVisaoAno" class="btn outline hidden" onclick="setAuditoriaVisao('ANO')">Todos do ano</button>
               <button id="btnAuditoriaVisaoFuturos" class="btn outline hidden" onclick="setAuditoriaVisao('FUTUROS')">Apenas futuros</button>
-              <select id="auditoriaOrdenacao" class="hidden" onchange="setAuditoriaOrdenacao(this.value)" title="Ordenação da lista de eventos da auditoria">
+              <select id="auditoriaOrdenacao" class="hidden" onchange="setAuditoriaOrdenacao(this.value)" title="Ordenação da lista: cronológica, risco combinado, menor margem projetada ou maior impacto de provisão.">
                 <option value="CRONO">Ordem cronológica</option>
-                <option value="PRIORIDADE">Prioridade (maior risco)</option>
-                <option value="MARGEM_PROJ_ASC">Menor margem projetada</option>
+                <option value="PRIORIDADE">Risco combinado (margem + provisão + pendências)</option>
+                <option value="MARGEM_PROJ_ASC">Menor margem projetada (%)</option>
                 <option value="IMPACTO_PROV_DESC">Maior impacto de provisão</option>
               </select>
             </div>
-            <div id="auditoriaHint" class="auditoria-hint">Sob demanda: lucro atual (caixa) e lucro projetado (com provisões) por evento.</div>
+            <div id="auditoriaHint" class="auditoria-hint">Sob demanda: lucro atual (caixa) e lucro projetado por contrato (com provisões) por evento.</div>
           </div>
+          <div class="auditoria-note hidden" id="auditoriaFormulasNote">Atual (caixa): Recebido - Custos pagos. Projetado (contrato): Contrato - Custos pagos - Custos a pagar.</div>
           <div id="auditoriaContent" class="auditoria-content hidden"></div>
           <div id="auditoriaTop5" class="auditoria-top5 hidden"></div>
         </div>
@@ -1802,7 +1803,7 @@
       const saidas = comissaoPago + bvPago + nfPago + folhaPago;
       const totalProvisao = provisaoComissao + provisaoBV + provisaoNF;
       const liquido = totalRecebido - saidas;
-      const liquidoProjetado = liquido - totalProvisao;
+      const liquidoProjetado = valorContrato - saidas - totalProvisao;
       const pendencias = [];
       if (valorContrato > 0 && totalRecebido + 0.01 < valorContrato) pendencias.push('Recebimento incompleto');
       if (statusComissao === 'PENDENTE' || statusComissao === 'PARCIAL' || statusComissao === 'AGUARDANDO' || statusComissao === 'ERRO') {
@@ -1827,7 +1828,7 @@
       }
       const pendenciasUnicas = Array.from(new Set(pendencias));
       const margemRecebido = totalRecebido > 0 ? (liquido / totalRecebido) * 100 : null;
-      const margemProjetada = totalRecebido > 0 ? (liquidoProjetado / totalRecebido) * 100 : null;
+      const margemProjetada = valorContrato > 0 ? (liquidoProjetado / valorContrato) * 100 : null;
       const statusValidacao = pendenciasUnicas.length ? 'PROVISORIA' : 'VALIDADA';
       return {
         idEvento: String(evento?.idEvento || evento?.id || ''),
@@ -1958,6 +1959,7 @@
           return String(a?.nomeEvento || '').localeCompare(String(b?.nomeEvento || ''), 'pt-BR');
         });
         const totalRecebido = lista.reduce((s, x) => s + x.recebido, 0);
+        const totalContratado = lista.reduce((s, x) => s + num(x.contratado), 0);
         const totalSaidas = lista.reduce((s, x) => s + x.saidas, 0);
         const totalProvisoes = lista.reduce((s, x) => s + num(x.provisoes), 0);
         const totalComissaoPaga = lista.reduce((s, x) => s + num(x?.custosPagosDetalhe?.comissao), 0);
@@ -1970,7 +1972,7 @@
         const totalLiquido = lista.reduce((s, x) => s + x.liquido, 0);
         const totalLiquidoProjetado = lista.reduce((s, x) => s + num(x.liquidoProjetado), 0);
         const margemMesRecebido = totalRecebido > 0 ? (totalLiquido / totalRecebido) * 100 : null;
-        const margemMesProjetada = totalRecebido > 0 ? (totalLiquidoProjetado / totalRecebido) * 100 : null;
+        const margemMesProjetada = totalContratado > 0 ? (totalLiquidoProjetado / totalContratado) * 100 : null;
         const qtdProvisorio = lista.filter(x => x.statusValidacao === 'PROVISORIA').length;
         const qtdValidado = lista.length - qtdProvisorio;
         const mesStatusCls = qtdProvisorio > 0 ? 'warn' : 'ok';
@@ -2001,8 +2003,8 @@
             <div class="dt">${x.dataEvento || '-'}</div>
             <div class="ev-wrap">
               <div class="ev" title="${x.nomeEvento}">${x.nomeEvento}</div>
-              ${x.pendencias.length ? `<div class="auditoria-alerts">${x.pendencias.map(p => `<span class="auditoria-alert">${p}</span>`).join('')}</div>` : ''}
             </div>
+            <div class="num">${fmt(x.contratado)}</div>
             <div class="num">${fmt(x.recebido)}</div>
             <div class="num aud-tip" data-tip="${montarResumoCustosTooltip_([
               { nome: 'Comissão', valor: num(x?.custosPagosDetalhe?.comissao) },
@@ -2032,6 +2034,7 @@
               <div class="auditoria-mes-title">${nomesMes[mes - 1]} / ${ano}</div>
               <div class="auditoria-mes-meta">
                 <span class="auditoria-pill">${lista.length} evento${lista.length !== 1 ? 's' : ''}</span>
+                <span class="auditoria-pill">Contrato ${fmt(totalContratado)}</span>
                 <span class="auditoria-pill">Recebido ${fmt(totalRecebido)}</span>
                 <span class="auditoria-pill aud-tip" data-tip="${montarResumoCustosTooltip_([
                   { nome: 'Comissão', valor: totalComissaoPaga },
@@ -2056,6 +2059,7 @@
               <div class="auditoria-row head">
                 <div>Data</div>
                 <div>Evento</div>
+                <div class="num">Contrato</div>
                 <div class="num">Recebido</div>
                 <div class="num">Custos pagos</div>
                 <div class="num">Custos a pagar</div>
@@ -2126,6 +2130,7 @@
       const btnVisaoAno = document.getElementById('btnAuditoriaVisaoAno');
       const btnVisaoFuturos = document.getElementById('btnAuditoriaVisaoFuturos');
       const selOrdenacao = document.getElementById('auditoriaOrdenacao');
+      const formulasNote = document.getElementById('auditoriaFormulasNote');
       if (!box || !btn) return;
       const abrindo = box.classList.contains('hidden');
       if (!abrindo) {
@@ -2137,7 +2142,8 @@
         if (btnVisaoAno) btnVisaoAno.classList.add('hidden');
         if (btnVisaoFuturos) btnVisaoFuturos.classList.add('hidden');
         if (selOrdenacao) selOrdenacao.classList.add('hidden');
-        setAuditoriaHint('Sob demanda: lucro atual (caixa) e lucro projetado (com provisões) por evento.');
+        if (formulasNote) formulasNote.classList.add('hidden');
+        setAuditoriaHint('Sob demanda: lucro atual (caixa) e lucro projetado por contrato (com provisões) por evento.');
         return;
       }
       box.classList.remove('hidden');
@@ -2151,6 +2157,7 @@
         selOrdenacao.classList.remove('hidden');
         selOrdenacao.value = String(auditoriaState.ordenacao || 'CRONO');
       }
+      if (formulasNote) formulasNote.classList.remove('hidden');
       atualizarBotoesVisaoAuditoria_();
       await carregarAuditoriaMensal(false);
     }
