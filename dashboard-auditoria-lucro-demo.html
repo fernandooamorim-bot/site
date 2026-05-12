@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Demo Aprovação • Auditoria de Lucro por Evento</title>
+  <style>
+    :root {
+      --bg: #f3f6fc;
+      --card: #ffffff;
+      --line: #dce4f1;
+      --text: #0f172a;
+      --muted: #64748b;
+      --navy: #0c1a33;
+      --blue: #1d4ed8;
+      --green: #15803d;
+      --amber: #b45309;
+      --red: #b91c1c;
+      --violet: #6d28d9;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Inter, Segoe UI, Roboto, Arial, sans-serif;
+      color: var(--text);
+      background: radial-gradient(circle at top right, #ebf2ff 0%, var(--bg) 45%);
+    }
+    .topbar {
+      background: linear-gradient(135deg, var(--navy), #16345f);
+      color: #fff;
+      padding: 16px 20px;
+      border-bottom: 1px solid rgba(255,255,255,.12);
+    }
+    .topbar h1 { margin: 0; font-size: 20px; }
+    .topbar p { margin: 6px 0 0; color: rgba(255,255,255,.88); font-size: 13px; }
+    .container {
+      max-width: 1320px;
+      margin: 0 auto;
+      padding: 14px;
+      display: grid;
+      gap: 12px;
+    }
+    .panel {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 10px;
+    }
+    .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+    .seg {
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 8px 12px;
+      font-size: 12px;
+      font-weight: 800;
+      background: #fff;
+      color: #334155;
+      cursor: pointer;
+    }
+    .seg.active { background: #1e3a5f; border-color: #1e3a5f; color: #fff; }
+    .hint { margin-left: auto; color: var(--muted); font-size: 12px; }
+
+    .kpis {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(0,1fr));
+      gap: 10px;
+    }
+    .kpi {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 10px;
+      min-height: 86px;
+    }
+    .kpi .k { font-size: 11px; font-weight: 800; text-transform: uppercase; color: var(--muted); }
+    .kpi .v { margin-top: 5px; font-size: 22px; font-weight: 900; letter-spacing: -.3px; }
+    .kpi small { display: block; margin-top: 3px; font-size: 11px; color: var(--muted); }
+    .kpi.bad .v { color: var(--red); }
+    .kpi.warn .v { color: var(--amber); }
+    .kpi.ok .v { color: var(--green); }
+    .kpi.info .v { color: var(--blue); }
+    .kpi.prov .v { color: var(--violet); }
+
+    .month {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    .month-head {
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--line);
+      background: linear-gradient(180deg, #f8fbff 0%, #f3f7ff 100%);
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    }
+    .month-head h3 { margin: 0; font-size: 28px; letter-spacing: -.4px; }
+    .chip {
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      background: #fff;
+      padding: 6px 10px;
+      font-size: 12px;
+      font-weight: 800;
+      color: #334155;
+    }
+    .chip.ok { color: var(--green); border-color: #bbf7d0; background: #f0fdf4; }
+    .chip.warn { color: var(--amber); border-color: #fde68a; background: #fffbeb; }
+    .chip.prov { color: var(--violet); border-color: #ddd6fe; background: #f5f3ff; }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 1200px;
+    }
+    .table-wrap { overflow: auto; }
+    th, td {
+      border-bottom: 1px solid #edf2fa;
+      padding: 9px 10px;
+      font-size: 12px;
+      vertical-align: top;
+      text-align: left;
+    }
+    th {
+      background: #f8fbff;
+      color: #334155;
+      font-size: 21px;
+      font-weight: 900;
+      position: sticky;
+      top: 0;
+      z-index: 1;
+    }
+    tr.future { background: #f8fbff; }
+    tr.future td:first-child::before {
+      content: '⏳';
+      margin-right: 6px;
+      opacity: .8;
+    }
+
+    .status {
+      display: inline-flex;
+      align-items: center;
+      border-radius: 999px;
+      border: 1px solid transparent;
+      padding: 5px 9px;
+      font-size: 11px;
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: .2px;
+      white-space: nowrap;
+    }
+    .status.validado { color: var(--green); background: #ecfdf5; border-color: #bbf7d0; }
+    .status.provisorio { color: var(--violet); background: #f5f3ff; border-color: #ddd6fe; }
+    .status.pendente { color: var(--amber); background: #fffbeb; border-color: #fde68a; }
+
+    .mrg { font-weight: 900; }
+    .mrg.good { color: var(--green); }
+    .mrg.low { color: var(--red); }
+    .delta.up { color: var(--amber); font-weight: 800; }
+    .delta.zero { color: #334155; }
+
+    .actions { display: flex; flex-wrap: wrap; gap: 6px; }
+    .btn {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      padding: 5px 8px;
+      font-size: 11px;
+      font-weight: 800;
+      cursor: pointer;
+    }
+    .btn.primary { background: #1e3a5f; border-color: #1e3a5f; color: #fff; }
+
+    @media (max-width: 1100px) {
+      .kpis { grid-template-columns: repeat(2, minmax(0,1fr)); }
+      .month-head h3 { font-size: 22px; }
+      th { font-size: 16px; }
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <h1>Dashboard Executivo • Auditoria de Lucro por Evento (Demo de Aprovação)</h1>
+    <p>Objetivo: comparar lucro realizado vs ajustado, com provisões e status de fechamento sem distorcer meses.</p>
+  </header>
+
+  <main class="container">
+    <section class="panel row">
+      <button class="seg active">Ocorridos</button>
+      <button class="seg">Todos do ano</button>
+      <button class="seg">Apenas futuros</button>
+      <button class="seg">Somente provisórios</button>
+      <button class="seg">Somente pendentes</button>
+      <span class="hint">Ano: 2026 • Ordenação padrão: pior margem ajustada</span>
+    </section>
+
+    <section class="kpis">
+      <article class="kpi bad">
+        <div class="k">Pior Margem Ajustada</div>
+        <div class="v">30,0%</div>
+        <small>Aniversário BRANCA MOURÃO</small>
+      </article>
+      <article class="kpi ok">
+        <div class="k">Melhor Margem Ajustada</div>
+        <div class="v">69,6%</div>
+        <small>Aniversário 39 da Marina</small>
+      </article>
+      <article class="kpi warn">
+        <div class="k">Eventos Provisórios</div>
+        <div class="v">4</div>
+        <small>Com comissão pendente</small>
+      </article>
+      <article class="kpi info">
+        <div class="k">Pendentes</div>
+        <div class="v">2</div>
+        <small>Falta custo/recebimento</small>
+      </article>
+      <article class="kpi prov">
+        <div class="k">Impacto Provisões</div>
+        <div class="v">-4,3 p.p.</div>
+        <small>Margem média do mês</small>
+      </article>
+      <article class="kpi">
+        <div class="k">Eventos no recorte</div>
+        <div class="v">17</div>
+        <small>10 ocorridos • 7 futuros</small>
+      </article>
+    </section>
+
+    <section class="month">
+      <header class="month-head">
+        <h3>jan / 2026</h3>
+        <span class="chip">10 eventos</span>
+        <span class="chip">Recebido R$ 108.500,00</span>
+        <span class="chip">Saídas Real R$ 42.000,00</span>
+        <span class="chip prov">Saídas Prov. R$ 5.600,00</span>
+        <span class="chip ok">Mrg R 61,3%</span>
+        <span class="chip warn">Mrg C 57,0%</span>
+        <span class="chip ok">Validada (6)</span>
+        <span class="chip prov">Provisória (3)</span>
+        <span class="chip warn">Pendente (1)</span>
+      </header>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Data</th>
+              <th>Evento</th>
+              <th>Recebido</th>
+              <th>Saída Real</th>
+              <th>Saída Prov.</th>
+              <th>Líquido R</th>
+              <th>Líquido C</th>
+              <th>Margem (R/C)</th>
+              <th>Δ Provisão</th>
+              <th>Status</th>
+              <th>Ações</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>08/01/2026</td>
+              <td>Aniversário - 18 ANOS BIA ROLIM</td>
+              <td>R$ 16.000,00</td>
+              <td>R$ 6.550,00</td>
+              <td>R$ 0,00</td>
+              <td>R$ 9.450,00</td>
+              <td>R$ 9.450,00</td>
+              <td><span class="mrg good">59,1% / 59,1%</span></td>
+              <td><span class="delta zero">0,0 p.p.</span></td>
+              <td><span class="status validado">Validado</span></td>
+              <td><div class="actions"><button class="btn primary">Abrir</button></div></td>
+            </tr>
+
+            <tr>
+              <td>10/01/2026</td>
+              <td>Casamento - ANA CAROLINA E ELIAS</td>
+              <td>R$ 12.000,00</td>
+              <td>R$ 5.530,00</td>
+              <td>R$ 1.200,00</td>
+              <td>R$ 6.470,00</td>
+              <td>R$ 5.270,00</td>
+              <td><span class="mrg good">53,9% / 43,9%</span></td>
+              <td><span class="delta up">-10,0 p.p.</span></td>
+              <td><span class="status provisorio">Provisório</span></td>
+              <td><div class="actions"><button class="btn primary">Abrir</button><button class="btn">Ver comissão</button></div></td>
+            </tr>
+
+            <tr>
+              <td>23/01/2026</td>
+              <td>Aniversário - BRANCA MOURÃO</td>
+              <td>R$ 3.000,00</td>
+              <td>R$ 2.100,00</td>
+              <td>R$ 0,00</td>
+              <td>R$ 900,00</td>
+              <td>R$ 900,00</td>
+              <td><span class="mrg low">30,0% / 30,0%</span></td>
+              <td><span class="delta zero">0,0 p.p.</span></td>
+              <td><span class="status validado">Validado</span></td>
+              <td><div class="actions"><button class="btn primary">Abrir</button></div></td>
+            </tr>
+
+            <tr class="future">
+              <td>28/01/2026</td>
+              <td>15 Anos - Evento Exemplo Futuro</td>
+              <td>R$ 9.000,00</td>
+              <td>R$ 0,00</td>
+              <td>R$ 2.400,00</td>
+              <td>R$ 9.000,00</td>
+              <td>R$ 6.600,00</td>
+              <td><span class="mrg good">100,0% / 73,3%</span></td>
+              <td><span class="delta up">-26,7 p.p.</span></td>
+              <td><span class="status pendente">Pendente</span></td>
+              <td><div class="actions"><button class="btn">Pré-check</button><button class="btn">Solicitar custos</button></div></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

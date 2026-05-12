@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Demo • Auditoria de Recebimentos</title>
+  <style>
+    :root {
+      --bg: #f4f6fb;
+      --card: #ffffff;
+      --line: #dde3ef;
+      --text: #0f172a;
+      --muted: #64748b;
+      --navy: #0f1a2e;
+      --gold: #e0bc6a;
+      --ok: #0f766e;
+      --warn: #b45309;
+      --danger: #b91c1c;
+      --info: #1d4ed8;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: radial-gradient(circle at top right, #ecf2ff 0%, var(--bg) 45%);
+      color: var(--text);
+      font-family: Inter, Segoe UI, Roboto, Arial, sans-serif;
+    }
+    .top {
+      background: linear-gradient(135deg, var(--navy), #1f3f66);
+      color: #fff;
+      padding: 16px 20px;
+      border-bottom: 1px solid rgba(255,255,255,.1);
+    }
+    .top h1 {
+      margin: 0;
+      font-size: 20px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .top p {
+      margin: 6px 0 0;
+      color: rgba(255,255,255,.85);
+      font-size: 13px;
+    }
+    .page {
+      max-width: 1220px;
+      margin: 0 auto;
+      padding: 16px;
+      display: grid;
+      gap: 12px;
+    }
+    .tabs, .filters {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 10px;
+    }
+    .tab, .chip {
+      border: 1px solid var(--line);
+      background: #fff;
+      color: #334155;
+      border-radius: 999px;
+      padding: 8px 12px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .tab.active, .chip.active {
+      background: #1e3a5f;
+      border-color: #1e3a5f;
+      color: #fff;
+    }
+    .kpis {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+    }
+    .kpi {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 12px;
+    }
+    .kpi .k {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .2px;
+    }
+    .kpi .v {
+      margin-top: 4px;
+      font-size: 24px;
+      font-weight: 800;
+    }
+    .kpi.crit .v { color: var(--danger); }
+    .kpi.short .v { color: var(--warn); }
+    .kpi.month .v { color: var(--info); }
+    .kpi.total .v { color: #0f172a; }
+
+    .table-wrap {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      overflow: auto;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 1120px;
+    }
+    th, td {
+      border-bottom: 1px solid #edf1f8;
+      text-align: left;
+      padding: 10px;
+      font-size: 12px;
+      vertical-align: top;
+    }
+    th {
+      background: #f9fbff;
+      color: #334155;
+      font-weight: 800;
+      position: sticky;
+      top: 0;
+      z-index: 1;
+    }
+    .sev {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      border-radius: 999px;
+      padding: 5px 8px;
+      font-weight: 800;
+      font-size: 11px;
+      border: 1px solid transparent;
+      white-space: nowrap;
+    }
+    .sev.crit { color: var(--danger); background: #fef2f2; border-color: #fecaca; }
+    .sev.warn { color: var(--warn); background: #fffbeb; border-color: #fde68a; }
+    .sev.info { color: var(--info); background: #eff6ff; border-color: #bfdbfe; }
+
+    .score {
+      font-size: 13px;
+      font-weight: 800;
+    }
+    .score.high { color: var(--danger); }
+    .score.med { color: var(--warn); }
+    .score.low { color: var(--info); }
+
+    .act {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .btn {
+      border: 1px solid var(--line);
+      background: #fff;
+      border-radius: 8px;
+      padding: 5px 8px;
+      font-size: 11px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .btn.primary { background: #1e3a5f; color: #fff; border-color: #1e3a5f; }
+
+    .legend {
+      color: var(--muted);
+      font-size: 12px;
+      background: #fff;
+      border: 1px dashed #cbd5e1;
+      border-radius: 10px;
+      padding: 10px;
+    }
+
+    @media (max-width: 960px) {
+      .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+  </style>
+</head>
+<body>
+  <header class="top">
+    <h1>Auditoria de Recebimentos <span style="color:var(--gold)">• demo</span></h1>
+    <p>Modelo de visão ampliada: ocorridos, próximos 7 dias e futuros, sem poluir alertas críticos.</p>
+  </header>
+
+  <main class="page">
+    <section class="tabs">
+      <button class="tab active">Ocorridos</button>
+      <button class="tab">Próximos 7 dias</button>
+      <button class="tab">Futuros (8+ dias)</button>
+    </section>
+
+    <section class="filters">
+      <button class="chip active">Todos</button>
+      <button class="chip">Somente críticos</button>
+      <button class="chip">Mesmo valor</button>
+      <button class="chip">Mesma forma</button>
+      <button class="chip">Intervalo <= 3 dias</button>
+      <button class="chip">Não revisados</button>
+    </section>
+
+    <section class="kpis">
+      <article class="kpi crit"><div class="k">Críticos</div><div class="v">1</div></article>
+      <article class="kpi short"><div class="k">Intervalo Curto</div><div class="v">2</div></article>
+      <article class="kpi month"><div class="k">Mesmo Mês</div><div class="v">10</div></article>
+      <article class="kpi total"><div class="k">Eventos Auditados</div><div class="v">52</div></article>
+    </section>
+
+    <section class="legend">
+      <strong>Regra de leitura:</strong> crítico = mesmo dia + mesmo valor + mesma forma. Atenção = intervalo <= 3 dias. Informativo = múltiplos no mesmo mês.
+    </section>
+
+    <section class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Severidade</th>
+            <th>Score</th>
+            <th>Evento</th>
+            <th>ID Evento</th>
+            <th>Movimentação 1</th>
+            <th>Movimentação 2</th>
+            <th>Intervalo</th>
+            <th>Critério</th>
+            <th>Ações</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="sev crit">Crítico</span></td>
+            <td><span class="score high">95</span></td>
+            <td>Aniversário NIVER THAIS SOMBRA</td>
+            <td>LG-2026-AGENDA2026-0026</td>
+            <td>MOV-20260421-012<br>21/04/2026 • R$ 1.000,00 • PIX</td>
+            <td>MOV-20260421-014<br>21/04/2026 • R$ 1.000,00 • PIX</td>
+            <td>0 dia</td>
+            <td>FORTE_DUPLICIDADE</td>
+            <td>
+              <div class="act">
+                <button class="btn primary">Abrir evento</button>
+                <button class="btn">Marcar revisado</button>
+                <button class="btn">Ignorar</button>
+              </div>
+            </td>
+          </tr>
+
+          <tr>
+            <td><span class="sev warn">Atenção</span></td>
+            <td><span class="score med">70</span></td>
+            <td>Casamento SARAH E RURIK</td>
+            <td>LG-2027-AGENDA2027-0070</td>
+            <td>MOV-20260327-007<br>27/03/2026 • R$ 3.135,00 • PIX</td>
+            <td>MOV-20260327-009<br>27/03/2026 • R$ 1.965,00 • PIX</td>
+            <td>0 dia</td>
+            <td>INTERVALO_CURTO</td>
+            <td>
+              <div class="act">
+                <button class="btn primary">Abrir evento</button>
+                <button class="btn">Marcar revisado</button>
+              </div>
+            </td>
+          </tr>
+
+          <tr>
+            <td><span class="sev info">Informativo</span></td>
+            <td><span class="score low">45</span></td>
+            <td>Evento 40 ANOS HILANA CATUNDA</td>
+            <td>LG-2026-AGENDA2026-0029</td>
+            <td>MOV-20260304-005<br>04/03/2026 • R$ 5.000,00 • PIX</td>
+            <td>MOV-20260316-009<br>16/03/2026 • R$ 5.000,00 • PIX</td>
+            <td>12 dias</td>
+            <td>MESMO_MES</td>
+            <td>
+              <div class="act">
+                <button class="btn">Abrir evento</button>
+                <button class="btn">Ignorar</button>
+              </div>
+            </td>
+          </tr>
+
+          <tr>
+            <td><span class="sev info">Informativo</span></td>
+            <td><span class="score low">40</span></td>
+            <td>Casamento CASAMENTO MARIA CAROLINA</td>
+            <td>LG-2026-AGENDA2026-0060</td>
+            <td>MOV-20260305-013<br>05/03/2026 • R$ 3.600,00 • PIX</td>
+            <td>MOV-20260324-003<br>23/03/2026 • R$ 2.800,00 • PIX</td>
+            <td>18 dias</td>
+            <td>MESMO_MES</td>
+            <td>
+              <div class="act">
+                <button class="btn">Abrir evento</button>
+                <button class="btn">Ignorar</button>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+  </main>
+</body>
+</html>
