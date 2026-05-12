@@ -317,6 +317,12 @@
       border-color: #1e3a5f;
     }
 
+    .btn.copy-ok {
+      background: #ecfdf5;
+      border-color: #a7f3d0;
+      color: #065f46;
+    }
+
     .btn[disabled] {
       opacity: 0.6;
       cursor: wait;
@@ -348,37 +354,50 @@
       min-width: 140px;
     }
 
-    .result-row a {
-      color: #1d4ed8;
-      text-decoration: none;
-      word-break: break-all;
-    }
-
-    .result-actions {
-      display: inline-flex;
-      gap: 6px;
-      margin-left: auto;
-    }
-
-    .icon-btn {
-      border: 1px solid #d6deea;
-      background: #fff;
-      border-radius: 8px;
-      width: 30px;
-      height: 30px;
+    .result-cta {
       display: inline-flex;
       align-items: center;
-      justify-content: center;
-      cursor: pointer;
-      color: #334155;
+      gap: 8px;
+      flex-wrap: wrap;
     }
 
-    .icon-btn i,
-    .icon-btn svg {
-      width: 15px;
-      height: 15px;
+    .result-cta .btn {
+      padding: 7px 11px;
+      font-size: 12px;
+      border-radius: 8px;
+      font-weight: 700;
+    }
+
+    .result-cta .btn i,
+    .result-cta .btn svg {
+      width: 14px;
+      height: 14px;
       color: currentColor;
       stroke: currentColor;
+    }
+
+    .mini-toast {
+      position: fixed;
+      right: 16px;
+      bottom: 16px;
+      z-index: 10010;
+      background: #0f172a;
+      color: #fff;
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 10px;
+      padding: 10px 12px;
+      font-size: 12px;
+      font-weight: 600;
+      box-shadow: 0 10px 24px rgba(10,22,40,0.3);
+      opacity: 0;
+      transform: translateY(6px);
+      pointer-events: none;
+      transition: opacity 0.2s ease, transform 0.2s ease;
+    }
+
+    .mini-toast.show {
+      opacity: 1;
+      transform: translateY(0);
     }
 
     .proc-overlay {
@@ -497,6 +516,20 @@
       .form-grid { grid-template-columns: 1fr; }
       .field.span-2 { grid-column: span 1; }
       .result-row strong { min-width: auto; }
+      .result-cta {
+        width: 100%;
+        display: grid;
+        grid-template-columns: 1fr;
+      }
+      .result-cta .btn {
+        justify-content: center;
+      }
+      .mini-toast {
+        left: 12px;
+        right: 12px;
+        bottom: calc(var(--nav-height) + env(safe-area-inset-bottom) + 14px);
+        text-align: center;
+      }
       .opt-line input[type="text"] { width: 100%; }
     }
   </style>
@@ -594,25 +627,27 @@
           <div class="result-row"><strong>Número:</strong><span id="resNumero">-</span></div>
           <div class="result-row">
             <strong>PDF:</strong>
-            <a id="resPdf" href="#" target="_blank" rel="noopener noreferrer">Abrir PDF</a>
-            <div class="result-actions">
-              <button class="icon-btn" id="btnOpenPdf" title="Abrir">
+            <div class="result-cta">
+              <button class="btn" id="btnOpenPdf" type="button">
                 <i data-lucide="external-link"></i>
+                Abrir PDF
               </button>
-              <button class="icon-btn" id="btnCopyPdf" title="Copiar link PDF">
+              <button class="btn" id="btnCopyPdf" type="button">
                 <i data-lucide="copy"></i>
+                Copiar link PDF
               </button>
             </div>
           </div>
           <div class="result-row">
             <strong>WhatsApp:</strong>
-            <a id="resWhats" href="#" target="_blank" rel="noopener noreferrer">Abrir mensagem</a>
-            <div class="result-actions">
-              <button class="icon-btn" id="btnOpenWhats" title="Abrir">
-                <i data-lucide="external-link"></i>
+            <div class="result-cta">
+              <button class="btn primary" id="btnOpenWhats" type="button">
+                <i data-lucide="message-circle"></i>
+                Abrir no WhatsApp
               </button>
-              <button class="icon-btn" id="btnCopyWhats" title="Copiar link WhatsApp">
+              <button class="btn" id="btnCopyWhats" type="button">
                 <i data-lucide="copy"></i>
+                Copiar link WhatsApp
               </button>
             </div>
           </div>
@@ -651,9 +686,11 @@
       <div class="proc-sub" id="procSub">Aguarde alguns instantes...</div>
     </div>
   </div>
+  <div class="mini-toast" id="miniToast" aria-live="polite"></div>
 
   <script>
     let __pageLeaving = false;
+    let toastTimer_ = null;
 
     function marcarSaindo_() {
       __pageLeaving = true;
@@ -830,17 +867,51 @@
       }
     }
 
-    async function copiarTexto_(texto, okMsg) {
+    function exibirToast_(msg) {
+      const el = document.getElementById('miniToast');
+      if (!el) return;
+      if (toastTimer_) {
+        clearTimeout(toastTimer_);
+        toastTimer_ = null;
+      }
+      el.textContent = String(msg || '');
+      el.classList.add('show');
+      toastTimer_ = setTimeout(function() {
+        el.classList.remove('show');
+      }, 1800);
+    }
+
+    function feedbackBotaoCopiado_(btn, textoPadrao, textoOk) {
+      if (!btn) return;
+      if (!btn.dataset.originalHtml) {
+        btn.dataset.originalHtml = btn.innerHTML;
+      }
+      btn.classList.add('copy-ok');
+      btn.innerHTML = '<i data-lucide="check"></i> ' + String(textoOk || 'Copiado!');
+      if (window.lucide) window.lucide.createIcons();
+      setTimeout(function() {
+        btn.classList.remove('copy-ok');
+        btn.innerHTML = btn.dataset.originalHtml || String(textoPadrao || 'Copiar');
+        if (window.lucide) window.lucide.createIcons();
+      }, 1800);
+    }
+
+    async function copiarTexto_(texto, okMsg, btn, textoPadraoBtn, textoOkBtn) {
       const t = String(texto || '').trim();
       if (!t) {
         setStatus_('Link indisponível para copiar.', 'err');
+        exibirToast_('Link indisponível.');
         return;
       }
       try {
         await navigator.clipboard.writeText(t);
-        setStatus_(okMsg || 'Link copiado.', 'ok');
+        const okTexto = okMsg || 'Link copiado.';
+        setStatus_(okTexto, 'ok');
+        exibirToast_(okTexto);
+        feedbackBotaoCopiado_(btn, textoPadraoBtn, textoOkBtn || 'Copiado!');
       } catch (_) {
         setStatus_('Não foi possível copiar automaticamente.', 'err');
+        exibirToast_('Falha ao copiar.');
       }
     }
 
@@ -850,32 +921,34 @@
       ['propPocket', 'propGold', 'propPremium', 'propDebut']
         .forEach(id => { const el = document.getElementById(id); if (el) el.checked = false; });
       const result = document.getElementById('resultBox');
-      if (result) result.classList.remove('show');
+      if (result) {
+        result.classList.remove('show');
+        result.dataset.pdfUrl = '';
+        result.dataset.whatsUrl = '';
+      }
       setStatus_('Formulário limpo.', 'info');
+    }
+
+    function setBtnEstadoResultado_(idBtn, habilitado) {
+      const btn = document.getElementById(idBtn);
+      if (!btn) return;
+      btn.disabled = !habilitado;
+      btn.style.opacity = habilitado ? '1' : '0.55';
+      btn.style.cursor = habilitado ? 'pointer' : 'not-allowed';
     }
 
     function renderResultado_(resp) {
       const box = document.getElementById('resultBox');
       if (!box) return;
       document.getElementById('resNumero').textContent = resp.numeroOrcamento || '-';
-      const pdf = document.getElementById('resPdf');
-      const whats = document.getElementById('resWhats');
-
-      if (resp.linkPdf) {
-        pdf.href = resp.linkPdf;
-        pdf.textContent = resp.linkPdf;
-      } else {
-        pdf.removeAttribute('href');
-        pdf.textContent = 'Não informado';
-      }
-
-      if (resp.linkWhats) {
-        whats.href = resp.linkWhats;
-        whats.textContent = resp.linkWhats;
-      } else {
-        whats.removeAttribute('href');
-        whats.textContent = 'Não informado';
-      }
+      const pdfUrl = String(resp.linkPdf || '').trim();
+      const whatsUrl = String(resp.linkWhats || '').trim();
+      box.dataset.pdfUrl = pdfUrl;
+      box.dataset.whatsUrl = whatsUrl;
+      setBtnEstadoResultado_('btnOpenPdf', !!pdfUrl);
+      setBtnEstadoResultado_('btnCopyPdf', !!pdfUrl);
+      setBtnEstadoResultado_('btnOpenWhats', !!whatsUrl);
+      setBtnEstadoResultado_('btnCopyWhats', !!whatsUrl);
 
       box.classList.add('show');
     }
@@ -931,6 +1004,16 @@
       const valores = ['valorPocket', 'valorGold', 'valorPremium', 'valorDebut']
         .map(id => document.getElementById(id))
         .filter(Boolean);
+      const resultBox = document.getElementById('resultBox');
+
+      if (resultBox) {
+        resultBox.dataset.pdfUrl = '';
+        resultBox.dataset.whatsUrl = '';
+      }
+      setBtnEstadoResultado_('btnOpenPdf', false);
+      setBtnEstadoResultado_('btnCopyPdf', false);
+      setBtnEstadoResultado_('btnOpenWhats', false);
+      setBtnEstadoResultado_('btnCopyWhats', false);
 
       if (tel) {
         tel.addEventListener('input', function(e) {
@@ -953,20 +1036,24 @@
       if (btnGerar) btnGerar.addEventListener('click', enviarOrcamento_);
       if (btnLimpar) btnLimpar.addEventListener('click', limparFormulario_);
       if (btnOpenPdf) btnOpenPdf.addEventListener('click', function() {
-        const url = (document.getElementById('resPdf') || {}).href || '';
+        const box = document.getElementById('resultBox');
+        const url = box ? String(box.dataset.pdfUrl || '') : '';
         abrirLinkExterno_(url);
       });
       if (btnOpenWhats) btnOpenWhats.addEventListener('click', function() {
-        const url = (document.getElementById('resWhats') || {}).href || '';
+        const box = document.getElementById('resultBox');
+        const url = box ? String(box.dataset.whatsUrl || '') : '';
         abrirLinkExterno_(url);
       });
       if (btnCopyPdf) btnCopyPdf.addEventListener('click', function() {
-        const url = (document.getElementById('resPdf') || {}).href || '';
-        copiarTexto_(url, 'Link do PDF copiado.');
+        const box = document.getElementById('resultBox');
+        const url = box ? String(box.dataset.pdfUrl || '') : '';
+        copiarTexto_(url, 'Link do PDF copiado.', btnCopyPdf, 'Copiar link PDF', 'PDF copiado');
       });
       if (btnCopyWhats) btnCopyWhats.addEventListener('click', function() {
-        const url = (document.getElementById('resWhats') || {}).href || '';
-        copiarTexto_(url, 'Link do WhatsApp copiado.');
+        const box = document.getElementById('resultBox');
+        const url = box ? String(box.dataset.whatsUrl || '') : '';
+        copiarTexto_(url, 'Link do WhatsApp copiado.', btnCopyWhats, 'Copiar link WhatsApp', 'WhatsApp copiado');
       });
       if (window.lucide) window.lucide.createIcons();
     });

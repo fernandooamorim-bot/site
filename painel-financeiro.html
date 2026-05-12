@@ -953,6 +953,41 @@
     return String(codigo || '').trim() === 'INCONSISTENCIA_RECEBIDO_MAIOR_QUE_CONTRATO';
   }
 
+  function normalizarStatusEventoFinanceiro(evento) {
+    if (!evento || typeof evento !== 'object') return '';
+    const candidatos = [evento.statusEvento, evento.statusAgenda, evento.situacao, evento.status];
+    for (let i = 0; i < candidatos.length; i++) {
+      const valor = String(candidatos[i] || '').trim();
+      if (valor) return valor.toUpperCase();
+    }
+    return '';
+  }
+
+  function eventoCanceladoSemImpactoFinanceiro(evento) {
+    if (!evento || typeof evento !== 'object') return false;
+    const statusNorm = normalizarStatusEventoFinanceiro(evento);
+    const alertas = Array.isArray(evento.alertas) ? evento.alertas : [];
+    const isCancelado = statusNorm.includes('CANCEL') || alertas.includes('EVENTO_CANCELADO_COM_RECEBIMENTO');
+    if (!isCancelado) return false;
+
+    const recebido = Number(evento.totalRecebido || 0);
+    const comissaoPaga = Number(evento?.comissao?.valores?.pago || 0);
+    const bvStatus = String(evento?.bv?.status || evento?.custos?.bv?.status || '').toUpperCase();
+    const nfStatus = String(evento?.nf?.status || evento?.custos?.nf?.status || '').toUpperCase();
+    const temDivergencias = Array.isArray(evento.divergencias) && evento.divergencias.length > 0;
+    const temMovFinanceiro = recebido > 0 || comissaoPaga > 0 || bvStatus === 'PROCESSADO' || nfStatus === 'PROCESSADO';
+    const temAlertaCritico = alertas.some(a => a === 'EVENTO_CANCELADO_COM_RECEBIMENTO' || String(a || '').indexOf('DUPLICIDADE_') === 0);
+    return !temMovFinanceiro && !temDivergencias && !temAlertaCritico;
+  }
+
+  function obterAlertasFinanceiros(evento) {
+    const alertas = Array.isArray(evento?.alertas) ? evento.alertas : [];
+    const statusNorm = normalizarStatusEventoFinanceiro(evento);
+    const isCancelado = statusNorm.includes('CANCEL') || alertas.includes('EVENTO_CANCELADO_COM_RECEBIMENTO');
+    if (!isCancelado) return alertas;
+    return alertas.filter(a => !['FOLHA_NAO_REGISTRADA', 'BV_PENDENTE', 'EVENTO_QUITADO_COM_BV_PENDENTE', 'EVENTO_QUITADO_COM_NF_PENDENTE'].includes(String(a || '')));
+  }
+
   function parseDataParaOrdem(valor) {
     if (!valor) return Number.MAX_SAFE_INTEGER;
     if (valor instanceof Date && !isNaN(valor.getTime())) return valor.getTime();
@@ -966,7 +1001,8 @@
   }
 
   function prioridadeEventoFinanceiro(evento) {
-    const alertas = Array.isArray(evento?.alertas) ? evento.alertas : [];
+    if (eventoCanceladoSemImpactoFinanceiro(evento)) return 3;
+    const alertas = obterAlertasFinanceiros(evento);
     const divergencias = Array.isArray(evento?.divergencias) ? evento.divergencias : [];
     const alertasCriticos = alertas.filter(a => !alertaEhInformativo(a));
     if (divergencias.length > 0 || alertasCriticos.length > 0) return 0;
@@ -1062,7 +1098,7 @@
   }
 
   function temSomenteAlertaInformativo(evento) {
-    const alertas = Array.isArray(evento?.alertas) ? evento.alertas : [];
+    const alertas = obterAlertasFinanceiros(evento);
     const divergencias = Array.isArray(evento?.divergencias) ? evento.divergencias : [];
     if (divergencias.length > 0) return false;
     if (alertas.length === 0) return false;
@@ -1130,6 +1166,7 @@
 
   function filtrarListaPorTipo(listaBase, tipo) {
     let lista = Array.isArray(listaBase) ? [...listaBase] : [];
+    lista = lista.filter(e => !eventoCanceladoSemImpactoFinanceiro(e));
 
     if (tipo === 'COMISSAO_PENDENTE') {
       lista = lista.filter(e =>
@@ -1149,34 +1186,34 @@
 
     if (tipo === 'SEM_RECEBIMENTO') {
       lista = lista.filter(e =>
-        Array.isArray(e.alertas) && e.alertas.includes('EVENTO_OCORREU_SEM_RECEBIMENTO')
+        obterAlertasFinanceiros(e).includes('EVENTO_OCORREU_SEM_RECEBIMENTO')
       );
     }
 
     if (tipo === 'RECEBIMENTO_PARCIAL') {
       lista = lista.filter(e =>
-        Array.isArray(e.alertas) && e.alertas.includes('EVENTO_OCORREU_RECEBIMENTO_PARCIAL')
+        obterAlertasFinanceiros(e).includes('EVENTO_OCORREU_RECEBIMENTO_PARCIAL')
       );
     }
 
     if (tipo === 'PENDENCIA_RECEBIMENTO') {
       lista = lista.filter(e =>
-        Array.isArray(e.alertas) && (
-          e.alertas.includes('EVENTO_OCORREU_SEM_RECEBIMENTO') ||
-          e.alertas.includes('EVENTO_OCORREU_RECEBIMENTO_PARCIAL')
+        (
+          obterAlertasFinanceiros(e).includes('EVENTO_OCORREU_SEM_RECEBIMENTO') ||
+          obterAlertasFinanceiros(e).includes('EVENTO_OCORREU_RECEBIMENTO_PARCIAL')
         )
       );
     }
 
     if (tipo === 'CRITICOS') {
       lista = lista.filter(e =>
-        (Array.isArray(e.alertas) && (
-          e.alertas.includes('EVENTO_CANCELADO_COM_RECEBIMENTO') ||
-          e.alertas.includes('EVENTO_QUITADO_COM_BV_PENDENTE') ||
-          e.alertas.includes('EVENTO_QUITADO_COM_NF_PENDENTE') ||
-          e.alertas.includes('DUPLICIDADE_BV_PROCESSADO') ||
-          e.alertas.includes('DUPLICIDADE_NF_PROCESSADO') ||
-          e.alertas.includes('DUPLICIDADE_FOLHA_PROCESSADA')
+        (
+          obterAlertasFinanceiros(e).includes('EVENTO_CANCELADO_COM_RECEBIMENTO') ||
+          obterAlertasFinanceiros(e).includes('EVENTO_QUITADO_COM_BV_PENDENTE') ||
+          obterAlertasFinanceiros(e).includes('EVENTO_QUITADO_COM_NF_PENDENTE') ||
+          obterAlertasFinanceiros(e).includes('DUPLICIDADE_BV_PROCESSADO') ||
+          obterAlertasFinanceiros(e).includes('DUPLICIDADE_NF_PROCESSADO') ||
+          obterAlertasFinanceiros(e).includes('DUPLICIDADE_FOLHA_PROCESSADA')
         )) ||
         (Array.isArray(e.divergencias) && e.divergencias.length > 0)
       );
@@ -1184,7 +1221,7 @@
 
     if (tipo === 'AVISO_RECEBIDO_MAIOR') {
       lista = lista.filter(e =>
-        Array.isArray(e.alertas) && e.alertas.includes('INCONSISTENCIA_RECEBIDO_MAIOR_QUE_CONTRATO')
+        obterAlertasFinanceiros(e).includes('INCONSISTENCIA_RECEBIDO_MAIOR_QUE_CONTRATO')
       );
     }
 
@@ -1194,7 +1231,7 @@
 
     if (tipo === 'QUITADO_BV_PENDENTE') {
       lista = lista.filter(e =>
-        Array.isArray(e.alertas) && e.alertas.includes('EVENTO_QUITADO_COM_BV_PENDENTE')
+        obterAlertasFinanceiros(e).includes('EVENTO_QUITADO_COM_BV_PENDENTE')
       );
     }
 
@@ -1405,7 +1442,8 @@
     const alertasCustos = [];
     const divergencias = [];
 
-    (evento.alertas || []).forEach(a => {
+    const alertasEvento = obterAlertasFinanceiros(evento);
+    alertasEvento.forEach(a => {
       const texto = labelAlerta(a);
       if ([
         'EVENTO_OCORREU_SEM_RECEBIMENTO',

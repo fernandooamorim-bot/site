@@ -1417,7 +1417,8 @@ function atualizarBadgeFiscalizacao_(lista) {
 
   const eventos = Array.isArray(lista) ? lista : [];
   const criticos = eventos.filter(ev => {
-    const alertas = (Array.isArray(ev.alertas) ? ev.alertas : []).filter(a => !alertaEhInformativo_(a));
+    if (eventoCanceladoSemImpactoFinanceiro_(ev)) return false;
+    const alertas = obterAlertasFiscalizacao_(ev).filter(a => !alertaEhInformativo_(a));
     const divergencias = Array.isArray(ev.divergencias) ? ev.divergencias : [];
     return divergencias.length > 0 || alertas.length > 0;
   }).length;
@@ -1437,6 +1438,42 @@ function atualizarBadgeFiscalizacao_(lista) {
 
 function alertaEhInformativo_(codigo) {
   return String(codigo || '').trim() === 'INCONSISTENCIA_RECEBIDO_MAIOR_QUE_CONTRATO';
+}
+
+function normalizarStatusEventoFiscal_(ev) {
+  if (!ev || typeof ev !== 'object') return '';
+  const candidatos = [ev.statusEvento, ev.statusAgenda, ev.situacao, ev.status];
+  for (let i = 0; i < candidatos.length; i++) {
+    const valor = String(candidatos[i] || '').trim();
+    if (valor) return valor.toUpperCase();
+  }
+  return '';
+}
+
+function eventoCanceladoSemImpactoFinanceiro_(ev) {
+  if (!ev || typeof ev !== 'object') return false;
+  const statusNorm = normalizarStatusEventoFiscal_(ev);
+  const alertas = Array.isArray(ev.alertas) ? ev.alertas : [];
+  const isCancelado = statusNorm.includes('CANCEL') || alertas.includes('EVENTO_CANCELADO_COM_RECEBIMENTO');
+  if (!isCancelado) return false;
+
+  const recebido = Number(ev.totalRecebido || 0);
+  const comissaoPaga = Number(ev?.comissao?.valores?.pago || 0);
+  const bvStatus = String(ev?.bv?.status || ev?.custos?.bv?.status || '').toUpperCase();
+  const nfStatus = String(ev?.nf?.status || ev?.custos?.nf?.status || '').toUpperCase();
+  const temDivergencias = Array.isArray(ev.divergencias) && ev.divergencias.length > 0;
+  const temAuditoria = (fiscalDivergenciasAuditoriaMap.get(String(ev.idEvento || '')) || []).length > 0;
+  const temMovFinanceiro = recebido > 0 || comissaoPaga > 0 || bvStatus === 'PROCESSADO' || nfStatus === 'PROCESSADO';
+  const temAlertaCritico = alertas.some(a => a === 'EVENTO_CANCELADO_COM_RECEBIMENTO' || String(a || '').indexOf('DUPLICIDADE_') === 0);
+  return !temMovFinanceiro && !temDivergencias && !temAuditoria && !temAlertaCritico;
+}
+
+function obterAlertasFiscalizacao_(ev) {
+  const alertas = Array.isArray(ev?.alertas) ? ev.alertas : [];
+  const statusNorm = normalizarStatusEventoFiscal_(ev);
+  const isCancelado = statusNorm.includes('CANCEL') || alertas.includes('EVENTO_CANCELADO_COM_RECEBIMENTO');
+  if (!isCancelado) return alertas;
+  return alertas.filter(a => !['FOLHA_NAO_REGISTRADA', 'BV_PENDENTE', 'EVENTO_QUITADO_COM_BV_PENDENTE', 'EVENTO_QUITADO_COM_NF_PENDENTE'].includes(String(a || '')));
 }
 
 function humanizarCodigoTecnico_(codigo) {
@@ -2797,6 +2834,7 @@ function aplicarFiltrosFiscalizacao_(resetarPaginacao) {
   fiscalUiState.tipo = tipo;
   fiscalUiState.renderLimit = fiscalRenderLimit;
   let lista = Array.isArray(fiscalEventosCache) ? [...fiscalEventosCache] : [];
+  lista = lista.filter(ev => !eventoCanceladoSemImpactoFinanceiro_(ev));
 
   if (busca) {
     lista = lista.filter(ev => {
@@ -2811,7 +2849,7 @@ function aplicarFiltrosFiscalizacao_(resetarPaginacao) {
 
   if (tipo !== 'TODOS') {
     lista = lista.filter(ev => {
-      const alertas = Array.isArray(ev.alertas) ? ev.alertas : [];
+      const alertas = obterAlertasFiscalizacao_(ev);
       const alertasCriticos = alertas.filter(a => !alertaEhInformativo_(a));
       const divergencias = Array.isArray(ev.divergencias) ? ev.divergencias : [];
       const divergenciasAuditoria = fiscalDivergenciasAuditoriaMap.get(String(ev.idEvento || '')) || [];
@@ -2832,7 +2870,7 @@ function aplicarFiltrosFiscalizacao_(resetarPaginacao) {
   // 2) avisos informativos
   // 3) sem pendências
   const prioridadeFiscal_ = function (ev) {
-    const alertas = Array.isArray(ev?.alertas) ? ev.alertas : [];
+    const alertas = obterAlertasFiscalizacao_(ev);
     const alertasCriticos = alertas.filter(a => !alertaEhInformativo_(a));
     const divergencias = Array.isArray(ev?.divergencias) ? ev.divergencias : [];
     const divergenciasAuditoria = fiscalDivergenciasAuditoriaMap.get(String(ev?.idEvento || '')) || [];
@@ -2880,7 +2918,7 @@ function renderListaFiscalizacao_(lista) {
   const restante = Math.max(total - visiveis.length, 0);
 
   box.innerHTML = visiveis.map(ev => {
-    const alertas = Array.isArray(ev.alertas) ? ev.alertas : [];
+    const alertas = obterAlertasFiscalizacao_(ev);
     const alertasCriticos = alertas.filter(a => !alertaEhInformativo_(a));
     const divergencias = Array.isArray(ev.divergencias) ? ev.divergencias : [];
     const divergenciasAuditoria = fiscalDivergenciasAuditoriaMap.get(String(ev.idEvento || '')) || [];
