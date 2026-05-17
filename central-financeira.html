@@ -2548,11 +2548,7 @@ async function carregarPendenciasFolhaCustosAprovacao_(opts) {
   if (!box) return;
   box.innerHTML = '<span class="muted">Carregando pendências...</span>';
   try {
-    const chamada = Auth.apiCall('listarPendenciasFolhaCustoAprovacao', { forceRefresh: forceRefresh });
-    const timeout = new Promise((_, reject) => {
-      setTimeout(() => reject(new Error('TIMEOUT_PENDENCIAS_FOLHA')), 12000);
-    });
-    const resp = await Promise.race([chamada, timeout]);
+    const resp = await Auth.apiCall('listarPendenciasFolhaCustoAprovacao', { forceRefresh: forceRefresh });
     pendenciasFolhaAprovacao = Array.isArray(resp?.pendentes) ? resp.pendentes : [];
     pendenciasFolhaAprovacaoUltimaAtualizacao = Date.now();
     if (!pendenciasFolhaAprovacao.length) {
@@ -2592,10 +2588,9 @@ async function carregarPendenciasFolhaCustosAprovacao_(opts) {
       `;
       return;
     }
-    const erroTimeout = String(err?.message || '').indexOf('TIMEOUT_PENDENCIAS_FOLHA') !== -1;
     box.innerHTML = `
       <div style="padding:10px;border:1px solid #fecaca;border-radius:10px;background:#fef2f2;color:#991b1b">
-        ${erroTimeout ? 'Tempo limite atingido ao buscar pendências.' : 'Erro ao carregar pendências.'}
+        Erro ao carregar pendências.
         <button type="button" class="btn secondary" style="margin-left:8px" onclick="carregarPendenciasFolhaCustosAprovacao_({ forceRefresh: true })">Tentar novamente</button>
       </div>
     `;
