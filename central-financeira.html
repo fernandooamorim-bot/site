@@ -1325,6 +1325,7 @@ let asaasMensagensCliente = { completa: '', curta: '' };
 let asaasContatoEvento = { whatsapp: '', email: '', cpfCnpj: '' };
 let eventoRequerVinculoContratante = false;
 let pendenciasFolhaAprovacao = [];
+let pendenciasFolhaAprovacaoUltimaAtualizacao = 0;
 let ajustesDetalhadosComissao = [];
 let previewComissaoAtual = null;
 let fiscalEventosCache = [];
@@ -2377,7 +2378,7 @@ ${podeAprovarFolha ? `
       <strong>Folhas de Custos Pendentes</strong>
       <div class="muted" style="font-size:12px">Propostas vindas da calculadora de Folha aguardando aprovação.</div>
     </div>
-    <button type="button" class="btn secondary" onclick="carregarPendenciasFolhaCustosAprovacao_()">Atualizar</button>
+    <button type="button" class="btn secondary" onclick="carregarPendenciasFolhaCustosAprovacao_({ forceRefresh: true })">Atualizar</button>
   </div>
   <div id="folhaPendenciasBox" class="muted" style="margin-top:10px">Carregando pendências...</div>
 </div>
@@ -2540,20 +2541,30 @@ function submitSaidaEvento() {
   });
 }
 
-async function carregarPendenciasFolhaCustosAprovacao_() {
+async function carregarPendenciasFolhaCustosAprovacao_(opts) {
   if (!ehProprietario_()) return;
+  const forceRefresh = !!(opts && opts.forceRefresh === true);
   const box = document.getElementById('folhaPendenciasBox');
   if (!box) return;
   box.innerHTML = '<span class="muted">Carregando pendências...</span>';
   try {
-    const resp = await Auth.apiCall('listarPendenciasFolhaCustoAprovacao', {});
+    const chamada = Auth.apiCall('listarPendenciasFolhaCustoAprovacao', { forceRefresh: forceRefresh });
+    const timeout = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('TIMEOUT_PENDENCIAS_FOLHA')), 12000);
+    });
+    const resp = await Promise.race([chamada, timeout]);
     pendenciasFolhaAprovacao = Array.isArray(resp?.pendentes) ? resp.pendentes : [];
+    pendenciasFolhaAprovacaoUltimaAtualizacao = Date.now();
     if (!pendenciasFolhaAprovacao.length) {
-      box.innerHTML = '<span class="muted">Sem pendências de folha para aprovação.</span>';
+      const infoCache = (resp && resp.fromCache) ? ' (cache)' : '';
+      box.innerHTML = `<span class="muted">Sem pendências de folha para aprovação${infoCache}.</span>`;
       return;
     }
 
-    box.innerHTML = pendenciasFolhaAprovacao.map((p, idx) => `
+    const infoAtualizacao = formatarCarimboPendenciasFolha_(resp?.updatedAt, !!resp?.fromCache);
+    box.innerHTML = `
+      ${infoAtualizacao ? `<div class="muted" style="font-size:12px;margin-bottom:8px">${escaparHtml_(infoAtualizacao)}</div>` : ''}
+      ${pendenciasFolhaAprovacao.map((p, idx) => `
       <div style="padding:10px;border:1px solid #e5e7eb;border-radius:10px;margin-top:8px;background:#fff">
         <div><strong>${escaparHtml_(String(p.idEvento || ''))}</strong> • ${escaparHtml_(String(p.nomeEvento || 'Evento'))}</div>
         <div class="muted" style="font-size:12px;margin-top:3px">
@@ -2565,11 +2576,57 @@ async function carregarPendenciasFolhaCustosAprovacao_() {
           <button type="button" class="btn primary" onclick="aprovarPendenciaFolhaCusto_('${escaparAttr_(String(p.id || ''))}')">Aprovar</button>
         </div>
       </div>
-    `).join('');
+    `).join('')}
+    `;
   } catch (err) {
     console.error('Erro ao carregar pendências de folha:', err);
-    box.innerHTML = '<span class="muted">Erro ao carregar pendências.</span>';
+    const temCacheLocal = Array.isArray(pendenciasFolhaAprovacao) && pendenciasFolhaAprovacao.length > 0;
+    if (temCacheLocal) {
+      const minutos = Math.max(1, Math.round((Date.now() - (pendenciasFolhaAprovacaoUltimaAtualizacao || 0)) / 60000));
+      box.innerHTML = `
+        <div style="padding:10px;border:1px solid #facc15;border-radius:10px;background:#fffbeb;color:#854d0e">
+          Falha temporária ao atualizar. Exibindo último resultado carregado (${minutos} min atrás).
+          <button type="button" class="btn secondary" style="margin-left:8px" onclick="carregarPendenciasFolhaCustosAprovacao_({ forceRefresh: true })">Tentar novamente</button>
+        </div>
+        ${renderPendenciasFolhaCustosHtml_(pendenciasFolhaAprovacao)}
+      `;
+      return;
+    }
+    const erroTimeout = String(err?.message || '').indexOf('TIMEOUT_PENDENCIAS_FOLHA') !== -1;
+    box.innerHTML = `
+      <div style="padding:10px;border:1px solid #fecaca;border-radius:10px;background:#fef2f2;color:#991b1b">
+        ${erroTimeout ? 'Tempo limite atingido ao buscar pendências.' : 'Erro ao carregar pendências.'}
+        <button type="button" class="btn secondary" style="margin-left:8px" onclick="carregarPendenciasFolhaCustosAprovacao_({ forceRefresh: true })">Tentar novamente</button>
+      </div>
+    `;
   }
+}
+
+function formatarCarimboPendenciasFolha_(updatedAt, fromCache) {
+  const raw = String(updatedAt || '').trim();
+  if (!raw) return fromCache ? 'Dados vindos de cache.' : '';
+  const d = new Date(raw);
+  if (!d || Number.isNaN(d.getTime())) return fromCache ? 'Dados vindos de cache.' : '';
+  const dt = `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+  return `Atualizado em ${dt}${fromCache ? ' (cache)' : ''}.`;
+}
+
+function renderPendenciasFolhaCustosHtml_(lista) {
+  const itens = Array.isArray(lista) ? lista : [];
+  if (!itens.length) return '<span class="muted">Sem pendências de folha para aprovação.</span>';
+  return itens.map((p) => `
+    <div style="padding:10px;border:1px solid #e5e7eb;border-radius:10px;margin-top:8px;background:#fff">
+      <div><strong>${escaparHtml_(String(p.idEvento || ''))}</strong> • ${escaparHtml_(String(p.nomeEvento || 'Evento'))}</div>
+      <div class="muted" style="font-size:12px;margin-top:3px">
+        Valor: <strong>R$ ${Number(p.valorTotal || 0).toFixed(2)}</strong> • Data: ${escaparHtml_(String(p.data || ''))}
+      </div>
+      <div class="muted" style="font-size:12px;margin-top:3px">${escaparHtml_(String(p.resumoCompacto || '').slice(0, 220))}</div>
+      <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">
+        <button type="button" class="btn secondary" onclick="selecionarEventoPorIdNoModo_('${escaparAttr_(String(p.idEvento || ''))}')">Abrir evento</button>
+        <button type="button" class="btn primary" onclick="aprovarPendenciaFolhaCusto_('${escaparAttr_(String(p.id || ''))}')">Aprovar</button>
+      </div>
+    </div>
+  `).join('');
 }
 
 async function aprovarPendenciaFolhaCusto_(idFolha) {
