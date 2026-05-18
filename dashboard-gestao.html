@@ -528,6 +528,10 @@
               <button id="btnAuditoriaVisaoOcorridos" class="btn outline hidden" onclick="setAuditoriaVisao('OCORRIDOS')">Ocorridos</button>
               <button id="btnAuditoriaVisaoAno" class="btn outline hidden" onclick="setAuditoriaVisao('ANO')">Todos do ano</button>
               <button id="btnAuditoriaVisaoFuturos" class="btn outline hidden" onclick="setAuditoriaVisao('FUTUROS')">Apenas futuros</button>
+              <select id="auditoriaProjecao" class="hidden" onchange="setAuditoriaProjecao(this.value)" title="Modo de projeção: operacional (comissão só gerada) ou econômica (comissão esperada do evento).">
+                <option value="OPERACIONAL">Projeção operacional</option>
+                <option value="ECONOMICA">Projeção econômica</option>
+              </select>
               <select id="auditoriaOrdenacao" class="hidden" onchange="setAuditoriaOrdenacao(this.value)" title="Ordenação da lista: cronológica, risco combinado, menor margem projetada ou maior impacto de provisão.">
                 <option value="CRONO">Ordem cronológica</option>
                 <option value="PRIORIDADE">Risco combinado (margem + provisão + pendências)</option>
@@ -620,7 +624,8 @@
       ano: null,
       eventos: [],
       visao: 'OCORRIDOS',
-      ordenacao: 'CRONO'
+      ordenacao: 'CRONO',
+      projecao: 'OPERACIONAL'
     };
     const auditoriaComercialState = {
       loaded: false,
@@ -806,6 +811,22 @@
       el.classList.remove('ok', 'warn');
       if (cls) el.classList.add(cls);
     }
+    function getAuditoriaProjecaoMode_() {
+      const m = String(auditoriaState.projecao || 'OPERACIONAL').toUpperCase();
+      return (m === 'ECONOMICA') ? 'ECONOMICA' : 'OPERACIONAL';
+    }
+    function getAuditoriaProjecaoLabel_() {
+      return getAuditoriaProjecaoMode_() === 'ECONOMICA' ? 'Econômica' : 'Operacional';
+    }
+    function atualizarFormulaAuditoria_() {
+      const note = document.getElementById('auditoriaFormulasNote');
+      if (!note) return;
+      if (getAuditoriaProjecaoMode_() === 'ECONOMICA') {
+        note.textContent = 'Modo econômica: Atual (caixa) = Recebido - Custos pagos. Projetado (contrato) = Contrato - Custos pagos - Custos a pagar (com comissão esperada do evento).';
+      } else {
+        note.textContent = 'Modo operacional: Atual (caixa) = Recebido - Custos pagos. Projetado (contrato) = Contrato - Custos pagos - Custos a pagar (comissão apenas quando gerada).';
+      }
+    }
     function montarResumoCustosTooltip_(partes, vazio) {
       const lista = (Array.isArray(partes) ? partes : [])
         .filter(p => p && Number(p.valor || 0) > 0)
@@ -843,6 +864,18 @@
       auditoriaState.ordenacao = v;
       const sel = document.getElementById('auditoriaOrdenacao');
       if (sel && sel.value !== v) sel.value = v;
+      if (auditoriaState.loaded && Array.isArray(auditoriaState.eventos) && auditoriaState.eventos.length) {
+        renderAuditoriaMensal(auditoriaState.eventos, getAnoSelecionado());
+      }
+    }
+    function setAuditoriaProjecao(valor) {
+      const v = ['OPERACIONAL', 'ECONOMICA'].includes(String(valor || '').toUpperCase())
+        ? String(valor).toUpperCase()
+        : 'OPERACIONAL';
+      auditoriaState.projecao = v;
+      const sel = document.getElementById('auditoriaProjecao');
+      if (sel && sel.value !== v) sel.value = v;
+      atualizarFormulaAuditoria_();
       if (auditoriaState.loaded && Array.isArray(auditoriaState.eventos) && auditoriaState.eventos.length) {
         renderAuditoriaMensal(auditoriaState.eventos, getAnoSelecionado());
       }
@@ -1790,6 +1823,7 @@
       const bvValor = num(evento?.bv?.valor);
       const nfValor = num(evento?.nf?.valor);
       const folhaPago = num(evento?.custos?.folha?.valor || evento?.folha?.valor || evento?.folhaCustoValor);
+      const comissaoEsperada = num(evento?.comissao?.valores?.esperado);
       const statusComissao = normalizarStatus(evento?.comissao?.status);
       const statusBv = normalizarStatus(evento?.bv?.status);
       const statusNf = normalizarStatus(evento?.nf?.status);
@@ -1804,9 +1838,16 @@
       const provisaoBV = bvPendente ? bvValor : 0;
       // NF no fluxo atual já nasce como custo pago quando configurada no evento.
       const nfPago = nfValor;
-      const provisaoComissao = (statusComissao === 'PENDENTE' || statusComissao === 'PARCIAL' || statusComissao === 'AGUARDANDO' || statusComissao === 'ERRO')
+      const modoProjecao = getAuditoriaProjecaoMode_();
+      const provisaoComissaoOperacional = (statusComissao === 'PENDENTE' || statusComissao === 'PARCIAL' || statusComissao === 'AGUARDANDO' || statusComissao === 'ERRO')
         ? comissaoPendente
         : 0;
+      const provisaoComissaoEconomica = comissaoEsperada > 0
+        ? Math.max(comissaoEsperada - comissaoPago, 0)
+        : provisaoComissaoOperacional;
+      const provisaoComissao = modoProjecao === 'ECONOMICA'
+        ? provisaoComissaoEconomica
+        : provisaoComissaoOperacional;
       const provisaoNF = 0;
       const saidas = comissaoPago + bvPago + nfPago + folhaPago;
       const totalProvisao = provisaoComissao + provisaoBV + provisaoNF;
@@ -1814,7 +1855,7 @@
       const liquidoProjetado = valorContrato - saidas - totalProvisao;
       const pendencias = [];
       if (valorContrato > 0 && totalRecebido + 0.01 < valorContrato) pendencias.push('Recebimento incompleto');
-      if (statusComissao === 'PENDENTE' || statusComissao === 'PARCIAL' || statusComissao === 'AGUARDANDO' || statusComissao === 'ERRO') {
+      if (provisaoComissao > 0.009 || statusComissao === 'ERRO') {
         pendencias.push('Comissão pendente');
       }
       if (
@@ -1905,6 +1946,7 @@
       const topBox = document.getElementById('auditoriaTop5');
       if (!box) return;
       const visao = String(auditoriaState.visao || 'OCORRIDOS');
+      const modoProjecao = getAuditoriaProjecaoMode_();
       const mesSelecionado = getMesSelecionado();
       const modoMensal = mesSelecionado >= 1 && mesSelecionado <= 12;
       const meses = {};
@@ -2059,6 +2101,7 @@
                 <span class="auditoria-pill ${totalLiquidoProjetado < 0 ? 'neg' : 'pos'}">Lucro projetado ${fmt(totalLiquidoProjetado)}</span>
                 <span class="auditoria-pill ${margemMesRecebido !== null && margemMesRecebido < 0 ? 'neg' : 'pos'}">Mrg atual ${fmtPct(margemMesRecebido)}</span>
                 <span class="auditoria-pill ${margemMesProjetada !== null && margemMesProjetada < 0 ? 'neg' : 'pos'}">Mrg proj ${fmtPct(margemMesProjetada)}</span>
+                <span class="auditoria-pill">Modo ${modoProjecao === 'ECONOMICA' ? 'Econômica' : 'Operacional'}</span>
                 <span class="auditoria-pill ${mesStatusCls}">${mesStatusLabel}</span>
                 ${(pendMes.receb + pendMes.folha + pendMes.comissao + pendMes.bv + pendMes.nf) > 0 ? `<span class="auditoria-pill warn">Pendências R:${pendMes.receb} F:${pendMes.folha} C:${pendMes.comissao} BV:${pendMes.bv} NF:${pendMes.nf}</span>` : ''}
               </div>
@@ -2070,9 +2113,9 @@
                 <div class="num">Contrato</div>
                 <div class="num">Recebido</div>
                 <div class="num">Custos pagos</div>
-                <div class="num">Custos a pagar</div>
+                <div class="num aud-tip" data-tip="${modoProjecao === 'ECONOMICA' ? 'Custos a pagar incluem comissão esperada do evento (mesmo antes de gerar comissão).' : 'Custos a pagar consideram comissão apenas quando já gerada e ainda não paga.'}">Custos a pagar</div>
                 <div class="num">Lucro atual</div>
-                <div class="num">Lucro projetado</div>
+                <div class="num aud-tip" data-tip="${modoProjecao === 'ECONOMICA' ? 'Lucro projetado usa comissão esperada do evento.' : 'Lucro projetado usa somente comissão já gerada.'}">Lucro projetado</div>
                 <div class="num">Margem atual / proj.</div>
                 <div class="num">Status</div>
               </div>
@@ -2085,7 +2128,7 @@
       box.innerHTML = html;
       if (topBox) renderTopMargens(linhasAno);
       const legendaVisao = visao === 'OCORRIDOS' ? 'somente eventos ocorridos' : (visao === 'FUTUROS' ? 'somente eventos futuros' : 'todos os eventos do ano');
-      setAuditoriaHint(`Auditoria ${modoMensal ? `em ${String(mesSelecionado).padStart(2, '0')}/${ano}` : `de ${ano}`}: ${linhasAno.length} evento(s), ${legendaVisao}.`, 'ok');
+      setAuditoriaHint(`Auditoria ${modoMensal ? `em ${String(mesSelecionado).padStart(2, '0')}/${ano}` : `de ${ano}`}: ${linhasAno.length} evento(s), ${legendaVisao}. Modo ${getAuditoriaProjecaoLabel_()}.`, 'ok');
     }
 
     async function carregarAuditoriaMensal(force = false) {
@@ -2138,6 +2181,7 @@
       const btnVisaoAno = document.getElementById('btnAuditoriaVisaoAno');
       const btnVisaoFuturos = document.getElementById('btnAuditoriaVisaoFuturos');
       const selOrdenacao = document.getElementById('auditoriaOrdenacao');
+      const selProjecao = document.getElementById('auditoriaProjecao');
       const formulasNote = document.getElementById('auditoriaFormulasNote');
       if (!box || !btn) return;
       const abrindo = box.classList.contains('hidden');
@@ -2150,6 +2194,7 @@
         if (btnVisaoAno) btnVisaoAno.classList.add('hidden');
         if (btnVisaoFuturos) btnVisaoFuturos.classList.add('hidden');
         if (selOrdenacao) selOrdenacao.classList.add('hidden');
+        if (selProjecao) selProjecao.classList.add('hidden');
         if (formulasNote) formulasNote.classList.add('hidden');
         setAuditoriaHint('Sob demanda: lucro atual (caixa) e lucro projetado por contrato (com provisões) por evento.');
         return;
@@ -2165,7 +2210,12 @@
         selOrdenacao.classList.remove('hidden');
         selOrdenacao.value = String(auditoriaState.ordenacao || 'CRONO');
       }
+      if (selProjecao) {
+        selProjecao.classList.remove('hidden');
+        selProjecao.value = String(auditoriaState.projecao || 'OPERACIONAL');
+      }
       if (formulasNote) formulasNote.classList.remove('hidden');
+      atualizarFormulaAuditoria_();
       atualizarBotoesVisaoAuditoria_();
       await carregarAuditoriaMensal(false);
     }
