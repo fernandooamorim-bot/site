@@ -1185,7 +1185,17 @@
       rows.forEach(r => {
         const id = String(r.idEvento || '');
         const cadastro = cadastroMap[id] || {};
-        const nomeRaw = String(cadastro.cerimonialista || cadastro.nomeCerimonialista || '').trim();
+        const nomeRaw = String(
+          r.nomeCerimonialista ||
+          r.cerimonialista ||
+          r.nome_cerimonialista ||
+          r.metadados?.nomeCerimonialista ||
+          r.metadados?.cerimonialista ||
+          cadastro.cerimonialista ||
+          cadastro.nomeCerimonialista ||
+          cadastro.nome_cerimonialista ||
+          ''
+        ).trim();
         if (!nomeRaw) return;
         const chaveBase = chaveCanonicaParceiro(nomeRaw);
         const atualKeys = Object.keys(grupos);
@@ -1669,7 +1679,8 @@
         ];
         const asyncSections = ['insightsBlock', 'kpisExecucaoRow'];
         setDashboardSectionLoading(true, ano, allSections);
-        const resp = await Auth.apiCall('obterDashboardGestao', { ano: ano, incluirCancelados: false });
+        const forceRefresh = !!btnTrigger;
+        const resp = await Auth.apiCall('obterDashboardGestao', { ano: ano, incluirCancelados: false, forceRefresh });
         if (!resp || resp.sucesso !== true) throw new Error(resp?.mensagem || 'Falha ao obter dashboard');
         dashboardData = resp;
         montarAnos(resp?.anosDisponiveis);
@@ -1681,7 +1692,7 @@
         setDashboardSectionLoading(false, ano, baseSections);
         const tarefasAsync = [
           renderMetaAnual(),
-          carregarInsightsComerciais(false)
+          carregarInsightsComerciais(forceRefresh)
         ];
         await Promise.allSettled(tarefasAsync);
         setDashboardSectionLoading(false, ano, asyncSections);
@@ -1974,6 +1985,9 @@
       const statusValidacao = pendenciasUnicas.length ? 'PROVISORIA' : 'VALIDADA';
       return {
         idEvento: String(evento?.idEvento || evento?.id || ''),
+        tipoRegistro: String(evento?.tipoRegistro || evento?.tipo_registro || evento?.metadados?.tipoRegistro || ''),
+        idCerimonialista: String(evento?.idCerimonialista || evento?.id_cerimonialista || evento?.metadados?.idCerimonialista || ''),
+        nomeCerimonialista: String(evento?.nomeCerimonialista || evento?.cerimonialista || evento?.nome_cerimonialista || evento?.metadados?.nomeCerimonialista || evento?.metadados?.cerimonialista || ''),
         nomeEvento: String(evento?.nomeEvento || 'Evento'),
         dataEvento: dataInfo?.label || String(evento?.dataEvento || ''),
         anoEvento: dataInfo?.ano || null,
