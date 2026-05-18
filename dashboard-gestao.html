@@ -160,6 +160,8 @@
     .segmento-row .nome,.partner-row .nome{font-size:12px;font-weight:700;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .segmento-row .meta,.partner-row .meta{font-size:11px;color:var(--muted);margin-top:2px}
     .segmento-row .val,.partner-row .val{font-size:12px;font-weight:800}
+    .ranking-footer{margin-top:8px;display:flex;justify-content:flex-end}
+    .ranking-footer .btn{padding:6px 9px;font-size:12px}
     .insight-subtle{font-size:12px;color:var(--muted);margin:2px 0 8px}
     .val.pos{color:#0d8a5d}
     .val.neg{color:#9f1d1d}
@@ -187,6 +189,9 @@
     .split{display:grid;grid-template-columns:repeat(4,minmax(220px,1fr));gap:14px;margin-top:12px}
     .mini{border:1px solid var(--line);border-radius:10px;padding:10px;background:#fbfcff}
     .mini h3{font-size:13px;color:var(--muted);margin-bottom:8px;line-height:1.2}
+    .mini-title-row{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}
+    .mini-title-row h3{margin-bottom:0}
+    .info-dot{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;border:1px solid var(--line);background:#fff;color:var(--muted);font-size:11px;font-weight:800;flex:0 0 auto}
     .mini-total{margin-top:8px;font-size:12px;font-weight:700;color:var(--navy-2)}
     .bar{display:grid;grid-template-columns:44px 1fr 90px;align-items:center;gap:8px}
     .bar .m{font-size:12px;color:var(--muted);font-weight:700}
@@ -207,7 +212,9 @@
     .auditoria-content{padding:10px;display:grid;gap:8px}
     .auditoria-top5{padding:0 10px 10px;display:grid;grid-template-columns:1fr 1fr;gap:10px}
     .auditoria-top5-card{border:1px solid var(--line);border-radius:10px;background:#fff;padding:10px}
-    .auditoria-top5-card h4{font-size:12px;color:var(--muted);margin-bottom:8px}
+    .auditoria-top5-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}
+    .auditoria-top5-card h4{font-size:12px;color:var(--muted)}
+    .auditoria-top5-head .btn{padding:5px 8px;font-size:11px}
     .auditoria-top5-list{display:grid;gap:6px}
     .auditoria-top5-row{display:flex;justify-content:space-between;gap:8px;font-size:12px;border:1px solid var(--line);border-radius:8px;padding:7px 8px;background:#fcfdff}
     .auditoria-top5-row .ev{font-weight:700;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -291,6 +298,18 @@
     .card-collapse .card-collapse-ttl i{color:var(--gold);width:16px;height:16px}
     .card-collapse .card-collapse-sub{font-size:12px;color:var(--muted);padding:0 14px 10px}
     .card-collapse .card-collapse-content{padding:0 14px 14px}
+    .dash-modal{position:fixed;inset:0;background:rgba(15,26,46,.42);z-index:300;display:flex;align-items:center;justify-content:center;padding:18px}
+    .dash-modal-panel{width:min(720px,100%);max-height:min(78vh,720px);background:#fff;border:1px solid var(--line);border-radius:12px;box-shadow:0 24px 60px rgba(15,26,46,.28);display:grid;grid-template-rows:auto 1fr}
+    .dash-modal-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px;border-bottom:1px solid var(--line)}
+    .dash-modal-head h3{font-size:15px;color:var(--text)}
+    .dash-modal-close{border:1px solid var(--line);background:#fff;border-radius:8px;width:32px;height:32px;display:flex;align-items:center;justify-content:center;cursor:pointer}
+    .dash-modal-body{padding:12px;overflow:auto;display:grid;gap:7px}
+    .dash-rank-row{display:grid;grid-template-columns:32px 1fr auto;gap:10px;align-items:center;border:1px solid var(--line);border-radius:8px;padding:8px 10px;background:#fbfcff}
+    .dash-rank-pos{font-size:12px;font-weight:800;color:var(--muted)}
+    .dash-rank-main{min-width:0}
+    .dash-rank-title{font-size:12px;font-weight:800;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .dash-rank-meta{font-size:11px;color:var(--muted);margin-top:2px}
+    .dash-rank-val{font-size:12px;font-weight:800}
 
     @keyframes spin{to{transform:rotate(360deg)}}
 
@@ -485,8 +504,12 @@
         <div id="qualidadeDados" class="badges"></div>
         <div class="split">
           <div class="mini" id="miniTendenciaMensal">
-            <h3>Tendência Mensal (recebimento)</h3>
+            <div class="mini-title-row">
+              <h3>Fluxo de recebimentos por pagamento</h3>
+              <span class="info-dot aud-tip" data-tip="Tudo que entrou no ano selecionado pela data do pagamento, mesmo que o evento seja de outro ano.">i</span>
+            </div>
             <div id="barsReceb" class="bars"></div>
+            <div id="totalFluxoRecebimento" class="mini-total">Total recebido no ano: R$ 0,00</div>
           </div>
           <div class="mini">
             <h3>Valor contratado por mês do evento</h3>
@@ -532,6 +555,7 @@
                 <option value="OPERACIONAL">Projeção operacional</option>
                 <option value="ECONOMICA">Projeção econômica</option>
               </select>
+              <span id="auditoriaProjecaoInfo" class="auditoria-pill aud-tip hidden" style="padding:2px 7px;cursor:help" data-tip="Operacional: comissão entra quando já foi gerada. Econômica: considera comissão esperada do evento, mesmo antes de gerar.">i</span>
               <select id="auditoriaOrdenacao" class="hidden" onchange="setAuditoriaOrdenacao(this.value)" title="Ordenação da lista: cronológica, risco combinado, menor margem projetada ou maior impacto de provisão.">
                 <option value="CRONO">Ordem cronológica</option>
                 <option value="PRIORIDADE">Risco combinado (margem + provisão + pendências)</option>
@@ -600,6 +624,16 @@
     </div>
   </div>
 
+  <div id="dashboardModal" class="dash-modal hidden" onclick="fecharDashboardModal(event)">
+    <div class="dash-modal-panel" role="dialog" aria-modal="true" aria-labelledby="dashboardModalTitle" onclick="event.stopPropagation()">
+      <div class="dash-modal-head">
+        <h3 id="dashboardModalTitle">Detalhes</h3>
+        <button class="dash-modal-close" type="button" onclick="fecharDashboardModal()" aria-label="Fechar"><i data-lucide="x"></i></button>
+      </div>
+      <div id="dashboardModalBody" class="dash-modal-body"></div>
+    </div>
+  </div>
+
   <nav class="bottom-nav">
     <button class="bnav" onclick="location.href='index.html'"><i data-lucide="layout-grid"></i><span>Início</span></button>
     <button class="bnav active"><i data-lucide="layout-dashboard"></i><span>Dashboard</span></button>
@@ -610,6 +644,9 @@
   <script>
     let dashboardData = null;
     let usuarioAtual = null;
+    let rankingCerimonialistasCompleto = [];
+    let rankingMargensMelhoresCompleto = [];
+    let rankingMargensPioresCompleto = [];
     const AUDITORIA_CACHE_KEY = 'dashboard:auditoriaMensal:v1';
     const AUDITORIA_CACHE_TTL_MS = 10 * 60 * 1000;
     const META_PCT_PADRAO = 30;
@@ -711,6 +748,14 @@
     function fmtPct(v){
       if (v === null || typeof v === 'undefined' || !Number.isFinite(Number(v))) return 'N/A';
       return `${Number(v).toFixed(1)}%`;
+    }
+    function escaparHtml(v) {
+      return String(v ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
     }
     function dataPtBr(d){
       if (!d) return '';
@@ -832,6 +877,35 @@
         .filter(p => p && Number(p.valor || 0) > 0)
         .map(p => `${p.nome} ${fmt(Number(p.valor || 0))}`);
       return lista.length ? lista.join(' + ') : String(vazio || 'Sem custo configurado');
+    }
+    function abrirDashboardModal(titulo, html) {
+      const modal = document.getElementById('dashboardModal');
+      const title = document.getElementById('dashboardModalTitle');
+      const body = document.getElementById('dashboardModalBody');
+      if (!modal || !title || !body) return;
+      title.textContent = String(titulo || 'Detalhes');
+      body.innerHTML = html || '<div class="empty" style="margin-top:0">Sem dados para exibir.</div>';
+      modal.classList.remove('hidden');
+      if (window.lucide) lucide.createIcons();
+    }
+    function fecharDashboardModal(evt) {
+      if (evt && evt.target && evt.currentTarget && evt.target !== evt.currentTarget) return;
+      const modal = document.getElementById('dashboardModal');
+      if (modal) modal.classList.add('hidden');
+    }
+    function montarRankModalRows(lista, valorFn, metaFn) {
+      const itens = Array.isArray(lista) ? lista : [];
+      if (!itens.length) return '<div class="empty" style="margin-top:0">Sem dados para exibir.</div>';
+      return itens.map((x, idx) => `
+        <div class="dash-rank-row">
+          <div class="dash-rank-pos">${idx + 1}</div>
+          <div class="dash-rank-main">
+            <div class="dash-rank-title" title="${escaparHtml(x.nome || x.nomeEvento || '')}">${escaparHtml(x.nome || x.nomeEvento || '')}</div>
+            <div class="dash-rank-meta">${escaparHtml(metaFn ? metaFn(x) : '')}</div>
+          </div>
+          <div class="dash-rank-val">${valorFn ? valorFn(x) : ''}</div>
+        </div>
+      `).join('');
     }
     function atualizarBotoesVisaoAuditoria_() {
       const visao = String(auditoriaState.visao || 'OCORRIDOS');
@@ -1122,17 +1196,32 @@
         if (nomeRaw.length > grupos[agrupada].nome.length) grupos[agrupada].nome = nomeRaw;
       });
       const lista = Object.values(grupos)
-        .sort((a, b) => (b.eventos - a.eventos) || (num(b.recebido) - num(a.recebido)))
-        .slice(0, 5);
-      box.innerHTML = lista.length ? lista.map(x => `
+        .sort((a, b) => (b.eventos - a.eventos) || (num(b.recebido) - num(a.recebido)));
+      rankingCerimonialistasCompleto = lista;
+      const top5 = lista.slice(0, 5);
+      box.innerHTML = top5.length ? top5.map(x => `
         <div class="partner-row">
           <div>
-            <div class="nome" title="${x.nome}">${x.nome}</div>
+            <div class="nome" title="${escaparHtml(x.nome)}">${escaparHtml(x.nome)}</div>
             <div class="meta">${x.eventos} evento(s) no ano • Recebido ${fmt(x.recebido)}</div>
           </div>
           <div class="val">${x.eventos}</div>
         </div>
-      `).join('') : `<div class="empty" style="margin-top:0">Sem base de cerimonialistas para o ano selecionado.</div>`;
+      `).join('') + (lista.length > 5 ? `
+        <div class="ranking-footer">
+          <button type="button" class="btn outline" onclick="abrirRankingCerimonialistas()">Ver mais</button>
+        </div>
+      ` : '') : `<div class="empty" style="margin-top:0">Sem base de cerimonialistas para o ano selecionado.</div>`;
+    }
+    function abrirRankingCerimonialistas() {
+      abrirDashboardModal(
+        'Cerimonialistas do ano',
+        montarRankModalRows(
+          rankingCerimonialistasCompleto,
+          (x) => `${Number(x.eventos || 0)} evento(s)`,
+          (x) => `Recebido ${fmt(x.recebido)}`
+        )
+      );
     }
     function renderKpisExecucao(rowsAno, rowsAllAtivos) {
       if (!ehProprietario()) return;
@@ -1729,12 +1818,16 @@
 
     function renderMensal(mensal) {
       const box = document.getElementById('barsReceb');
-      const max = Math.max(1, ...mensal.map(x => Number(x.recebido || 0)));
-      box.innerHTML = mensal.map(x => {
+      const lista = Array.isArray(mensal) ? mensal : [];
+      const max = Math.max(1, ...lista.map(x => Number(x.recebido || 0)));
+      box.innerHTML = lista.map(x => {
         const p = Math.max(0, Math.min(100, (Number(x.recebido || 0) / max) * 100));
         const label = String(x.mes).padStart(2, '0');
         return `<div class="bar"><div class="m">${label}</div><div class="track"><div class="fill" style="width:${p}%"></div></div><div class="v">${fmt(x.recebido)}</div></div>`;
       }).join('');
+      const total = lista.reduce((s, x) => s + num(x?.recebido), 0);
+      const totalEl = document.getElementById('totalFluxoRecebimento');
+      if (totalEl) totalEl.textContent = `Total recebido no ano: ${fmt(total)}`;
     }
 
     function renderMensalHibrido(visaoMensal) {
@@ -1919,26 +2012,46 @@
         box.innerHTML = `<div class="empty" style="margin-top:0;grid-column:1/-1">Sem base suficiente para ranking de margens.</div>`;
         return;
       }
-      const maiores = [...base].sort((a, b) => Number(b.margemProjetada) - Number(a.margemProjetada)).slice(0, 5);
-      const menores = [...base].sort((a, b) => Number(a.margemProjetada) - Number(b.margemProjetada)).slice(0, 5);
+      rankingMargensMelhoresCompleto = [...base].sort((a, b) => Number(b.margemProjetada) - Number(a.margemProjetada));
+      rankingMargensPioresCompleto = [...base].sort((a, b) => Number(a.margemProjetada) - Number(b.margemProjetada));
+      const maiores = rankingMargensMelhoresCompleto.slice(0, 5);
+      const menores = rankingMargensPioresCompleto.slice(0, 5);
 
       const montarLista = (lista, cls) => lista.map(x => `
         <div class="auditoria-top5-row">
-          <span class="ev" title="${x.nomeEvento}">${x.nomeEvento}</span>
+          <span class="ev" title="${escaparHtml(x.nomeEvento)}">${escaparHtml(x.nomeEvento)}</span>
           <span class="mrg ${cls}">${fmtPct(x.margemProjetada)}${x.statusValidacao === 'PROVISORIA' ? ' • P' : ''}</span>
         </div>
       `).join('');
 
       box.innerHTML = `
         <div class="auditoria-top5-card">
-          <h4>Top 5 melhores margens projetadas</h4>
+          <div class="auditoria-top5-head">
+            <h4>Top 5 melhores margens projetadas</h4>
+            ${rankingMargensMelhoresCompleto.length > 5 ? '<button type="button" class="btn outline" onclick="abrirRankingMargens(&quot;melhores&quot;)">Ver mais</button>' : ''}
+          </div>
           <div class="auditoria-top5-list">${montarLista(maiores, 'pos')}</div>
         </div>
         <div class="auditoria-top5-card">
-          <h4>Top 5 piores margens projetadas</h4>
+          <div class="auditoria-top5-head">
+            <h4>Top 5 piores margens projetadas</h4>
+            ${rankingMargensPioresCompleto.length > 5 ? '<button type="button" class="btn outline" onclick="abrirRankingMargens(&quot;piores&quot;)">Ver mais</button>' : ''}
+          </div>
           <div class="auditoria-top5-list">${montarLista(menores, 'neg')}</div>
         </div>
       `;
+    }
+    function abrirRankingMargens(tipo) {
+      const melhores = String(tipo || '') === 'melhores';
+      const lista = melhores ? rankingMargensMelhoresCompleto : rankingMargensPioresCompleto;
+      abrirDashboardModal(
+        melhores ? 'Melhores margens projetadas' : 'Piores margens projetadas',
+        montarRankModalRows(
+          lista,
+          (x) => `<span class="${Number(x.margemProjetada) < 0 ? 'val neg' : 'val pos'}">${fmtPct(x.margemProjetada)}${x.statusValidacao === 'PROVISORIA' ? ' • P' : ''}</span>`,
+          (x) => `${x.dataEvento || '-'} • Lucro projetado ${fmt(num(x.liquidoProjetado))}`
+        )
+      );
     }
 
     function renderAuditoriaMensal(eventos, ano) {
@@ -2182,6 +2295,7 @@
       const btnVisaoFuturos = document.getElementById('btnAuditoriaVisaoFuturos');
       const selOrdenacao = document.getElementById('auditoriaOrdenacao');
       const selProjecao = document.getElementById('auditoriaProjecao');
+      const infoProjecao = document.getElementById('auditoriaProjecaoInfo');
       const formulasNote = document.getElementById('auditoriaFormulasNote');
       if (!box || !btn) return;
       const abrindo = box.classList.contains('hidden');
@@ -2195,6 +2309,7 @@
         if (btnVisaoFuturos) btnVisaoFuturos.classList.add('hidden');
         if (selOrdenacao) selOrdenacao.classList.add('hidden');
         if (selProjecao) selProjecao.classList.add('hidden');
+        if (infoProjecao) infoProjecao.classList.add('hidden');
         if (formulasNote) formulasNote.classList.add('hidden');
         setAuditoriaHint('Sob demanda: lucro atual (caixa) e lucro projetado por contrato (com provisões) por evento.');
         return;
@@ -2214,6 +2329,7 @@
         selProjecao.classList.remove('hidden');
         selProjecao.value = String(auditoriaState.projecao || 'OPERACIONAL');
       }
+      if (infoProjecao) infoProjecao.classList.remove('hidden');
       if (formulasNote) formulasNote.classList.remove('hidden');
       atualizarFormulaAuditoria_();
       atualizarBotoesVisaoAuditoria_();
