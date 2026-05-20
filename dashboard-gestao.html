@@ -310,6 +310,36 @@
     .dash-rank-title{font-size:12px;font-weight:800;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .dash-rank-meta{font-size:11px;color:var(--muted);margin-top:2px}
     .dash-rank-val{font-size:12px;font-weight:800}
+    .future-agenda-shell{margin-top:10px;border:1px solid var(--line);border-radius:12px;background:linear-gradient(135deg,#ffffff 0%,#f7fbff 100%);overflow:hidden}
+    .future-agenda-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:12px;border-bottom:1px solid var(--line)}
+    .future-agenda-title{display:grid;gap:3px}
+    .future-agenda-title strong{font-size:14px;color:var(--navy-2)}
+    .future-agenda-title span{font-size:12px;color:var(--muted)}
+    .future-agenda-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+    .future-agenda-content{padding:12px;display:grid;gap:12px}
+    .future-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+    .future-card{border:1px solid var(--line);border-radius:10px;background:#fff;padding:10px}
+    .future-card .k{font-size:10px;color:var(--muted);font-weight:800;text-transform:uppercase;letter-spacing:.45px}
+    .future-card .v{font-size:18px;font-weight:850;color:var(--text);margin-top:5px;letter-spacing:-.25px}
+    .future-card .s{font-size:11px;color:var(--muted);margin-top:4px;line-height:1.25}
+    .future-card.good .v{color:#0d8a5d}
+    .future-card.warn .v{color:#9a6d08}
+    .future-card.bad .v{color:#9f1d1d}
+    .future-columns{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .future-panel{border:1px solid var(--line);border-radius:10px;background:#fff;padding:10px;min-width:0}
+    .future-panel h3{font-size:12px;color:var(--navy-2);text-transform:uppercase;letter-spacing:.45px;margin-bottom:8px}
+    .future-list{display:grid;gap:7px}
+    .future-row{display:grid;grid-template-columns:92px 1fr 120px;gap:8px;align-items:center}
+    .future-row .m{font-size:12px;color:var(--muted);font-weight:800}
+    .future-row .track{height:9px;background:#eef2fa;border-radius:999px;overflow:hidden}
+    .future-row .fill{height:100%;background:linear-gradient(90deg,#1e3a5f,#d4a853);border-radius:999px}
+    .future-row .v{font-size:12px;color:var(--text);font-weight:800;text-align:right}
+    .future-alerts{display:grid;gap:7px}
+    .future-alert{border:1px solid var(--line);border-radius:9px;background:#fbfcff;padding:8px 10px;font-size:12px;color:var(--muted);line-height:1.35}
+    .future-alert.good{background:#effcf5;border-color:#b7ebd5;color:#0d8a5d}
+    .future-alert.warn{background:#fff7e8;border-color:#f3ddb2;color:#9a6d08}
+    .future-alert.bad{background:#fff1f2;border-color:#fecaca;color:#9f1d1d}
+    .future-note{font-size:11px;color:var(--muted);line-height:1.35}
 
     @keyframes spin{to{transform:rotate(360deg)}}
 
@@ -342,7 +372,7 @@
       }
       .auditoria-row .ev{-webkit-line-clamp:1}
     }
-    @media (max-width:860px){.grid{grid-template-columns:1fr}.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.kpis-secondary{grid-template-columns:1fr}.resultado-kpis{grid-template-columns:1fr}.insights-kpis{grid-template-columns:1fr}.split{grid-template-columns:1fr}.ticket-grid{grid-template-columns:1fr}}
+    @media (max-width:860px){.grid{grid-template-columns:1fr}.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.kpis-secondary{grid-template-columns:1fr}.resultado-kpis{grid-template-columns:1fr}.insights-kpis{grid-template-columns:1fr}.split{grid-template-columns:1fr}.ticket-grid{grid-template-columns:1fr}.future-grid{grid-template-columns:1fr 1fr}.future-columns{grid-template-columns:1fr}.future-row{grid-template-columns:72px 1fr 96px}}
     @media (min-width:768px){.bottom-nav{display:none}.container{padding-bottom:20px}}
     .hidden{display:none !important}
   </style>
@@ -571,6 +601,24 @@
         </div>
       </div>
 
+      <div class="card" id="cardFormacaoAgendaFutura" style="grid-column:1/-1">
+        <h2><i data-lucide="calendar-plus"></i>Formação da Agenda Futura</h2>
+        <div class="sub">Complemento comercial: acompanhe como o próximo ano está sendo formado pela data de cadastro dos eventos.</div>
+        <div class="future-agenda-shell">
+          <div class="future-agenda-head">
+            <div class="future-agenda-title">
+              <strong>Visão sob demanda</strong>
+              <span>Carrega apenas quando você quiser analisar antecedência, meses de fechamento e ritmo da agenda futura.</span>
+            </div>
+            <div class="future-agenda-actions">
+              <button id="btnFormacaoFutura" class="btn primary" onclick="carregarFormacaoAgendaFutura(false)">Carregar análise futura</button>
+              <button id="btnRefreshFormacaoFutura" class="btn outline hidden" onclick="carregarFormacaoAgendaFutura(true)">Atualizar análise</button>
+            </div>
+          </div>
+          <div id="formacaoFuturaContent" class="future-agenda-content hidden"></div>
+        </div>
+      </div>
+
       <div class="card hidden" id="cardAuditoriaComercial" style="grid-column:1/-1">
         <h2><i data-lucide="receipt-text"></i>Comissões por Evento</h2>
         <div class="sub">Comparativo de recebido e comissão por evento (foco comercial).</div>
@@ -655,6 +703,8 @@
     const INSIGHTS_CACHE_TTL_MS = 10 * 60 * 1000;
     const TICKET_CACHE_KEY = 'dashboard:ticketMedio:v2';
     const TICKET_CACHE_TTL_MS = 10 * 60 * 1000;
+    const FORMACAO_FUTURA_CACHE_KEY = 'dashboard:formacaoFutura:v1';
+    const FORMACAO_FUTURA_CACHE_TTL_MS = 10 * 60 * 1000;
     const auditoriaState = {
       loaded: false,
       loading: false,
@@ -662,13 +712,15 @@
       eventos: [],
       visao: 'OCORRIDOS',
       ordenacao: 'CRONO',
-      projecao: 'OPERACIONAL'
+      projecao: 'OPERACIONAL',
+      syncVersion: ''
     };
     const auditoriaComercialState = {
       loaded: false,
       loading: false,
       ano: null,
       eventos: [],
+      syncVersion: '',
       incluirCanceladosComMov: false
     };
     const metaState = {
@@ -683,10 +735,18 @@
       loaded: false,
       loading: false,
       ano: null,
-      eventos: []
+      eventos: [],
+      syncVersion: ''
     };
     const ticketOptionsState = {
       loadedAno: null
+    };
+    const formacaoFuturaState = {
+      loaded: false,
+      loading: false,
+      ano: null,
+      syncVersion: '',
+      data: null
     };
     const syncState = {
       agendaVersion: '',
@@ -763,6 +823,15 @@
       if (isNaN(dt.getTime())) return String(d);
       return dt.toLocaleDateString('pt-BR');
     }
+    function dataIsoLocal_(dt) {
+      if (!(dt instanceof Date) || isNaN(dt.getTime())) return '';
+      return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
+    }
+    function dataIsoParaPtBr_(iso) {
+      const m = String(iso || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+      if (!m) return dataPtBr(iso);
+      return `${m[3]}/${m[2]}/${m[1]}`;
+    }
     function num(v) {
       const n = Number(v);
       return Number.isFinite(n) ? n : 0;
@@ -788,7 +857,7 @@
         };
       }
       const raw = String(dataEvento).trim();
-      const mPt = raw.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+      const mPt = raw.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
       if (mPt) {
         const dia = Number(mPt[1]);
         const mes = Number(mPt[2]);
@@ -840,11 +909,12 @@
         return null;
       }
     }
-    function salvarCacheAuditoria(ano, eventos) {
+    function salvarCacheAuditoria(ano, eventos, syncVersion) {
       try {
         localStorage.setItem(AUDITORIA_CACHE_KEY, JSON.stringify({
           ano: Number(ano),
           eventos: Array.isArray(eventos) ? eventos : [],
+          syncVersion: String(syncVersion || ''),
           at: Date.now()
         }));
       } catch (_) {}
@@ -983,7 +1053,7 @@
         const resp = await Auth.apiCall('atualizarMetaAnualDashboard', { metaPct: val });
         if (!resp || resp.sucesso !== true) throw new Error('Falha ao atualizar meta anual');
         metaState.metaPct = Number(resp.metaPct);
-        await renderMetaAnual();
+        await renderMetaAnual(true);
       } catch (e) {
         console.error(e);
         alert('Não foi possível atualizar a meta anual global.');
@@ -1008,6 +1078,37 @@
         localStorage.setItem(chave, JSON.stringify({ ...payload, at: Date.now() }));
       } catch (_) {}
     }
+    function invalidarCachesDinamicosDashboard(ano) {
+      try {
+        localStorage.removeItem(INSIGHTS_CACHE_KEY + ':' + ano);
+        localStorage.removeItem(AUDITORIA_CACHE_KEY);
+        localStorage.removeItem(META_CACHE_KEY + ':' + ano);
+        localStorage.removeItem(cacheKeyTicket(ano));
+        localStorage.removeItem(FORMACAO_FUTURA_CACHE_KEY + ':' + ano);
+      } catch (_) {}
+      syncState.agendaVersion = '';
+      syncState.agendaAt = 0;
+      auditoriaState.loaded = false;
+      auditoriaState.eventos = [];
+      auditoriaState.syncVersion = '';
+      auditoriaComercialState.loaded = false;
+      auditoriaComercialState.eventos = [];
+      auditoriaComercialState.syncVersion = '';
+      ticketState.loaded = false;
+      ticketState.eventos = [];
+      ticketState.syncVersion = '';
+      ticketOptionsState.loadedAno = null;
+      formacaoFuturaState.loaded = false;
+      formacaoFuturaState.data = null;
+      formacaoFuturaState.syncVersion = '';
+      const futureBox = document.getElementById('formacaoFuturaContent');
+      const futureRefresh = document.getElementById('btnRefreshFormacaoFutura');
+      if (futureBox) {
+        futureBox.classList.add('hidden');
+        futureBox.innerHTML = '';
+      }
+      if (futureRefresh) futureRefresh.classList.add('hidden');
+    }
     function lerCacheJsonRaw(chave) {
       try {
         const raw = localStorage.getItem(chave);
@@ -1031,17 +1132,17 @@
       }
       return version;
     }
-    async function carregarBaseAnoAnterior(ano) {
-      const cache = lerCacheJson(META_CACHE_KEY + ':' + ano, 30 * 60 * 1000);
+    async function carregarBaseAnoAnterior(ano, force = false) {
+      const cache = !force ? lerCacheJson(META_CACHE_KEY + ':' + ano, 30 * 60 * 1000) : null;
       if (cache && Number.isFinite(Number(cache.baseAnterior))) {
         return Number(cache.baseAnterior);
       }
-      const respPrev = await Auth.apiCall('obterDashboardGestao', { ano: Number(ano) - 1, incluirCancelados: false });
+      const respPrev = await Auth.apiCall('obterDashboardGestao', { ano: Number(ano) - 1, incluirCancelados: false, forceRefresh: !!force });
       const base = num(respPrev?.resumo?.financeiro?.contrato);
       salvarCacheJson(META_CACHE_KEY + ':' + ano, { baseAnterior: base });
       return base;
     }
-    async function renderMetaAnual() {
+    async function renderMetaAnual(force = false) {
       const ano = getAnoSelecionado();
       if (!metaState.configCarregada) {
         await carregarMetaConfigGlobal(false);
@@ -1059,9 +1160,9 @@
         btn.title = metaState.podeEditar ? 'Salvar meta anual global' : 'Somente proprietário pode alterar a meta global';
       }
       const realizadoAtual = num(dashboardData?.resumo?.financeiro?.contrato);
-      if (!metaState.carregado || metaState.ano !== ano) {
+      if (force || !metaState.carregado || metaState.ano !== ano) {
         try {
-          metaState.baseAnterior = await carregarBaseAnoAnterior(ano);
+          metaState.baseAnterior = await carregarBaseAnoAnterior(ano, force);
           metaState.ano = ano;
           metaState.carregado = true;
         } catch (e) {
@@ -1285,9 +1386,8 @@
         versaoAgenda = '';
       }
       if (cacheRaw && Array.isArray(cacheRaw.rowsRealizados) && Array.isArray(cacheRaw.rowsAno) && Array.isArray(cacheRaw.rowsAllAtivos)) {
-        const ttlOk = !!cacheRaw.at && (Date.now() - Number(cacheRaw.at)) <= INSIGHTS_CACHE_TTL_MS;
         const versaoOk = !!versaoAgenda && String(cacheRaw.syncVersion || '') === String(versaoAgenda);
-        if (!force && (versaoOk || ttlOk)) {
+        if (!force && versaoOk) {
           renderMargemSegmento(cacheRaw.rowsRealizados);
           renderTopCerimonialistas(cacheRaw.rowsAno, cacheRaw.cadastroMap || {});
           renderKpisExecucao(cacheRaw.rowsAno, cacheRaw.rowsAllAtivos || []);
@@ -1392,7 +1492,7 @@
       anos = Array.from(new Set(anos)).sort((a, b) => a - b);
       const alvoSelecionado = anos.includes(atualSelecionado) ? atualSelecionado : y;
       sel.innerHTML = anos.map(a => `<option value="${a}" ${a === alvoSelecionado ? 'selected' : ''}>${a}</option>`).join('');
-      sel.onchange = () => carregarDashboard();
+      sel.onchange = () => carregarDashboard(null, { forceRefresh: true });
       const selMes = document.getElementById('mesRef');
       if (selMes && !selMes.dataset.bound) {
         selMes.onchange = () => {
@@ -1449,22 +1549,24 @@
     function cacheKeyTicket(ano) {
       return `${TICKET_CACHE_KEY}:${ano}`;
     }
-    function carregarCacheTicket(ano) {
+    function carregarCacheTicket(ano, syncVersion) {
       try {
         const raw = localStorage.getItem(cacheKeyTicket(ano));
         if (!raw) return null;
         const payload = JSON.parse(raw);
         if (!payload || !Array.isArray(payload.eventos)) return null;
         if ((Date.now() - Number(payload.ts || 0)) > TICKET_CACHE_TTL_MS) return null;
+        if (!syncVersion || String(payload.syncVersion || '') !== String(syncVersion)) return null;
         return payload;
       } catch (_) {
         return null;
       }
     }
-    function salvarCacheTicket(ano, eventos) {
+    function salvarCacheTicket(ano, eventos, syncVersion) {
       try {
         localStorage.setItem(cacheKeyTicket(ano), JSON.stringify({
           ts: Date.now(),
+          syncVersion: String(syncVersion || ''),
           eventos: Array.isArray(eventos) ? eventos : []
         }));
       } catch (_) {}
@@ -1510,11 +1612,17 @@
       if (!ehProprietario()) return [];
       if (ticketState.loading) return ticketState.eventos;
       const ano = getAnoSelecionado();
-      if (!force && ticketState.loaded && ticketState.ano === ano && ticketState.eventos.length) {
+      let versaoAgenda = '';
+      try {
+        versaoAgenda = await obterAgendaVersion(force);
+      } catch (_) {
+        versaoAgenda = '';
+      }
+      if (!force && versaoAgenda && ticketState.loaded && ticketState.ano === ano && ticketState.syncVersion === versaoAgenda && ticketState.eventos.length) {
         return ticketState.eventos;
       }
-      if (!force) {
-        const cache = carregarCacheTicket(ano);
+      if (!force && versaoAgenda) {
+        const cache = carregarCacheTicket(ano, versaoAgenda);
         const cacheValidoEstrutura = !!(cache && Array.isArray(cache.eventos) && cache.eventos.length);
         const cacheComCamposFiltro = cacheValidoEstrutura && cache.eventos.some(ev =>
           String(ev?.tipoEvento || '').trim() || String(ev?.projeto || '').trim()
@@ -1522,6 +1630,7 @@
         if (cacheValidoEstrutura && cacheComCamposFiltro) {
           ticketState.loaded = true;
           ticketState.ano = ano;
+          ticketState.syncVersion = versaoAgenda;
           ticketState.eventos = cache.eventos;
           preencherFiltrosTicket(cache.eventos, true);
           return cache.eventos;
@@ -1554,8 +1663,9 @@
         });
         ticketState.loaded = true;
         ticketState.ano = ano;
+        ticketState.syncVersion = versaoAgenda || '';
         ticketState.eventos = eventos;
-        salvarCacheTicket(ano, eventos);
+        salvarCacheTicket(ano, eventos, versaoAgenda);
         preencherFiltrosTicket(eventos, true);
         return eventos;
       } catch (e) {
@@ -1663,7 +1773,7 @@
       `;
     }
 
-    async function carregarDashboard(btnTrigger = null) {
+    async function carregarDashboard(btnTrigger = null, options = {}) {
       try {
         setButtonLoading(btnTrigger, true, 'Atualizando...');
         const ano = Number(document.getElementById('anoRef').value);
@@ -1679,7 +1789,8 @@
         ];
         const asyncSections = ['insightsBlock', 'kpisExecucaoRow'];
         setDashboardSectionLoading(true, ano, allSections);
-        const forceRefresh = !!btnTrigger;
+        const forceRefresh = !!btnTrigger || !!options.forceRefresh;
+        if (forceRefresh) invalidarCachesDinamicosDashboard(ano);
         const resp = await Auth.apiCall('obterDashboardGestao', { ano: ano, incluirCancelados: false, forceRefresh });
         if (!resp || resp.sucesso !== true) throw new Error(resp?.mensagem || 'Falha ao obter dashboard');
         dashboardData = resp;
@@ -1691,7 +1802,7 @@
         renderDashboard();
         setDashboardSectionLoading(false, ano, baseSections);
         const tarefasAsync = [
-          renderMetaAnual(),
+          renderMetaAnual(forceRefresh),
           carregarInsightsComerciais(forceRefresh)
         ];
         await Promise.allSettled(tarefasAsync);
@@ -1815,6 +1926,346 @@
       const auditComBox = document.getElementById('auditoriaComercialContent');
       if (auditComBox && !auditComBox.classList.contains('hidden')) {
         carregarAuditoriaComercial(false);
+      }
+    }
+
+    function cacheKeyFormacaoFutura(ano) {
+      return `${FORMACAO_FUTURA_CACHE_KEY}:${ano}`;
+    }
+    function carregarCacheFormacaoFutura(ano, syncVersion) {
+      try {
+        const raw = localStorage.getItem(cacheKeyFormacaoFutura(ano));
+        if (!raw) return null;
+        const payload = JSON.parse(raw);
+        if (!payload || typeof payload !== 'object') return null;
+        if ((Date.now() - Number(payload.ts || 0)) > FORMACAO_FUTURA_CACHE_TTL_MS) return null;
+        if (!syncVersion || String(payload.syncVersion || '') !== String(syncVersion)) return null;
+        return payload.data || null;
+      } catch (_) {
+        return null;
+      }
+    }
+    function salvarCacheFormacaoFutura(ano, data, syncVersion) {
+      try {
+        localStorage.setItem(cacheKeyFormacaoFutura(ano), JSON.stringify({
+          ts: Date.now(),
+          syncVersion: String(syncVersion || ''),
+          data
+        }));
+      } catch (_) {}
+    }
+    function getDataCadastroEvento_(ev) {
+      const ms = Number(ev?.dataCriacaoMs || ev?.DATA_CRIACAO_MS || 0);
+      if (ms > 0) {
+        const dtMs = new Date(ms);
+        if (!isNaN(dtMs.getTime())) {
+          dtMs.setHours(0, 0, 0, 0);
+          return dtMs;
+        }
+      }
+      const raw = ev?.dataCriacao || ev?.DATA_CRIACAO || ev?.criadoEm || ev?.createdAt || '';
+      const info = parseDataEventoInfo(raw);
+      if (!info) return null;
+      const dt = new Date(info.ano, info.mes - 1, info.dia);
+      dt.setHours(0, 0, 0, 0);
+      return dt;
+    }
+    function getDataEventoDate_(ev) {
+      const info = parseDataEventoInfo(ev?.data || ev?.dataEvento || ev?.DATA_EVENTO);
+      if (!info) return null;
+      const dt = new Date(info.ano, info.mes - 1, info.dia);
+      dt.setHours(0, 0, 0, 0);
+      return dt;
+    }
+    function getValorEventoCadastro_(ev) {
+      return num(ev?.valor ?? ev?.valorTotal ?? ev?.VALOR_TOTAL);
+    }
+    function ehEventoAtivoCadastro_(ev) {
+      const tipo = String(ev?.tipo || ev?.tipoRegistro || ev?.TIPO_REGISTRO || '').trim().toUpperCase();
+      if (tipo && tipo !== 'EVENTO') return false;
+      const status = String(ev?.statusGeral || ev?.STATUS_GERAL || ev?.statusEvento || '').trim().toUpperCase();
+      return status !== 'CANCELADO';
+    }
+    function mesesEntreDatas_(inicio, fim) {
+      if (!(inicio instanceof Date) || !(fim instanceof Date) || isNaN(inicio.getTime()) || isNaN(fim.getTime())) return null;
+      return Math.max(0, (fim.getTime() - inicio.getTime()) / (1000 * 60 * 60 * 24 * 30.4375));
+    }
+    function formatMeses_(valor) {
+      if (!Number.isFinite(Number(valor))) return 'N/A';
+      const n = Number(valor);
+      if (n < 1) return `${Math.round(n * 30)} dias`;
+      return `${n.toFixed(1).replace('.', ',')} meses`;
+    }
+    function rotuloMesAno_(dt) {
+      if (!(dt instanceof Date) || isNaN(dt.getTime())) return 'Sem data';
+      const meses = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+      return `${meses[dt.getMonth()]}/${dt.getFullYear()}`;
+    }
+    function adicionarBucketFormacao_(map, chave, label, valor) {
+      if (!map[chave]) map[chave] = { chave, label, eventos: 0, valor: 0 };
+      map[chave].eventos += 1;
+      map[chave].valor += num(valor);
+    }
+    function calcularFormacaoAgendaFutura_(eventosRaw, anoBase) {
+      const hoje = new Date();
+      const corteAtual = new Date(Number(anoBase), hoje.getMonth(), hoje.getDate());
+      corteAtual.setHours(23, 59, 59, 999);
+      const corteHistorico = new Date(Number(anoBase) - 1, hoje.getMonth(), hoje.getDate());
+      corteHistorico.setHours(23, 59, 59, 999);
+      const anoFuturo = Number(anoBase) + 1;
+      const eventos = (Array.isArray(eventosRaw) ? eventosRaw : [])
+        .filter(ehEventoAtivoCadastro_)
+        .map(ev => {
+          const dataEvento = getDataEventoDate_(ev);
+          const dataCadastro = getDataCadastroEvento_(ev);
+          const valor = getValorEventoCadastro_(ev);
+          const nome = String(ev?.contratante || ev?.nomeContratante || ev?.NOME_CONTRATANTE || ev?.nomeEvento || 'Evento').trim();
+          return {
+            raw: ev,
+            nome,
+            dataEvento,
+            dataCadastro,
+            anoEvento: dataEvento ? dataEvento.getFullYear() : null,
+            valor,
+            antecedenciaMeses: dataEvento && dataCadastro ? mesesEntreDatas_(dataCadastro, dataEvento) : null,
+            criadoPor: String(ev?.criadoPor || ev?.CRIADO_POR || '').trim()
+          };
+        })
+        .filter(ev => ev.dataEvento && ev.dataCadastro);
+
+      const baseAno = eventos.filter(ev => ev.anoEvento === Number(anoBase));
+      const futuro = eventos.filter(ev => ev.anoEvento === anoFuturo && ev.dataCadastro <= corteAtual);
+      const historicoEquivalente = eventos.filter(ev => ev.anoEvento === Number(anoBase) && ev.dataCadastro <= corteHistorico);
+      const importados = futuro.filter(ev => /migracao|import/i.test(ev.criadoPor || '')).length;
+
+      const soma = (lista, campo = 'valor') => lista.reduce((s, x) => s + num(x?.[campo]), 0);
+      const mediaAntecedencia = (lista) => {
+        const vals = lista.map(x => x.antecedenciaMeses).filter(v => Number.isFinite(Number(v)));
+        return vals.length ? vals.reduce((s, v) => s + Number(v), 0) / vals.length : null;
+      };
+
+      const valorFuturo = soma(futuro);
+      const valorBase = soma(baseAno);
+      const valorHistorico = soma(historicoEquivalente);
+      const deltaHistorico = valorHistorico > 0 ? ((valorFuturo - valorHistorico) / valorHistorico) * 100 : null;
+      const cobertura = valorBase > 0 ? (valorFuturo / valorBase) * 100 : null;
+      const corte60 = new Date(corteAtual);
+      corte60.setDate(corte60.getDate() - 60);
+      const ultimos60 = futuro.filter(ev => ev.dataCadastro >= corte60);
+
+      const porMes = {};
+      futuro.forEach(ev => {
+        const chave = `${ev.dataCadastro.getFullYear()}-${String(ev.dataCadastro.getMonth() + 1).padStart(2, '0')}`;
+        adicionarBucketFormacao_(porMes, chave, rotuloMesAno_(ev.dataCadastro), ev.valor);
+      });
+      const mesesFechamento = Object.values(porMes).sort((a, b) => a.chave.localeCompare(b.chave));
+      const rankingMeses = [...mesesFechamento].sort((a, b) => num(b.valor) - num(a.valor) || b.eventos - a.eventos).slice(0, 6);
+
+      const faixas = {
+        'ate30': { label: 'Até 30 dias', eventos: 0, valor: 0 },
+        '1a3': { label: '1 a 3 meses', eventos: 0, valor: 0 },
+        '3a6': { label: '3 a 6 meses', eventos: 0, valor: 0 },
+        '6a12': { label: '6 a 12 meses', eventos: 0, valor: 0 },
+        '12mais': { label: '12+ meses', eventos: 0, valor: 0 }
+      };
+      futuro.forEach(ev => {
+        const m = Number(ev.antecedenciaMeses);
+        const k = m <= 1 ? 'ate30' : (m <= 3 ? '1a3' : (m <= 6 ? '3a6' : (m <= 12 ? '6a12' : '12mais')));
+        faixas[k].eventos += 1;
+        faixas[k].valor += ev.valor;
+      });
+
+      const alertas = [];
+      if (deltaHistorico === null) {
+        alertas.push({ tipo: 'warn', texto: `Sem base histórica suficiente para comparar ${anoFuturo} com ${anoBase} na mesma data de corte.` });
+      } else if (deltaHistorico < -15) {
+        alertas.push({ tipo: 'bad', texto: `${anoFuturo} está ${Math.abs(deltaHistorico).toFixed(1).replace('.', ',')}% abaixo do ritmo equivalente de ${anoBase}.` });
+      } else if (deltaHistorico > 15) {
+        alertas.push({ tipo: 'good', texto: `${anoFuturo} está ${deltaHistorico.toFixed(1).replace('.', ',')}% acima do ritmo equivalente de ${anoBase}.` });
+      } else {
+        alertas.push({ tipo: 'good', texto: `${anoFuturo} está próximo do ritmo equivalente de ${anoBase}.` });
+      }
+      if (futuro.length === 0) {
+        alertas.push({ tipo: 'warn', texto: `Ainda não há eventos ativos cadastrados para ${anoFuturo} até ${corteAtual.toLocaleDateString('pt-BR')}.` });
+      } else if (num(cobertura) < 35) {
+        alertas.push({ tipo: 'warn', texto: `Cobertura futura ainda baixa: ${fmtPct(cobertura)} do valor contratado de ${anoBase}.` });
+      }
+      if (ultimos60.length === 0 && futuro.length > 0) {
+        alertas.push({ tipo: 'warn', texto: 'Nenhum evento futuro foi cadastrado nos últimos 60 dias da data de corte.' });
+      }
+      if (importados > 0) {
+        alertas.push({ tipo: 'warn', texto: `${importados} evento(s) futuro(s) parecem vir de migração/importação; a antecedência pode não representar a data real de fechamento.` });
+      }
+
+      return {
+        anoBase: Number(anoBase),
+        anoFuturo,
+        corteAtual: dataIsoLocal_(corteAtual),
+        corteHistorico: dataIsoLocal_(corteHistorico),
+        resumo: {
+          eventosFuturos: futuro.length,
+          valorFuturo,
+          ticketMedio: futuro.length ? valorFuturo / futuro.length : 0,
+          antecedenciaMedia: mediaAntecedencia(futuro),
+          cobertura,
+          eventosUltimos60: ultimos60.length,
+          valorUltimos60: soma(ultimos60),
+          eventosHistorico: historicoEquivalente.length,
+          valorHistorico,
+          deltaHistorico
+        },
+        mesesFechamento,
+        rankingMeses,
+        faixas: Object.values(faixas),
+        alertas
+      };
+    }
+    function montarFutureBars_(lista, valorCampo = 'valor') {
+      const dados = Array.isArray(lista) ? lista : [];
+      if (!dados.length) return `<div class="empty" style="margin-top:0">Sem dados suficientes.</div>`;
+      const max = Math.max(1, ...dados.map(x => num(x?.[valorCampo])));
+      return dados.map(x => {
+        const v = num(x?.[valorCampo]);
+        const p = Math.max(3, Math.min(100, (v / max) * 100));
+        return `
+          <div class="future-row">
+            <div class="m">${escaparHtml(x.label)}</div>
+            <div class="track"><div class="fill" style="width:${p}%"></div></div>
+            <div class="v">${fmt(v)}<br><span style="font-size:10px;color:var(--muted)">${Number(x.eventos || 0)} ev.</span></div>
+          </div>
+        `;
+      }).join('');
+    }
+    function renderFormacaoAgendaFutura(data) {
+      const box = document.getElementById('formacaoFuturaContent');
+      const btnRefresh = document.getElementById('btnRefreshFormacaoFutura');
+      if (!box || !data) return;
+      const r = data.resumo || {};
+      const delta = r.deltaHistorico;
+      const deltaCls = delta === null ? 'warn' : (delta < -15 ? 'bad' : (delta > 0 ? 'good' : 'warn'));
+      const deltaTxt = delta === null ? 'Sem base' : `${delta >= 0 ? '+' : ''}${Number(delta).toFixed(1).replace('.', ',')}%`;
+      const coberturaCls = Number(r.cobertura || 0) >= 60 ? 'good' : (Number(r.cobertura || 0) >= 35 ? 'warn' : 'bad');
+      box.classList.remove('hidden');
+      if (btnRefresh) btnRefresh.classList.remove('hidden');
+      box.innerHTML = `
+        <div class="future-grid">
+          <div class="future-card">
+            <div class="k">Agenda ${data.anoFuturo}</div>
+            <div class="v">${Number(r.eventosFuturos || 0)} eventos</div>
+            <div class="s">Contratado: ${fmt(r.valorFuturo)}</div>
+          </div>
+          <div class="future-card">
+            <div class="k">Ticket médio futuro</div>
+            <div class="v">${fmt(r.ticketMedio)}</div>
+            <div class="s">Média dos eventos ativos de ${data.anoFuturo}</div>
+          </div>
+          <div class="future-card ${coberturaCls}">
+            <div class="k">Cobertura futura</div>
+            <div class="v">${fmtPct(r.cobertura)}</div>
+            <div class="s">Vs. valor contratado de ${data.anoBase}</div>
+          </div>
+          <div class="future-card ${deltaCls}">
+            <div class="k">Ritmo equivalente</div>
+            <div class="v">${deltaTxt}</div>
+            <div class="s">${data.anoFuturo} até ${dataIsoParaPtBr_(data.corteAtual)} vs. ${data.anoBase} até ${dataIsoParaPtBr_(data.corteHistorico)}</div>
+          </div>
+        </div>
+        <div class="future-grid">
+          <div class="future-card">
+            <div class="k">Antecedência média</div>
+            <div class="v">${formatMeses_(r.antecedenciaMedia)}</div>
+            <div class="s">Entre cadastro e data do evento</div>
+          </div>
+          <div class="future-card">
+            <div class="k">Últimos 60 dias</div>
+            <div class="v">${Number(r.eventosUltimos60 || 0)} eventos</div>
+            <div class="s">${fmt(r.valorUltimos60)} cadastrados no período</div>
+          </div>
+          <div class="future-card">
+            <div class="k">Base comparativa</div>
+            <div class="v">${Number(r.eventosHistorico || 0)} eventos</div>
+            <div class="s">${fmt(r.valorHistorico)} no mesmo corte do ano anterior</div>
+          </div>
+          <div class="future-card">
+            <div class="k">Maior mês de fechamento</div>
+            <div class="v">${escaparHtml(data.rankingMeses?.[0]?.label || 'N/A')}</div>
+            <div class="s">${data.rankingMeses?.[0] ? `${fmt(data.rankingMeses[0].valor)} • ${data.rankingMeses[0].eventos} ev.` : 'Sem dados'}</div>
+          </div>
+        </div>
+        <div class="future-columns">
+          <div class="future-panel">
+            <h3>Meses que mais fecharam eventos futuros</h3>
+            <div class="future-list">${montarFutureBars_(data.rankingMeses || [])}</div>
+          </div>
+          <div class="future-panel">
+            <h3>Faixas de antecedência</h3>
+            <div class="future-list">${montarFutureBars_(data.faixas || [])}</div>
+          </div>
+        </div>
+        <div class="future-columns">
+          <div class="future-panel">
+            <h3>Captação por mês de cadastro</h3>
+            <div class="future-list">${montarFutureBars_(data.mesesFechamento || [])}</div>
+          </div>
+          <div class="future-panel">
+            <h3>Leitura comercial</h3>
+            <div class="future-alerts">
+              ${(data.alertas || []).map(a => `<div class="future-alert ${a.tipo || ''}">${escaparHtml(a.texto)}</div>`).join('')}
+            </div>
+            <div class="future-note" style="margin-top:10px">A análise usa a data em que o evento entrou no sistema. Eventos migrados podem distorcer a antecedência histórica.</div>
+          </div>
+        </div>
+      `;
+      if (window.lucide) lucide.createIcons();
+    }
+    async function carregarFormacaoAgendaFutura(force = false) {
+      const ano = getAnoSelecionado();
+      const box = document.getElementById('formacaoFuturaContent');
+      const btn = document.getElementById('btnFormacaoFutura');
+      const btnRefresh = document.getElementById('btnRefreshFormacaoFutura');
+      if (!box || formacaoFuturaState.loading) return;
+      let versaoAgenda = '';
+      try {
+        versaoAgenda = await obterAgendaVersion(force);
+      } catch (_) {
+        versaoAgenda = '';
+      }
+      if (!force && versaoAgenda && formacaoFuturaState.loaded && formacaoFuturaState.ano === ano && formacaoFuturaState.syncVersion === versaoAgenda && formacaoFuturaState.data) {
+        renderFormacaoAgendaFutura(formacaoFuturaState.data);
+        return;
+      }
+      const cache = !force && versaoAgenda ? carregarCacheFormacaoFutura(ano, versaoAgenda) : null;
+      if (cache) {
+        formacaoFuturaState.loaded = true;
+        formacaoFuturaState.ano = ano;
+        formacaoFuturaState.syncVersion = versaoAgenda;
+        formacaoFuturaState.data = cache;
+        renderFormacaoAgendaFutura(cache);
+        return;
+      }
+      try {
+        formacaoFuturaState.loading = true;
+        setButtonLoading(btn, true, 'Carregando...');
+        setButtonLoading(btnRefresh, true, 'Atualizando...');
+        box.classList.remove('hidden');
+        box.innerHTML = `<div class="empty" style="margin-top:0">Montando análise da formação da agenda futura...</div>`;
+        const resp = await Auth.apiCall('listarEventos');
+        const eventos = Array.isArray(resp?.eventos) ? resp.eventos : (Array.isArray(resp) ? resp : []);
+        const data = calcularFormacaoAgendaFutura_(eventos, ano);
+        formacaoFuturaState.loaded = true;
+        formacaoFuturaState.ano = ano;
+        formacaoFuturaState.syncVersion = versaoAgenda || '';
+        formacaoFuturaState.data = data;
+        salvarCacheFormacaoFutura(ano, data, versaoAgenda);
+        renderFormacaoAgendaFutura(data);
+      } catch (e) {
+        console.error('Erro ao carregar formação da agenda futura:', e);
+        box.classList.remove('hidden');
+        box.innerHTML = `<div class="empty" style="margin-top:0">Falha ao carregar formação da agenda futura.</div>`;
+      } finally {
+        formacaoFuturaState.loading = false;
+        setButtonLoading(btn, false);
+        setButtonLoading(btnRefresh, false);
       }
     }
 
@@ -2264,15 +2715,23 @@
       const box = document.getElementById('auditoriaContent');
       if (!box) return;
 
-      if (!force && auditoriaState.loaded && auditoriaState.ano === ano && auditoriaState.eventos.length) {
+      let versaoAgenda = '';
+      try {
+        versaoAgenda = await obterAgendaVersion(force);
+      } catch (_) {
+        versaoAgenda = '';
+      }
+
+      if (!force && versaoAgenda && auditoriaState.loaded && auditoriaState.ano === ano && auditoriaState.syncVersion === versaoAgenda && auditoriaState.eventos.length) {
         renderAuditoriaMensal(auditoriaState.eventos, ano);
         return;
       }
 
       const cache = !force ? lerCacheAuditoria() : null;
-      if (cache && Number(cache.ano) === ano) {
+      if (cache && versaoAgenda && Number(cache.ano) === ano && String(cache.syncVersion || '') === String(versaoAgenda)) {
         auditoriaState.loaded = true;
         auditoriaState.ano = ano;
+        auditoriaState.syncVersion = versaoAgenda;
         auditoriaState.eventos = cache.eventos;
         renderAuditoriaMensal(auditoriaState.eventos, ano);
         return;
@@ -2286,8 +2745,9 @@
         const eventos = Array.isArray(resp) ? resp : (resp?.eventos || []);
         auditoriaState.loaded = true;
         auditoriaState.ano = ano;
+        auditoriaState.syncVersion = versaoAgenda || '';
         auditoriaState.eventos = eventos;
-        salvarCacheAuditoria(ano, eventos);
+        salvarCacheAuditoria(ano, eventos, versaoAgenda);
         renderAuditoriaMensal(eventos, ano);
         setAuditoriaHint('Auditoria detalhada atualizada com sucesso.', 'ok');
       } catch (err) {
@@ -2435,7 +2895,13 @@
       const ano = getAnoSelecionado();
       const box = document.getElementById('auditoriaComercialContent');
       if (!box) return;
-      if (!force && auditoriaComercialState.loaded && auditoriaComercialState.ano === ano && auditoriaComercialState.eventos.length) {
+      let versaoAgenda = '';
+      try {
+        versaoAgenda = await obterAgendaVersion(force);
+      } catch (_) {
+        versaoAgenda = '';
+      }
+      if (!force && versaoAgenda && auditoriaComercialState.loaded && auditoriaComercialState.ano === ano && auditoriaComercialState.syncVersion === versaoAgenda && auditoriaComercialState.eventos.length) {
         renderAuditoriaComercial(auditoriaComercialState.eventos, ano);
         return;
       }
@@ -2447,6 +2913,7 @@
         const eventos = Array.isArray(resp) ? resp : (resp?.eventos || []);
         auditoriaComercialState.loaded = true;
         auditoriaComercialState.ano = ano;
+        auditoriaComercialState.syncVersion = versaoAgenda || '';
         auditoriaComercialState.eventos = eventos;
         renderAuditoriaComercial(eventos, ano);
       } catch (e) {
@@ -2571,7 +3038,7 @@
         preencherUser();
         montarAnos();
         setupTicketEvents();
-        await carregarDashboard();
+        await carregarDashboard(null, { forceRefresh: true });
         if (window.lucide) lucide.createIcons();
       } catch (err) {
         console.error(err);
