@@ -46,6 +46,18 @@ let eventoSelecionadoTemFolhaAtiva = false;
 let reconciliandoPendenciasCache = false;
 let salvandoFolhaCusto = false;
 
+function perfilFolhaNormalizado_() {
+  return String(CURRENT_USER_PROFILE || localStorage.getItem('auth_perfil') || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .toLowerCase();
+}
+
+function podeConsultarResumoFinanceiroFolha_() {
+  return PODE_CONSULTAR_RESUMO_FINANCEIRO === true && perfilFolhaNormalizado_() === 'proprietario';
+}
+
 function setAgendaRecomendadosLoading_(ativo, texto) {
   const box = document.getElementById('agenda-evento-recomendados');
   if (!box) return;
@@ -777,7 +789,7 @@ async function eventoAgendaTemFolhaAtivaPorResumo_(idEvento) {
   const id = String(idEvento || '').trim();
   if (!id) return false;
   if (resumoFolhaEventoCache.has(id)) return resumoFolhaEventoCache.get(id) === true;
-  if (!PODE_CONSULTAR_RESUMO_FINANCEIRO) {
+  if (!podeConsultarResumoFinanceiroFolha_()) {
     const evLocal = (eventosAgendaFolhaCache || []).find(ev => String(ev?.id || '').trim() === id) || null;
     const statusLocal = statusFolhaLocalEvento_(evLocal);
     const temFolhaLocal = statusLocal === true;
@@ -865,7 +877,7 @@ async function carregarEventosComPropostaFolha_() {
 }
 
 async function reconciliarPendenciasComFinanceiro_() {
-  if (!PODE_CONSULTAR_RESUMO_FINANCEIRO) return;
+  if (!podeConsultarResumoFinanceiroFolha_()) return;
   if (reconciliandoPendenciasCache) return;
   reconciliandoPendenciasCache = true;
   try {
@@ -1350,12 +1362,13 @@ async function renderEventosAgendaRecomendados_() {
   `).join('');
 
   // Refinamento assíncrono: valida os "desconhecidos" sem bloquear o primeiro paint.
-  if (candidatosRefino.length) {
+  if (candidatosRefino.length && podeConsultarResumoFinanceiroFolha_()) {
     refinarEventosAgendaRecomendadosComResumo_(candidatosRefino).catch(() => {});
   }
 }
 
 async function refinarEventosAgendaRecomendadosComResumo_(ids) {
+  if (!podeConsultarResumoFinanceiroFolha_()) return;
   const unicos = Array.from(new Set((ids || []).map(v => String(v || '').trim()).filter(Boolean))).slice(0, 20);
   if (!unicos.length) return;
 
