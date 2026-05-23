@@ -104,6 +104,7 @@
     .kpi .lbl{font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.5px}
     .kpi .val{margin-top:6px;font-size:22px;font-weight:800;letter-spacing:-.4px}
     .kpi .sub{margin-top:4px;font-size:12px;color:var(--muted)}
+    .kpi .sub .metric-highlight{font-size:14px;font-weight:800;color:#0d8a5d}
     .kpis-secondary{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;margin:0 0 12px}
     .kpi.soft-ok .val{color:#0d8a5d}
     .kpi.soft-warn .val{color:#9a6d08}
@@ -1368,6 +1369,10 @@
         const el = document.getElementById(id);
         if (el) el.textContent = val;
       };
+      const setHtml = (id, val) => {
+        const el = document.getElementById(id);
+        if (el) el.innerHTML = val;
+      };
       setTxt('kRecebRealizado', fmt(recebidoRealizado));
       setTxt('kRecebRealizadoSub', `${realizados.length} evento(s) já executado(s) ${modoMensal ? `em ${String(mes).padStart(2, '0')}/${ano}` : `em ${ano}`}`);
       setTxt('kRecebFuturo', fmt(recebidoFuturo));
@@ -1378,7 +1383,7 @@
       setTxt('kRecebFuturoGeral', fmt(recebidoFuturoGeral));
       setTxt('kRecebFuturoGeralSub', `${futurosGlobaisComReceb.length} evento(s) futuro(s) com recebimento (todos os anos)`);
       setTxt('kLiquidoRealizado', fmt(liquidoRealizado));
-      setTxt('kLiquidoRealizadoSub', `Margem realizada: ${fmtPct(margemRealizada)}`);
+      setHtml('kLiquidoRealizadoSub', `Margem realizada: <span class="metric-highlight">${fmtPct(margemRealizada)}</span>`);
       setTxt('kLiquidoRealizadoLinha', modoMensal
         ? `${realizados.length} evento(s) executado(s) no recorte • recebido - saídas processadas`
         : `${realizados.length} evento(s) executado(s) no ano • recebido - saídas processadas`);
