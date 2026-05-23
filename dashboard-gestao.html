@@ -296,6 +296,8 @@
     .realized-cost-item{border:1px solid var(--line);border-radius:9px;padding:8px;background:#fff}
     .realized-cost-item .k{font-size:11px;color:var(--muted);font-weight:700}
     .realized-cost-item .v{font-size:13px;color:var(--text);font-weight:800;margin-top:3px}
+    .realized-cost-item .s{font-size:11px;color:var(--muted);font-weight:700;margin-top:3px}
+    .realized-cost-item .pct{color:#0d8a5d;font-weight:800}
     .realized-cost-item.total .v{color:#0d8a5d}
     .badges{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
     .b{font-size:11px;font-weight:700;border-radius:999px;padding:3px 8px}
@@ -590,7 +592,7 @@
             <div id="saidasResumoMes" class="table"></div>
             <div id="mediaCustosRealizados" class="realized-costs">
               <div class="realized-costs-title">
-                <h4>Média dos eventos realizados</h4>
+                <h4>Custos dos eventos realizados</h4>
                 <span>Carregando base consolidada...</span>
               </div>
             </div>
@@ -1419,7 +1421,7 @@
       if (!qtd) {
         box.innerHTML = `
           <div class="realized-costs-title">
-            <h4>Média dos eventos realizados</h4>
+            <h4>Custos dos eventos realizados</h4>
             <span>Sem eventos realizados no recorte</span>
           </div>
         `;
@@ -1427,30 +1429,33 @@
       }
       const totais = realizados.reduce((acc, x) => {
         const d = x?.custosPagosDetalhe || {};
+        acc.recebido += num(x?.recebido);
         acc.folha += num(d.folha);
         acc.comissao += num(d.comissao);
         acc.bv += num(d.bv);
         acc.nf += num(d.nf);
         return acc;
-      }, { folha: 0, comissao: 0, bv: 0, nf: 0 });
+      }, { recebido: 0, folha: 0, comissao: 0, bv: 0, nf: 0 });
       totais.total = totais.folha + totais.comissao + totais.bv + totais.nf;
       const item = (label, valor, total = false) => `
         <div class="realized-cost-item ${total ? 'total' : ''}">
           <div class="k">${label}</div>
-          <div class="v">${fmt(valor / qtd)}</div>
+          <div class="v">${fmt(valor)}</div>
+          <div class="s"><span class="pct">${fmtPct(totais.recebido > 0 ? (valor / totais.recebido) * 100 : null)}</span> do recebido realizado</div>
+          <div class="s">Média: ${fmt(valor / qtd)} por evento</div>
         </div>
       `;
       box.innerHTML = `
         <div class="realized-costs-title">
-          <h4>Média dos eventos realizados</h4>
-          <span>${qtd} evento(s) já executado(s) ${modoMensal ? `em ${String(mes).padStart(2, '0')}/${ano}` : `em ${ano}`}</span>
+          <h4>Custos dos eventos realizados</h4>
+          <span>${qtd} evento(s) • recebido realizado ${fmt(totais.recebido)}</span>
         </div>
         <div class="realized-costs-grid">
-          ${item('Folha média', totais.folha)}
-          ${item('Comissão média', totais.comissao)}
-          ${item('BV médio', totais.bv)}
-          ${item('NF média', totais.nf)}
-          ${item('Custo médio total', totais.total, true)}
+          ${item('Folha de custo', totais.folha)}
+          ${item('Comissões', totais.comissao)}
+          ${item('BV', totais.bv)}
+          ${item('NF', totais.nf)}
+          ${item('Custo total realizado', totais.total, true)}
         </div>
       `;
     }
@@ -2468,7 +2473,7 @@
       if (mediaBox) {
         mediaBox.innerHTML = `
           <div class="realized-costs-title">
-            <h4>Média dos eventos realizados</h4>
+            <h4>Custos dos eventos realizados</h4>
             <span>Carregando base consolidada...</span>
           </div>
         `;
