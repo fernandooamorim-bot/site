@@ -288,6 +288,15 @@
     .cost-share-bar span{display:block;height:100%;background:linear-gradient(90deg,var(--navy-2),#3f628f);border-radius:999px}
     .cost-share.total{background:#fbfcff}
     .cost-share.total .row-top{align-items:center}
+    .realized-costs{margin-top:12px;border-top:1px dashed var(--line);padding-top:10px}
+    .realized-costs-title{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:7px}
+    .realized-costs-title h4{font-size:12px;color:var(--navy-2);font-weight:800;margin:0}
+    .realized-costs-title span{font-size:11px;color:var(--muted);font-weight:700;text-align:right}
+    .realized-costs-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+    .realized-cost-item{border:1px solid var(--line);border-radius:9px;padding:8px;background:#fff}
+    .realized-cost-item .k{font-size:11px;color:var(--muted);font-weight:700}
+    .realized-cost-item .v{font-size:13px;color:var(--text);font-weight:800;margin-top:3px}
+    .realized-cost-item.total .v{color:#0d8a5d}
     .badges{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
     .b{font-size:11px;font-weight:700;border-radius:999px;padding:3px 8px}
     .b.danger{background:#fdecec;color:#9f1d1d}
@@ -579,6 +588,12 @@
           <div class="metric-mini">
             <h3>Totais de saídas no recorte</h3>
             <div id="saidasResumoMes" class="table"></div>
+            <div id="mediaCustosRealizados" class="realized-costs">
+              <div class="realized-costs-title">
+                <h4>Média dos eventos realizados</h4>
+                <span>Carregando base consolidada...</span>
+              </div>
+            </div>
           </div>
         </div>
         <div class="auditoria-wrap">
@@ -1388,6 +1403,57 @@
         ? `${realizados.length} evento(s) executado(s) no recorte • recebido - saídas processadas`
         : `${realizados.length} evento(s) executado(s) no ano • recebido - saídas processadas`);
     }
+    function renderMediaCustosRealizados(rowsAno) {
+      const box = document.getElementById('mediaCustosRealizados');
+      if (!box) return;
+      const linhas = Array.isArray(rowsAno) ? rowsAno : [];
+      const ano = getAnoSelecionado();
+      const mes = getMesSelecionado();
+      const modoMensal = mes >= 1 && mes <= 12;
+      const realizados = linhas.filter(x => {
+        if (!x?.ocorrido) return false;
+        if (modoMensal && Number(x?.mesEvento || 0) !== mes) return false;
+        return true;
+      });
+      const qtd = realizados.length;
+      if (!qtd) {
+        box.innerHTML = `
+          <div class="realized-costs-title">
+            <h4>Média dos eventos realizados</h4>
+            <span>Sem eventos realizados no recorte</span>
+          </div>
+        `;
+        return;
+      }
+      const totais = realizados.reduce((acc, x) => {
+        const d = x?.custosPagosDetalhe || {};
+        acc.folha += num(d.folha);
+        acc.comissao += num(d.comissao);
+        acc.bv += num(d.bv);
+        acc.nf += num(d.nf);
+        return acc;
+      }, { folha: 0, comissao: 0, bv: 0, nf: 0 });
+      totais.total = totais.folha + totais.comissao + totais.bv + totais.nf;
+      const item = (label, valor, total = false) => `
+        <div class="realized-cost-item ${total ? 'total' : ''}">
+          <div class="k">${label}</div>
+          <div class="v">${fmt(valor / qtd)}</div>
+        </div>
+      `;
+      box.innerHTML = `
+        <div class="realized-costs-title">
+          <h4>Média dos eventos realizados</h4>
+          <span>${qtd} evento(s) já executado(s) ${modoMensal ? `em ${String(mes).padStart(2, '0')}/${ano}` : `em ${ano}`}</span>
+        </div>
+        <div class="realized-costs-grid">
+          ${item('Folha média', totais.folha)}
+          ${item('Comissão média', totais.comissao)}
+          ${item('BV médio', totais.bv)}
+          ${item('NF média', totais.nf)}
+          ${item('Custo médio total', totais.total, true)}
+        </div>
+      `;
+    }
     async function carregarInsightsComerciais(force = false) {
       const ano = getAnoSelecionado();
       const cacheKey = INSIGHTS_CACHE_KEY + ':' + ano;
@@ -1404,6 +1470,7 @@
           renderMargemSegmento(cacheRaw.rowsRealizados);
           renderTopCerimonialistas(cacheRaw.rowsAno, cacheRaw.cadastroMap || {});
           renderKpisExecucao(cacheRaw.rowsAno, cacheRaw.rowsAllAtivos || []);
+          renderMediaCustosRealizados(cacheRaw.rowsAno);
           return;
         }
       }
@@ -1438,6 +1505,7 @@
         renderMargemSegmento(rowsRealizados);
         renderTopCerimonialistas(rowsAno, cadastroMap);
         renderKpisExecucao(rowsAno, rowsAllAtivos);
+        renderMediaCustosRealizados(rowsAno);
       } catch (e) {
         console.error('Erro ao carregar insights comerciais:', e);
         const seg = document.getElementById('segmentoList');
@@ -1445,6 +1513,7 @@
         if (seg) seg.innerHTML = `<div class="empty" style="margin-top:0">Falha ao carregar segmentos.</div>`;
         if (par) par.innerHTML = `<div class="empty" style="margin-top:0">Falha ao carregar parceiros.</div>`;
         if (ehProprietario()) renderKpisExecucao([], []);
+        renderMediaCustosRealizados([]);
       }
     }
     function eventoTemAlerta(evento, codigo) {
@@ -2395,6 +2464,15 @@
         ${linhasSaidas.map(linhaSaida).join('')}
         <div class="row cost-share total"><div class="row-top"><div class="name">Saídas totais</div><div><strong>${fmt(totalSaidas)}</strong></div></div></div>
       `;
+      const mediaBox = document.getElementById('mediaCustosRealizados');
+      if (mediaBox) {
+        mediaBox.innerHTML = `
+          <div class="realized-costs-title">
+            <h4>Média dos eventos realizados</h4>
+            <span>Carregando base consolidada...</span>
+          </div>
+        `;
+      }
     }
 
     function montarLinhaAuditoriaEvento(evento) {
