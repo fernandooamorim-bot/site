@@ -1381,6 +1381,9 @@
       const expo = recebidoTotal > 0 ? (recebidoFuturo / recebidoTotal) * 100 : 0;
       const liquidoRealizado = realizados.reduce((s, x) => s + num(x?.liquido), 0);
       const margemRealizada = recebidoRealizado > 0 ? (liquidoRealizado / recebidoRealizado) * 100 : null;
+      const comissaoPendenteRealizados = realizados.reduce((s, x) => s + num(x?.comissaoPendenteGerada ?? x?.custosProvisaoDetalhe?.comissao), 0);
+      const liquidoAjustadoComissao = liquidoRealizado - comissaoPendenteRealizados;
+      const margemAjustadaComissao = recebidoRealizado > 0 ? (liquidoAjustadoComissao / recebidoRealizado) * 100 : null;
 
       const setTxt = (id, val) => {
         const el = document.getElementById(id);
@@ -1401,9 +1404,9 @@
       setTxt('kRecebFuturoGeralSub', `${futurosGlobaisComReceb.length} evento(s) futuro(s) com recebimento (todos os anos)`);
       setTxt('kLiquidoRealizado', fmt(liquidoRealizado));
       setHtml('kLiquidoRealizadoSub', `Margem realizada: <span class="metric-highlight">${fmtPct(margemRealizada)}</span>`);
-      setTxt('kLiquidoRealizadoLinha', modoMensal
-        ? `${realizados.length} evento(s) executado(s) no recorte • recebido - saídas processadas`
-        : `${realizados.length} evento(s) executado(s) no ano • recebido - saídas processadas`);
+      setTxt('kLiquidoRealizadoLinha', comissaoPendenteRealizados > 0
+        ? `Após comissões a pagar: ${fmt(liquidoAjustadoComissao)} • margem ajustada ${fmtPct(margemAjustadaComissao)}`
+        : `${realizados.length} evento(s) executado(s) • recebido - saídas processadas`);
     }
     function renderMediaCustosRealizados(rowsAno) {
       const box = document.getElementById('mediaCustosRealizados');
