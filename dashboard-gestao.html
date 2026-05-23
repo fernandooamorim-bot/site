@@ -280,6 +280,13 @@
     .row-top{display:flex;justify-content:space-between;gap:8px}
     .row .name{font-size:13px;font-weight:700}
     .row .meta{font-size:12px;color:var(--muted);margin-top:3px}
+    .cost-share .row-top{align-items:flex-start}
+    .cost-share .value{text-align:right}
+    .cost-share .pct{display:block;margin-top:2px;font-size:11px;color:var(--muted);font-weight:700}
+    .cost-share-bar{height:5px;background:#eef2f8;border-radius:999px;overflow:hidden;margin-top:8px}
+    .cost-share-bar span{display:block;height:100%;background:linear-gradient(90deg,var(--navy-2),#3f628f);border-radius:999px}
+    .cost-share.total{background:#fbfcff}
+    .cost-share.total .row-top{align-items:center}
     .badges{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
     .b{font-size:11px;font-weight:700;border-radius:999px;padding:3px 8px}
     .b.danger{background:#fdecec;color:#9f1d1d}
@@ -2360,12 +2367,28 @@
       if (totalLiquido) totalLiquido.textContent = `Total líquido: ${fmt(totais.liquidoEvento)}`;
 
       const saidas = document.getElementById('saidasResumoMes');
+      const totalSaidas = Math.max(0, num(totais.saidasTotalEvento));
+      const linhasSaidas = [
+        ['Folha de custo paga', num(totais.folhaPagoEvento)],
+        ['Comissões pagas', num(totais.comissaoPagaEvento)],
+        ['BV pago', num(totais.bvPagoEvento)],
+        ['NF paga', num(totais.nfPagoEvento)]
+      ];
+      const linhaSaida = ([label, valor]) => {
+        const pct = totalSaidas > 0 ? Math.max(0, Math.min(100, (valor / totalSaidas) * 100)) : 0;
+        return `
+          <div class="row cost-share">
+            <div class="row-top">
+              <div class="name">${label}</div>
+              <div class="value"><strong>${fmt(valor)}</strong><span class="pct">${fmtPct(pct)} do total</span></div>
+            </div>
+            <div class="cost-share-bar" aria-hidden="true"><span style="width:${pct}%"></span></div>
+          </div>
+        `;
+      };
       saidas.innerHTML = `
-        <div class="row"><div class="row-top"><div class="name">Comissões pagas</div><div><strong>${fmt(totais.comissaoPagaEvento)}</strong></div></div></div>
-        <div class="row"><div class="row-top"><div class="name">BV pago</div><div><strong>${fmt(totais.bvPagoEvento)}</strong></div></div></div>
-        <div class="row"><div class="row-top"><div class="name">NF paga</div><div><strong>${fmt(totais.nfPagoEvento)}</strong></div></div></div>
-        <div class="row"><div class="row-top"><div class="name">Folha de custo paga</div><div><strong>${fmt(totais.folhaPagoEvento)}</strong></div></div></div>
-        <div class="row"><div class="row-top"><div class="name">Saídas totais</div><div><strong>${fmt(totais.saidasTotalEvento)}</strong></div></div></div>
+        ${linhasSaidas.map(linhaSaida).join('')}
+        <div class="row cost-share total"><div class="row-top"><div class="name">Saídas totais</div><div><strong>${fmt(totalSaidas)}</strong></div></div></div>
       `;
     }
 
