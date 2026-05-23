@@ -281,13 +281,11 @@
     .row-top{display:flex;justify-content:space-between;gap:8px}
     .row .name{font-size:13px;font-weight:700}
     .row .meta{font-size:12px;color:var(--muted);margin-top:3px}
-    .cost-share .row-top{align-items:flex-start}
+    .cost-share{padding:9px 10px}
+    .cost-share .row-top{align-items:center}
     .cost-share .value{text-align:right}
-    .cost-share .pct{display:block;margin-top:2px;font-size:11px;color:var(--muted);font-weight:700}
-    .cost-share-bar{height:5px;background:#eef2f8;border-radius:999px;overflow:hidden;margin-top:8px}
-    .cost-share-bar span{display:block;height:100%;background:linear-gradient(90deg,var(--navy-2),#3f628f);border-radius:999px}
+    .cost-share .pct{display:inline-block;margin-left:6px;font-size:11px;color:var(--muted);font-weight:700;white-space:nowrap}
     .cost-share.total{background:#fbfcff}
-    .cost-share.total .row-top{align-items:center}
     .realized-costs{margin-top:12px;border-top:1px dashed var(--line);padding-top:10px}
     .realized-costs-title{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:7px}
     .realized-costs-title h4{font-size:12px;color:var(--navy-2);font-weight:800;margin:0}
@@ -2461,7 +2459,6 @@
               <div class="name">${label}</div>
               <div class="value"><strong>${fmt(valor)}</strong><span class="pct">${fmtPct(pct)} das saídas</span></div>
             </div>
-            <div class="cost-share-bar" aria-hidden="true"><span style="width:${pct}%"></span></div>
           </div>
         `;
       };
