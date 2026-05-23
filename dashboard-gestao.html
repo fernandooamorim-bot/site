@@ -450,7 +450,7 @@
       <div class="kpi">
         <div class="lbl">Líquido Realizado</div>
         <div class="val" id="kLiquidoRealizado">R$ 0,00</div>
-        <div class="sub" id="kLiquidoRealizadoSub">recebido - saídas processadas (provisório)</div>
+        <div class="sub aud-tip" id="kLiquidoRealizadoSub" data-tip="Margem realizada = líquido realizado dividido pelo recebido realizado dos eventos já executados.">Margem realizada: N/A</div>
         <div class="sub-line" id="kLiquidoRealizadoLinha">Somente eventos já executados.</div>
       </div>
     </div>
@@ -1355,6 +1355,7 @@
       const recebidoTotal = recebidoRealizado + recebidoFuturo;
       const expo = recebidoTotal > 0 ? (recebidoFuturo / recebidoTotal) * 100 : 0;
       const liquidoRealizado = realizados.reduce((s, x) => s + num(x?.liquido), 0);
+      const margemRealizada = recebidoRealizado > 0 ? (liquidoRealizado / recebidoRealizado) * 100 : null;
 
       const setTxt = (id, val) => {
         const el = document.getElementById(id);
@@ -1370,10 +1371,10 @@
       setTxt('kRecebFuturoGeral', fmt(recebidoFuturoGeral));
       setTxt('kRecebFuturoGeralSub', `${futurosGlobaisComReceb.length} evento(s) futuro(s) com recebimento (todos os anos)`);
       setTxt('kLiquidoRealizado', fmt(liquidoRealizado));
-      setTxt('kLiquidoRealizadoSub', `${realizados.length} evento(s) já executado(s) • provisório`);
+      setTxt('kLiquidoRealizadoSub', `Margem realizada: ${fmtPct(margemRealizada)}`);
       setTxt('kLiquidoRealizadoLinha', modoMensal
-        ? `Recorte ${String(mes).padStart(2, '0')}/${ano}: recebido - saídas processadas`
-        : `Ano ${ano}: recebido - saídas processadas (eventos já executados)`);
+        ? `${realizados.length} evento(s) executado(s) no recorte • recebido - saídas processadas`
+        : `${realizados.length} evento(s) executado(s) no ano • recebido - saídas processadas`);
     }
     async function carregarInsightsComerciais(force = false) {
       const ano = getAnoSelecionado();
