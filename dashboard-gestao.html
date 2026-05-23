@@ -296,6 +296,8 @@
     .realized-cost-item .v{font-size:13px;color:var(--text);font-weight:800;margin-top:3px}
     .realized-cost-item .s{font-size:11px;color:var(--muted);font-weight:700;margin-top:3px}
     .realized-cost-item .pct{color:#0d8a5d;font-weight:800}
+    .realized-cost-item .split-line{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:11px;color:var(--muted);font-weight:700;margin-top:4px}
+    .realized-cost-item .split-line strong{color:var(--text)}
     .realized-cost-item.total .v{color:#0d8a5d}
     .badges{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
     .b{font-size:11px;font-weight:700;border-radius:999px;padding:3px 8px}
@@ -722,7 +724,7 @@
     const AUDITORIA_CACHE_TTL_MS = 10 * 60 * 1000;
     const META_PCT_PADRAO = 30;
     const META_CACHE_KEY = 'dashboard:metaAnoAnterior:v1';
-    const INSIGHTS_CACHE_KEY = 'dashboard:insightsComerciais:v1';
+    const INSIGHTS_CACHE_KEY = 'dashboard:insightsComerciais:v2';
     const INSIGHTS_CACHE_TTL_MS = 10 * 60 * 1000;
     const TICKET_CACHE_KEY = 'dashboard:ticketMedio:v2';
     const TICKET_CACHE_TTL_MS = 10 * 60 * 1000;
@@ -1430,17 +1432,30 @@
         acc.recebido += num(x?.recebido);
         acc.folha += num(d.folha);
         acc.comissao += num(d.comissao);
+        acc.comissaoPendente += num(x?.comissaoPendenteGerada ?? x?.custosProvisaoDetalhe?.comissao);
         acc.bv += num(d.bv);
         acc.nf += num(d.nf);
         return acc;
-      }, { recebido: 0, folha: 0, comissao: 0, bv: 0, nf: 0 });
-      totais.total = totais.folha + totais.comissao + totais.bv + totais.nf;
+      }, { recebido: 0, folha: 0, comissao: 0, comissaoPendente: 0, bv: 0, nf: 0 });
+      totais.comissaoGerada = totais.comissao + totais.comissaoPendente;
+      totais.total = totais.folha + totais.comissaoGerada + totais.bv + totais.nf;
       const item = (label, valor, total = false) => `
         <div class="realized-cost-item ${total ? 'total' : ''}">
           <div class="k">${label}</div>
           <div class="v">${fmt(valor)}</div>
           <div class="s"><span class="pct">${fmtPct(totais.recebido > 0 ? (valor / totais.recebido) * 100 : null)}</span> do recebido realizado</div>
           <div class="s">Média: ${fmt(valor / qtd)} por evento</div>
+        </div>
+      `;
+      const itemComissao = () => `
+        <div class="realized-cost-item">
+          <div class="k">Comissões</div>
+          <div class="split-line"><span>Pago</span><strong>${fmt(totais.comissao)}</strong></div>
+          <div class="s"><span class="pct">${fmtPct(totais.recebido > 0 ? (totais.comissao / totais.recebido) * 100 : null)}</span> do recebido realizado</div>
+          <div class="split-line"><span>A pagar</span><strong>${fmt(totais.comissaoPendente)}</strong></div>
+          <div class="v">${fmt(totais.comissaoGerada)}</div>
+          <div class="s"><span class="pct">${fmtPct(totais.recebido > 0 ? (totais.comissaoGerada / totais.recebido) * 100 : null)}</span> total gerado</div>
+          <div class="s">Média gerada: ${fmt(totais.comissaoGerada / qtd)} por evento</div>
         </div>
       `;
       box.innerHTML = `
@@ -1450,10 +1465,10 @@
         </div>
         <div class="realized-costs-grid">
           ${item('Folha de custo', totais.folha)}
-          ${item('Comissões', totais.comissao)}
+          ${itemComissao()}
           ${item('BV', totais.bv)}
           ${item('NF', totais.nf)}
-          ${item('Custo total realizado', totais.total, true)}
+          ${item('Custo total considerado', totais.total, true)}
         </div>
       `;
     }
@@ -2563,6 +2578,7 @@
           nf: nfPago,
           folha: folhaPago
         },
+        comissaoPendenteGerada: comissaoPendente,
         provisoes: totalProvisao,
         custosProvisaoDetalhe: {
           comissao: provisaoComissao,
