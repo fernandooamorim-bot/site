@@ -546,38 +546,21 @@
       margin-bottom: var(--space-md);
     }
 
-    .home-preference-card {
-      display: flex;
+    .home-preference-inline {
+      display: inline-flex;
       align-items: center;
-      justify-content: space-between;
-      gap: 16px;
-      background: linear-gradient(135deg, rgba(15,26,46,0.96), rgba(30,58,95,0.94));
-      border: 1px solid rgba(212,168,83,0.22);
-      border-radius: var(--radius-lg);
-      padding: 14px 16px;
-      margin-bottom: var(--space-lg);
-      box-shadow: var(--shadow-md);
-      color: #ffffff;
-    }
-
-    .home-preference-title {
-      font-size: 13px;
-      font-weight: 800;
-      letter-spacing: -0.1px;
-      margin-bottom: 2px;
-    }
-
-    .home-preference-desc {
-      color: rgba(255,255,255,0.58);
+      gap: 8px;
+      margin-top: 8px;
+      color: var(--gray-500);
       font-size: 12px;
-      line-height: 1.35;
+      font-weight: 600;
     }
 
     .home-preference-toggle {
       position: relative;
       display: inline-flex;
       align-items: center;
-      gap: 10px;
+      gap: 7px;
       flex-shrink: 0;
       cursor: pointer;
       user-select: none;
@@ -591,11 +574,11 @@
     }
 
     .home-preference-track {
-      width: 52px;
-      height: 30px;
+      width: 36px;
+      height: 20px;
       border-radius: var(--radius-full);
-      background: rgba(255,255,255,0.16);
-      border: 1px solid rgba(255,255,255,0.16);
+      background: var(--gray-200);
+      border: 1px solid var(--gray-300);
       transition: background 0.2s ease, border-color 0.2s ease;
       position: relative;
     }
@@ -603,29 +586,29 @@
     .home-preference-track::after {
       content: '';
       position: absolute;
-      width: 24px;
-      height: 24px;
-      left: 2px;
-      top: 2px;
+      width: 16px;
+      height: 16px;
+      left: 1px;
+      top: 1px;
       border-radius: 50%;
       background: #ffffff;
-      box-shadow: 0 3px 10px rgba(0,0,0,0.25);
+      box-shadow: 0 1px 4px rgba(10,22,40,0.18);
       transition: transform 0.2s ease;
     }
 
     .home-preference-toggle input:checked + .home-preference-track {
-      background: linear-gradient(135deg, var(--gold-500), var(--gold-400));
-      border-color: rgba(235,208,140,0.9);
+      background: var(--gold-500);
+      border-color: var(--gold-500);
     }
 
     .home-preference-toggle input:checked + .home-preference-track::after {
-      transform: translateX(22px);
+      transform: translateX(16px);
     }
 
     .home-preference-label {
-      color: var(--gold-300);
+      color: var(--gray-500);
       font-size: 12px;
-      font-weight: 800;
+      font-weight: 700;
       white-space: nowrap;
     }
 
@@ -979,10 +962,7 @@
         gap: 8px;
       }
 
-      .home-preference-card {
-        align-items: flex-start;
-        flex-direction: column;
-      }
+      .home-preference-inline { flex-wrap: wrap; }
 
       .nav-card-icon {
         width: 36px;
@@ -1163,23 +1143,19 @@
       <div class="page-header anim-in">
         <div class="page-greeting" id="pageGreeting">Bem-vindo</div>
         <h1 class="page-title">Painel Principal</h1>
+        <div class="home-preference-inline">
+          <span>Abrir direto na Agenda</span>
+          <label class="home-preference-toggle" for="homePreferenceToggle">
+            <input id="homePreferenceToggle" type="checkbox" onchange="alterarPreferenciaPaginaInicial(this.checked)">
+            <span class="home-preference-track" aria-hidden="true"></span>
+            <span class="home-preference-label" id="homePreferenceLabel">Menu</span>
+          </label>
+        </div>
       </div>
 
       <div class="offline-banner anim-in" id="offlineBanner" aria-live="polite">
         <span><strong>Modo offline:</strong> somente a Agenda (consulta) está disponível.</span>
         <button class="offline-agenda-btn" type="button" onclick="abrir('agenda')">Abrir Agenda</button>
-      </div>
-
-      <div class="home-preference-card anim-in anim-d1">
-        <div>
-          <div class="home-preference-title">Minha abertura do sistema</div>
-          <div class="home-preference-desc">Ative para abrir direto na Agenda nos próximos acessos. Desative para começar pelo menu.</div>
-        </div>
-        <label class="home-preference-toggle" for="homePreferenceToggle">
-          <input id="homePreferenceToggle" type="checkbox" onchange="alterarPreferenciaPaginaInicial(this.checked)">
-          <span class="home-preference-track" aria-hidden="true"></span>
-          <span class="home-preference-label" id="homePreferenceLabel">Menu</span>
-        </label>
       </div>
 
       <!-- Section Label -->
