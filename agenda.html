@@ -2896,6 +2896,19 @@ criarCardEvento(evento) {
       </div>
     `);
   };
+  const numeroFinanceiroValido = (valor) => {
+    if (valor === null || typeof valor === 'undefined' || String(valor).trim() === '') return false;
+    return !isNaN(Number(valor)) && Number(valor) > 0;
+  };
+  const formatarValorFinanceiro = (valor) => Utils.formatarMoeda(Number(valor) || 0);
+  const statusObrigacaoFinanceira = (status) => {
+    const s = String(status || '').trim().toUpperCase();
+    if (!s || s === 'N/A' || s === 'NA') return '';
+    if (s === 'PROCESSADO' || s === 'QUITADO' || s === 'PAGO') return 'Pago';
+    if (s === 'PENDENTE' || s === 'EM_ABERTO') return 'Pendente';
+    if (s === 'PARCIAL') return 'Parcial';
+    return status;
+  };
 
   addDetalhe('Tipo de Evento', evento.tipoEvento || evento.tipo || '-');
   addDetalhe('Projeto / Formação', evento.projeto);
@@ -2912,7 +2925,21 @@ criarCardEvento(evento) {
 
   if (podeVerValor && evento.tipo === 'Evento') {
     addDetalhe('Valor Total', evento.valor ? Utils.formatarMoeda(evento.valor) : '-');
+    if (numeroFinanceiroValido(evento.valorRecebido)) {
+      addDetalhe('Valor Já Pago', formatarValorFinanceiro(evento.valorRecebido));
+    }
+    if (numeroFinanceiroValido(evento.valorPendente)) {
+      addDetalhe('Valor Pendente', formatarValorFinanceiro(evento.valorPendente));
+    }
     addDetalhe('Status Financeiro', Utils.getStatusLabel(evento.status || '-'));
+    if (numeroFinanceiroValido(evento.valorNF)) {
+      const statusNF = statusObrigacaoFinanceira(evento.statusNF) || 'Pago';
+      addDetalhe('Nota Fiscal', `${formatarValorFinanceiro(evento.valorNF)} • ${statusNF}`);
+    }
+    if (numeroFinanceiroValido(evento.valorBV)) {
+      const statusBV = statusObrigacaoFinanceira(evento.statusBV) || 'Pendente';
+      addDetalhe('BV', `${formatarValorFinanceiro(evento.valorBV)} • ${statusBV}`);
+    }
   }
 
   const conflitosHtml = temConflitos
