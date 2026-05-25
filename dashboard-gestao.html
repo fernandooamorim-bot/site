@@ -101,7 +101,7 @@
 
     .kpis{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px;margin-bottom:12px}
     .kpi{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:14px;box-shadow:var(--shadow)}
-    .lbl-row{display:flex;align-items:center;gap:6px;justify-content:space-between}
+    .lbl-row{display:flex;align-items:center;gap:6px;justify-content:flex-start}
     .kpi .lbl{font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.5px}
     .kpi .val{margin-top:6px;font-size:22px;font-weight:800;letter-spacing:-.4px}
     .kpi .sub{margin-top:4px;font-size:12px;color:var(--muted)}
@@ -278,6 +278,21 @@
       z-index:50;
     }
     .aud-tip:hover::after,.aud-tip:focus-visible::after{opacity:1}
+    .touch-tooltip{
+      position:fixed;
+      max-width:min(320px, calc(100vw - 24px));
+      padding:9px 11px;
+      border-radius:9px;
+      background:#0f1a2e;
+      color:#fff;
+      font-size:11px;
+      font-weight:600;
+      line-height:1.35;
+      text-align:left;
+      box-shadow:0 10px 28px rgba(15,26,46,.28);
+      z-index:1000;
+      pointer-events:none;
+    }
     .auditoria-list{overflow-x:auto}
     .auditoria-note{font-size:11px;color:var(--muted);padding:0 10px 10px}
     .row{border:1px solid var(--line);border-radius:10px;padding:10px;background:#fff}
@@ -975,6 +990,48 @@
         .filter(p => p && Number(p.valor || 0) > 0)
         .map(p => `${p.nome} ${fmt(Number(p.valor || 0))}`);
       return lista.length ? lista.join(' + ') : String(vazio || 'Sem custo configurado');
+    }
+    function fecharTouchTooltip_() {
+      const old = document.getElementById('touchTooltipDashboard');
+      if (old) old.remove();
+    }
+    function abrirTouchTooltip_(target) {
+      const text = String(target?.getAttribute('data-tip') || '').trim();
+      if (!text) return;
+      fecharTouchTooltip_();
+      const tip = document.createElement('div');
+      tip.id = 'touchTooltipDashboard';
+      tip.className = 'touch-tooltip';
+      tip.textContent = text;
+      document.body.appendChild(tip);
+      const rect = target.getBoundingClientRect();
+      const tipRect = tip.getBoundingClientRect();
+      const gap = 8;
+      let left = rect.left + (rect.width / 2) - (tipRect.width / 2);
+      left = Math.max(12, Math.min(left, window.innerWidth - tipRect.width - 12));
+      let top = rect.top - tipRect.height - gap;
+      if (top < 10) top = rect.bottom + gap;
+      if (top + tipRect.height > window.innerHeight - 10) top = Math.max(10, window.innerHeight - tipRect.height - 10);
+      tip.style.left = `${left}px`;
+      tip.style.top = `${top}px`;
+    }
+    function setupTouchTooltips_() {
+      if (document.body?.dataset.tooltipTouchBound === '1') return;
+      if (document.body) document.body.dataset.tooltipTouchBound = '1';
+      document.addEventListener('click', (evt) => {
+        const alvo = evt.target?.closest?.('.aud-tip[data-tip]');
+        if (!alvo) {
+          fecharTouchTooltip_();
+          return;
+        }
+        const coarse = window.matchMedia && window.matchMedia('(hover: none), (pointer: coarse)').matches;
+        if (!coarse) return;
+        evt.preventDefault();
+        evt.stopPropagation();
+        abrirTouchTooltip_(alvo);
+      }, true);
+      window.addEventListener('resize', fecharTouchTooltip_);
+      window.addEventListener('scroll', fecharTouchTooltip_, true);
     }
     function abrirDashboardModal(titulo, html) {
       const modal = document.getElementById('dashboardModal');
@@ -3161,6 +3218,7 @@
     window.addEventListener('load', async () => {
       try {
         if (window.lucide) lucide.createIcons();
+        setupTouchTooltips_();
         const auth = await Auth.apiCall('verificarUsuario');
         if (!auth || !auth.ok) throw new Error('NOT_AUTH');
         usuarioAtual = auth.user || null;
