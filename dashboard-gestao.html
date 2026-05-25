@@ -116,6 +116,7 @@
     .kpi.soft-ok .val,.kpi.result-positive .val{color:#0d8a5d}
     .kpi.result-negative .val{color:#9f1d1d}
     .kpi.soft-warn .val{color:#9a6d08}
+    .kpi.soft-danger .val{color:#9f1d1d}
     .kpi.soft-future .val{color:#1e5b8f}
     .kpi .sub-line{margin-top:6px;font-size:11px;color:var(--muted)}
     .resultado-kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:0 0 12px}
@@ -483,9 +484,9 @@
       <div class="kpi"><div class="lbl-row"><div class="lbl" id="kLblContrato">Contrato</div><span class="info-dot tiny aud-tip" data-tip="Soma do valor contratado dos eventos do ano ou mês selecionado, sem eventos cancelados.">i</span></div><div class="val" id="kContrato">R$ 0,00</div><div class="sub" id="kEventos">0 eventos</div></div>
       <div class="kpi"><div class="lbl-row"><div class="lbl" id="kLblRecebido">Recebido</div><span class="info-dot tiny aud-tip" data-tip="Total recebido dos eventos do recorte. Usa a base financeira consolidada do dashboard.">i</span></div><div class="val" id="kRecebido">R$ 0,00</div><div class="sub" id="kPerc">0% recebido</div></div>
       <div class="kpi"><div class="lbl-row"><div class="lbl" id="kLblPendente">Pendente</div><span class="info-dot tiny aud-tip" data-tip="Saldo ainda não recebido no recorte: contrato menos recebido.">i</span></div><div class="val" id="kPendente">R$ 0,00</div><div class="sub" id="kPendEvt">0 eventos parciais/abertos</div></div>
-      <div class="kpi"><div class="lbl-row"><div class="lbl" id="kLblBV">BV</div><span class="info-dot tiny aud-tip" data-tip="Indica BV pago e pendente, ou o valor pago no mês quando há filtro mensal.">i</span></div><div class="val" id="kBV">0</div><div class="sub" id="kBVPend">0 pendente</div></div>
-      <div class="kpi"><div class="lbl-row"><div class="lbl" id="kLblNF">NF</div><span class="info-dot tiny aud-tip" data-tip="Indica notas fiscais processadas e pendentes, ou valor de NF paga no mês quando há filtro mensal.">i</span></div><div class="val" id="kNF">0</div><div class="sub" id="kNFPend">0 pendente</div></div>
-      <div class="kpi"><div class="lbl-row"><div class="lbl" id="kLblRiscos">Riscos</div><span class="info-dot tiny aud-tip" data-tip="Quantidade de alertas críticos que precisam de atenção financeira no recorte.">i</span></div><div class="val" id="kRiscos">0</div><div class="sub" id="kSubRiscos">alertas críticos</div></div>
+      <div class="kpi" id="kpiSaidasCard"><div class="lbl-row"><div class="lbl" id="kLblBV">Saídas</div><span class="info-dot tiny aud-tip" id="kTipBV" data-tip="Total de saídas processadas no recorte: folha de custos, comissões pagas, BV pago e NF paga.">i</span></div><div class="val" id="kBV">R$ 0,00</div><div class="sub" id="kBVPend">Folha + comissões + BV + NF</div></div>
+      <div class="kpi result-positive" id="kpiResultadoCard"><div class="lbl-row"><div class="lbl" id="kLblNF">Resultado</div><span class="info-dot tiny aud-tip" id="kTipNF" data-tip="Resultado financeiro do recorte: recebido menos saídas processadas.">i</span></div><div class="val" id="kNF">R$ 0,00</div><div class="sub" id="kNFPend">recebido - saídas</div></div>
+      <div class="kpi" id="kpiAlertasCard"><div class="lbl-row"><div class="lbl" id="kLblRiscos">Alertas</div><span class="info-dot tiny aud-tip" id="kTipRiscos" data-tip="Quantidade de alertas críticos que precisam de atenção financeira no recorte. O detalhe completo fica em Riscos Prioritários.">i</span></div><div class="val" id="kRiscos">0</div><div class="sub" id="kSubRiscos">alertas críticos</div></div>
     </div>
     <div class="section-label hidden" id="execucaoSectionLabel">Execução e previsibilidade</div>
     <div class="kpis-secondary hidden" id="kpisExecucaoRow">
@@ -2049,6 +2050,16 @@
       const prox = modoMensal
         ? proxAno.filter((pItem) => Number(parseDataEventoInfo(pItem?.dataEvento)?.mes || 0) === mesSelecionado)
         : proxAno;
+      const setKpiTone = (id, tone = '') => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.classList.remove('soft-ok', 'soft-warn', 'soft-danger', 'result-positive', 'result-negative');
+        if (tone) el.classList.add(tone);
+      };
+      const setTip = (id, text) => {
+        const el = document.getElementById(id);
+        if (el) el.setAttribute('data-tip', text);
+      };
 
       if (modoComercialSocioAdmin()) {
         const comissaoGeradaBaseEvento = modoMensal ? num(bucketComissaoMes?.valor) : num(visaoMensal?.totais?.comissaoGeradaEvento);
@@ -2060,6 +2071,12 @@
         const recebidoRef = modoMensal ? num(bucketRecebidoMes?.valor) : num(fin.recebido);
         const percRef = contratoRef > 0 ? Number(((recebidoRef / contratoRef) * 100).toFixed(2)) : 0;
         const eventosRef = modoMensal ? Number(bucketContratadoMes?.eventos || 0) : Number(ev.total || 0);
+        setKpiTone('kpiSaidasCard', '');
+        setKpiTone('kpiResultadoCard', comissaoPendenteBaseEvento > 0 ? 'soft-warn' : 'soft-ok');
+        setKpiTone('kpiAlertasCard', '');
+        setTip('kTipBV', 'Comissão já processada para eventos do recorte.');
+        setTip('kTipNF', 'Comissão gerada e ainda pendente de fechamento.');
+        setTip('kTipRiscos', 'Quantidade de eventos comerciais no recorte.');
         document.getElementById('kLblContrato').textContent = 'Vendido';
         document.getElementById('kLblRecebido').textContent = 'Recebido';
         document.getElementById('kLblPendente').textContent = 'Comissão Gerada';
@@ -2084,14 +2101,21 @@
         const pendenteRef = modoMensal ? Math.max(0, Number((contratoRef - recebidoRef).toFixed(2))) : num(fin.pendente);
         const percRef = contratoRef > 0 ? Number(((recebidoRef / contratoRef) * 100).toFixed(2)) : 0;
         const eventosRef = modoMensal ? Number(bucketContratadoMes?.eventos || 0) : Number(ev.total || 0);
-        const bvPagoRef = modoMensal ? num(bucketSaidasMes?.bvPago) : null;
-        const nfPagoRef = modoMensal ? num(bucketSaidasMes?.nfPago) : null;
+        const saidasRef = modoMensal ? num(bucketSaidasMes?.valor) : num(visaoMensal?.totais?.saidasTotalEvento);
+        const resultadoRef = Number((recebidoRef - saidasRef).toFixed(2));
+        const alertasCriticos = riscos.filter(x => x.severidade === 'CRITICO').length;
+        setKpiTone('kpiSaidasCard', saidasRef > 0 ? 'soft-warn' : '');
+        setKpiTone('kpiResultadoCard', resultadoRef < 0 ? 'result-negative' : 'result-positive');
+        setKpiTone('kpiAlertasCard', alertasCriticos > 0 ? 'soft-danger' : '');
+        setTip('kTipBV', 'Total de saídas processadas no recorte: folha de custos, comissões pagas, BV pago e NF paga.');
+        setTip('kTipNF', 'Resultado financeiro do recorte: recebido menos saídas processadas.');
+        setTip('kTipRiscos', 'Quantidade de alertas críticos que precisam de atenção financeira no recorte. O detalhe completo fica em Riscos Prioritários.');
         document.getElementById('kLblContrato').textContent = 'Contrato';
         document.getElementById('kLblRecebido').textContent = 'Recebido';
         document.getElementById('kLblPendente').textContent = 'Pendente';
-        document.getElementById('kLblBV').textContent = 'BV';
-        document.getElementById('kLblNF').textContent = 'NF';
-        document.getElementById('kLblRiscos').textContent = 'Riscos';
+        document.getElementById('kLblBV').textContent = 'Saídas';
+        document.getElementById('kLblNF').textContent = 'Resultado';
+        document.getElementById('kLblRiscos').textContent = 'Alertas';
         document.getElementById('kSubRiscos').textContent = modoMensal ? 'alertas críticos no mês' : 'alertas críticos';
         document.getElementById('kContrato').textContent = fmt(contratoRef);
         document.getElementById('kEventos').textContent = `${eventosRef} eventos`;
@@ -2101,19 +2125,13 @@
         document.getElementById('kPendEvt').textContent = modoMensal
           ? 'saldo do mês selecionado'
           : `${Number(ev.parciais || 0) + Number(ev.abertos || 0)} eventos`;
-        document.getElementById('kBV').textContent = modoMensal
-          ? fmt(bvPagoRef)
-          : `${Number(saidas.bvProcessado || 0)} pagos`;
+        document.getElementById('kBV').textContent = fmt(saidasRef);
         document.getElementById('kBVPend').textContent = modoMensal
-          ? 'BV pago no mês'
-          : `${Number(saidas.bvPendente || 0)} pendente(s)`;
-        document.getElementById('kNF').textContent = modoMensal
-          ? fmt(nfPagoRef)
-          : `${Number(saidas.nfProcessada || 0)} processadas`;
-        document.getElementById('kNFPend').textContent = modoMensal
-          ? 'NF paga no mês'
-          : `${Number(saidas.nfPendente || 0)} pendente(s)`;
-        document.getElementById('kRiscos').textContent = `${riscos.filter(x => x.severidade === 'CRITICO').length}`;
+          ? 'saídas processadas no mês'
+          : 'folha + comissões + BV + NF';
+        document.getElementById('kNF').textContent = fmt(resultadoRef);
+        document.getElementById('kNFPend').textContent = resultadoRef >= 0 ? 'resultado positivo no recorte' : 'resultado negativo no recorte';
+        document.getElementById('kRiscos').textContent = `${alertasCriticos}`;
       }
 
       renderMensal(mensal);
