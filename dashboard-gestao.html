@@ -113,7 +113,8 @@
     .kpi .sub{margin-top:4px;font-size:12px;color:var(--muted)}
     .kpi .sub .metric-highlight{font-size:14px;font-weight:800;color:#0d8a5d}
     .kpis-secondary{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;margin:0 0 12px}
-    .kpi.soft-ok .val{color:#0d8a5d}
+    .kpi.soft-ok .val,.kpi.result-positive .val{color:#0d8a5d}
+    .kpi.result-negative .val{color:#9f1d1d}
     .kpi.soft-warn .val{color:#9a6d08}
     .kpi .sub-line{margin-top:6px;font-size:11px;color:var(--muted)}
     .resultado-kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:0 0 12px}
@@ -477,16 +478,16 @@
         <div class="val" id="kRecebRealizado">R$ 0,00</div>
         <div class="sub" id="kRecebRealizadoSub">eventos já executados (ano selecionado)</div>
       </div>
-      <div class="kpi">
+      <div class="kpi result-positive" id="kLiquidoRealizadoCard">
         <div class="lbl-row"><div class="lbl">Líquido Realizado</div><span class="info-dot tiny aud-tip" data-tip="Lucro dos eventos já executados: recebido realizado menos saídas processadas. A linha de ajuste considera comissões já geradas e ainda a pagar.">i</span></div>
         <div class="val" id="kLiquidoRealizado">R$ 0,00</div>
         <div class="sub aud-tip" id="kLiquidoRealizadoSub" data-tip="Margem realizada = líquido realizado dividido pelo recebido realizado dos eventos já executados.">Margem realizada: N/A</div>
         <div class="sub-line" id="kLiquidoRealizadoLinha">Somente eventos já executados.</div>
       </div>
       <div class="kpi soft-warn">
-        <div class="lbl-row"><div class="lbl">Recebido Futuro</div><span class="info-dot tiny aud-tip" data-tip="Valores já recebidos de eventos que ainda não aconteceram no recorte selecionado.">i</span></div>
+        <div class="lbl-row"><div class="lbl">Recebido Futuro no Recorte</div><span class="info-dot tiny aud-tip" data-tip="Valores já recebidos de eventos que ainda não aconteceram dentro do ano ou mês selecionado.">i</span></div>
         <div class="val" id="kRecebFuturo">R$ 0,00</div>
-        <div class="sub" id="kRecebFuturoSub">adiantamentos de eventos futuros (ano selecionado)</div>
+        <div class="sub" id="kRecebFuturoSub">eventos futuros no recorte</div>
       </div>
       <div class="kpi">
         <div class="lbl-row"><div class="lbl">Exposição do Futuro</div><span class="info-dot tiny aud-tip" data-tip="Percentual do recebido do recorte que pertence a eventos ainda não executados. Ajuda a medir compromisso futuro já recebido.">i</span></div>
@@ -495,9 +496,9 @@
         <div class="sub-line" id="kExpoFuturoLinha">Passivo operacional: R$ 0,00</div>
       </div>
       <div class="kpi soft-warn">
-        <div class="lbl-row"><div class="lbl">Futuro Geral</div><span class="info-dot tiny aud-tip" data-tip="Recebimentos de todos os eventos ainda não executados, mesmo quando são de outros anos.">i</span></div>
+        <div class="lbl-row"><div class="lbl">Recebido Futuro Geral</div><span class="info-dot tiny aud-tip" data-tip="Valores recebidos de todos os eventos ainda não executados, independente do ano do evento.">i</span></div>
         <div class="val" id="kRecebFuturoGeral">R$ 0,00</div>
-        <div class="sub" id="kRecebFuturoGeralSub">recebido de eventos futuros (todos os anos)</div>
+        <div class="sub" id="kRecebFuturoGeralSub">eventos futuros em todos os anos</div>
       </div>
     </div>
     <div class="section-label">Performance comercial</div>
@@ -1474,7 +1475,12 @@
       setTxt('kExpoFuturoSub', `sobre o recebido total ${modoMensal ? `de ${String(mes).padStart(2, '0')}/${ano}` : `de ${ano}`}`);
       setTxt('kExpoFuturoLinha', `Passivo operacional: ${fmt(recebidoFuturo)}`);
       setTxt('kRecebFuturoGeral', fmt(recebidoFuturoGeral));
-      setTxt('kRecebFuturoGeralSub', `${futurosGlobaisComReceb.length} evento(s) futuro(s) com recebimento (todos os anos)`);
+      setTxt('kRecebFuturoGeralSub', `${futurosGlobaisComReceb.length} evento(s) futuro(s) com recebimento geral`);
+      const cardLiquido = document.getElementById('kLiquidoRealizadoCard');
+      if (cardLiquido) {
+        cardLiquido.classList.toggle('result-negative', liquidoRealizado < 0);
+        cardLiquido.classList.toggle('result-positive', liquidoRealizado >= 0);
+      }
       setTxt('kLiquidoRealizado', fmt(liquidoRealizado));
       setHtml('kLiquidoRealizadoSub', `Margem realizada: <span class="metric-highlight">${fmtPct(margemRealizada)}</span>`);
       setTxt('kLiquidoRealizadoLinha', comissaoPendenteRealizados > 0
