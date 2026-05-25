@@ -735,7 +735,7 @@
       } catch (err) {
         console.error('Erro ao abrir Atividade do Sistema:', err);
         alert('Sessão inválida ou sem permissão.');
-        window.location.href = 'index.html';
+        window.location.href = 'index.html?menu=1';
       } finally {
         if (window.lucide) window.lucide.createIcons();
       }

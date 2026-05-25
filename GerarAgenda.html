@@ -456,7 +456,7 @@
 </head>
 <body>
   <div class="header">
-    <div class="header-left" onclick="window.location.href='index.html'">
+    <div class="header-left" onclick="window.location.href='index.html?menu=1'">
       <i data-lucide="arrow-left"></i>
       <i data-lucide="calendar-range"></i>
       <span class="header-title">Agenda Semanal (WhatsApp)</span>
@@ -527,7 +527,7 @@
   </div>
 
   <nav class="bottom-nav" aria-label="Navegação principal">
-    <a class="bnav-item" href="index.html">
+    <a class="bnav-item" href="index.html?menu=1">
       <i data-lucide="layout-grid"></i>
       <span>Inicio</span>
     </a>
@@ -594,7 +594,7 @@
         const perfil = String(auth.user.perfil || '');
         if (!ehPerfilGestorGerador_(perfil)) {
           alert('Você não tem permissão para acessar esta área.');
-          window.location.href = 'index.html';
+          window.location.href = 'index.html?menu=1';
           return;
         }
 
@@ -615,7 +615,7 @@
         const msg = String((err && err.message) || err || '');
         if (__pageLeaving || /abort|aborted|canceled|cancelled/i.test(msg)) return;
         alert('Sessão inválida ou acesso não autorizado.');
-        window.location.href = 'index.html';
+        window.location.href = 'index.html?menu=1';
       }
     });
 

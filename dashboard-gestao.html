@@ -441,7 +441,7 @@
 </head>
 <body>
   <div class="header">
-    <a class="brand" href="index.html">
+    <a class="brand" href="index.html?menu=1">
       <div class="back"><i data-lucide="arrow-left"></i></div>
       <div class="title"><i data-lucide="layout-dashboard"></i><span>Dashboard Executivo</span></div>
     </a>
@@ -762,7 +762,7 @@
   </div>
 
   <nav class="bottom-nav">
-    <button class="bnav" onclick="location.href='index.html'"><i data-lucide="layout-grid"></i><span>Início</span></button>
+    <button class="bnav" onclick="location.href='index.html?menu=1'"><i data-lucide="layout-grid"></i><span>Início</span></button>
     <button class="bnav active"><i data-lucide="layout-dashboard"></i><span>Dashboard</span></button>
     <button class="bnav" onclick="location.href='painel-financeiro.html'"><i data-lucide="bar-chart-3"></i><span>Painel</span></button>
     <button class="bnav" onclick="location.href='central-financeira.html?mode=fiscalizacao'"><i data-lucide="shield-check"></i><span>Fiscalizar</span></button>
@@ -1728,7 +1728,7 @@
         .normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
       if (perfil === 'musico') {
         alert('Sem permissão para o Dashboard Executivo.');
-        location.href = 'index.html';
+        location.href = 'index.html?menu=1';
         return false;
       }
       return true;
@@ -3347,7 +3347,7 @@
       } catch (err) {
         console.error(err);
         alert('Sessão inválida. Faça login novamente.');
-        location.href = 'index.html';
+        location.href = 'index.html?menu=1';
       }
     });
   </script>

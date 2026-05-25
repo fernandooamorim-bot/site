@@ -799,7 +799,7 @@
 <body>
   <!-- Global Header -->
   <div class="global-header">
-    <a class="global-header-brand" onclick="window.location.href='index.html'" title="Voltar ao Início">
+    <a class="global-header-brand" onclick="window.location.href='index.html?menu=1'" title="Voltar ao Início">
       <div class="global-header-back">
         <i data-lucide="arrow-left"></i>
       </div>
@@ -1673,7 +1673,7 @@ window.addEventListener('load', async () => {
   await detectarPerfilAtual_();
   if (!ehProprietario_()) {
     alert('Acesso ao Painel Financeiro permitido apenas para Proprietário.');
-    window.location.href = 'index.html';
+    window.location.href = 'index.html?menu=1';
     return;
   }
   const buscaEl = document.getElementById('filtroBusca');
@@ -1698,7 +1698,7 @@ window.addEventListener('load', async () => {
 
   <!-- Bottom Navigation — Padrão Global -->
   <nav class="bottom-nav">
-    <button class="bnav-item" onclick="window.location.href='index.html'">
+    <button class="bnav-item" onclick="window.location.href='index.html?menu=1'">
       <i data-lucide="layout-grid"></i>
       <span>Início</span>
     </button>

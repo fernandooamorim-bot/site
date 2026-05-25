@@ -5,7 +5,7 @@
   <script>
   if (!window.Auth) {
     alert('Erro de autenticação. Volte ao menu.');
-    window.location.href = 'index.html';
+    window.location.href = 'index.html?menu=1';
   }
 </script>
   <meta charset="UTF-8">
@@ -1173,7 +1173,7 @@
 <body>
   <!-- Global Header -->
   <div class="global-header">
-    <a class="global-header-brand" onclick="window.location.href='index.html'" title="Voltar ao Início">
+    <a class="global-header-brand" onclick="window.location.href='index.html?menu=1'" title="Voltar ao Início">
       <div class="global-header-back">
         <i data-lucide="arrow-left"></i>
       </div>
@@ -1473,7 +1473,7 @@
         
         <!-- AÇÕES -->
         <div class="actions">
-          <button type="button" class="btn btn-secondary" onclick="window.location.href='index.html'">
+          <button type="button" class="btn btn-secondary" onclick="window.location.href='index.html?menu=1'">
             Cancelar
           </button>
           <button type="submit" class="btn btn-primary" onclick="salvarEvento()">
@@ -1710,7 +1710,7 @@
         window.location.href = 'cadastro-evento.html';
         return;
       }
-      window.location.href = 'index.html';
+      window.location.href = 'index.html?menu=1';
     }
 
     function sucesso(titulo, msg, callback) {
@@ -1926,7 +1926,7 @@ window.onload = function () {
 
     if (!email || !perfil || !session) {
       mostrarAlertaGlobal('Sessão inválida. Faça login novamente.', 'error', { scroll: false, tempo: 2500 });
-      setTimeout(() => { window.location.href = 'index.html'; }, 900);
+      setTimeout(() => { window.location.href = 'index.html?menu=1'; }, 900);
       return;
     }
 
@@ -3339,7 +3339,7 @@ if ((tipoRegistro === 'Evento' || tipoRegistro === 'Reunião' || tipoRegistro ==
   </div>
   <!-- Bottom Navigation — Padrão Global -->
   <nav class="bottom-nav">
-    <button class="bnav-item" onclick="window.location.href='index.html'">
+    <button class="bnav-item" onclick="window.location.href='index.html?menu=1'">
       <i data-lucide="layout-grid"></i>
       <span>Início</span>
     </button>

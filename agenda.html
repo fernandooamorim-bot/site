@@ -1855,7 +1855,7 @@
 
    // 🔐 Proteção de sessão
 if (!AUTH.email || !AUTH.session) {
-  window.location.href = 'index.html';
+  window.location.href = 'index.html?menu=1';
 }
 
 
@@ -3647,7 +3647,7 @@ renderizarEventosDentro(evento) {
             if (window.Auth && typeof Auth.forceLogout === 'function') {
               Auth.forceLogout('Sua sessão foi encerrada. Faça login novamente.');
             } else {
-              window.location.href = 'index.html';
+              window.location.href = 'index.html?menu=1';
             }
             return;
           }

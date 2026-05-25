@@ -1725,7 +1725,7 @@
 <body>
   <!-- Global Header -->
   <div class="global-header">
-    <a class="global-header-brand" onclick="window.location.href='index.html'" title="Voltar ao Início">
+    <a class="global-header-brand" onclick="window.location.href='index.html?menu=1'" title="Voltar ao Início">
       <div class="global-header-back">
         <i data-lucide="arrow-left"></i>
       </div>
@@ -1776,7 +1776,7 @@
       <button class="btn btn-secondary" style="display:inline-flex;align-items:center;justify-content:center;gap:6px;" onclick="window.location.href='agenda.html'">
         <i data-lucide="calendar-days" style="width:16px;height:16px;"></i> Ver agenda
       </button>
-      <button class="btn btn-primary" style="display:inline-flex;align-items:center;justify-content:center;gap:6px;" onclick="window.location.href='index.html'">
+      <button class="btn btn-primary" style="display:inline-flex;align-items:center;justify-content:center;gap:6px;" onclick="window.location.href='index.html?menu=1'">
         <i data-lucide="house" style="width:16px;height:16px;"></i> Menu
       </button>
     </div>
@@ -4010,7 +4010,7 @@ async function iniciarEditarEvento() {
     aplicarSkeletonFormulario(false);
     travarAcoes(false);
     mostrarAlerta('Sessão expirada. Volte ao menu.', 'error');
-    setTimeout(() => { window.location.href = 'index.html'; }, 900);
+    setTimeout(() => { window.location.href = 'index.html?menu=1'; }, 900);
   }
 }
     
@@ -5371,14 +5371,14 @@ window.addEventListener('load', async () => {
   } catch (err) {
     console.error('Erro de autenticação:', err);
     mostrarAlerta('Sessão expirada. Volte ao menu.', 'error');
-    setTimeout(() => { window.location.href = 'index.html'; }, 900);
+    setTimeout(() => { window.location.href = 'index.html?menu=1'; }, 900);
   }
 });
   </script>
 
   <!-- Bottom Navigation — Padrão Global -->
   <nav class="bottom-nav">
-    <button class="bnav-item" onclick="window.location.href='index.html'">
+    <button class="bnav-item" onclick="window.location.href='index.html?menu=1'">
       <i data-lucide="layout-grid"></i>
       <span>Início</span>
     </button>
