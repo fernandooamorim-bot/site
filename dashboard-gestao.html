@@ -2127,8 +2127,8 @@
           : `${Number(ev.parciais || 0) + Number(ev.abertos || 0)} eventos`;
         document.getElementById('kBV').textContent = fmt(saidasRef);
         document.getElementById('kBVPend').textContent = modoMensal
-          ? 'saídas processadas no mês'
-          : 'folha + comissões + BV + NF';
+          ? `BV pago no mês: ${fmt(num(bucketSaidasMes?.bvPago))}`
+          : `BV: ${Number(saidas.bvProcessado || 0)} pagos • ${Number(saidas.bvPendente || 0)} pendentes`;
         document.getElementById('kNF').textContent = fmt(resultadoRef);
         document.getElementById('kNFPend').textContent = resultadoRef >= 0 ? 'resultado positivo no recorte' : 'resultado negativo no recorte';
         document.getElementById('kRiscos').textContent = `${alertasCriticos}`;
