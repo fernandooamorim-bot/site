@@ -546,14 +546,59 @@
       margin-bottom: var(--space-md);
     }
 
-    .home-preference-inline {
-      display: inline-flex;
+    .home-preference-card {
+      display: flex;
       align-items: center;
+      justify-content: space-between;
       gap: 8px;
-      margin-top: 8px;
+      background: rgba(255,255,255,0.74);
+      border: 1px solid var(--gray-200);
+      border-radius: var(--radius-md);
+      padding: 10px 12px;
+      margin-bottom: var(--space-lg);
+      box-shadow: var(--shadow-sm);
       color: var(--gray-500);
       font-size: 12px;
       font-weight: 600;
+    }
+
+    .home-preference-copy {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+    }
+
+    .home-preference-icon {
+      width: 26px;
+      height: 26px;
+      border-radius: var(--radius-sm);
+      background: var(--gray-100);
+      color: var(--gray-500);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .home-preference-icon i,
+    .home-preference-icon svg {
+      width: 14px;
+      height: 14px;
+    }
+
+    .home-preference-title {
+      color: var(--gray-700);
+      font-size: 12px;
+      font-weight: 800;
+      line-height: 1.2;
+    }
+
+    .home-preference-desc {
+      color: var(--gray-400);
+      font-size: 11px;
+      line-height: 1.25;
+      margin-top: 1px;
     }
 
     .home-preference-toggle {
@@ -962,7 +1007,10 @@
         gap: 8px;
       }
 
-      .home-preference-inline { flex-wrap: wrap; }
+      .home-preference-card {
+        align-items: flex-start;
+        flex-direction: column;
+      }
 
       .nav-card-icon {
         width: 36px;
@@ -1143,19 +1191,26 @@
       <div class="page-header anim-in">
         <div class="page-greeting" id="pageGreeting">Bem-vindo</div>
         <h1 class="page-title">Painel Principal</h1>
-        <div class="home-preference-inline">
-          <span>Abrir direto na Agenda</span>
-          <label class="home-preference-toggle" for="homePreferenceToggle">
-            <input id="homePreferenceToggle" type="checkbox" onchange="alterarPreferenciaPaginaInicial(this.checked)">
-            <span class="home-preference-track" aria-hidden="true"></span>
-            <span class="home-preference-label" id="homePreferenceLabel">Menu</span>
-          </label>
-        </div>
       </div>
 
       <div class="offline-banner anim-in" id="offlineBanner" aria-live="polite">
         <span><strong>Modo offline:</strong> somente a Agenda (consulta) está disponível.</span>
         <button class="offline-agenda-btn" type="button" onclick="abrir('agenda')">Abrir Agenda</button>
+      </div>
+
+      <div class="home-preference-card anim-in anim-d1">
+        <div class="home-preference-copy">
+          <span class="home-preference-icon" aria-hidden="true"><i data-lucide="panel-top"></i></span>
+          <div>
+            <div class="home-preference-title">Abertura do sistema</div>
+            <div class="home-preference-desc">Escolha se este perfil começa pelo menu ou pela agenda.</div>
+          </div>
+        </div>
+        <label class="home-preference-toggle" for="homePreferenceToggle">
+          <input id="homePreferenceToggle" type="checkbox" onchange="alterarPreferenciaPaginaInicial(this.checked)">
+          <span class="home-preference-track" aria-hidden="true"></span>
+          <span class="home-preference-label" id="homePreferenceLabel">Menu</span>
+        </label>
       </div>
 
       <!-- Section Label -->
