@@ -101,6 +101,7 @@
 
     .kpis{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px;margin-bottom:12px}
     .kpi{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:14px;box-shadow:var(--shadow)}
+    .lbl-row{display:flex;align-items:center;gap:6px;justify-content:space-between}
     .kpi .lbl{font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.5px}
     .kpi .val{margin-top:6px;font-size:22px;font-weight:800;letter-spacing:-.4px}
     .kpi .sub{margin-top:4px;font-size:12px;color:var(--muted)}
@@ -193,6 +194,8 @@
     .mini-title-row{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}
     .mini-title-row h3{margin-bottom:0}
     .info-dot{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;border:1px solid var(--line);background:#fff;color:var(--muted);font-size:11px;font-weight:800;flex:0 0 auto}
+    .info-dot.tiny{width:16px;height:16px;font-size:10px}
+    .title-tip{display:inline-flex;align-items:center;gap:7px}
     .mini-total{margin-top:8px;font-size:12px;font-weight:700;color:var(--navy-2)}
     .bar{display:grid;grid-template-columns:44px 1fr 90px;align-items:center;gap:8px}
     .bar .m{font-size:12px;color:var(--muted);font-weight:700}
@@ -437,37 +440,37 @@
     </div>
 
     <div id="kpisBlock" class="kpis">
-      <div class="kpi"><div class="lbl" id="kLblContrato">Contrato</div><div class="val" id="kContrato">R$ 0,00</div><div class="sub" id="kEventos">0 eventos</div></div>
-      <div class="kpi"><div class="lbl" id="kLblRecebido">Recebido</div><div class="val" id="kRecebido">R$ 0,00</div><div class="sub" id="kPerc">0% recebido</div></div>
-      <div class="kpi"><div class="lbl" id="kLblPendente">Pendente</div><div class="val" id="kPendente">R$ 0,00</div><div class="sub" id="kPendEvt">0 eventos parciais/abertos</div></div>
-      <div class="kpi"><div class="lbl" id="kLblBV">BV</div><div class="val" id="kBV">0</div><div class="sub" id="kBVPend">0 pendente</div></div>
-      <div class="kpi"><div class="lbl" id="kLblNF">NF</div><div class="val" id="kNF">0</div><div class="sub" id="kNFPend">0 pendente</div></div>
-      <div class="kpi"><div class="lbl" id="kLblRiscos">Riscos</div><div class="val" id="kRiscos">0</div><div class="sub" id="kSubRiscos">alertas críticos</div></div>
+      <div class="kpi"><div class="lbl-row"><div class="lbl" id="kLblContrato">Contrato</div><span class="info-dot tiny aud-tip" data-tip="Soma do valor contratado dos eventos do ano ou mês selecionado, sem eventos cancelados.">i</span></div><div class="val" id="kContrato">R$ 0,00</div><div class="sub" id="kEventos">0 eventos</div></div>
+      <div class="kpi"><div class="lbl-row"><div class="lbl" id="kLblRecebido">Recebido</div><span class="info-dot tiny aud-tip" data-tip="Total recebido dos eventos do recorte. Usa a base financeira consolidada do dashboard.">i</span></div><div class="val" id="kRecebido">R$ 0,00</div><div class="sub" id="kPerc">0% recebido</div></div>
+      <div class="kpi"><div class="lbl-row"><div class="lbl" id="kLblPendente">Pendente</div><span class="info-dot tiny aud-tip" data-tip="Saldo ainda não recebido no recorte: contrato menos recebido.">i</span></div><div class="val" id="kPendente">R$ 0,00</div><div class="sub" id="kPendEvt">0 eventos parciais/abertos</div></div>
+      <div class="kpi"><div class="lbl-row"><div class="lbl" id="kLblBV">BV</div><span class="info-dot tiny aud-tip" data-tip="Indica BV pago e pendente, ou o valor pago no mês quando há filtro mensal.">i</span></div><div class="val" id="kBV">0</div><div class="sub" id="kBVPend">0 pendente</div></div>
+      <div class="kpi"><div class="lbl-row"><div class="lbl" id="kLblNF">NF</div><span class="info-dot tiny aud-tip" data-tip="Indica notas fiscais processadas e pendentes, ou valor de NF paga no mês quando há filtro mensal.">i</span></div><div class="val" id="kNF">0</div><div class="sub" id="kNFPend">0 pendente</div></div>
+      <div class="kpi"><div class="lbl-row"><div class="lbl" id="kLblRiscos">Riscos</div><span class="info-dot tiny aud-tip" data-tip="Quantidade de alertas críticos que precisam de atenção financeira no recorte.">i</span></div><div class="val" id="kRiscos">0</div><div class="sub" id="kSubRiscos">alertas críticos</div></div>
     </div>
     <div class="kpis-secondary hidden" id="kpisExecucaoRow">
       <div class="kpi soft-ok">
-        <div class="lbl">Recebido Realizado</div>
+        <div class="lbl-row"><div class="lbl">Recebido Realizado</div><span class="info-dot tiny aud-tip" data-tip="Recebimentos vinculados a eventos que já aconteceram no ano ou mês selecionado.">i</span></div>
         <div class="val" id="kRecebRealizado">R$ 0,00</div>
         <div class="sub" id="kRecebRealizadoSub">eventos já executados (ano selecionado)</div>
       </div>
       <div class="kpi soft-warn">
-        <div class="lbl">Recebido Futuro</div>
+        <div class="lbl-row"><div class="lbl">Recebido Futuro</div><span class="info-dot tiny aud-tip" data-tip="Valores já recebidos de eventos que ainda não aconteceram no recorte selecionado.">i</span></div>
         <div class="val" id="kRecebFuturo">R$ 0,00</div>
         <div class="sub" id="kRecebFuturoSub">adiantamentos de eventos futuros (ano selecionado)</div>
       </div>
       <div class="kpi">
-        <div class="lbl">Exposição do Futuro</div>
+        <div class="lbl-row"><div class="lbl">Exposição do Futuro</div><span class="info-dot tiny aud-tip" data-tip="Percentual do recebido do recorte que pertence a eventos ainda não executados. Ajuda a medir compromisso futuro já recebido.">i</span></div>
         <div class="val" id="kExpoFuturo">0,0%</div>
         <div class="sub" id="kExpoFuturoSub">sobre o recebido total do ano selecionado</div>
         <div class="sub-line" id="kExpoFuturoLinha">Passivo operacional: R$ 0,00</div>
       </div>
       <div class="kpi soft-warn">
-        <div class="lbl">Não Executados (Geral)</div>
+        <div class="lbl-row"><div class="lbl">Não Executados (Geral)</div><span class="info-dot tiny aud-tip" data-tip="Recebimentos de todos os eventos ainda não executados, mesmo quando são de outros anos.">i</span></div>
         <div class="val" id="kRecebFuturoGeral">R$ 0,00</div>
         <div class="sub" id="kRecebFuturoGeralSub">recebido de eventos futuros (todos os anos)</div>
       </div>
       <div class="kpi">
-        <div class="lbl">Líquido Realizado</div>
+        <div class="lbl-row"><div class="lbl">Líquido Realizado</div><span class="info-dot tiny aud-tip" data-tip="Lucro dos eventos já executados: recebido realizado menos saídas processadas. A linha de ajuste considera comissões já geradas e ainda a pagar.">i</span></div>
         <div class="val" id="kLiquidoRealizado">R$ 0,00</div>
         <div class="sub aud-tip" id="kLiquidoRealizadoSub" data-tip="Margem realizada = líquido realizado dividido pelo recebido realizado dos eventos já executados.">Margem realizada: N/A</div>
         <div class="sub-line" id="kLiquidoRealizadoLinha">Somente eventos já executados.</div>
@@ -476,7 +479,7 @@
     <div id="insightsBlock" class="insights-kpis">
       <div class="insight-kpi">
         <div class="head">
-          <div class="ttl">Meta Anual</div>
+          <div class="ttl title-tip">Meta Anual <span class="info-dot tiny aud-tip" data-tip="Compara o vendido do ano selecionado com uma meta baseada no vendido do ano anterior.">i</span></div>
           <i data-lucide="target"></i>
         </div>
         <div class="meta-top">
@@ -500,7 +503,7 @@
       </div>
       <div class="insight-kpi">
         <div class="head">
-          <div class="ttl">Margem Realizada por Segmento</div>
+          <div class="ttl title-tip">Margem Realizada por Segmento <span class="info-dot tiny aud-tip" data-tip="Mostra a margem dos eventos já ocorridos, agrupada por tipo de evento. Ajuda a ver quais segmentos são mais rentáveis.">i</span></div>
           <i data-lucide="pie-chart"></i>
         </div>
         <div class="insight-subtle">Eventos já ocorridos no ano selecionado</div>
@@ -510,7 +513,7 @@
       </div>
       <div class="insight-kpi">
         <div class="head">
-          <div class="ttl">Top 5 Cerimonialistas do Ano</div>
+          <div class="ttl title-tip">Top 5 Cerimonialistas do Ano <span class="info-dot tiny aud-tip" data-tip="Ranking de parceiros do ano selecionado, considerando eventos ativos e recebimentos vinculados.">i</span></div>
           <i data-lucide="users-round"></i>
         </div>
         <div class="insight-subtle">Ano selecionado (eventos do ano todo, sem cancelados)</div>
@@ -521,7 +524,7 @@
     </div>
     <div class="insight-kpi hidden" id="cardTicketMedio">
       <div class="head">
-        <div class="ttl">Ticket Médio Comercial</div>
+        <div class="ttl title-tip">Ticket Médio Comercial <span class="info-dot tiny aud-tip" data-tip="Análise sob demanda do valor médio contratado por tipo de evento e projeto. Não carrega automaticamente para manter a dashboard leve.">i</span></div>
         <i data-lucide="badge-dollar-sign"></i>
       </div>
       <div class="insight-subtle">Somente proprietário • análise por ano do evento</div>
@@ -548,7 +551,7 @@
 
     <div class="grid">
       <div class="card" id="cardVisaoMesEvento" style="grid-column:1/-1">
-        <h2><i data-lucide="git-compare-arrows"></i>Visão por Mês do Evento</h2>
+        <h2><i data-lucide="git-compare-arrows"></i><span class="title-tip">Visão por Mês do Evento <span class="info-dot tiny aud-tip" data-tip="Organiza contrato, recebimentos e comissões pelo mês em que o evento acontece, não pela data de lançamento. Boa para leitura de competência.">i</span></span></h2>
         <div class="sub">Valores por competência do evento (consistentes para gestão, sem depender da data de lançamento).</div>
         <div id="qualidadeDados" class="badges"></div>
         <div class="split">
@@ -561,17 +564,17 @@
             <div id="totalFluxoRecebimento" class="mini-total">Total recebido no ano: R$ 0,00</div>
           </div>
           <div class="mini">
-            <h3>Valor contratado por mês do evento</h3>
+            <h3 class="title-tip">Valor contratado por mês do evento <span class="info-dot tiny aud-tip" data-tip="Soma dos contratos dos eventos que acontecem em cada mês do ano selecionado.">i</span></h3>
             <div id="barsContratado" class="bars"></div>
             <div id="totalContratadoMes" class="mini-total">Total: R$ 0,00</div>
           </div>
           <div class="mini">
-            <h3>Recebimentos dos eventos do mês</h3>
+            <h3 class="title-tip">Recebimentos dos eventos do mês <span class="info-dot tiny aud-tip" data-tip="Quanto já foi recebido dos eventos que acontecem em cada mês, independente da data em que o pagamento foi lançado.">i</span></h3>
             <div id="barsRecebHibrido" class="bars"></div>
             <div id="totalRecebHibridoMes" class="mini-total">Total: R$ 0,00</div>
           </div>
           <div class="mini">
-            <h3>Comissões pagas por mês do evento</h3>
+            <h3 class="title-tip">Comissões pagas por mês do evento <span class="info-dot tiny aud-tip" data-tip="Comissões processadas vinculadas aos eventos de cada mês. Comissão gerada e ainda pendente aparece nas visões gerenciais e auditorias.">i</span></h3>
             <div id="barsComissaoEvento" class="bars"></div>
             <div id="totalComissaoEventoMes" class="mini-total">Total: R$ 0,00</div>
           </div>
@@ -579,20 +582,20 @@
       </div>
 
       <div class="card" id="cardResultadoMensal" style="grid-column:1/-1">
-        <h2><i data-lucide="wallet"></i>Resultado Financeiro Mensal</h2>
+        <h2><i data-lucide="wallet"></i><span class="title-tip">Resultado Financeiro Mensal <span class="info-dot tiny aud-tip" data-tip="Resume resultado líquido e saídas por mês do evento. A base principal usa saídas processadas; os custos realizados mostram também comissão gerada a pagar.">i</span></span></h2>
         <div class="sub">Recebido por mês do evento, saídas consolidadas e resultado líquido.</div>
         <div class="metric-grid">
           <div class="metric-mini">
-            <h3>Resultado Líquido por mês do evento</h3>
+            <h3 class="title-tip">Resultado Líquido por mês do evento <span class="info-dot tiny aud-tip" data-tip="Recebido dos eventos do mês menos saídas processadas vinculadas a esses eventos.">i</span></h3>
             <div id="barsLiquidoEvento" class="bars"></div>
             <div id="totalLiquidoEvento" class="mini-total">Total líquido: R$ 0,00</div>
           </div>
           <div class="metric-mini">
-            <h3>Totais de saídas no recorte</h3>
+            <h3 class="title-tip">Totais de saídas no recorte <span class="info-dot tiny aud-tip" data-tip="Soma das saídas processadas no recorte selecionado: comissão paga, BV, NF e folha. Percentuais são sobre o total das saídas.">i</span></h3>
             <div id="saidasResumoMes" class="table"></div>
             <div id="mediaCustosRealizados" class="realized-costs">
               <div class="realized-costs-title">
-                <h4>Custos dos eventos realizados</h4>
+                <h4 class="title-tip">Custos dos eventos realizados <span class="info-dot tiny aud-tip" data-tip="Mostra custos dos eventos já executados. Em comissões, separa pago, a pagar e total gerado para prever o efeito do próximo fechamento.">i</span></h4>
                 <span>Carregando base consolidada...</span>
               </div>
             </div>
@@ -627,7 +630,7 @@
       </div>
 
       <div class="card" id="cardFormacaoAgendaFutura" style="grid-column:1/-1">
-        <h2><i data-lucide="calendar-plus"></i>Formação da Agenda Futura</h2>
+        <h2><i data-lucide="calendar-plus"></i><span class="title-tip">Formação da Agenda Futura <span class="info-dot tiny aud-tip" data-tip="Análise sob demanda sobre como a agenda futura está sendo formada: antecedência, ritmo de fechamento e meses mais fortes de captação.">i</span></span></h2>
         <div class="sub">Complemento comercial: acompanhe como o próximo ano está sendo formado pela data de cadastro dos eventos.</div>
         <div class="future-agenda-shell">
           <div class="future-agenda-head">
@@ -645,7 +648,7 @@
       </div>
 
       <div class="card hidden" id="cardAuditoriaComercial" style="grid-column:1/-1">
-        <h2><i data-lucide="receipt-text"></i>Comissões por Evento</h2>
+        <h2><i data-lucide="receipt-text"></i><span class="title-tip">Comissões por Evento <span class="info-dot tiny aud-tip" data-tip="Visão comercial por evento, comparando comissão gerada, paga e pendente. Usada principalmente para acompanhamento de vendedores.">i</span></span></h2>
         <div class="sub">Comparativo de recebido e comissão por evento (foco comercial).</div>
         <div class="auditoria-wrap">
           <div class="auditoria-head">
@@ -664,19 +667,19 @@
       </div>
 
       <div class="card" id="cardProximos30" style="grid-column:1/-1">
-        <h2><i data-lucide="calendar-clock"></i>Próximos 30 dias</h2>
+        <h2><i data-lucide="calendar-clock"></i><span class="title-tip">Próximos 30 dias <span class="info-dot tiny aud-tip" data-tip="Eventos próximos com impacto financeiro, para antecipar recebimentos, pendências e ações antes da execução.">i</span></span></h2>
         <div class="sub">Eventos próximos com impacto financeiro</div>
         <div id="proxBox"></div>
       </div>
 
       <div class="card" id="cardRiscos">
-        <h2><i data-lucide="shield-alert"></i>Riscos Prioritários</h2>
+        <h2><i data-lucide="shield-alert"></i><span class="title-tip">Riscos Prioritários <span class="info-dot tiny aud-tip" data-tip="Alertas financeiros que precisam de ação, como BV, NF, recebimento ou inconsistências de processamento.">i</span></span></h2>
         <div class="sub">Eventos com ação financeira imediata</div>
         <div id="riscosBox"></div>
       </div>
 
       <div class="card" id="cardRankingVendedores">
-        <h2><i data-lucide="users"></i>Ranking de Vendedores</h2>
+        <h2><i data-lucide="users"></i><span class="title-tip">Ranking de Vendedores <span class="info-dot tiny aud-tip" data-tip="Ranking comercial baseado nas comissões do ano selecionado. Ajuda a acompanhar geração e pagamento de comissões.">i</span></span></h2>
         <div class="sub">Comissão gerada e paga</div>
         <div id="vendBox"></div>
       </div>
@@ -1424,7 +1427,7 @@
       if (!qtd) {
         box.innerHTML = `
           <div class="realized-costs-title">
-            <h4>Custos dos eventos realizados</h4>
+            <h4 class="title-tip">Custos dos eventos realizados <span class="info-dot tiny aud-tip" data-tip="Mostra custos dos eventos já executados. Em comissões, separa pago, a pagar e total gerado para prever o efeito do próximo fechamento.">i</span></h4>
             <span>Sem eventos realizados no recorte</span>
           </div>
         `;
@@ -1463,7 +1466,7 @@
       `;
       box.innerHTML = `
         <div class="realized-costs-title">
-          <h4>Custos dos eventos realizados</h4>
+          <h4 class="title-tip">Custos dos eventos realizados <span class="info-dot tiny aud-tip" data-tip="Mostra custos dos eventos já executados. Em comissões, separa pago, a pagar e total gerado para prever o efeito do próximo fechamento.">i</span></h4>
           <span>${qtd} evento(s) • recebido realizado ${fmt(totais.recebido)}</span>
         </div>
         <div class="realized-costs-grid">
@@ -2488,7 +2491,7 @@
       if (mediaBox) {
         mediaBox.innerHTML = `
           <div class="realized-costs-title">
-            <h4>Custos dos eventos realizados</h4>
+            <h4 class="title-tip">Custos dos eventos realizados <span class="info-dot tiny aud-tip" data-tip="Mostra custos dos eventos já executados. Em comissões, separa pago, a pagar e total gerado para prever o efeito do próximo fechamento.">i</span></h4>
             <span>Carregando base consolidada...</span>
           </div>
         `;
