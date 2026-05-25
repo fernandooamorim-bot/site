@@ -546,6 +546,89 @@
       margin-bottom: var(--space-md);
     }
 
+    .home-preference-card {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      background: linear-gradient(135deg, rgba(15,26,46,0.96), rgba(30,58,95,0.94));
+      border: 1px solid rgba(212,168,83,0.22);
+      border-radius: var(--radius-lg);
+      padding: 14px 16px;
+      margin-bottom: var(--space-lg);
+      box-shadow: var(--shadow-md);
+      color: #ffffff;
+    }
+
+    .home-preference-title {
+      font-size: 13px;
+      font-weight: 800;
+      letter-spacing: -0.1px;
+      margin-bottom: 2px;
+    }
+
+    .home-preference-desc {
+      color: rgba(255,255,255,0.58);
+      font-size: 12px;
+      line-height: 1.35;
+    }
+
+    .home-preference-toggle {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      flex-shrink: 0;
+      cursor: pointer;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .home-preference-toggle input {
+      position: absolute;
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .home-preference-track {
+      width: 52px;
+      height: 30px;
+      border-radius: var(--radius-full);
+      background: rgba(255,255,255,0.16);
+      border: 1px solid rgba(255,255,255,0.16);
+      transition: background 0.2s ease, border-color 0.2s ease;
+      position: relative;
+    }
+
+    .home-preference-track::after {
+      content: '';
+      position: absolute;
+      width: 24px;
+      height: 24px;
+      left: 2px;
+      top: 2px;
+      border-radius: 50%;
+      background: #ffffff;
+      box-shadow: 0 3px 10px rgba(0,0,0,0.25);
+      transition: transform 0.2s ease;
+    }
+
+    .home-preference-toggle input:checked + .home-preference-track {
+      background: linear-gradient(135deg, var(--gold-500), var(--gold-400));
+      border-color: rgba(235,208,140,0.9);
+    }
+
+    .home-preference-toggle input:checked + .home-preference-track::after {
+      transform: translateX(22px);
+    }
+
+    .home-preference-label {
+      color: var(--gold-300);
+      font-size: 12px;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
     .offline-banner {
       display: none;
       align-items: center;
@@ -896,6 +979,11 @@
         gap: 8px;
       }
 
+      .home-preference-card {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
       .nav-card-icon {
         width: 36px;
         height: 36px;
@@ -1080,6 +1168,18 @@
       <div class="offline-banner anim-in" id="offlineBanner" aria-live="polite">
         <span><strong>Modo offline:</strong> somente a Agenda (consulta) está disponível.</span>
         <button class="offline-agenda-btn" type="button" onclick="abrir('agenda')">Abrir Agenda</button>
+      </div>
+
+      <div class="home-preference-card anim-in anim-d1">
+        <div>
+          <div class="home-preference-title">Minha abertura do sistema</div>
+          <div class="home-preference-desc">Ative para abrir direto na Agenda nos próximos acessos. Desative para começar pelo menu.</div>
+        </div>
+        <label class="home-preference-toggle" for="homePreferenceToggle">
+          <input id="homePreferenceToggle" type="checkbox" onchange="alterarPreferenciaPaginaInicial(this.checked)">
+          <span class="home-preference-track" aria-hidden="true"></span>
+          <span class="home-preference-label" id="homePreferenceLabel">Menu</span>
+        </label>
       </div>
 
       <!-- Section Label -->
@@ -1433,12 +1533,73 @@
   }
 
   const OFFLINE_CONFIG_CACHE_KEY = 'agenda_offline_config_v1';
+  const HOME_PREFERENCE_STORAGE_KEY = 'auth_pagina_inicial';
   const IndexOfflineState = {
     enabled: false,
     showCard: true,
     active: false,
     initialized: false
   };
+
+  function normalizarPaginaInicial_(valor) {
+    var s = String(valor || '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .trim()
+      .toLowerCase();
+    return s === 'agenda' ? 'agenda' : 'menu';
+  }
+
+  function lerPreferenciaPaginaInicial_() {
+    return normalizarPaginaInicial_(localStorage.getItem(HOME_PREFERENCE_STORAGE_KEY) || 'menu');
+  }
+
+  function salvarPreferenciaPaginaInicialLocal_(paginaInicial) {
+    localStorage.setItem(HOME_PREFERENCE_STORAGE_KEY, normalizarPaginaInicial_(paginaInicial));
+  }
+
+  function acessoForcouMenu_() {
+    try {
+      var params = new URLSearchParams(window.location.search || '');
+      return (
+        params.get('menu') === '1' ||
+        params.get('home') === 'menu' ||
+        params.get('skipAutoHome') === '1'
+      );
+    } catch (_) {
+      return false;
+    }
+  }
+
+  function deveAbrirAgendaDireto_() {
+    return !acessoForcouMenu_() && lerPreferenciaPaginaInicial_() === 'agenda';
+  }
+
+  function redirecionarParaAgendaDireto_() {
+    window.location.replace('./agenda.html');
+  }
+
+  function atualizarControlePreferenciaPaginaInicial_() {
+    var toggle = document.getElementById('homePreferenceToggle');
+    var label = document.getElementById('homePreferenceLabel');
+    var prefereAgenda = lerPreferenciaPaginaInicial_() === 'agenda';
+    if (toggle) toggle.checked = prefereAgenda;
+    if (label) label.textContent = prefereAgenda ? 'Agenda' : 'Menu';
+  }
+
+  async function alterarPreferenciaPaginaInicial(prefereAgenda) {
+    var preferencia = prefereAgenda ? 'agenda' : 'menu';
+    salvarPreferenciaPaginaInicialLocal_(preferencia);
+    atualizarControlePreferenciaPaginaInicial_();
+
+    try {
+      await Auth.apiCall('atualizarPreferenciaPaginaInicial', {
+        paginaInicial: preferencia
+      });
+    } catch (err) {
+      console.warn('Preferência salva localmente, mas ainda não sincronizada na planilha:', err);
+    }
+  }
 
   function boolConfig_(v, fallback) {
     if (v === undefined || v === null || String(v).trim() === '') return !!fallback;
@@ -1567,13 +1728,19 @@
    */
   async function boot() {
     const email = localStorage.getItem('auth_email');
+    const nome = localStorage.getItem('auth_nome');
     const perfil = localStorage.getItem('auth_perfil');
     const session = localStorage.getItem('auth_session');
 
     if (email && perfil && session) {
+      if (deveAbrirAgendaDireto_()) {
+        redirecionarParaAgendaDireto_();
+        return;
+      }
+
       // Instantâneo: abre painel primeiro e valida sessão em segundo plano.
-      onLoginSuccess({ email, perfil });
-      aplicarPermissoes({ email, perfil });
+      onLoginSuccess({ email, nome, perfil, paginaInicial: lerPreferenciaPaginaInicial_() });
+      aplicarPermissoes({ email, nome, perfil });
       validarSessaoIndexEmSegundoPlano_();
       inicializarOfflineIndex_();
       return;
@@ -1590,6 +1757,10 @@
     try {
       const auth = await Auth.apiCall('verificarUsuario');
       if (!auth || !auth.ok || !auth.user) throw new Error('NOT_AUTH');
+      if (auth.user.paginaInicial || auth.user.pagina_inicial) {
+        salvarPreferenciaPaginaInicialLocal_(auth.user.paginaInicial || auth.user.pagina_inicial);
+        atualizarControlePreferenciaPaginaInicial_();
+      }
       aplicarPermissoes({
         email: auth.user.email,
         nome: auth.user.nome,
@@ -1604,6 +1775,7 @@
           localStorage.removeItem('auth_email');
           localStorage.removeItem('auth_nome');
           localStorage.removeItem('auth_perfil');
+          localStorage.removeItem('auth_pagina_inicial');
           localStorage.removeItem('auth_session');
           window.location.href = 'index.html';
         }
@@ -1619,8 +1791,17 @@
    * ============================================
    */
   function onLoginSuccess(user) {
+    var paginaInicial = normalizarPaginaInicial_(user.paginaInicial || user.pagina_inicial || localStorage.getItem(HOME_PREFERENCE_STORAGE_KEY));
+    salvarPreferenciaPaginaInicialLocal_(paginaInicial);
+
+    if (deveAbrirAgendaDireto_()) {
+      redirecionarParaAgendaDireto_();
+      return;
+    }
+
     document.getElementById('auth-screen').classList.add('hidden');
     document.getElementById('app').classList.remove('hidden');
+    atualizarControlePreferenciaPaginaInicial_();
 
     // Atualiza userBox (mantém compatibilidade com auth.js)
     var box = document.getElementById('userBox');

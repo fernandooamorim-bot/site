@@ -14,6 +14,7 @@
     localStorage.removeItem('auth_email');
     localStorage.removeItem('auth_nome');
     localStorage.removeItem('auth_perfil');
+    localStorage.removeItem('auth_pagina_inicial');
     localStorage.removeItem('auth_session');
   };
 
@@ -99,12 +100,14 @@
       const user = {
         email: data.user.email,
         nome: data.user.nome,
-        perfil: data.user.perfil
+        perfil: data.user.perfil,
+        paginaInicial: data.user.paginaInicial || data.user.pagina_inicial || 'menu'
       };
 
       localStorage.setItem('auth_email', user.email);
       localStorage.setItem('auth_nome', user.nome);
       localStorage.setItem('auth_perfil', user.perfil);
+      localStorage.setItem('auth_pagina_inicial', user.paginaInicial);
       localStorage.setItem('auth_session', data.sessionToken);
 
       if (typeof onLoginSuccess === 'function') {
