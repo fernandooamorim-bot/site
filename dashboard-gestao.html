@@ -39,6 +39,7 @@
       --danger:#ef4444;
       --radius:14px;
       --shadow:0 10px 30px rgba(15,26,46,.08);
+      --shadow-soft:0 8px 22px rgba(15,26,46,.06);
       --font:'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     }
     *{box-sizing:border-box;margin:0;padding:0}
@@ -98,9 +99,14 @@
     .btn.primary{background:var(--navy-2);color:#fff}
     .btn.warn{background:#fff7e8;color:#9a6d08;border:1px solid #f3ddb2}
     .btn.outline{background:#fff;border:1px solid var(--line);color:var(--text)}
+    .section-label{
+      display:flex;align-items:center;gap:8px;margin:14px 0 8px;
+      font-size:11px;font-weight:850;letter-spacing:.65px;text-transform:uppercase;color:var(--navy-2)
+    }
+    .section-label::after{content:'';height:1px;flex:1;background:linear-gradient(90deg,var(--line),rgba(229,233,242,0))}
 
     .kpis{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px;margin-bottom:12px}
-    .kpi{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:14px;box-shadow:var(--shadow)}
+    .kpi{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:14px;box-shadow:var(--shadow-soft)}
     .lbl-row{display:flex;align-items:center;gap:6px;justify-content:flex-start}
     .kpi .lbl{font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.5px}
     .kpi .val{margin-top:6px;font-size:22px;font-weight:800;letter-spacing:-.4px}
@@ -128,7 +134,7 @@
     .waterfall-row .fill.danger{background:#b91c1c}
     .waterfall-row .v{text-align:right;font-size:12px;font-weight:700;color:var(--text)}
     .insights-kpis{display:grid;grid-template-columns:1.2fr 1fr 1fr;gap:10px;margin-bottom:12px}
-    .insight-kpi{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:14px;box-shadow:var(--shadow)}
+    .insight-kpi{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:14px;box-shadow:var(--shadow-soft)}
     .is-loading-section{
       position:relative;
       overflow:hidden;
@@ -182,14 +188,15 @@
     .ticket-badge.neg{color:#9f1d1d;border-color:#fecaca;background:#fff1f2}
 
     .grid{display:grid;grid-template-columns:2fr 1.2fr;gap:12px}
-    .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:14px;box-shadow:var(--shadow)}
+    .grid > .section-label{grid-column:1/-1;margin:4px 0 -2px}
+    .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:14px;box-shadow:var(--shadow-soft)}
     .card h2{font-size:16px;display:flex;align-items:center;gap:8px}
     .card h2 i{color:var(--gold);width:16px;height:16px}
     .card .sub{font-size:12px;color:var(--muted);margin-top:4px}
 
     .bars{margin-top:12px;display:grid;gap:8px}
     .split{display:grid;grid-template-columns:repeat(4,minmax(220px,1fr));gap:14px;margin-top:12px}
-    .mini{border:1px solid var(--line);border-radius:10px;padding:10px;background:#fbfcff}
+    .mini{border:1px solid var(--line);border-radius:10px;padding:10px;background:linear-gradient(180deg,#fff 0%,#fbfcff 100%)}
     .mini h3{font-size:13px;color:var(--muted);margin-bottom:8px;line-height:1.2}
     .mini-title-row{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}
     .mini-title-row h3{margin-bottom:0}
@@ -205,7 +212,7 @@
 
     .table{margin-top:10px;display:grid;gap:8px}
     .metric-grid{margin-top:10px;display:grid;grid-template-columns:1.2fr 1fr;gap:12px}
-    .metric-mini{border:1px solid var(--line);border-radius:10px;padding:10px;background:#fbfcff}
+    .metric-mini{border:1px solid var(--line);border-radius:10px;padding:10px;background:linear-gradient(180deg,#fff 0%,#fbfcff 100%)}
     .metric-mini h3{font-size:13px;color:var(--muted);margin-bottom:8px}
     .auditoria-wrap{margin-top:12px;border:1px solid var(--line);border-radius:12px;background:#fcfdff}
     .auditoria-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px;border-bottom:1px solid var(--line);flex-wrap:wrap;background:linear-gradient(180deg,#fff 0%,#f8fbff 100%)}
@@ -430,7 +437,7 @@
     <div class="toolbar">
       <div>
         <h1>Visão de Gestão</h1>
-        <p>Financeiro, riscos, equipe comercial e operação em uma única tela.</p>
+        <p>Financeiro real, previsibilidade comercial, riscos e operação em uma única tela.</p>
       </div>
       <div class="toolbar-right">
         <select id="anoRef"></select>
@@ -454,6 +461,7 @@
       </div>
     </div>
 
+    <div class="section-label">Resumo financeiro</div>
     <div id="kpisBlock" class="kpis">
       <div class="kpi"><div class="lbl-row"><div class="lbl" id="kLblContrato">Contrato</div><span class="info-dot tiny aud-tip" data-tip="Soma do valor contratado dos eventos do ano ou mês selecionado, sem eventos cancelados.">i</span></div><div class="val" id="kContrato">R$ 0,00</div><div class="sub" id="kEventos">0 eventos</div></div>
       <div class="kpi"><div class="lbl-row"><div class="lbl" id="kLblRecebido">Recebido</div><span class="info-dot tiny aud-tip" data-tip="Total recebido dos eventos do recorte. Usa a base financeira consolidada do dashboard.">i</span></div><div class="val" id="kRecebido">R$ 0,00</div><div class="sub" id="kPerc">0% recebido</div></div>
@@ -462,11 +470,18 @@
       <div class="kpi"><div class="lbl-row"><div class="lbl" id="kLblNF">NF</div><span class="info-dot tiny aud-tip" data-tip="Indica notas fiscais processadas e pendentes, ou valor de NF paga no mês quando há filtro mensal.">i</span></div><div class="val" id="kNF">0</div><div class="sub" id="kNFPend">0 pendente</div></div>
       <div class="kpi"><div class="lbl-row"><div class="lbl" id="kLblRiscos">Riscos</div><span class="info-dot tiny aud-tip" data-tip="Quantidade de alertas críticos que precisam de atenção financeira no recorte.">i</span></div><div class="val" id="kRiscos">0</div><div class="sub" id="kSubRiscos">alertas críticos</div></div>
     </div>
+    <div class="section-label hidden" id="execucaoSectionLabel">Execução e previsibilidade</div>
     <div class="kpis-secondary hidden" id="kpisExecucaoRow">
       <div class="kpi soft-ok">
         <div class="lbl-row"><div class="lbl">Recebido Realizado</div><span class="info-dot tiny aud-tip" data-tip="Recebimentos vinculados a eventos que já aconteceram no ano ou mês selecionado.">i</span></div>
         <div class="val" id="kRecebRealizado">R$ 0,00</div>
         <div class="sub" id="kRecebRealizadoSub">eventos já executados (ano selecionado)</div>
+      </div>
+      <div class="kpi">
+        <div class="lbl-row"><div class="lbl">Líquido Realizado</div><span class="info-dot tiny aud-tip" data-tip="Lucro dos eventos já executados: recebido realizado menos saídas processadas. A linha de ajuste considera comissões já geradas e ainda a pagar.">i</span></div>
+        <div class="val" id="kLiquidoRealizado">R$ 0,00</div>
+        <div class="sub aud-tip" id="kLiquidoRealizadoSub" data-tip="Margem realizada = líquido realizado dividido pelo recebido realizado dos eventos já executados.">Margem realizada: N/A</div>
+        <div class="sub-line" id="kLiquidoRealizadoLinha">Somente eventos já executados.</div>
       </div>
       <div class="kpi soft-warn">
         <div class="lbl-row"><div class="lbl">Recebido Futuro</div><span class="info-dot tiny aud-tip" data-tip="Valores já recebidos de eventos que ainda não aconteceram no recorte selecionado.">i</span></div>
@@ -480,17 +495,12 @@
         <div class="sub-line" id="kExpoFuturoLinha">Passivo operacional: R$ 0,00</div>
       </div>
       <div class="kpi soft-warn">
-        <div class="lbl-row"><div class="lbl">Não Executados (Geral)</div><span class="info-dot tiny aud-tip" data-tip="Recebimentos de todos os eventos ainda não executados, mesmo quando são de outros anos.">i</span></div>
+        <div class="lbl-row"><div class="lbl">Futuro Geral</div><span class="info-dot tiny aud-tip" data-tip="Recebimentos de todos os eventos ainda não executados, mesmo quando são de outros anos.">i</span></div>
         <div class="val" id="kRecebFuturoGeral">R$ 0,00</div>
         <div class="sub" id="kRecebFuturoGeralSub">recebido de eventos futuros (todos os anos)</div>
       </div>
-      <div class="kpi">
-        <div class="lbl-row"><div class="lbl">Líquido Realizado</div><span class="info-dot tiny aud-tip" data-tip="Lucro dos eventos já executados: recebido realizado menos saídas processadas. A linha de ajuste considera comissões já geradas e ainda a pagar.">i</span></div>
-        <div class="val" id="kLiquidoRealizado">R$ 0,00</div>
-        <div class="sub aud-tip" id="kLiquidoRealizadoSub" data-tip="Margem realizada = líquido realizado dividido pelo recebido realizado dos eventos já executados.">Margem realizada: N/A</div>
-        <div class="sub-line" id="kLiquidoRealizadoLinha">Somente eventos já executados.</div>
-      </div>
     </div>
+    <div class="section-label">Performance comercial</div>
     <div id="insightsBlock" class="insights-kpis">
       <div class="insight-kpi">
         <div class="head">
@@ -565,6 +575,7 @@
     </div>
 
     <div class="grid">
+      <div class="section-label">Visão mensal e resultado</div>
       <div class="card" id="cardVisaoMesEvento" style="grid-column:1/-1">
         <h2><i data-lucide="git-compare-arrows"></i><span class="title-tip">Visão por Mês do Evento <span class="info-dot tiny aud-tip" data-tip="Organiza contrato, recebimentos e comissões pelo mês em que o evento acontece, não pela data de lançamento. Boa para leitura de competência.">i</span></span></h2>
         <div class="sub">Valores por competência do evento (consistentes para gestão, sem depender da data de lançamento).</div>
@@ -644,6 +655,7 @@
         </div>
       </div>
 
+      <div class="section-label">Planejamento futuro</div>
       <div class="card" id="cardFormacaoAgendaFutura" style="grid-column:1/-1">
         <h2><i data-lucide="calendar-plus"></i><span class="title-tip">Formação da Agenda Futura <span class="info-dot tiny aud-tip" data-tip="Análise sob demanda sobre como a agenda futura está sendo formada: antecedência, ritmo de fechamento e meses mais fortes de captação.">i</span></span></h2>
         <div class="sub">Complemento comercial: acompanhe como o próximo ano está sendo formado pela data de cadastro dos eventos.</div>
@@ -681,6 +693,7 @@
         </div>
       </div>
 
+      <div class="section-label">Ações e riscos</div>
       <div class="card" id="cardProximos30" style="grid-column:1/-1">
         <h2><i data-lucide="calendar-clock"></i><span class="title-tip">Próximos 30 dias <span class="info-dot tiny aud-tip" data-tip="Eventos próximos com impacto financeiro, para antecipar recebimentos, pendências e ações antes da execução.">i</span></span></h2>
         <div class="sub">Eventos próximos com impacto financeiro</div>
@@ -1706,6 +1719,7 @@
       show('cardFunil', !comercial);
       show('cardAuditoriaComercial', comercial);
       show('cardTicketMedio', proprietario);
+      show('execucaoSectionLabel', proprietario);
       show('kpisExecucaoRow', proprietario);
     }
 
