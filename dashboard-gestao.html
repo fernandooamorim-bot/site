@@ -215,7 +215,7 @@
     .metric-grid{margin-top:10px;display:grid;grid-template-columns:1.2fr 1fr;gap:12px}
     .metric-mini{border:1px solid var(--line);border-radius:10px;padding:10px;background:linear-gradient(180deg,#fff 0%,#fbfcff 100%)}
     .metric-mini h3{font-size:13px;color:var(--muted);margin-bottom:8px}
-    .monthly-highlights{margin-top:10px;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}
+    .monthly-highlights{margin-top:10px;display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}
     .monthly-highlights-head{margin-top:12px;font-size:11px;color:var(--navy-2);font-weight:850;text-transform:uppercase;letter-spacing:.55px}
     .monthly-highlight{border:1px solid var(--line);border-radius:10px;padding:9px;background:#fbfcff}
     .monthly-highlight .k{font-size:10px;color:var(--muted);font-weight:850;text-transform:uppercase;letter-spacing:.45px}
@@ -224,8 +224,10 @@
     .monthly-highlight.good .v{color:#0d8a5d}
     .monthly-highlight.warn .v{color:#9a6d08}
     .monthly-highlight.bad .v{color:#9f1d1d}
-    .quality-details{margin-top:8px}
-    .quality-details > summary{list-style:none;display:inline-flex;align-items:center;gap:7px;cursor:pointer;border:1px solid var(--line);border-radius:999px;background:#fff;padding:4px 9px;font-size:11px;font-weight:800;color:var(--muted)}
+    .quality-details{margin-top:12px;padding-top:10px;border-top:1px dashed var(--line)}
+    .quality-details > summary{list-style:none;display:inline-flex;align-items:center;gap:7px;cursor:pointer;border:1px solid var(--line);border-radius:999px;background:#fff;padding:5px 11px;font-size:11px;font-weight:800;color:var(--muted)}
+    .quality-details > summary::after{content:'›';font-size:15px;line-height:1;transition:transform .18s ease}
+    .quality-details[open] > summary::after{transform:rotate(90deg)}
     .quality-details > summary::-webkit-details-marker{display:none}
     .quality-details .badges{margin-top:8px}
     .auditoria-wrap{margin-top:12px;border:1px solid var(--line);border-radius:12px;background:#fcfdff}
@@ -593,10 +595,6 @@
       <div class="card" id="cardVisaoMesEvento" style="grid-column:1/-1">
         <h2><i data-lucide="git-compare-arrows"></i><span class="title-tip">Visão por Mês do Evento <span class="info-dot tiny aud-tip" data-tip="Organiza contrato, recebimentos e comissões pelo mês em que o evento acontece, não pela data de lançamento. Boa para leitura de competência.">i</span></span></h2>
         <div class="sub">Valores por competência do evento (consistentes para gestão, sem depender da data de lançamento).</div>
-        <details class="quality-details">
-          <summary><span class="info-dot tiny">i</span><span id="qualidadeResumo">Qualidade da base</span></summary>
-          <div id="qualidadeDados" class="badges"></div>
-        </details>
         <div class="monthly-highlights-head">Destaques por mês do evento</div>
         <div id="destaquesMensais" class="monthly-highlights"></div>
         <div class="split">
@@ -624,6 +622,10 @@
             <div id="totalComissaoEventoMes" class="mini-total">Total: R$ 0,00</div>
           </div>
         </div>
+        <details class="quality-details">
+          <summary><span id="qualidadeResumo">Qualidade da base</span></summary>
+          <div id="qualidadeDados" class="badges"></div>
+        </details>
       </div>
 
       <div class="card" id="cardResultadoMensal" style="grid-column:1/-1">
@@ -2482,6 +2484,7 @@
     function renderMensal(mensal) {
       const box = document.getElementById('barsReceb');
       const lista = Array.isArray(mensal) ? mensal : [];
+      window.__dashboardFluxoRecebimentoMensal = lista;
       const max = Math.max(1, ...lista.map(x => Number(x.recebido || 0)));
       box.innerHTML = lista.map(x => {
         const p = Math.max(0, Math.min(100, (Number(x.recebido || 0) / max) * 100));
@@ -2501,7 +2504,7 @@
       const saidasEvento = Array.isArray(visaoMensal?.saidasEvento) ? visaoMensal.saidasEvento : [];
       const totais = visaoMensal?.totais || {};
       const q = visaoMensal?.qualidade || {};
-      renderDestaquesMensais_(recebidoHibrido, liquidoEvento, saidasEvento);
+      renderDestaquesMensais_(window.__dashboardFluxoRecebimentoMensal || [], recebidoHibrido, liquidoEvento, saidasEvento);
 
       const boxContratado = document.getElementById('barsContratado');
       const maxContratado = Math.max(1, ...contratado.map(x => Number(x.valor || 0)));
@@ -2540,9 +2543,7 @@
       const qual = document.getElementById('qualidadeDados');
       const qualResumo = document.getElementById('qualidadeResumo');
       const semRecebido = Number(q.eventosSemRecebimento || 0);
-      if (qualResumo) qualResumo.textContent = semRecebido > 0
-        ? `Qualidade da base: ${semRecebido} sem recebido`
-        : 'Qualidade da base';
+      if (qualResumo) qualResumo.textContent = 'Qualidade da base';
       if (qual) {
         qual.innerHTML = `
           <span class="b warn">Eventos legado no ano: ${Number(q.eventosLegadoAno || 0)}</span>
@@ -2603,12 +2604,17 @@
       }
     }
 
-    function renderDestaquesMensais_(recebidos, liquidos, saidas) {
+    function renderDestaquesMensais_(fluxoRecebido, recebidosEvento, liquidos, saidas) {
       const box = document.getElementById('destaquesMensais');
       if (!box) return;
+      const fluxo = Array.from({ length: 12 }, (_, i) => {
+        const mes = i + 1;
+        const recebido = num((fluxoRecebido || []).find(x => Number(x?.mes) === mes)?.recebido);
+        return { mes, recebido };
+      }).filter(x => x.recebido > 0);
       const meses = Array.from({ length: 12 }, (_, i) => {
         const mes = i + 1;
-        const recebido = num((recebidos || []).find(x => Number(x?.mes) === mes)?.valor);
+        const recebido = num((recebidosEvento || []).find(x => Number(x?.mes) === mes)?.valor);
         const liquido = num((liquidos || []).find(x => Number(x?.mes) === mes)?.valor);
         const saida = num((saidas || []).find(x => Number(x?.mes) === mes)?.valor);
         const margem = recebido > 0 ? (liquido / recebido) * 100 : null;
@@ -2619,6 +2625,7 @@
         return;
       }
       const maior = (campo) => [...meses].sort((a, b) => num(b[campo]) - num(a[campo]))[0];
+      const maiorFluxo = [...fluxo].sort((a, b) => num(b.recebido) - num(a.recebido))[0];
       const menorLucro = [...meses].sort((a, b) => num(a.liquido) - num(b.liquido))[0];
       const melhorMargem = [...meses]
         .filter(x => Number.isFinite(Number(x.margem)))
@@ -2635,7 +2642,8 @@
         `;
       };
       box.innerHTML = [
-        card('Maior receb. eventos', maior('recebido'), fmt(maior('recebido')?.recebido), 'good'),
+        card('Maior entrada de caixa', maiorFluxo, fmt(maiorFluxo?.recebido), 'good'),
+        card('Maior mês de eventos', maior('recebido'), fmt(maior('recebido')?.recebido), 'good'),
         card('Maior lucro', maior('liquido'), fmt(maior('liquido')?.liquido), 'good'),
         card('Melhor margem', melhorMargem, fmtPct(melhorMargem?.margem), 'good'),
         card('Menor lucro', menorLucro, fmt(menorLucro?.liquido), num(menorLucro?.liquido) < 0 ? 'bad' : 'warn'),
