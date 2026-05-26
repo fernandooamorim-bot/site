@@ -619,7 +619,7 @@
         <h2><i data-lucide="git-compare-arrows"></i><span class="title-tip">Visão por Mês do Evento <span class="info-dot tiny aud-tip" data-tip="Organiza contrato, recebimentos e comissões pelo mês em que o evento acontece, não pela data de lançamento. Boa para leitura de competência.">i</span></span></h2>
         <div class="sub">Valores por competência do evento (consistentes para gestão, sem depender da data de lançamento).</div>
         <div class="monthly-highlights-head">Destaques por mês do evento</div>
-        <div class="monthly-highlights-note">Entrada e recebimento olham o ano selecionado. Lucro, margem e custo usam apenas meses consolidados.</div>
+        <div class="monthly-highlights-note" id="destaquesMensaisNota">Entrada e recebimento olham o ano selecionado. Lucro, margem e custo usam apenas meses consolidados.</div>
         <div id="destaquesMensais" class="monthly-highlights"></div>
         <div class="split">
           <div class="mini" id="miniTendenciaMensal">
@@ -2689,6 +2689,14 @@
       const hoje = new Date();
       const anoAtual = hoje.getFullYear();
       const mesAtual = hoje.getMonth() + 1;
+      const nomeMes = (m) => ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'][Number(m || 1) - 1] || '--';
+      const nota = document.getElementById('destaquesMensaisNota');
+      if (nota) {
+        const janela = ano < anoAtual
+          ? `Jan a Dez/${ano}`
+          : (ano === anoAtual ? `Jan a ${nomeMes(mesAtual)}/${ano}` : `sem meses consolidados em ${ano}`);
+        nota.textContent = `Entrada de caixa e recebimento de eventos olham o ano selecionado. Lucro, margem e custo consideram apenas eventos consolidados (${janela}).`;
+      }
       const mesesConsolidados = meses.filter((x) => {
         if (ano < anoAtual) return true;
         if (ano === anoAtual) return Number(x.mes) <= mesAtual;
@@ -2701,7 +2709,6 @@
       const melhorMargem = [...mesesConsolidados]
         .filter(x => Number.isFinite(Number(x.margem)))
         .sort((a, b) => num(b.margem) - num(a.margem))[0];
-      const nomeMes = (m) => ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'][Number(m || 1) - 1] || '--';
       const card = (k, item, valor, cls = '') => {
         if (!item) return '';
         return `
