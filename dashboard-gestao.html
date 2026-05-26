@@ -110,7 +110,7 @@
     .kpi{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:14px;box-shadow:var(--shadow-soft);min-width:0}
     .lbl-row{display:flex;align-items:center;gap:6px;justify-content:flex-start}
     .kpi .lbl{font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.5px}
-    .kpi .val{margin-top:6px;font-size:22px;font-weight:800;letter-spacing:-.4px;max-width:100%;overflow-wrap:anywhere}
+    .kpi .val{margin-top:6px;font-size:clamp(18px,1.35vw,22px);font-weight:800;letter-spacing:-.4px;max-width:100%;white-space:nowrap}
     .kpi .sub{margin-top:4px;font-size:12px;color:var(--muted)}
     .kpi .sub .metric-highlight{font-size:14px;font-weight:800;color:#0d8a5d}
     .kpis-secondary{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;margin:0 0 12px;min-width:0}
@@ -220,6 +220,7 @@
     .metric-mini h3{font-size:13px;color:var(--muted);margin-bottom:8px}
     .monthly-highlights{margin-top:10px;display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}
     .monthly-highlights-head{margin-top:12px;font-size:11px;color:var(--navy-2);font-weight:850;text-transform:uppercase;letter-spacing:.55px}
+    .monthly-highlights-note{margin-top:4px;font-size:11px;color:var(--muted);font-weight:700;line-height:1.35}
     .monthly-highlight{border:1px solid var(--line);border-radius:10px;padding:9px;background:#fbfcff}
     .monthly-highlight .k{font-size:10px;color:var(--muted);font-weight:850;text-transform:uppercase;letter-spacing:.45px}
     .monthly-highlight .v{font-size:13px;color:var(--text);font-weight:850;margin-top:4px}
@@ -445,7 +446,7 @@
       .toolbar-right .btn{flex:1 1 110px}
       .grid{grid-template-columns:1fr}
       .kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
-      .kpi .val{font-size:clamp(18px,5.2vw,22px)}
+      .kpi .val{font-size:clamp(17px,4.6vw,22px)}
       .kpis-secondary{grid-template-columns:1fr}
       .resultado-kpis{grid-template-columns:1fr}
       .insights-kpis{grid-template-columns:1fr}
@@ -618,6 +619,7 @@
         <h2><i data-lucide="git-compare-arrows"></i><span class="title-tip">Visão por Mês do Evento <span class="info-dot tiny aud-tip" data-tip="Organiza contrato, recebimentos e comissões pelo mês em que o evento acontece, não pela data de lançamento. Boa para leitura de competência.">i</span></span></h2>
         <div class="sub">Valores por competência do evento (consistentes para gestão, sem depender da data de lançamento).</div>
         <div class="monthly-highlights-head">Destaques por mês do evento</div>
+        <div class="monthly-highlights-note">Entrada e recebimento olham o ano selecionado. Lucro, margem e custo usam apenas meses consolidados.</div>
         <div id="destaquesMensais" class="monthly-highlights"></div>
         <div class="split">
           <div class="mini" id="miniTendenciaMensal">
@@ -2679,14 +2681,24 @@
         const margem = recebido > 0 ? (liquido / recebido) * 100 : null;
         return { mes, recebido, liquido, saida, margem };
       }).filter(x => x.recebido > 0 || x.liquido !== 0 || x.saida > 0);
-      if (!meses.length) {
+      if (!meses.length && !fluxo.length) {
         box.innerHTML = '';
         return;
       }
+      const ano = getAnoSelecionado();
+      const hoje = new Date();
+      const anoAtual = hoje.getFullYear();
+      const mesAtual = hoje.getMonth() + 1;
+      const mesesConsolidados = meses.filter((x) => {
+        if (ano < anoAtual) return true;
+        if (ano === anoAtual) return Number(x.mes) <= mesAtual;
+        return false;
+      });
       const maior = (campo) => [...meses].sort((a, b) => num(b[campo]) - num(a[campo]))[0];
+      const maiorConsolidado = (campo) => [...mesesConsolidados].sort((a, b) => num(b[campo]) - num(a[campo]))[0];
       const maiorFluxo = [...fluxo].sort((a, b) => num(b.recebido) - num(a.recebido))[0];
-      const menorLucro = [...meses].sort((a, b) => num(a.liquido) - num(b.liquido))[0];
-      const melhorMargem = [...meses]
+      const menorLucro = [...mesesConsolidados].sort((a, b) => num(a.liquido) - num(b.liquido))[0];
+      const melhorMargem = [...mesesConsolidados]
         .filter(x => Number.isFinite(Number(x.margem)))
         .sort((a, b) => num(b.margem) - num(a.margem))[0];
       const nomeMes = (m) => ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'][Number(m || 1) - 1] || '--';
@@ -2702,11 +2714,11 @@
       };
       box.innerHTML = [
         card('Maior entrada de caixa', maiorFluxo, fmt(maiorFluxo?.recebido), 'good'),
-        card('Maior mês de eventos', maior('recebido'), fmt(maior('recebido')?.recebido), 'good'),
-        card('Maior lucro', maior('liquido'), fmt(maior('liquido')?.liquido), 'good'),
+        card('Maior receb. eventos', maior('recebido'), fmt(maior('recebido')?.recebido), 'good'),
+        card('Maior lucro consolidado', maiorConsolidado('liquido'), fmt(maiorConsolidado('liquido')?.liquido), 'good'),
         card('Melhor margem', melhorMargem, fmtPct(melhorMargem?.margem), 'good'),
         card('Menor lucro', menorLucro, fmt(menorLucro?.liquido), num(menorLucro?.liquido) < 0 ? 'bad' : 'warn'),
-        card('Maior custo', maior('saida'), fmt(maior('saida')?.saida), 'warn')
+        card('Maior custo', maiorConsolidado('saida'), fmt(maiorConsolidado('saida')?.saida), 'warn')
       ].join('');
     }
 
