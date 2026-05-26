@@ -219,6 +219,10 @@
     .metric-mini{border:1px solid var(--line);border-radius:10px;padding:10px;background:linear-gradient(180deg,#fff 0%,#fbfcff 100%);min-width:0}
     .metric-mini h3{font-size:13px;color:var(--muted);margin-bottom:8px}
     .monthly-highlights{margin-top:10px;display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}
+    .monthly-module-toolbar{margin-top:10px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+    .monthly-module-toolbar .monthly-highlights-head{margin:0}
+    .monthly-sort-control{display:flex;align-items:center;gap:7px;font-size:11px;color:var(--muted);font-weight:800}
+    .monthly-sort-control select{padding:6px 9px;border-radius:8px;font-size:12px}
     .monthly-highlights-head{margin-top:12px;font-size:11px;color:var(--navy-2);font-weight:850;text-transform:uppercase;letter-spacing:.55px}
     .monthly-highlights-note{margin-top:4px;font-size:11px;color:var(--muted);font-weight:700;line-height:1.35}
     .monthly-highlight{border:1px solid var(--line);border-radius:10px;padding:9px;background:#fbfcff}
@@ -618,7 +622,17 @@
       <div class="card" id="cardVisaoMesEvento" style="grid-column:1/-1">
         <h2><i data-lucide="git-compare-arrows"></i><span class="title-tip">Visão por Mês do Evento <span class="info-dot tiny aud-tip" data-tip="Organiza contrato, recebimentos e comissões pelo mês em que o evento acontece, não pela data de lançamento. Boa para leitura de competência.">i</span></span></h2>
         <div class="sub">Valores por competência do evento (consistentes para gestão, sem depender da data de lançamento).</div>
-        <div class="monthly-highlights-head">Destaques por mês do evento</div>
+        <div class="monthly-module-toolbar">
+          <div class="monthly-highlights-head">Destaques por mês do evento</div>
+          <label class="monthly-sort-control">
+            Ordenar gráficos
+            <select id="ordenacaoGraficosMensais" onchange="setOrdenacaoGraficosMensais(this.value)">
+              <option value="MES">Mês</option>
+              <option value="MAIOR">Maior valor</option>
+              <option value="MENOR">Menor valor</option>
+            </select>
+          </label>
+        </div>
         <div class="monthly-highlights-note" id="destaquesMensaisNota">Entrada e recebimento olham o ano selecionado. Lucro, margem e custo usam apenas meses consolidados.</div>
         <div id="destaquesMensais" class="monthly-highlights"></div>
         <div class="split">
@@ -806,6 +820,7 @@
     const TICKET_CACHE_TTL_MS = 10 * 60 * 1000;
     const FORMACAO_FUTURA_CACHE_KEY = 'dashboard:formacaoFutura:v1';
     const FORMACAO_FUTURA_CACHE_TTL_MS = 10 * 60 * 1000;
+    const ORDENACAO_GRAFICOS_MENSAIS_KEY = 'dashboard:ordenacaoGraficosMensais';
     const auditoriaState = {
       loaded: false,
       loading: false,
@@ -946,6 +961,25 @@
     function obterBucketMensal_(lista, mes) {
       if (!Array.isArray(lista) || !mes) return null;
       return lista.find((x) => Number(x?.mes) === Number(mes)) || null;
+    }
+    function getOrdenacaoGraficosMensais() {
+      const v = String(localStorage.getItem(ORDENACAO_GRAFICOS_MENSAIS_KEY) || 'MES').toUpperCase();
+      return ['MES', 'MAIOR', 'MENOR'].includes(v) ? v : 'MES';
+    }
+    function ordenarSerieMensal_(lista, campo) {
+      const base = Array.isArray(lista) ? [...lista] : [];
+      const modo = getOrdenacaoGraficosMensais();
+      if (modo === 'MAIOR') return base.sort((a, b) => num(b?.[campo]) - num(a?.[campo]) || num(a?.mes) - num(b?.mes));
+      if (modo === 'MENOR') return base.sort((a, b) => num(a?.[campo]) - num(b?.[campo]) || num(a?.mes) - num(b?.mes));
+      return base.sort((a, b) => num(a?.mes) - num(b?.mes));
+    }
+    function setOrdenacaoGraficosMensais(v) {
+      const valor = ['MES', 'MAIOR', 'MENOR'].includes(String(v || '').toUpperCase()) ? String(v).toUpperCase() : 'MES';
+      localStorage.setItem(ORDENACAO_GRAFICOS_MENSAIS_KEY, valor);
+      const sel = document.getElementById('ordenacaoGraficosMensais');
+      if (sel) sel.value = valor;
+      renderMensal(dashboardData?.mensal || []);
+      renderMensalHibrido(dashboardData?.visaoMensal || {});
     }
     function parseDataEventoInfo(dataEvento) {
       if (!dataEvento) return null;
@@ -2542,7 +2576,7 @@
       const lista = Array.isArray(mensal) ? mensal : [];
       window.__dashboardFluxoRecebimentoMensal = lista;
       const max = Math.max(1, ...lista.map(x => Number(x.recebido || 0)));
-      box.innerHTML = lista.map(x => {
+      box.innerHTML = ordenarSerieMensal_(lista, 'recebido').map(x => {
         const p = Math.max(0, Math.min(100, (Number(x.recebido || 0) / max) * 100));
         const label = String(x.mes).padStart(2, '0');
         return `<div class="bar"><div class="m">${label}</div><div class="track"><div class="fill" style="width:${p}%"></div></div><div class="v">${fmt(x.recebido)}</div></div>`;
@@ -2561,10 +2595,12 @@
       const totais = visaoMensal?.totais || {};
       const q = visaoMensal?.qualidade || {};
       renderDestaquesMensais_(window.__dashboardFluxoRecebimentoMensal || [], recebidoHibrido, liquidoEvento, saidasEvento);
+      const selOrdenacaoMensal = document.getElementById('ordenacaoGraficosMensais');
+      if (selOrdenacaoMensal) selOrdenacaoMensal.value = getOrdenacaoGraficosMensais();
 
       const boxContratado = document.getElementById('barsContratado');
       const maxContratado = Math.max(1, ...contratado.map(x => Number(x.valor || 0)));
-      boxContratado.innerHTML = contratado.map(x => {
+      boxContratado.innerHTML = ordenarSerieMensal_(contratado, 'valor').map(x => {
         const v = Number(x.valor || 0);
         const p = Math.max(0, Math.min(100, (v / maxContratado) * 100));
         const label = String(x.mes).padStart(2, '0');
@@ -2573,7 +2609,7 @@
 
       const boxReceb = document.getElementById('barsRecebHibrido');
       const maxReceb = Math.max(1, ...recebidoHibrido.map(x => Number(x.valor || 0)));
-      boxReceb.innerHTML = recebidoHibrido.map(x => {
+      boxReceb.innerHTML = ordenarSerieMensal_(recebidoHibrido, 'valor').map(x => {
         const v = Number(x.valor || 0);
         const p = Math.max(0, Math.min(100, (v / maxReceb) * 100));
         const label = String(x.mes).padStart(2, '0');
@@ -2582,7 +2618,7 @@
 
       const boxComissao = document.getElementById('barsComissaoEvento');
       const maxComissao = Math.max(1, ...comissaoPagaEvento.map(x => Number(x.valor || 0)));
-      boxComissao.innerHTML = comissaoPagaEvento.map(x => {
+      boxComissao.innerHTML = ordenarSerieMensal_(comissaoPagaEvento, 'valor').map(x => {
         const v = Number(x.valor || 0);
         const p = Math.max(0, Math.min(100, (v / maxComissao) * 100));
         const label = String(x.mes).padStart(2, '0');
