@@ -1553,33 +1553,48 @@
       }
       const totais = realizados.reduce((acc, x) => {
         const d = x?.custosPagosDetalhe || {};
+        const folha = num(d.folha);
+        const comissao = num(d.comissao);
+        const comissaoPendente = num(x?.comissaoPendenteGerada ?? x?.custosProvisaoDetalhe?.comissao);
+        const bv = num(d.bv);
+        const nf = num(d.nf);
         acc.recebido += num(x?.recebido);
-        acc.folha += num(d.folha);
-        acc.comissao += num(d.comissao);
-        acc.comissaoPendente += num(x?.comissaoPendenteGerada ?? x?.custosProvisaoDetalhe?.comissao);
-        acc.bv += num(d.bv);
-        acc.nf += num(d.nf);
+        acc.folha += folha;
+        acc.comissao += comissao;
+        acc.comissaoPendente += comissaoPendente;
+        acc.bv += bv;
+        acc.nf += nf;
+        if (folha > 0) acc.qtd.folha += 1;
+        if (comissao > 0) acc.qtd.comissao += 1;
+        if ((comissao + comissaoPendente) > 0) acc.qtd.comissaoGerada += 1;
+        if (bv > 0) acc.qtd.bv += 1;
+        if (nf > 0) acc.qtd.nf += 1;
         return acc;
-      }, { recebido: 0, folha: 0, comissao: 0, comissaoPendente: 0, bv: 0, nf: 0 });
+      }, { recebido: 0, folha: 0, comissao: 0, comissaoPendente: 0, bv: 0, nf: 0, qtd: { folha: 0, comissao: 0, comissaoGerada: 0, bv: 0, nf: 0 } });
       totais.comissaoGerada = totais.comissao + totais.comissaoPendente;
       totais.total = totais.folha + totais.comissaoGerada + totais.bv + totais.nf;
-      const item = (label, valor, total = false) => `
+      const mediaTexto = (valor, qtdOcorrencias, fallbackQtd = qtd) => {
+        const divisor = Number(qtdOcorrencias || 0) > 0 ? Number(qtdOcorrencias || 0) : Number(fallbackQtd || 0);
+        if (!divisor) return 'Sem ocorrência';
+        return `${fmt(valor / divisor)} por ${Number(qtdOcorrencias || 0) > 0 ? 'ocorrência' : 'evento'}`;
+      };
+      const item = (label, valor, qtdOcorrencias = 0, total = false) => `
         <div class="realized-cost-item ${total ? 'total' : ''}">
-          <div class="k">${label}</div>
+          <div class="k">${label}${Number(qtdOcorrencias || 0) > 0 ? ` (${Number(qtdOcorrencias || 0)})` : ''}</div>
           <div class="v">${fmt(valor)}</div>
           <div class="s"><span class="pct">${fmtPct(totais.recebido > 0 ? (valor / totais.recebido) * 100 : null)}</span> do recebido realizado</div>
-          <div class="s">Média: ${fmt(valor / qtd)} por evento</div>
+          <div class="s">Média: ${mediaTexto(valor, qtdOcorrencias, qtd)}</div>
         </div>
       `;
       const itemComissao = () => `
         <div class="realized-cost-item">
-          <div class="k">Comissões</div>
+          <div class="k">Comissões${totais.qtd.comissaoGerada > 0 ? ` (${totais.qtd.comissaoGerada})` : ''}</div>
           <div class="split-line"><span>Pago</span><strong>${fmt(totais.comissao)}</strong></div>
           <div class="s"><span class="pct">${fmtPct(totais.recebido > 0 ? (totais.comissao / totais.recebido) * 100 : null)}</span> do recebido realizado</div>
           <div class="split-line"><span>A pagar</span><strong>${fmt(totais.comissaoPendente)}</strong></div>
           <div class="v">${fmt(totais.comissaoGerada)}</div>
           <div class="s"><span class="pct">${fmtPct(totais.recebido > 0 ? (totais.comissaoGerada / totais.recebido) * 100 : null)}</span> total gerado</div>
-          <div class="s">Média gerada: ${fmt(totais.comissaoGerada / qtd)} por evento</div>
+          <div class="s">Média gerada: ${mediaTexto(totais.comissaoGerada, totais.qtd.comissaoGerada, qtd)}</div>
         </div>
       `;
       box.innerHTML = `
@@ -1588,11 +1603,11 @@
           <span>${qtd} evento(s) • recebido realizado ${fmt(totais.recebido)}</span>
         </div>
         <div class="realized-costs-grid">
-          ${item('Folha de custo', totais.folha)}
+          ${item('Folha de custo', totais.folha, totais.qtd.folha)}
           ${itemComissao()}
-          ${item('BV', totais.bv)}
-          ${item('NF', totais.nf)}
-          ${item('Custo total considerado', totais.total, true)}
+          ${item('BV', totais.bv, totais.qtd.bv)}
+          ${item('NF', totais.nf, totais.qtd.nf)}
+          ${item('Custo total considerado', totais.total, qtd, true)}
         </div>
       `;
     }
@@ -2596,6 +2611,9 @@
     function renderResultadoMensal(visaoMensal) {
       const liquidoEvento = Array.isArray(visaoMensal?.liquidoEvento) ? visaoMensal.liquidoEvento : [];
       const totais = visaoMensal?.totais || {};
+      const mes = getMesSelecionado();
+      const modoMensal = mes >= 1 && mes <= 12;
+      const bucketSaidas = modoMensal ? obterBucketMensal_(visaoMensal?.saidasEvento, mes) : null;
       const maxLiquido = Math.max(1, ...liquidoEvento.map(x => Math.abs(Number(x.valor || 0))));
       const box = document.getElementById('barsLiquidoEvento');
       box.innerHTML = liquidoEvento.map(x => {
@@ -2610,19 +2628,21 @@
       if (totalLiquido) totalLiquido.textContent = `Total líquido: ${fmt(totais.liquidoEvento)}`;
 
       const saidas = document.getElementById('saidasResumoMes');
-      const totalSaidas = Math.max(0, num(totais.saidasTotalEvento));
+      const saidasBase = bucketSaidas || totais;
+      const totalSaidas = Math.max(0, num(saidasBase.valor ?? totais.saidasTotalEvento));
       const linhasSaidas = [
-        ['Folha de custo paga', num(totais.folhaPagoEvento)],
-        ['Comissões pagas', num(totais.comissaoPagaEvento)],
-        ['BV pago', num(totais.bvPagoEvento)],
-        ['NF paga', num(totais.nfPagoEvento)]
+        ['Folha de custo paga', num(saidasBase.folhaPago ?? totais.folhaPagoEvento), Number((saidasBase.folhaPagoQtd ?? totais.folhaPagoEventoQtd) || 0)],
+        ['Comissões pagas', num(saidasBase.comissaoPaga ?? totais.comissaoPagaEvento), Number((saidasBase.comissaoPagaQtd ?? totais.comissaoPagaEventoQtd) || 0)],
+        ['BV pago', num(saidasBase.bvPago ?? totais.bvPagoEvento), Number((saidasBase.bvPagoQtd ?? totais.bvPagoEventoQtd) || 0)],
+        ['NF paga', num(saidasBase.nfPago ?? totais.nfPagoEvento), Number((saidasBase.nfPagoQtd ?? totais.nfPagoEventoQtd) || 0)]
       ];
-      const linhaSaida = ([label, valor]) => {
+      const linhaSaida = ([label, valor, qtd]) => {
         const pct = totalSaidas > 0 ? Math.max(0, Math.min(100, (valor / totalSaidas) * 100)) : 0;
+        const labelQtd = Number(qtd || 0) > 0 ? `${label} (${Number(qtd || 0)})` : label;
         return `
           <div class="row cost-share">
             <div class="row-top">
-              <div class="name">${label}</div>
+              <div class="name">${labelQtd}</div>
               <div class="value"><strong>${fmt(valor)}</strong><span class="pct">${fmtPct(pct)} das saídas</span></div>
             </div>
           </div>
