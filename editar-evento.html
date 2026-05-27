@@ -2078,6 +2078,30 @@
             <p class="helper-text">⚠️ Pode transferir comissões pendentes</p>
           </div>
         </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="label-indicator">
+              <span>Tipo de Comissão</span>
+              <span class="indicator indicator-critical">🔴 Crítico</span>
+            </label>
+            <select id="comissaoTipo" onchange="alterarTipoComissaoEdicao()">
+              <option value="Padrão">Padrão</option>
+              <option value="Percentual">Percentual Customizado</option>
+              <option value="Fixo">Valor Fixo</option>
+              <option value="Sem Comissão">Sem Comissão</option>
+            </select>
+            <p class="helper-text">Proprietário pode usar regras customizadas; demais perfis ficam limitados ao padrão ou sem comissão.</p>
+          </div>
+
+          <div class="form-group" id="campoValorComissao">
+            <label class="label-indicator">
+              <span>Valor/Percentual</span>
+              <span class="indicator indicator-critical">🔴 Crítico</span>
+            </label>
+            <input type="text" id="comissaoValor" inputmode="decimal" autocomplete="off" placeholder="Ex: 10,00%">
+          </div>
+        </div>
         
         <div class="form-row">
           <div class="form-group">
@@ -2405,6 +2429,7 @@ function getConverterFromURL() {
   };
   let contratantesCache = [];
   let permissaoFinanceira = null;
+  let perfilUsuario = String(localStorage.getItem('auth_perfil') || '');
   const MOTIVOS_REUNIAO_PADRAO_FALLBACK_EDICAO = [
     'Reunião Geral',
     'Reunião de Repertório',
@@ -2646,7 +2671,9 @@ function bloquearEdicaoFinanceira(motivo) {
     'valorBV',
     'idBV',
     'idVendedor',
-    'temNF'
+    'temNF',
+    'comissaoTipo',
+    'comissaoValor'
   ];
 
   campos.forEach(id => {
@@ -2679,7 +2706,7 @@ function bloquearEdicaoFinanceira(motivo) {
 }
 
 function resetarEstadoEdicaoFinanceiraUI() {
-  const campos = ['valorTotal', 'valorBV', 'idBV', 'idVendedor', 'temNF'];
+  const campos = ['valorTotal', 'valorBV', 'idBV', 'idVendedor', 'temNF', 'comissaoTipo', 'comissaoValor'];
   campos.forEach(id => {
     const el = document.getElementById(id);
     if (!el) return;
@@ -2692,6 +2719,63 @@ function resetarEstadoEdicaoFinanceiraUI() {
 
   const statusFinanceiro = document.getElementById('statusFinanceiro');
   if (statusFinanceiro) statusFinanceiro.innerHTML = '';
+}
+
+function normalizarPerfilEdicao_(perfil) {
+  return String(perfil || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .toLowerCase();
+}
+
+function usuarioPodeComissaoCustomEdicao_() {
+  return normalizarPerfilEdicao_(perfilUsuario) === 'proprietario';
+}
+
+function alterarTipoComissaoEdicao() {
+  const select = document.getElementById('comissaoTipo');
+  const campoValor = document.getElementById('campoValorComissao');
+  const inputValor = document.getElementById('comissaoValor');
+  if (!select || !campoValor || !inputValor) return;
+
+  const tipo = select.value;
+  const exigeValor = tipo === 'Percentual' || tipo === 'Fixo';
+  campoValor.style.display = exigeValor ? 'block' : 'none';
+
+  if (!exigeValor) {
+    inputValor.value = '';
+  } else if (tipo === 'Percentual') {
+    inputValor.dataset.moneyMode = 'percent';
+    inputValor.placeholder = 'Ex: 10,00%';
+  } else {
+    inputValor.dataset.moneyMode = 'money';
+    inputValor.placeholder = 'Ex: 1.500,00';
+  }
+
+  const bloqueiaCustom = !usuarioPodeComissaoCustomEdicao_() && exigeValor;
+  inputValor.disabled = bloqueiaCustom;
+  inputValor.classList.toggle('campo-bloqueado', bloqueiaCustom);
+}
+
+function aplicarPermissoesComissaoEdicao() {
+  const select = document.getElementById('comissaoTipo');
+  const inputValor = document.getElementById('comissaoValor');
+  if (!select) return;
+
+  const podeCustom = usuarioPodeComissaoCustomEdicao_();
+  Array.from(select.options || []).forEach(option => {
+    const custom = option.value === 'Percentual' || option.value === 'Fixo';
+    option.disabled = custom && !podeCustom;
+  });
+
+  if (inputValor) {
+    const tipoAtual = String(select.value || '');
+    inputValor.disabled = !podeCustom && (tipoAtual === 'Percentual' || tipoAtual === 'Fixo');
+    inputValor.classList.toggle('campo-bloqueado', inputValor.disabled);
+  }
+
+  alterarTipoComissaoEdicao();
 }
 
 async function aplicarPermissaoFinanceiraEdicao() {
@@ -2714,6 +2798,8 @@ async function aplicarPermissaoFinanceiraEdicao() {
       }
       return;
     }
+
+    aplicarPermissoesComissaoEdicao();
 
     const statusFinanceiro = document.getElementById('statusFinanceiro');
     if (statusFinanceiro) {
@@ -4715,10 +4801,14 @@ function preencherFormulario(evento) {
   setValueSafe('duracao', evento.duracao);
   setValueSafe('projeto', evento.projeto);
   setValueSafe('temNF', evento.temNF || 'NÃO');
+  setValueSafe('comissaoTipo', evento.comissaoTipo || 'Padrão');
 
   // Campos simples
   document.getElementById('valorTotal').value = formatarNumeroBREdicao_(Number(evento.valorTotal || 0), 2);
   document.getElementById('valorBV').value = formatarNumeroBREdicao_(Number(evento.valorBV || 0), 2);
+  document.getElementById('comissaoValor').value = ['Percentual', 'Fixo'].includes(String(evento.comissaoTipo || ''))
+    ? formatarNumeroBREdicao_(Number(evento.comissaoValor || 0), 2)
+    : '';
   document.getElementById('look').value = evento.look || '';
   document.getElementById('somResponsavel').value = evento.somResponsavel || '';
   document.getElementById('observacoes').value = ehEventoVisual ? (evento.observacoes || '') : '';
@@ -4729,6 +4819,7 @@ function preencherFormulario(evento) {
 
   aplicarFallbackReferenciasMestre(evento);
   renderizarStatusTipoRegistro(evento);
+  aplicarPermissoesComissaoEdicao();
   
   // Calcular horário fim após carregar os dados
   setTimeout(calcularHorarioFim, 300);
@@ -4774,7 +4865,7 @@ function formatarValorResumoAlteracao_(campo, valor, origem) {
     return formatarDuracaoResumo_(raw);
   }
 
-  if (campo === 'valorTotal' || campo === 'valorBV') {
+  if (campo === 'valorTotal' || campo === 'valorBV' || campo === 'comissaoValor') {
     const num = Number(raw);
     if (Number.isFinite(num)) return formatarNumeroBREdicao_(num, 2);
     return raw;
@@ -4831,6 +4922,14 @@ function formatarValorResumoAlteracao_(campo, valor, origem) {
         return;
       }
       const dadosAtual = coletarDadosFormulario();
+      if (
+        registroEhEvento() &&
+        (dadosAtual.comissaoTipo === 'Percentual' || dadosAtual.comissaoTipo === 'Fixo') &&
+        dadosAtual.comissaoValor === null
+      ) {
+        mostrarAlerta('Informe um Valor/Percentual de comissão válido.', 'error');
+        return;
+      }
       if (!validarCamposConversaoReserva(dadosAtual)) {
         return;
       }
@@ -4901,7 +5000,8 @@ function formatarValorResumoAlteracao_(campo, valor, origem) {
         idContratante: 'Contratante (vínculo)', nomeContratante: 'Contratante',
         idCerimonialista: 'Cerimonialista',
         idEndereco: 'Local (vínculo)', nomeLocal: 'Local',
-        valorTotal: 'Valor Total', idVendedor: 'Vendedor', valorBV: 'Valor BV',
+        valorTotal: 'Valor Total', idVendedor: 'Vendedor', comissaoTipo: 'Tipo de Comissão',
+        comissaoValor: 'Valor/Percentual da Comissão', valorBV: 'Valor BV',
         idBV: 'Parceiro BV', temNF: 'Tem NF',
         look: 'Look', somResponsavel: 'Responsável Som',
         observacoes: 'Observações',
@@ -4909,15 +5009,24 @@ function formatarValorResumoAlteracao_(campo, valor, origem) {
       };
       const impactos = {
         valorTotal: 'Comissões pendentes serão recalculadas',
+        comissaoTipo: 'Comissão esperada será recalculada',
+        comissaoValor: 'Comissão esperada será recalculada',
         valorBV: 'Base de comissão será recalculada',
         idVendedor: 'Pode transferir comissões pendentes',
         dataEvento: 'Verificar conflitos na agenda',
         horaInicio: 'Verificar conflitos na agenda'
       };
-      const camposFinanceiros = new Set(['valorTotal', 'idVendedor', 'valorBV', 'idBV', 'temNF']);
+      const camposFinanceiros = new Set(['valorTotal', 'idVendedor', 'comissaoTipo', 'comissaoValor', 'valorBV', 'idBV', 'temNF']);
       
       for (let campo in campos) {
   if (!contextoEvento && camposFinanceiros.has(campo)) {
+    continue;
+  }
+  if (
+    campo === 'comissaoValor' &&
+    !['Percentual', 'Fixo'].includes(String(dados.comissaoTipo || '')) &&
+    !['Percentual', 'Fixo'].includes(String(eventoOriginal?.comissaoTipo || ''))
+  ) {
     continue;
   }
   const el = document.getElementById(campo);
@@ -5048,7 +5157,7 @@ function formatarValorResumoAlteracao_(campo, valor, origem) {
     }
 
     function configurarMascarasFinanceirasEdicao_() {
-      const campos = ['valorTotal', 'valorBV'];
+      const campos = ['valorTotal', 'valorBV', 'comissaoValor'];
       campos.forEach((id) => {
         const el = document.getElementById(id);
         if (!el) return;
@@ -5083,6 +5192,16 @@ function formatarValorResumoAlteracao_(campo, valor, origem) {
         allowZero: true,
         decimals: 2
       });
+      const tipoComissao = ehEventoVisual
+        ? (document.getElementById('comissaoTipo')?.value || 'Padrão')
+        : 'N/A';
+      const comissaoValorParsed = (ehEventoVisual && (tipoComissao === 'Percentual' || tipoComissao === 'Fixo'))
+        ? parseNumeroFinanceiroEdicao_(document.getElementById('comissaoValor')?.value, {
+            allowNegative: false,
+            allowZero: true,
+            decimals: 2
+          })
+        : null;
       return {
         dataEvento: document.getElementById('dataEvento').value,
         dataFim: dataFim,
@@ -5103,6 +5222,8 @@ function formatarValorResumoAlteracao_(campo, valor, origem) {
         aplicarNomeLocalNoMestre: false,
         valorTotal: ehEventoVisual ? (valorTotalParsed || 0) : 0,
         idVendedor: ehEventoVisual ? document.getElementById('idVendedor').value : '',
+        comissaoTipo: ehEventoVisual ? tipoComissao : 'N/A',
+        comissaoValor: ehEventoVisual ? comissaoValorParsed : '',
         valorBV: ehEventoVisual ? (valorBVParsed || 0) : 0,
         idBV: ehEventoVisual ? document.getElementById('idBV').value : '',
         temNF: ehEventoVisual ? document.getElementById('temNF').value : 'NÃO',
