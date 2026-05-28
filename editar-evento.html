@@ -2746,9 +2746,15 @@ function alterarTipoComissaoEdicao() {
   if (!exigeValor) {
     inputValor.value = '';
   } else if (tipo === 'Percentual') {
+    if (!usuarioPodeComissaoCustomEdicao_() && tipo === String(eventoOriginal?.comissaoTipo || '') && !String(inputValor.value || '').trim()) {
+      inputValor.value = formatarNumeroBREdicao_(Number(eventoOriginal?.comissaoValor || 0), 2);
+    }
     inputValor.dataset.moneyMode = 'percent';
     inputValor.placeholder = 'Ex: 10,00%';
   } else {
+    if (!usuarioPodeComissaoCustomEdicao_() && tipo === String(eventoOriginal?.comissaoTipo || '') && !String(inputValor.value || '').trim()) {
+      inputValor.value = formatarNumeroBREdicao_(Number(eventoOriginal?.comissaoValor || 0), 2);
+    }
     inputValor.dataset.moneyMode = 'money';
     inputValor.placeholder = 'Ex: 1.500,00';
   }
@@ -2764,9 +2770,18 @@ function aplicarPermissoesComissaoEdicao() {
   if (!select) return;
 
   const podeCustom = usuarioPodeComissaoCustomEdicao_();
+  const tipoOriginal = String(eventoOriginal?.comissaoTipo || 'Padrão');
+  const originalCustom = tipoOriginal === 'Percentual' || tipoOriginal === 'Fixo';
+
   Array.from(select.options || []).forEach(option => {
     const custom = option.value === 'Percentual' || option.value === 'Fixo';
-    option.disabled = custom && !podeCustom;
+    if (podeCustom) {
+      option.disabled = false;
+    } else if (originalCustom) {
+      option.disabled = !(option.value === tipoOriginal || option.value === 'Sem Comissão');
+    } else {
+      option.disabled = custom;
+    }
   });
 
   if (inputValor) {
