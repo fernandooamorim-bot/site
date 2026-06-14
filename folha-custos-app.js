@@ -43,6 +43,7 @@ let propostasPendentesPorEvento = new Map();
 let eventosComPropostaFolhaCacheTs = 0;
 let propostaPendenteAtual = null;
 let eventoSelecionadoTemFolhaAtiva = false;
+let revisaoFolhaAtivaAtual = false;
 let reconciliandoPendenciasCache = false;
 let salvandoFolhaCusto = false;
 
@@ -815,7 +816,7 @@ async function eventoAgendaTemFolhaAtivaPorResumo_(idEvento) {
 }
 
 function extrairMetaAgendaDaFolhaLocal_(folha) {
-  if (!folha || typeof folha !== 'object') return { idEvento: '', status: '' };
+  if (!folha || typeof folha !== 'object') return { idEvento: '', status: '', tipoSolicitacao: '' };
   let meta = folha.Folhas_Custo || folha.folhas_custo || folha.folhasCusto || null;
   if (typeof meta === 'string') {
     try { meta = JSON.parse(meta); } catch (_) { meta = null; }
@@ -834,6 +835,11 @@ function extrairMetaAgendaDaFolhaLocal_(folha) {
     status: String(
       agenda.statusAprovacao ||
       folha.statusAprovacao ||
+      ''
+    ).trim().toUpperCase(),
+    tipoSolicitacao: String(
+      agenda.tipoSolicitacao ||
+      folha.tipoSolicitacao ||
       ''
     ).trim().toUpperCase()
   };
@@ -862,7 +868,8 @@ async function carregarEventosComPropostaFolha_() {
           mapaPendentes.set(meta.idEvento, {
             id: String(f?.id || '').trim(),
             criadoEm: String(f?.criadoEm || '').trim(),
-            nomeEvento: String(f?.nomeEvento || '').trim()
+            nomeEvento: String(f?.nomeEvento || '').trim(),
+            tipoSolicitacao: String(meta.tipoSolicitacao || '').trim().toUpperCase()
           });
         }
       }
@@ -1398,9 +1405,10 @@ async function selecionarEventoAgendaFolha_(idEvento) {
   const eventoData = document.getElementById('evento-data');
   const eventoNome = document.getElementById('evento-nome');
   const idNormalizado = String(ev.id || '').trim();
-  const pendente = idNormalizado ? propostasPendentesPorEvento.get(idNormalizado) : null;
+  const pendenteBruto = idNormalizado ? propostasPendentesPorEvento.get(idNormalizado) : null;
   propostaPendenteAtual = null;
   eventoSelecionadoTemFolhaAtiva = false;
+  revisaoFolhaAtivaAtual = false;
 
   const statusLocal = statusFolhaLocalEvento_(ev);
   eventoSelecionadoTemFolhaAtiva = statusLocal === true;
@@ -1408,6 +1416,11 @@ async function selecionarEventoAgendaFolha_(idEvento) {
     try {
       eventoSelecionadoTemFolhaAtiva = await eventoAgendaTemFolhaAtivaPorResumo_(idNormalizado);
     } catch (_) {}
+  }
+  const pendenteEhRevisao = String(pendenteBruto?.tipoSolicitacao || '').trim().toUpperCase() === 'REVISAO_FOLHA_ATIVA';
+  const pendente = eventoSelecionadoTemFolhaAtiva && !pendenteEhRevisao ? null : pendenteBruto;
+  if (eventoSelecionadoTemFolhaAtiva && pendenteEhRevisao) {
+    revisaoFolhaAtivaAtual = true;
   }
 
   if (eventoSelecionadoTemFolhaAtiva && !pendente) {
@@ -1419,6 +1432,7 @@ async function selecionarEventoAgendaFolha_(idEvento) {
       atualizarBotaoAcaoFolha_();
       return;
     }
+    revisaoFolhaAtivaAtual = true;
   }
 
   if (inpBusca) inpBusca.value = `${ev.id} — ${ev.contratante || ''}`;
@@ -1430,7 +1444,11 @@ async function selecionarEventoAgendaFolha_(idEvento) {
   }
   if (box) box.innerHTML = '';
   if (badge && badgeTxt) {
-    const sufixo = pendente ? ' • Proposta pendente carregável' : '';
+    const sufixo = eventoSelecionadoTemFolhaAtiva
+      ? (pendente
+          ? ' • Revisão pendente carregável'
+          : (pendenteBruto ? ' • Folha ativa (pendência antiga ignorada)' : ' • Folha ativa'))
+      : (pendente ? ' • Proposta pendente carregável' : '');
     badgeTxt.textContent = `${ev.id} • ${ev.tipoEvento || 'Evento'} • ${ev.data || ''}${sufixo}`;
     badge.classList.remove('hidden');
   }
@@ -2289,6 +2307,7 @@ async function salvarFolhaCusto(opts) {
     await carregarEventosComPropostaFolha_();
     const pendenciaExistente = propostasPendentesPorEvento.get(idEventoAgenda);
     if (
+      !eventoSelecionadoTemFolhaAtiva &&
       pendenciaExistente &&
       (!propostaPendenteAtual || String(propostaPendenteAtual.id || '').trim() !== String(pendenciaExistente.id || '').trim())
     ) {
@@ -2370,6 +2389,7 @@ async function salvarFolhaCusto(opts) {
       resumoCompacto: String(document.getElementById('resumo-texto').textContent || '').replace(/\s+/g, ' ').trim().slice(0, 480),
       statusAprovacao: enviarAprovacao ? 'PENDENTE_APROVACAO' : 'RASCUNHO',
       agendaSincronizado: false,
+      tipoSolicitacao: revisaoFolhaAtivaAtual ? 'REVISAO_FOLHA_ATIVA' : 'NOVA_FOLHA',
       criadoPor: CURRENT_USER_EMAIL || localStorage.getItem('auth_email') || '',
       criadoEm: new Date().toISOString(),
       // Persistência redundante em campo já existente da planilha externa (Folhas_Custo)
@@ -2385,6 +2405,7 @@ async function salvarFolhaCusto(opts) {
           idEvento: idEventoAgenda || '',
           statusAprovacao: enviarAprovacao ? 'PENDENTE_APROVACAO' : 'RASCUNHO',
           agendaSincronizado: false,
+          tipoSolicitacao: revisaoFolhaAtivaAtual ? 'REVISAO_FOLHA_ATIVA' : 'NOVA_FOLHA',
           enviadoPor: CURRENT_USER_EMAIL || localStorage.getItem('auth_email') || '',
           enviadoEm: new Date().toISOString()
         }
@@ -2441,6 +2462,7 @@ function limparFormulario() {
   if (agendaBadge) agendaBadge.classList.add('hidden');
   propostaPendenteAtual = null;
   eventoSelecionadoTemFolhaAtiva = false;
+  revisaoFolhaAtivaAtual = false;
   atualizarBotaoAcaoFolha_();
   renderEventosAgendaRecomendados_();
   // Limpar passagem de som
