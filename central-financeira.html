@@ -795,6 +795,14 @@
       font-size: 13px;
       color: var(--gray-700);
     }
+    .rf-subline {
+      display: block;
+      margin-top: 2px;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--gray-500);
+      line-height: 1.25;
+    }
     .rf-list {
       display: grid;
       gap: 6px;
@@ -1071,6 +1079,11 @@
       border: 1px solid var(--gray-200);
       background: var(--gray-50);
       color: var(--gray-700);
+    }
+    .fiscal-tag.bv-partner {
+      border-color: #c9d6ea;
+      background: #f5f8fd;
+      color: var(--navy-600);
     }
     .fiscal-actions {
       display: grid;
@@ -1505,6 +1518,23 @@ function montarBadgeResumo_(statusRaw, labelOverride) {
   const meta = normalizarStatusBadgeResumo_(statusRaw);
   const label = String(labelOverride || meta.label || '').trim() || 'N/A';
   return `<span class="rf-status-badge ${meta.cls}">${escaparHtml_(label)}</span>`;
+}
+
+function obterNomeParceiroBV_(fonte) {
+  const candidatos = [
+    fonte?.nomeBV,
+    fonte?.parceiroBV,
+    fonte?.nomeParceiroBV,
+    fonte?.bv?.nomeParceiro,
+    fonte?.bv?.parceiro,
+    fonte?.custos?.bv?.nomeParceiro,
+    fonte?.custos?.bv?.parceiro
+  ];
+  for (let i = 0; i < candidatos.length; i++) {
+    const nome = String(candidatos[i] || '').trim();
+    if (nome) return nome;
+  }
+  return '';
 }
 
 function aplicarPermissoesTelaFinanceira() {
@@ -2978,6 +3008,13 @@ function renderListaFiscalizacao_(lista) {
     const bvStatus = String(ev?.bv?.status || ev?.custos?.bv?.status || 'N/A');
     const bvValor = Number(ev?.bv?.valor || ev?.custos?.bv?.valor || 0);
     const podePagarBV = !!(ev?.acoes?.podePagarBV);
+    const nomeParceiroBV = obterNomeParceiroBV_(ev);
+    const mostrarParceiroBVPendente = bvValor > 0 && nomeParceiroBV && (
+      podePagarBV ||
+      String(bvStatus || '').toUpperCase() === 'PENDENTE' ||
+      alertas.includes('BV_PENDENTE') ||
+      alertas.includes('EVENTO_QUITADO_COM_BV_PENDENTE')
+    );
     const contratante = escaparHtml_(String(ev.nomeContratante || 'N/A'));
     const nomeEvento = escaparHtml_(String(ev.nomeEvento || 'Evento'));
     const idEvento = String(ev.idEvento || '');
@@ -3000,6 +3037,7 @@ function renderListaFiscalizacao_(lista) {
           BV: R$ ${bvValor.toFixed(2)} (${escaparHtml_(bvStatus)})
         </div>
         <div class="fiscal-tags">
+          ${mostrarParceiroBVPendente ? `<span class="fiscal-tag bv-partner">Parceiro BV: ${escaparHtml_(nomeParceiroBV)}</span>` : ''}
           ${alertas.map(a => `<span class="fiscal-tag">${alertaEhInformativo_(a) ? 'ℹ️' : '⚠️'} ${escaparHtml_(labelAlerta_(a))}</span>`).join('')}
           ${divergencias.map(d => `<span class="fiscal-tag">🧩 ${escaparHtml_(labelDivergencia_(d))}</span>`).join('')}
           ${divergenciasAuditoria.slice(0, 3).map(d => `<span class="fiscal-tag">🧩 ${escaparHtml_(humanizarCodigoTecnico_(d))}</span>`).join('')}
@@ -3414,6 +3452,10 @@ async function selectEvento(ev){
 
   const valorBV = Number(fin.valorBV || 0);
   const statusBV = String(fin.statusBV || 'N/A');
+  const nomeParceiroBVResumo = obterNomeParceiroBV_(fin);
+  const parceiroBVResumoHtml = valorBV > 0 && nomeParceiroBVResumo
+    ? `<span class="rf-subline">Parceiro BV: ${escaparHtml_(nomeParceiroBVResumo)}</span>`
+    : '';
   const valorNF = Number(fin.valorNF || 0);
   const statusNF = String(fin.statusNF || 'N/A');
   const folhaValor = Number(fin.folhaCustoValor || 0);
@@ -3493,7 +3535,7 @@ async function selectEvento(ev){
         ` : ''}
         <div class="rf-card">
           <div class="rf-title">Saídas do evento (resumo)</div>
-          <div class="rf-saida-row"><span>BV: R$ ${valorBV.toFixed(2)}</span>${bvBadgeHtml}</div>
+          <div class="rf-saida-row"><span>BV: R$ ${valorBV.toFixed(2)}${parceiroBVResumoHtml}</span>${bvBadgeHtml}</div>
           <div class="rf-saida-row"><span>NF: ${fin.temNF ? ('R$ ' + valorNF.toFixed(2)) : 'Não configurado'}</span>${nfBadgeHtml}</div>
           <div class="rf-saida-row"><span>Folha de custo: R$ ${folhaValor.toFixed(2)}</span>${folhaBadgeHtml}</div>
           <div class="rf-saida-row"><span>Comissão: R$ ${valorComissaoPagaTotal.toFixed(2)} paga / R$ ${valorComissaoEsperadaTotal.toFixed(2)} esperada</span>${comissaoBadgeHtml}</div>
@@ -3521,7 +3563,7 @@ async function selectEvento(ev){
       <div><strong>Status:</strong> ${statusFinal}</div>
       <div class="divider"></div>
       <div><strong>Saídas do evento (resumo):</strong></div>
-      <div class="rf-saida-row"><span>BV: R$ ${valorBV.toFixed(2)}</span>${bvBadgeHtml}</div>
+      <div class="rf-saida-row"><span>BV: R$ ${valorBV.toFixed(2)}${parceiroBVResumoHtml}</span>${bvBadgeHtml}</div>
       <div class="rf-saida-row"><span>NF: ${fin.temNF ? ('R$ ' + valorNF.toFixed(2)) : 'Não configurado'}</span>${nfBadgeHtml}</div>
       <div class="rf-saida-row"><span>Folha de custo: R$ ${folhaValor.toFixed(2)}</span>${folhaBadgeHtml}</div>
       <div class="rf-saida-row"><span>Comissão: R$ ${valorComissaoPagaTotal.toFixed(2)} paga / R$ ${valorComissaoEsperadaTotal.toFixed(2)} esperada</span>${comissaoBadgeHtml}</div>
