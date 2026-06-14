@@ -2406,7 +2406,7 @@ ${podeAprovarFolha ? `
 `;
 
   if (podeAprovarFolha) {
-    carregarPendenciasFolhaCustosAprovacao_().catch(() => {});
+    carregarPendenciasFolhaCustosAprovacao_({ forceRefresh: true }).catch(() => {});
   }
 }
 
@@ -2649,7 +2649,7 @@ async function aprovarPendenciaFolhaCusto_(idFolha) {
     } else if (box) {
       box.innerHTML = '<span class="muted">Atualizando pendências...</span>';
     }
-    carregarPendenciasFolhaCustosAprovacao_().catch(() => {});
+    carregarPendenciasFolhaCustosAprovacao_({ forceRefresh: true }).catch(() => {});
     if (pendencia && pendencia.idEvento) {
       await selecionarEventoPorIdNoModo_(pendencia.idEvento);
     }
