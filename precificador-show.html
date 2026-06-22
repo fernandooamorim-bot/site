@@ -24,7 +24,7 @@
   <script src="auth.js?v=20260311b" defer></script>
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js" defer></script>
 
-  <link rel="stylesheet" href="precificador-show.css?v=20260311a">
+  <link rel="stylesheet" href="precificador-show.css?v=20260622a">
   <style>
     :root {
       --navy-800: #0f1a2e;
@@ -287,6 +287,26 @@
             <div class="input-group-list" id="terceirizados-list"></div>
           </div>
 
+          <div class="section manual-costs-section">
+            <div class="section-heading-row">
+              <div>
+                <div class="section-title">🧾 Ajustes Manuais do Evento</div>
+                <div class="section-subtitle">Inclua custos atípicos somente para esta simulação, sem alterar a planilha.</div>
+              </div>
+              <button type="button" class="btn-add-manual" onclick="adicionarItemManual()">
+                <i data-lucide="plus"></i>
+                <span>Adicionar</span>
+              </button>
+            </div>
+
+            <div class="manual-costs-empty" id="manual-costs-empty">
+              <i data-lucide="sparkles"></i>
+              <span>Use para passagem aérea, diária extra, hospedagem, transporte especial ou produção fora do padrão.</span>
+            </div>
+
+            <div class="manual-costs-list" id="manual-costs-list"></div>
+          </div>
+
           <div class="section">
             <div class="section-title">💼 Configurações Comerciais</div>
             <div class="comercial-options">
@@ -444,6 +464,6 @@
     </button>
   </nav>
 
-  <script src="precificador-show-app.js?v=20260311a"></script>
+  <script src="precificador-show-app.js?v=20260622a"></script>
 </body>
 </html>

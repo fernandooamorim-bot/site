@@ -407,6 +407,22 @@
       margin-bottom: 12px;
       font-style: italic;
     }
+
+    .section-heading-row {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .section-heading-row .section-title {
+      margin-bottom: 6px;
+    }
+
+    .section-heading-row .section-subtitle {
+      margin-bottom: 0;
+    }
     
     /* ===== BOTÕES DE SELEÇÃO ===== */
     
@@ -582,6 +598,168 @@
     .input-valor:focus {
       outline: none;
       border-color: var(--cor-destaque);
+    }
+
+    /* ===== AJUSTES MANUAIS ===== */
+
+    .manual-costs-section {
+      padding: 16px;
+      border: 1px solid #eadfbd;
+      border-radius: 10px;
+      background: linear-gradient(180deg, #fffdf7 0%, #ffffff 100%);
+    }
+
+    .btn-add-manual {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      min-height: 38px;
+      padding: 8px 12px;
+      border: 1px solid rgba(212, 175, 55, 0.55);
+      border-radius: 8px;
+      background: #fff8e7;
+      color: #6e5212;
+      font-size: 0.84rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+
+    .btn-add-manual:hover {
+      background: #fff1cc;
+      border-color: var(--cor-destaque);
+      transform: translateY(-1px);
+    }
+
+    .btn-add-manual i,
+    .btn-add-manual svg {
+      width: 16px;
+      height: 16px;
+      stroke: currentColor;
+    }
+
+    .manual-costs-empty {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 14px;
+      border: 1px dashed #dcc88b;
+      border-radius: 9px;
+      background: rgba(255, 248, 231, 0.65);
+      color: #735b1f;
+      font-size: 0.84rem;
+      line-height: 1.35;
+    }
+
+    .manual-costs-empty i,
+    .manual-costs-empty svg {
+      width: 18px;
+      height: 18px;
+      color: var(--cor-destaque);
+      flex: 0 0 auto;
+    }
+
+    .manual-costs-list {
+      display: grid;
+      gap: 10px;
+    }
+
+    .manual-cost-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 10px;
+      align-items: center;
+      padding: 12px;
+      border: 1px solid var(--cor-borda);
+      border-radius: 10px;
+      background: #ffffff;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+      transition: all 0.2s;
+    }
+
+    .manual-cost-row:focus-within,
+    .manual-cost-row.has-value {
+      border-color: var(--cor-destaque);
+      box-shadow: 0 6px 18px rgba(212, 175, 55, 0.12);
+    }
+
+    .manual-cost-main {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 150px;
+      gap: 8px;
+      min-width: 0;
+    }
+
+    .manual-cost-side {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .manual-cost-name,
+    .manual-cost-category,
+    .manual-cost-value {
+      min-height: 38px;
+      border: 1px solid var(--cor-borda);
+      border-radius: 8px;
+      background: #fff;
+      color: var(--cor-texto);
+      font-size: 0.9rem;
+      transition: all 0.2s;
+    }
+
+    .manual-cost-name {
+      width: 100%;
+      min-width: 0;
+      padding: 8px 10px;
+    }
+
+    .manual-cost-category {
+      padding: 8px 9px;
+      color: #4b5563;
+    }
+
+    .manual-cost-value {
+      width: 112px;
+      padding: 8px 10px;
+      text-align: right;
+      font-weight: 700;
+    }
+
+    .manual-cost-name:focus,
+    .manual-cost-category:focus,
+    .manual-cost-value:focus {
+      outline: none;
+      border-color: var(--cor-destaque);
+      box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.13);
+    }
+
+    .manual-cost-remove {
+      width: 38px;
+      height: 38px;
+      border: 1px solid #f0d0d0;
+      border-radius: 8px;
+      background: #fff5f5;
+      color: #a53030;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .manual-cost-remove:hover {
+      background: #ffe8e8;
+      border-color: #e7a4a4;
+    }
+
+    .manual-cost-remove i,
+    .manual-cost-remove svg {
+      width: 16px;
+      height: 16px;
+      stroke: currentColor;
     }
     
     /* ===== OPÇÕES COMERCIAIS ===== */
@@ -949,6 +1127,16 @@
       .section-subtitle {
         font-size: 0.8rem;
       }
+
+      .section-heading-row {
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      .btn-add-manual {
+        width: 100%;
+        min-height: 44px;
+      }
       
       /* Botões de seleção em grid 2x2 */
       .selection-buttons {
@@ -997,6 +1185,47 @@
         width: 100%;
         padding: 12px;
         font-size: 1rem;
+      }
+
+      .manual-costs-section {
+        padding: 14px 12px;
+      }
+
+      .manual-costs-empty {
+        align-items: flex-start;
+        font-size: 0.8rem;
+      }
+
+      .manual-cost-row {
+        grid-template-columns: 1fr;
+        gap: 8px;
+        padding: 12px;
+      }
+
+      .manual-cost-main {
+        grid-template-columns: 1fr;
+      }
+
+      .manual-cost-side {
+        width: 100%;
+      }
+
+      .manual-cost-value {
+        flex: 1;
+        width: auto;
+        min-height: 44px;
+        font-size: 1rem;
+      }
+
+      .manual-cost-name,
+      .manual-cost-category {
+        min-height: 44px;
+        font-size: 1rem;
+      }
+
+      .manual-cost-remove {
+        width: 44px;
+        height: 44px;
       }
       
       /* Opções comerciais em coluna */

@@ -7,6 +7,7 @@
 let configuracoes = null;
 let ultimoResultado = null;
 let CURRENT_USER_EMAIL = '';
+let manualCostCounter = 0;
 
 let loadingMessageTimer = null;
 let loadingMessageIndex = 0;
@@ -391,6 +392,113 @@ function renderizarTerceirizados(itens) {
   });
 }
 
+function adicionarItemManual(preset = {}) {
+  const lista = document.getElementById('manual-costs-list');
+  if (!lista) return;
+
+  const id = ++manualCostCounter;
+  const row = document.createElement('div');
+  row.className = 'manual-cost-row';
+  row.dataset.manualCostId = String(id);
+  row.innerHTML = `
+    <div class="manual-cost-main">
+      <input type="text"
+             class="manual-cost-name"
+             id="manual-cost-name-${id}"
+             placeholder="Ex: Passagem aérea, diária extra..."
+             value="${escaparAttr_(preset.nome || '')}"
+             oninput="atualizarItemManual(this)">
+      <select class="manual-cost-category"
+              id="manual-cost-category-${id}"
+              onchange="atualizarItemManual(this)">
+        ${montarOpcoesCategoriaManual_(preset.categoria || '')}
+      </select>
+    </div>
+    <div class="manual-cost-side">
+      <input type="number"
+             class="manual-cost-value"
+             id="manual-cost-value-${id}"
+             placeholder="R$ 0,00"
+             min="0"
+             step="0.01"
+             value="${Number(preset.valor || 0) > 0 ? Number(preset.valor || 0) : ''}"
+             oninput="atualizarItemManual(this)">
+      <button type="button"
+              class="manual-cost-remove"
+              onclick="removerItemManual(${id})"
+              title="Remover item">
+        <i data-lucide="trash-2"></i>
+      </button>
+    </div>
+  `;
+
+  lista.appendChild(row);
+  atualizarEstadoItensManuais_();
+  if (window.lucide) window.lucide.createIcons();
+
+  const nomeInput = document.getElementById(`manual-cost-name-${id}`);
+  if (nomeInput && !preset.nome) nomeInput.focus();
+}
+
+function montarOpcoesCategoriaManual_(selecionada) {
+  const categorias = [
+    'Produção extra',
+    'Diária',
+    'Transporte',
+    'Hospedagem',
+    'Passagem aérea',
+    'Alimentação',
+    'Equipamento',
+    'Outro'
+  ];
+  return categorias.map((categoria) => {
+    const selected = categoria === selecionada ? ' selected' : '';
+    return `<option value="${escaparAttr_(categoria)}"${selected}>${categoria}</option>`;
+  }).join('');
+}
+
+function removerItemManual(id) {
+  const row = document.querySelector(`.manual-cost-row[data-manual-cost-id="${id}"]`);
+  if (row) row.remove();
+  atualizarEstadoItensManuais_();
+}
+
+function atualizarItemManual(input) {
+  const row = input.closest('.manual-cost-row');
+  if (!row) return;
+
+  const valorInput = row.querySelector('.manual-cost-value');
+  const nomeInput = row.querySelector('.manual-cost-name');
+  const valor = parseFloat(valorInput ? valorInput.value : 0) || 0;
+  const nome = String(nomeInput ? nomeInput.value : '').trim();
+
+  row.classList.toggle('has-value', valor > 0 || !!nome);
+  atualizarEstadoItensManuais_();
+}
+
+function atualizarEstadoItensManuais_() {
+  const lista = document.getElementById('manual-costs-list');
+  const empty = document.getElementById('manual-costs-empty');
+  const rows = lista ? Array.from(lista.querySelectorAll('.manual-cost-row')) : [];
+  if (empty) empty.classList.toggle('hidden', rows.length > 0);
+}
+
+function coletarItensManuais_() {
+  return Array.from(document.querySelectorAll('.manual-cost-row')).map((row) => {
+    const id = row.dataset.manualCostId;
+    const nome = String(document.getElementById(`manual-cost-name-${id}`)?.value || '').trim();
+    const categoria = String(document.getElementById(`manual-cost-category-${id}`)?.value || 'Produção extra').trim();
+    const valor = parseFloat(document.getElementById(`manual-cost-value-${id}`)?.value || 0) || 0;
+
+    return {
+      nome: nome || categoria || 'Item manual',
+      categoria: categoria || 'Produção extra',
+      valor,
+      manual: true
+    };
+  }).filter((item) => item.valor > 0);
+}
+
 function carregarParametrosPadrao(parametros) {
   const bv = Number(parametros['BV Padrão (%)']);
   const nf = Number(parametros['NF Simples Nacional (%)']);
@@ -511,6 +619,10 @@ function coletarDadosEvento() {
       categoria: item.categoria,
       valor: valor
     });
+  });
+
+  coletarItensManuais_().forEach((item) => {
+    dados.terceirizados.push(item);
   });
 
   return dados;
@@ -645,6 +757,11 @@ function novaSimulacao() {
     input.value = '';
   });
 
+  const manualList = document.getElementById('manual-costs-list');
+  if (manualList) manualList.innerHTML = '';
+  manualCostCounter = 0;
+  atualizarEstadoItensManuais_();
+
   document.getElementById('bv-ativo').checked = false;
   document.getElementById('nf-ativo').checked = false;
 
@@ -682,5 +799,16 @@ window.selecionarBandaReduzida = selecionarBandaReduzida;
 window.limparSelecao = limparSelecao;
 window.toggleCheckbox = toggleCheckbox;
 window.atualizarInputTerceirizado = atualizarInputTerceirizado;
+window.adicionarItemManual = adicionarItemManual;
+window.removerItemManual = removerItemManual;
+window.atualizarItemManual = atualizarItemManual;
 window.salvarHistorico = salvarHistorico;
 window.novaSimulacao = novaSimulacao;
+
+function escaparAttr_(valor) {
+  return String(valor || '')
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
