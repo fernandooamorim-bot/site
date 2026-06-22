@@ -269,6 +269,14 @@
               <button class="btn-selection" onclick="selecionarBandaCompleta()">Banda Completa</button>
               <button class="btn-selection" onclick="selecionarBandaReduzida()">Banda Reduzida</button>
               <button class="btn-selection" onclick="limparSelecao()">Limpar Seleção</button>
+              <button class="btn-selection btn-edit-values" id="btn-editar-producao" onclick="toggleEdicaoProducao()" type="button">
+                Editar valores
+              </button>
+            </div>
+
+            <div class="production-edit-note hidden" id="production-edit-note">
+              <i data-lucide="badge-info"></i>
+              <span>Modo manual ativo: ajuste cachês e diárias apenas para esta simulação. A planilha não será alterada.</span>
             </div>
 
             <div class="checkbox-group" id="musicos-list">

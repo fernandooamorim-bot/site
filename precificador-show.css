@@ -455,6 +455,42 @@
     .btn-selection:active {
       transform: scale(0.98);
     }
+
+    .btn-selection.btn-edit-values {
+      border-color: rgba(212, 175, 55, 0.65);
+      color: #7a5b10;
+      background: #fff8e7;
+    }
+
+    .btn-selection.btn-edit-values:hover,
+    .btn-selection.btn-edit-values.active {
+      background: var(--cor-destaque);
+      color: #1a1a1a;
+      border-color: var(--cor-destaque);
+    }
+
+    .production-edit-note {
+      display: flex;
+      align-items: flex-start;
+      gap: 9px;
+      padding: 10px 12px;
+      margin: 0 0 14px;
+      border: 1px solid #eadfbd;
+      border-radius: 9px;
+      background: #fffaf0;
+      color: #735b1f;
+      font-size: 0.82rem;
+      line-height: 1.35;
+    }
+
+    .production-edit-note i,
+    .production-edit-note svg {
+      width: 17px;
+      height: 17px;
+      color: var(--cor-destaque);
+      flex: 0 0 auto;
+      margin-top: 1px;
+    }
     
     /* ===== CHECKBOXES PARA MÚSICOS ===== */
     
@@ -509,6 +545,43 @@
     
     .checkbox-value.hidden {
       display: none;
+    }
+
+    .production-value-wrap {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      min-width: 120px;
+    }
+
+    .production-value-input {
+      width: 118px;
+      min-height: 36px;
+      padding: 7px 10px;
+      border: 1px solid var(--cor-borda);
+      border-radius: 8px;
+      background: #fff;
+      font-size: 0.92rem;
+      font-weight: 700;
+      text-align: right;
+      color: var(--cor-texto);
+      transition: all 0.2s;
+    }
+
+    .production-value-input:focus {
+      outline: none;
+      border-color: var(--cor-destaque);
+      box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.13);
+    }
+
+    .checkbox-item.manual-editing {
+      background: #fffdf7;
+      border-style: dashed;
+    }
+
+    .checkbox-item.manual-value-edited {
+      border-color: var(--cor-destaque);
+      background: #fffbf0;
     }
     
     /* ===== LOADING SKELETON ===== */
@@ -1150,10 +1223,21 @@
         padding: 10px 8px;
         font-size: 0.75rem;
       }
+
+      .btn-selection.btn-edit-values {
+        grid-column: 1 / -1;
+      }
       
       /* Checkboxes maiores para toque */
       .checkbox-item {
         padding: 14px 12px;
+      }
+
+      .checkbox-item.manual-editing {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 10px;
+        align-items: stretch;
       }
       
       .checkbox-item input[type="checkbox"] {
@@ -1167,6 +1251,17 @@
       
       .checkbox-value {
         font-size: 0.9rem;
+      }
+
+      .production-value-wrap {
+        width: 100%;
+        min-width: 0;
+      }
+
+      .production-value-input {
+        width: 100%;
+        min-height: 44px;
+        font-size: 1rem;
       }
       
       /* Inputs de terceirizados mais fáceis de tocar */

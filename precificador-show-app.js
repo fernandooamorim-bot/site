@@ -8,6 +8,7 @@ let configuracoes = null;
 let ultimoResultado = null;
 let CURRENT_USER_EMAIL = '';
 let manualCostCounter = 0;
+let edicaoProducaoAtiva = false;
 
 let loadingMessageTimer = null;
 let loadingMessageIndex = 0;
@@ -345,8 +346,8 @@ function renderizarMusicos(musicos, frontendConfig) {
     item.className = 'checkbox-item';
 
     const valorHtml = exibirValores
-      ? `<span class="checkbox-value">R$ ${formatarMoeda(musico.valorFixo)}</span>`
-      : `<span class="checkbox-value hidden">R$ ${formatarMoeda(musico.valorFixo)}</span>`;
+      ? `<span class="checkbox-value" data-show-value="true">R$ ${formatarMoeda(musico.valorFixo)}</span>`
+      : `<span class="checkbox-value hidden" data-show-value="false">R$ ${formatarMoeda(musico.valorFixo)}</span>`;
 
     item.innerHTML = `
       <label class="checkbox-label">
@@ -358,13 +359,63 @@ function renderizarMusicos(musicos, frontendConfig) {
                onchange="toggleCheckbox(this)">
         ${musico.funcao}
       </label>
-      ${valorHtml}
+      <div class="production-value-wrap">
+        ${valorHtml}
+        <input type="number"
+               class="production-value-input hidden"
+               id="musico-valor-${index}"
+               value="${Number(musico.valorFixo || 0)}"
+               min="0"
+               step="0.01"
+               aria-label="Valor manual de ${escaparAttr_(musico.funcao)}"
+               oninput="atualizarValorMusicoManual(this)">
+      </div>
     `;
     container.appendChild(item);
   });
 
+  aplicarEstadoEdicaoProducao_();
+
   const loading = document.getElementById('musicos-loading');
   if (loading) loading.classList.add('hidden');
+}
+
+function toggleEdicaoProducao() {
+  edicaoProducaoAtiva = !edicaoProducaoAtiva;
+  aplicarEstadoEdicaoProducao_();
+}
+
+function aplicarEstadoEdicaoProducao_() {
+  const btn = document.getElementById('btn-editar-producao');
+  const note = document.getElementById('production-edit-note');
+
+  if (btn) {
+    btn.classList.toggle('active', edicaoProducaoAtiva);
+    btn.textContent = edicaoProducaoAtiva ? 'Valores manuais ativos' : 'Editar valores';
+  }
+
+  if (note) note.classList.toggle('hidden', !edicaoProducaoAtiva);
+
+  document.querySelectorAll('.checkbox-item').forEach((item) => {
+    item.classList.toggle('manual-editing', edicaoProducaoAtiva);
+  });
+
+  document.querySelectorAll('.production-value-input').forEach((input) => {
+    input.classList.toggle('hidden', !edicaoProducaoAtiva);
+  });
+
+  document.querySelectorAll('.checkbox-value').forEach((span) => {
+    const podeExibirValor = span.dataset.showValue === 'true';
+    span.classList.toggle('hidden', edicaoProducaoAtiva || !podeExibirValor);
+  });
+
+  if (window.lucide) window.lucide.createIcons();
+}
+
+function atualizarValorMusicoManual(input) {
+  const item = input.closest('.checkbox-item');
+  const valor = parseFloat(input.value) || 0;
+  if (item) item.classList.toggle('manual-value-edited', edicaoProducaoAtiva && valor > 0);
 }
 
 function renderizarTerceirizados(itens) {
@@ -604,9 +655,17 @@ function coletarDadosEvento() {
 
   musicosCfg.forEach((musico, index) => {
     const checkbox = document.getElementById(`musico-${index}`);
+    const valorManualInput = document.getElementById(`musico-valor-${index}`);
+    const valorManual = parseFloat(valorManualInput ? valorManualInput.value : '');
+    const valorFixo = edicaoProducaoAtiva && !isNaN(valorManual)
+      ? valorManual
+      : musico.valorFixo;
+
     dados.musicos.push({
       funcao: musico.funcao,
-      valorFixo: musico.valorFixo,
+      valorFixo: valorFixo,
+      valorOriginal: musico.valorFixo,
+      manual: edicaoProducaoAtiva && Number(valorFixo) !== Number(musico.valorFixo),
       selecionado: checkbox ? checkbox.checked : false
     });
   });
@@ -757,6 +816,14 @@ function novaSimulacao() {
     input.value = '';
   });
 
+  edicaoProducaoAtiva = false;
+  document.querySelectorAll('.production-value-input').forEach((input) => {
+    const index = String(input.id || '').replace('musico-valor-', '');
+    const checkbox = document.getElementById(`musico-${index}`);
+    input.value = checkbox ? (checkbox.dataset.valor || '0') : '0';
+  });
+  aplicarEstadoEdicaoProducao_();
+
   const manualList = document.getElementById('manual-costs-list');
   if (manualList) manualList.innerHTML = '';
   manualCostCounter = 0;
@@ -798,6 +865,8 @@ window.selecionarBandaCompleta = selecionarBandaCompleta;
 window.selecionarBandaReduzida = selecionarBandaReduzida;
 window.limparSelecao = limparSelecao;
 window.toggleCheckbox = toggleCheckbox;
+window.toggleEdicaoProducao = toggleEdicaoProducao;
+window.atualizarValorMusicoManual = atualizarValorMusicoManual;
 window.atualizarInputTerceirizado = atualizarInputTerceirizado;
 window.adicionarItemManual = adicionarItemManual;
 window.removerItemManual = removerItemManual;
