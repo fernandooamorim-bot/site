@@ -257,7 +257,11 @@ function obterStatusNotificacoes_(email) {
 
 function registrarDispositivoNotificacao_(email, params) {
   const token = String(params.token || '').trim();
-  if (token.length < 40 || token.length > 4096) throw new Error('FCM_TOKEN_INVALIDO');
+  const identificadorTipo = normalizarTipoIdentificadorNotificacao_(params.identificadorTipo);
+  const tamanhoMinimo = identificadorTipo === 'FID' ? 10 : 40;
+  if (token.length < tamanhoMinimo || token.length > 4096) {
+    throw new Error(identificadorTipo === 'FID' ? 'FCM_FID_INVALIDO' : 'FCM_TOKEN_INVALIDO');
+  }
 
   const user = requireUserByEmail(email);
   const sheet = obterOuCriarAbaDispositivosNotificacao_();
@@ -284,7 +288,7 @@ function registrarDispositivoNotificacao_(email, params) {
     '',
     limitarTextoNotificacao_(params.nomeDispositivo, 80),
     agora,
-    normalizarTipoIdentificadorNotificacao_(params.identificadorTipo)
+    identificadorTipo
   ]];
 
   if (linha > 0) sheet.getRange(linha, 1, 1, valores[0].length).setValues(valores);
