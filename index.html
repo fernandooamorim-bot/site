@@ -1695,17 +1695,9 @@
   async function registrarServiceWorkerAgenda_() {
     if (!('serviceWorker' in navigator)) return;
     try {
-      if (IndexOfflineState.enabled) {
+      const notificacoesAtivas = !!localStorage.getItem('fcm_token_super_agenda');
+      if (IndexOfflineState.enabled || notificacoesAtivas) {
         await navigator.serviceWorker.register('./sw-agenda.js', { scope: './' });
-      } else {
-        const regs = await navigator.serviceWorker.getRegistrations();
-        await Promise.all(regs.map(function(r) {
-          try {
-            const url = (r && r.active && r.active.scriptURL) || '';
-            if (url.indexOf('/sw-agenda.js') !== -1) return r.unregister();
-          } catch (_) {}
-          return Promise.resolve();
-        }));
       }
     } catch (e) {
       console.warn('SW offline agenda indisponível:', e);

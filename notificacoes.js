@@ -49,7 +49,19 @@
     if (!firebase.apps.length) firebase.initializeApp(cfg.firebase);
     const reg = await navigator.serviceWorker.register('./sw-agenda.js', { scope: './' });
     await navigator.serviceWorker.ready;
-    const token = await firebase.messaging().getToken({ vapidKey: cfg.vapidPublicKey, serviceWorkerRegistration: reg });
+    const messaging = firebase.messaging();
+    if (!messaging.__superAgendaForegroundConfigurado) {
+      messaging.onMessage((payload) => {
+        const n = payload.notification || {};
+        reg.showNotification(n.title || 'Super Agenda', {
+          body: n.body || '',
+          icon: './img/android-192.png',
+          data: { url: payload.data?.url || './index.html?menu=1' }
+        }).catch(() => {});
+      });
+      messaging.__superAgendaForegroundConfigurado = true;
+    }
+    const token = await messaging.getToken({ vapidKey: cfg.vapidPublicKey, serviceWorkerRegistration: reg });
     if (!token) throw new Error('FCM_TOKEN_NAO_GERADO');
     localStorage.setItem(TOKEN_KEY, token);
     await Auth.apiCall('registrarDispositivoNotificacao', Object.assign({
