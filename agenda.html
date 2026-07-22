@@ -4080,7 +4080,7 @@ renderizarEventosDentro(evento) {
   async registrarServiceWorkerOfflineAgenda() {
     if (!('serviceWorker' in navigator)) return;
     try {
-      const notificacoesAtivas = !!localStorage.getItem('fcm_token_super_agenda');
+      const notificacoesAtivas = !!(localStorage.getItem('fcm_identificador_super_agenda') || localStorage.getItem('fcm_token_super_agenda'));
       if (this.configBool('AGENDA_OFFLINE_ATIVO', false) || notificacoesAtivas) {
         await navigator.serviceWorker.register('./sw-agenda.js', { scope: './' });
       }

@@ -1,10 +1,10 @@
-const AGENDA_OFFLINE_CACHE = 'agenda-offline-v5';
+const AGENDA_OFFLINE_CACHE = 'agenda-offline-v6';
 
 // Firebase Messaging usa o mesmo service worker já existente, evitando dois
 // controladores concorrentes para o PWA.
 try {
-  importScripts('https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js');
-  importScripts('https://www.gstatic.com/firebasejs/10.12.5/firebase-messaging-compat.js');
+  importScripts('https://www.gstatic.com/firebasejs/12.16.0/firebase-app-compat.js');
+  importScripts('https://www.gstatic.com/firebasejs/12.16.0/firebase-messaging-compat.js');
   firebase.initializeApp({
     apiKey: 'AIzaSyBwSb7AzenKzGXcOSNzFFNIehqGrPLCRtw',
     authDomain: 'super-agenda-fa.firebaseapp.com',

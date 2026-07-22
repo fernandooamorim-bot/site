@@ -1,23 +1,11 @@
 (() => {
   if (window.NotificacoesFA) return;
-  const TOKEN_KEY = 'fcm_token_super_agenda';
-  const SDK_BASE = 'https://www.gstatic.com/firebasejs/10.12.5/';
-
-  function carregarScript_(src) {
-    return new Promise((resolve, reject) => {
-      const existente = document.querySelector('script[src="' + src + '"]');
-      if (existente) { existente.addEventListener('load', resolve, { once: true }); if (window.firebase) resolve(); return; }
-      const s = document.createElement('script');
-      s.src = src; s.async = true; s.onload = resolve; s.onerror = reject;
-      document.head.appendChild(s);
-    });
-  }
-
-  async function carregarSdk_() {
-    if (window.firebase && firebase.messaging) return;
-    await carregarScript_(SDK_BASE + 'firebase-app-compat.js');
-    await carregarScript_(SDK_BASE + 'firebase-messaging-compat.js');
-  }
+  const IDENTIFICADOR_KEY = 'fcm_identificador_super_agenda';
+  const TIPO_KEY = 'fcm_tipo_identificador_super_agenda';
+  const TOKEN_LEGADO_KEY = 'fcm_token_super_agenda';
+  const SDK_BASE = 'https://www.gstatic.com/firebasejs/12.16.0/';
+  let sdkPromise_ = null;
+  let contextoPromise_ = null;
 
   function plataforma_() {
     const ua = navigator.userAgent || '';
@@ -35,96 +23,148 @@
     return plataforma + ' - ' + navegador;
   }
 
+  function identificadorLocal_() {
+    return localStorage.getItem(IDENTIFICADOR_KEY) || localStorage.getItem(TOKEN_LEGADO_KEY) || '';
+  }
+
+  function tipoLocal_() {
+    return localStorage.getItem(TIPO_KEY) || (localStorage.getItem(TOKEN_LEGADO_KEY) ? 'TOKEN_LEGADO' : '');
+  }
+
+  async function carregarSdk_() {
+    if (!sdkPromise_) {
+      sdkPromise_ = Promise.all([
+        import(SDK_BASE + 'firebase-app.js'),
+        import(SDK_BASE + 'firebase-messaging.js')
+      ]).then(([appSdk, messagingSdk]) => ({ appSdk, messagingSdk }));
+    }
+    return sdkPromise_;
+  }
+
   async function status() {
     return Auth.apiCall('obterStatusNotificacoes');
   }
 
-  async function obterRegistroEToken_(cfg) {
-    await carregarSdk_();
-    if (!firebase.apps.length) firebase.initializeApp(cfg.firebase);
-    const reg = await navigator.serviceWorker.register('./sw-agenda.js', { scope: './' });
-    await navigator.serviceWorker.ready;
-    const messaging = firebase.messaging();
-    const token = await messaging.getToken({ vapidKey: cfg.vapidPublicKey, serviceWorkerRegistration: reg });
-    return { reg, messaging, token };
+  async function contextoFirebase_(cfg) {
+    if (!contextoPromise_) {
+      contextoPromise_ = (async () => {
+        const sdk = await carregarSdk_();
+        const suportado = await sdk.messagingSdk.isSupported();
+        if (!suportado) throw new Error('FCM_NAO_SUPORTADO_NESTE_NAVEGADOR');
+        const app = sdk.appSdk.getApps().length ? sdk.appSdk.getApps()[0] : sdk.appSdk.initializeApp(cfg.firebase);
+        const reg = await navigator.serviceWorker.register('./sw-agenda.js', { scope: './' });
+        await navigator.serviceWorker.ready;
+        return { sdk, app, reg, messaging: sdk.messagingSdk.getMessaging(app) };
+      })().catch((erro) => { contextoPromise_ = null; throw erro; });
+    }
+    return contextoPromise_;
   }
 
-  // Não solicita permissão. Apenas restaura o vínculo quando o iOS já autorizou
-  // notificações, mas o armazenamento local do web app foi perdido/separado.
+  async function registrarFid_(cfg) {
+    const ctx = await contextoFirebase_(cfg);
+    return new Promise((resolve, reject) => {
+      let concluido = false;
+      let timer = null;
+      let cancelar = () => {};
+      const finalizar = (erro, fid) => {
+        if (concluido) return;
+        concluido = true;
+        if (timer) clearTimeout(timer);
+        try { cancelar(); } catch (_) {}
+        if (erro) reject(erro); else resolve({ ...ctx, fid });
+      };
+      cancelar = ctx.sdk.messagingSdk.onRegistered(ctx.messaging, (fid) => {
+        if (fid) finalizar(null, String(fid));
+      });
+      timer = setTimeout(() => finalizar(new Error('FCM_FID_TIMEOUT')), 20000);
+      ctx.sdk.messagingSdk.register(ctx.messaging, {
+        vapidKey: cfg.vapidPublicKey,
+        serviceWorkerRegistration: ctx.reg
+      }).catch((erro) => finalizar(erro));
+    });
+  }
+
+  function configurarForeground_(ctx) {
+    if (ctx.messaging.__superAgendaForegroundConfigurado) return;
+    ctx.sdk.messagingSdk.onMessage(ctx.messaging, (payload) => {
+      const n = payload.notification || {};
+      ctx.reg.showNotification(n.title || 'Super Agenda', {
+        body: n.body || '',
+        icon: './img/android-192.png',
+        data: { url: payload.data?.url || './index.html?menu=1' }
+      }).catch(() => {});
+    });
+    ctx.messaging.__superAgendaForegroundConfigurado = true;
+  }
+
+  async function salvarFid_(fid, preferencias) {
+    const anterior = identificadorLocal_();
+    localStorage.setItem(IDENTIFICADOR_KEY, fid);
+    localStorage.setItem(TIPO_KEY, 'FID');
+    localStorage.removeItem(TOKEN_LEGADO_KEY);
+    await Auth.apiCall('registrarDispositivoNotificacao', Object.assign({
+      token: fid,
+      identificadorTipo: 'FID',
+      plataforma: plataforma_(),
+      navegador: navigator.userAgent.slice(0, 120),
+      nomeDispositivo: nomeDispositivo_()
+    }, preferencias || {}));
+    if (anterior && anterior !== fid) {
+      await Auth.apiCall('removerDispositivoNotificacao', { token: anterior }).catch(() => {});
+    }
+  }
+
+  // Não solicita permissão. Reconcilia a instalação quando o iOS já autorizou.
   async function sincronizar(preferencias) {
     if (!('Notification' in window) || !('serviceWorker' in navigator)) return status();
     if (Notification.permission !== 'granted') return status();
     const cfg = await status();
     if (!cfg.disponivel) return cfg;
-    const atual = await obterRegistroEToken_(cfg);
-    if (!atual.token) return cfg;
-    localStorage.setItem(TOKEN_KEY, atual.token);
-    await Auth.apiCall('registrarDispositivoNotificacao', Object.assign({
-      token: atual.token,
-      plataforma: plataforma_(),
-      navegador: navigator.userAgent.slice(0, 120),
-      nomeDispositivo: nomeDispositivo_()
-    }, preferencias || {}));
+    const atual = await registrarFid_(cfg);
+    configurarForeground_(atual);
+    await salvarFid_(atual.fid, preferencias);
     return status();
   }
 
   async function ativar(preferencias) {
     if (!('Notification' in window) || !('serviceWorker' in navigator)) throw new Error('NOTIFICACOES_NAO_SUPORTADAS');
-    // No iOS, requestPermission precisa ser a primeira operação assíncrona após
-    // o toque. Uma consulta de rede antes dela perde a ativação do usuário e o
-    // WebKit pode negar o pedido sem exibir o diálogo do sistema.
     let permissao = Notification.permission;
     if (permissao === 'default') permissao = await Notification.requestPermission();
     if (permissao !== 'granted') throw new Error('PERMISSAO_NAO_CONCEDIDA');
     const cfg = await status();
     if (!cfg.disponivel) throw new Error('FCM_CONFIG_INCOMPLETA');
-    const atual = await obterRegistroEToken_(cfg);
-    const reg = atual.reg;
-    const messaging = atual.messaging;
-    if (!messaging.__superAgendaForegroundConfigurado) {
-      messaging.onMessage((payload) => {
-        const n = payload.notification || {};
-        reg.showNotification(n.title || 'Super Agenda', {
-          body: n.body || '',
-          icon: './img/android-192.png',
-          data: { url: payload.data?.url || './index.html?menu=1' }
-        }).catch(() => {});
-      });
-      messaging.__superAgendaForegroundConfigurado = true;
-    }
-    const token = atual.token;
-    if (!token) throw new Error('FCM_TOKEN_NAO_GERADO');
-    localStorage.setItem(TOKEN_KEY, token);
-    await Auth.apiCall('registrarDispositivoNotificacao', Object.assign({
-      token: token,
-      plataforma: plataforma_(),
-      navegador: navigator.userAgent.slice(0, 120),
-      nomeDispositivo: nomeDispositivo_()
-    }, preferencias || {}));
+    const atual = await registrarFid_(cfg);
+    configurarForeground_(atual);
+    await salvarFid_(atual.fid, preferencias);
     return status();
   }
 
   async function desativar() {
-    const token = localStorage.getItem(TOKEN_KEY);
-    if (token) await Auth.apiCall('removerDispositivoNotificacao', { token: token });
+    const identificador = identificadorLocal_();
+    if (identificador) await Auth.apiCall('removerDispositivoNotificacao', { token: identificador });
     try {
       const cfg = await status();
       if (cfg.disponivel && Notification.permission === 'granted') {
-        await carregarSdk_();
-        if (!firebase.apps.length) firebase.initializeApp(cfg.firebase);
-        await firebase.messaging().deleteToken();
+        const ctx = await contextoFirebase_(cfg);
+        await ctx.sdk.messagingSdk.unregister(ctx.messaging);
       }
     } catch (_) {}
-    localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(IDENTIFICADOR_KEY);
+    localStorage.removeItem(TIPO_KEY);
+    localStorage.removeItem(TOKEN_LEGADO_KEY);
+    contextoPromise_ = null;
     return status();
   }
 
   async function salvarPreferencias(preferencias) {
-    const token = localStorage.getItem(TOKEN_KEY);
-    if (!token) throw new Error('DISPOSITIVO_NAO_ATIVADO');
-    await Auth.apiCall('atualizarPreferenciasNotificacao', Object.assign({ token: token }, preferencias || {}));
+    const identificador = identificadorLocal_();
+    if (!identificador) throw new Error('DISPOSITIVO_NAO_ATIVADO');
+    await Auth.apiCall('atualizarPreferenciasNotificacao', Object.assign({ token: identificador }, preferencias || {}));
     return status();
   }
 
-  window.NotificacoesFA = { status, sincronizar, ativar, desativar, salvarPreferencias, token: () => localStorage.getItem(TOKEN_KEY) };
+  window.NotificacoesFA = {
+    status, sincronizar, ativar, desativar, salvarPreferencias,
+    token: identificadorLocal_, tipo: tipoLocal_
+  };
 })();
