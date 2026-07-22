@@ -70,10 +70,14 @@
 
   async function ativar(preferencias) {
     if (!('Notification' in window) || !('serviceWorker' in navigator)) throw new Error('NOTIFICACOES_NAO_SUPORTADAS');
+    // No iOS, requestPermission precisa ser a primeira operação assíncrona após
+    // o toque. Uma consulta de rede antes dela perde a ativação do usuário e o
+    // WebKit pode negar o pedido sem exibir o diálogo do sistema.
+    let permissao = Notification.permission;
+    if (permissao === 'default') permissao = await Notification.requestPermission();
+    if (permissao !== 'granted') throw new Error('PERMISSAO_NAO_CONCEDIDA');
     const cfg = await status();
     if (!cfg.disponivel) throw new Error('FCM_CONFIG_INCOMPLETA');
-    const permissao = await Notification.requestPermission();
-    if (permissao !== 'granted') throw new Error('PERMISSAO_NAO_CONCEDIDA');
     const atual = await obterRegistroEToken_(cfg);
     const reg = atual.reg;
     const messaging = atual.messaging;
