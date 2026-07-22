@@ -39,17 +39,44 @@
     return Auth.apiCall('obterStatusNotificacoes');
   }
 
+  async function obterRegistroEToken_(cfg) {
+    await carregarSdk_();
+    if (!firebase.apps.length) firebase.initializeApp(cfg.firebase);
+    const reg = await navigator.serviceWorker.register('./sw-agenda.js', { scope: './' });
+    await navigator.serviceWorker.ready;
+    const messaging = firebase.messaging();
+    const token = await messaging.getToken({ vapidKey: cfg.vapidPublicKey, serviceWorkerRegistration: reg });
+    return { reg, messaging, token };
+  }
+
+  // Não solicita permissão. Apenas restaura o vínculo quando o iOS já autorizou
+  // notificações, mas o armazenamento local do web app foi perdido/separado.
+  async function sincronizar(preferencias) {
+    if (!('Notification' in window) || !('serviceWorker' in navigator)) return status();
+    if (Notification.permission !== 'granted') return status();
+    const cfg = await status();
+    if (!cfg.disponivel) return cfg;
+    const atual = await obterRegistroEToken_(cfg);
+    if (!atual.token) return cfg;
+    localStorage.setItem(TOKEN_KEY, atual.token);
+    await Auth.apiCall('registrarDispositivoNotificacao', Object.assign({
+      token: atual.token,
+      plataforma: plataforma_(),
+      navegador: navigator.userAgent.slice(0, 120),
+      nomeDispositivo: nomeDispositivo_()
+    }, preferencias || {}));
+    return status();
+  }
+
   async function ativar(preferencias) {
     if (!('Notification' in window) || !('serviceWorker' in navigator)) throw new Error('NOTIFICACOES_NAO_SUPORTADAS');
     const cfg = await status();
     if (!cfg.disponivel) throw new Error('FCM_CONFIG_INCOMPLETA');
     const permissao = await Notification.requestPermission();
     if (permissao !== 'granted') throw new Error('PERMISSAO_NAO_CONCEDIDA');
-    await carregarSdk_();
-    if (!firebase.apps.length) firebase.initializeApp(cfg.firebase);
-    const reg = await navigator.serviceWorker.register('./sw-agenda.js', { scope: './' });
-    await navigator.serviceWorker.ready;
-    const messaging = firebase.messaging();
+    const atual = await obterRegistroEToken_(cfg);
+    const reg = atual.reg;
+    const messaging = atual.messaging;
     if (!messaging.__superAgendaForegroundConfigurado) {
       messaging.onMessage((payload) => {
         const n = payload.notification || {};
@@ -61,7 +88,7 @@
       });
       messaging.__superAgendaForegroundConfigurado = true;
     }
-    const token = await messaging.getToken({ vapidKey: cfg.vapidPublicKey, serviceWorkerRegistration: reg });
+    const token = atual.token;
     if (!token) throw new Error('FCM_TOKEN_NAO_GERADO');
     localStorage.setItem(TOKEN_KEY, token);
     await Auth.apiCall('registrarDispositivoNotificacao', Object.assign({
@@ -76,6 +103,14 @@
   async function desativar() {
     const token = localStorage.getItem(TOKEN_KEY);
     if (token) await Auth.apiCall('removerDispositivoNotificacao', { token: token });
+    try {
+      const cfg = await status();
+      if (cfg.disponivel && Notification.permission === 'granted') {
+        await carregarSdk_();
+        if (!firebase.apps.length) firebase.initializeApp(cfg.firebase);
+        await firebase.messaging().deleteToken();
+      }
+    } catch (_) {}
     localStorage.removeItem(TOKEN_KEY);
     return status();
   }
@@ -87,5 +122,5 @@
     return status();
   }
 
-  window.NotificacoesFA = { status, ativar, desativar, salvarPreferencias, token: () => localStorage.getItem(TOKEN_KEY) };
+  window.NotificacoesFA = { status, sincronizar, ativar, desativar, salvarPreferencias, token: () => localStorage.getItem(TOKEN_KEY) };
 })();

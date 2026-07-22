@@ -1469,7 +1469,7 @@
     async function carregarStatusNotificacoes_() {
       const resumo = document.getElementById('notificacoesResumo');
       try {
-        const status = await NotificacoesFA.status();
+        const status = await NotificacoesFA.sincronizar(preferenciasNotificacaoDaTela_());
         const tokenAtivo = !!NotificacoesFA.token();
         if (resumo) {
           resumo.textContent = !status.disponivel
