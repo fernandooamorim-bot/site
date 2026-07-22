@@ -99,9 +99,6 @@
 
   async function salvarFid_(fid, preferencias) {
     const anterior = identificadorLocal_();
-    localStorage.setItem(IDENTIFICADOR_KEY, fid);
-    localStorage.setItem(TIPO_KEY, 'FID');
-    localStorage.removeItem(TOKEN_LEGADO_KEY);
     await Auth.apiCall('registrarDispositivoNotificacao', Object.assign({
       token: fid,
       identificadorTipo: 'FID',
@@ -109,6 +106,11 @@
       navegador: navigator.userAgent.slice(0, 120),
       nomeDispositivo: nomeDispositivo_()
     }, preferencias || {}));
+    // Só confirma localmente após o backend aceitar o FID. Isso impede a tela
+    // de mostrar o aparelho como ativo quando a gravação remota falhou.
+    localStorage.setItem(IDENTIFICADOR_KEY, fid);
+    localStorage.setItem(TIPO_KEY, 'FID');
+    localStorage.removeItem(TOKEN_LEGADO_KEY);
     if (anterior && anterior !== fid) {
       await Auth.apiCall('removerDispositivoNotificacao', { token: anterior }).catch(() => {});
     }
