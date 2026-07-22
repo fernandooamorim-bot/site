@@ -3,6 +3,7 @@
   const IDENTIFICADOR_KEY = 'fcm_identificador_super_agenda';
   const TIPO_KEY = 'fcm_tipo_identificador_super_agenda';
   const TOKEN_LEGADO_KEY = 'fcm_token_super_agenda';
+  const DESATIVADO_KEY = 'fcm_notificacoes_desativadas_super_agenda';
   const SDK_BASE = 'https://www.gstatic.com/firebasejs/12.16.0/';
   let sdkPromise_ = null;
   let contextoPromise_ = null;
@@ -111,6 +112,7 @@
     localStorage.setItem(IDENTIFICADOR_KEY, fid);
     localStorage.setItem(TIPO_KEY, 'FID');
     localStorage.removeItem(TOKEN_LEGADO_KEY);
+    localStorage.removeItem(DESATIVADO_KEY);
     if (anterior && anterior !== fid) {
       await Auth.apiCall('removerDispositivoNotificacao', { token: anterior }).catch(() => {});
     }
@@ -119,6 +121,7 @@
   // Não solicita permissão. Reconcilia a instalação quando o iOS já autorizou.
   async function sincronizar(preferencias) {
     if (!('Notification' in window) || !('serviceWorker' in navigator)) return status();
+    if (localStorage.getItem(DESATIVADO_KEY) === '1') return status();
     if (Notification.permission !== 'granted') return status();
     const cfg = await status();
     if (!cfg.disponivel) return cfg;
@@ -154,6 +157,7 @@
     localStorage.removeItem(IDENTIFICADOR_KEY);
     localStorage.removeItem(TIPO_KEY);
     localStorage.removeItem(TOKEN_LEGADO_KEY);
+    localStorage.setItem(DESATIVADO_KEY, '1');
     contextoPromise_ = null;
     return status();
   }

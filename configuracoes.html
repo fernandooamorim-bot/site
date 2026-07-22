@@ -1504,8 +1504,14 @@
     }
 
     async function desativarNotificacoesNesteAparelho_() {
-      await NotificacoesFA.desativar();
-      await carregarStatusNotificacoes_();
+      const btn = document.getElementById('btnDesativarNotificacoes');
+      try {
+        setButtonLoading(btn, true, 'Desativando...');
+        await NotificacoesFA.desativar();
+        await carregarStatusNotificacoes_();
+      } catch (err) {
+        alert('Não foi possível desativar: ' + (err?.message || err));
+      } finally { setButtonLoading(btn, false); }
     }
 
     async function salvarPreferenciasNotificacao_() {
