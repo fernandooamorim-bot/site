@@ -169,6 +169,34 @@ if (raw && raw.startsWith('{')) {
       exigirPerfilProprietario_();
       return json(listarAtividadeSistemaReadOnly_(params));
     }
+    if (action === 'obterStatusNotificacoes') {
+      return json(obterStatusNotificacoes_(emailAutenticado));
+    }
+    if (action === 'registrarDispositivoNotificacao') {
+      return json(registrarDispositivoNotificacao_(emailAutenticado, params));
+    }
+    if (action === 'removerDispositivoNotificacao') {
+      return json(removerDispositivoNotificacao_(emailAutenticado, params));
+    }
+    if (action === 'atualizarPreferenciasNotificacao') {
+      return json(atualizarPreferenciasNotificacao_(emailAutenticado, params));
+    }
+    if (action === 'enviarNotificacaoTeste') {
+      exigirPerfilProprietario_();
+      return json(enviarNotificacaoTeste_(emailAutenticado));
+    }
+    if (action === 'obterCentralNotificacoes') {
+      exigirPerfilProprietario_();
+      return json(obterCentralNotificacoes_(emailAutenticado));
+    }
+    if (action === 'atualizarRegraNotificacao') {
+      exigirPerfilProprietario_();
+      return json(atualizarRegraNotificacao_(emailAutenticado, params));
+    }
+    if (action === 'atualizarConfigNotificacoes') {
+      exigirPerfilProprietario_();
+      return json(atualizarConfigNotificacoes_(emailAutenticado, params));
+    }
 
     // ======================================================
     // 7. LISTAGENS AUXILIARES
