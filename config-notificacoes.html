@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#0f1a2e">
+  <title>Central de Notificações</title>
+  <script src="auth.js"></script>
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js" defer></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root{--navy:#0f1a2e;--blue:#1e3a5f;--gold:#e0bc6a;--bg:#f5f7fb;--card:#fff;--line:#dbe2ef;--text:#0f172a;--muted:#64748b;--ok:#166534;--danger:#991b1b}
+    *{box-sizing:border-box}body{margin:0;font-family:Inter,sans-serif;background:var(--bg);color:var(--text)}
+    header{position:sticky;top:0;z-index:10;display:flex;align-items:center;justify-content:space-between;background:var(--navy);color:#fff;padding:14px 18px}
+    header a{color:#fff;text-decoration:none;font-weight:700;display:flex;gap:9px;align-items:center}header i{color:var(--gold)}
+    main{max-width:1280px;margin:auto;padding:18px;display:grid;gap:16px}.hero,.panel{background:var(--card);border:1px solid var(--line);border-radius:15px;padding:16px;box-shadow:0 7px 20px rgba(15,23,42,.06)}
+    .hero h1{margin:0 0 6px;font-size:21px}.hero p,.muted{color:var(--muted);font-size:13px;margin:0}.diag{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;margin-top:14px}.chip{padding:11px;border-radius:11px;background:#f8fafc;border:1px solid var(--line);font-size:12px}.chip strong{display:block;font-size:16px;margin-top:4px}
+    .panel h2{font-size:16px;margin:0 0 12px}.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.field{display:grid;gap:5px}.field label{font-size:11px;font-weight:700;color:#475569}.field input,.field select{width:100%;padding:9px;border:1px solid #cbd5e1;border-radius:9px;background:#fff}.toggle{display:flex;gap:8px;align-items:center;font-size:13px}.toggle input{width:17px;height:17px}
+    .btn{border:1px solid #cbd5e1;background:#fff;color:#24324a;padding:9px 13px;border-radius:9px;font-weight:700;cursor:pointer}.btn.primary{background:var(--blue);border-color:var(--blue);color:#fff}.btn:disabled{opacity:.55;cursor:wait}.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}.warning{padding:10px;border-radius:10px;background:#fff7ed;color:#9a3412;border:1px solid #fed7aa;font-size:12px;margin-bottom:12px}
+    .rules{display:grid;gap:12px}.rule{border:1px solid var(--line);border-radius:13px;padding:14px}.rule-head{display:flex;justify-content:space-between;gap:12px}.rule h3{font-size:14px;margin:0}.rule p{font-size:12px;color:var(--muted);margin:5px 0 12px}.rule-grid{display:grid;grid-template-columns:180px 160px minmax(240px,1fr) 150px 130px;gap:12px;align-items:start}.profiles{display:flex;flex-wrap:wrap;gap:7px}.profiles label{font-size:11px;background:#f8fafc;border:1px solid var(--line);border-radius:999px;padding:6px 8px}.pill{font-size:10px;padding:4px 7px;border-radius:999px;background:#e2e8f0}.pill.on{background:#dcfce7;color:var(--ok)}
+    table{width:100%;border-collapse:collapse;font-size:12px}th,td{text-align:left;padding:9px;border-bottom:1px solid var(--line)}th{color:#475569}.empty{text-align:center;padding:22px;color:var(--muted)}
+    #status{position:fixed;right:16px;bottom:16px;max-width:380px;padding:11px 14px;border-radius:10px;background:var(--navy);color:#fff;display:none;font-size:12px}.hidden{display:none!important}
+    @media(max-width:900px){.diag,.grid{grid-template-columns:1fr 1fr}.rule-grid{grid-template-columns:1fr}.diag{grid-template-columns:1fr 1fr}main{padding:12px}}
+  </style>
+</head>
+<body>
+  <header><a href="configuracoes.html"><i data-lucide="arrow-left"></i>Central de Notificações</a><button class="btn" onclick="Auth.logout()">Sair</button></header>
+  <main>
+    <section class="hero">
+      <h1>Controle de notificações</h1>
+      <p>Defina canais, grupos de usuários, horários e antecedências. Nenhum envio ocorre enquanto FCM estiver desligado.</p>
+      <div class="diag" id="diagnostico"><div class="chip">Carregando...</div></div>
+    </section>
+    <section class="panel">
+      <h2>Configuração global</h2>
+      <div class="warning">Durante a implantação, mantenha “Envio real” desligado e “Modo de teste” ligado.</div>
+      <div class="grid">
+        <label class="toggle"><input id="cfgFCM_ATIVO" type="checkbox"> Envio real de Push</label>
+        <label class="toggle"><input id="cfgNOTIFICACOES_MODO_TESTE" type="checkbox"> Modo de teste</label>
+        <label class="toggle"><input id="cfgNOTIFICACOES_EMAIL_ATIVO" type="checkbox"> Canal de e-mail</label>
+        <div class="field"><label>E-mail de teste</label><input id="cfgNOTIFICACOES_DESTINATARIO_TESTE" type="email"></div>
+        <div class="field"><label>Resumo diário</label><input id="cfgNOTIFICACOES_HORA_RESUMO_DIA" type="time"></div>
+        <div class="field"><label>Alerta antes do evento (min)</label><input id="cfgNOTIFICACOES_ANTECEDENCIA_EVENTO_MIN" type="number" min="0"></div>
+        <div class="field"><label>Preparação (horas)</label><input id="cfgNOTIFICACOES_ANTECEDENCIA_PREPARACAO_HORAS" type="number" min="0"></div>
+        <div class="field"><label>Horário permitido — início</label><input id="cfgNOTIFICACOES_HORARIO_INICIO" type="time"></div>
+        <div class="field"><label>Horário permitido — fim</label><input id="cfgNOTIFICACOES_HORARIO_FIM" type="time"></div>
+        <div class="field"><label>Fuso horário</label><input id="cfgNOTIFICACOES_TIMEZONE" value="America/Fortaleza" readonly></div>
+        <div class="field"><label>Regra da madrugada</label><input id="cfgAGENDA_HORA_VIRADA_MADRUGADA" readonly></div>
+        <div class="field"><label>Retenção do histórico (dias)</label><input id="cfgNOTIFICACOES_DIAS_RETER_HISTORICO" type="number" min="1"></div>
+        <div class="field"><label>Máximo de tentativas</label><input id="cfgNOTIFICACOES_MAX_TENTATIVAS" type="number" min="1"></div>
+      </div>
+      <div class="actions"><button class="btn primary" id="btnSalvarGlobal">Salvar configuração global</button><button class="btn" id="btnRecarregar">Recarregar</button></div>
+    </section>
+    <section class="panel"><h2>Regras por tipo de notificação</h2><div class="rules" id="regras"><div class="empty">Carregando regras...</div></div></section>
+    <section class="panel"><h2>Aparelhos cadastrados</h2><div id="dispositivos"><div class="empty">Carregando aparelhos...</div></div></section>
+  </main>
+  <div id="status"></div>
+  <script>
+    const PERFIS = ['Proprietário','Sócio','Administrador','Produção','Músico'];
+    // FCM_ATIVO fica por último: todas as salvaguardas são persistidas antes da tentativa de ativação.
+    const CONFIG_EDITAVEL = ['NOTIFICACOES_MODO_TESTE','NOTIFICACOES_EMAIL_ATIVO','NOTIFICACOES_DESTINATARIO_TESTE','NOTIFICACOES_HORA_RESUMO_DIA','NOTIFICACOES_ANTECEDENCIA_EVENTO_MIN','NOTIFICACOES_ANTECEDENCIA_PREPARACAO_HORAS','NOTIFICACOES_HORARIO_INICIO','NOTIFICACOES_HORARIO_FIM','NOTIFICACOES_TIMEZONE','NOTIFICACOES_DIAS_RETER_HISTORICO','NOTIFICACOES_MAX_TENTATIVAS','FCM_ATIVO'];
+    let central = null;
+    function esc(v){return String(v??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;')}
+    function bool(v){return v===true||String(v).toLowerCase()==='true'||String(v)==='1'}
+    function aviso(msg,erro){const el=document.getElementById('status');el.textContent=msg;el.style.background=erro?'#991b1b':'#0f1a2e';el.style.display='block';setTimeout(()=>el.style.display='none',3500)}
+    function setBusy(btn,on,txt){if(!btn)return;btn.disabled=on;if(on){btn.dataset.old=btn.textContent;btn.textContent=txt||'Salvando...'}else btn.textContent=btn.dataset.old||btn.textContent}
+    async function carregar(){central=await Auth.apiCall('obterCentralNotificacoes');renderTudo()}
+    function renderTudo(){renderDiag();renderConfig();renderRegras();renderDispositivos();if(window.lucide)lucide.createIcons()}
+    function renderDiag(){const d=central.diagnostico||{};const itens=[['Firebase',d.firebaseConfigurado?'Configurado':'Incompleto'],['Credencial',d.credencialInstalada?'Instalada':'Pendente'],['Envio real',d.envioGlobalAtivo?'ATIVO':'Desligado'],['Regras ativas',(d.regrasAtivas||0)+' / '+(d.totalRegras||0)],['Aparelhos ativos',(d.dispositivosAtivos||0)+' / '+(d.totalDispositivos||0)]];document.getElementById('diagnostico').innerHTML=itens.map(x=>`<div class="chip">${esc(x[0])}<strong>${esc(x[1])}</strong></div>`).join('')}
+    function renderConfig(){const c=central.configuracao||{};Object.keys(c).forEach(k=>{const el=document.getElementById('cfg'+k);if(!el)return;if(el.type==='checkbox')el.checked=bool(c[k]);else el.value=c[k]??''})}
+    function renderRegras(){const box=document.getElementById('regras');box.innerHTML=(central.regras||[]).map((r,i)=>`<article class="rule" data-i="${i}"><div class="rule-head"><div><h3>${esc(r.nome)} <span class="pill ${r.ativo?'on':''}">${r.ativo?'ATIVA':'DESLIGADA'}</span></h3><p>${esc(r.descricao)}</p></div><button class="btn primary" onclick="salvarRegra(${i},this)">Salvar</button></div><div class="rule-grid"><div><label class="toggle"><input class="r-ativo" type="checkbox" ${r.ativo?'checked':''}> Ativa</label><label class="toggle"><input class="r-push" type="checkbox" ${r.canalPush?'checked':''}> Push</label><label class="toggle"><input class="r-email" type="checkbox" ${r.canalEmail?'checked':''}> E-mail</label></div><div class="field"><label>Prioridade</label><select class="r-prioridade">${['BAIXA','NORMAL','ALTA','CRITICA'].map(p=>`<option ${p===r.prioridade?'selected':''}>${p}</option>`).join('')}</select><label class="toggle"><input class="r-agrupar" type="checkbox" ${r.agrupar?'checked':''}> Agrupar</label><label class="toggle"><input class="r-obrigatoria" type="checkbox" ${r.obrigatoria?'checked':''}> Obrigatória</label></div><div><div class="muted">Grupos destinatários</div><div class="profiles">${PERFIS.map(p=>`<label><input class="r-perfil" value="${esc(p)}" type="checkbox" ${(r.perfis||[]).includes(p)?'checked':''}> ${esc(p)}</label>`).join('')}</div></div><div class="field"><label>Antecedência (min)</label><input class="r-antecedencia" type="number" min="0" value="${Number(r.antecedenciaMin)||0}"></div><div class="field"><label>Horário fixo</label><input class="r-horario" type="time" value="${esc(r.horarioEnvio)}"></div></div></article>`).join('')||'<div class="empty">Nenhuma regra encontrada.</div>'}
+    async function salvarRegra(i,btn){const card=btn.closest('.rule');const r=central.regras[i];const perfis=[...card.querySelectorAll('.r-perfil:checked')].map(x=>x.value);if(!perfis.length)return aviso('Selecione ao menos um grupo.',true);setBusy(btn,true);try{await Auth.apiCall('atualizarRegraNotificacao',{codigo:r.codigo,ativo:card.querySelector('.r-ativo').checked,canalPush:card.querySelector('.r-push').checked,canalEmail:card.querySelector('.r-email').checked,prioridade:card.querySelector('.r-prioridade').value,perfis:JSON.stringify(perfis),antecedenciaMin:card.querySelector('.r-antecedencia').value,horarioEnvio:card.querySelector('.r-horario').value,agrupar:card.querySelector('.r-agrupar').checked,obrigatoria:card.querySelector('.r-obrigatoria').checked});aviso('Regra salva.');await carregar()}catch(e){aviso(e.message||e,true)}finally{setBusy(btn,false)}}
+    async function salvarGlobal(){const btn=document.getElementById('btnSalvarGlobal');if(document.getElementById('cfgFCM_ATIVO').checked&&!confirm('Ativar o envio real agora? Faça isso somente após o teste controlado.'))return;setBusy(btn,true);try{for(const k of CONFIG_EDITAVEL){const el=document.getElementById('cfg'+k);const valor=el.type==='checkbox'?el.checked:el.value;await Auth.apiCall('atualizarConfigNotificacoes',{chave:k,valor:valor})}aviso('Configurações salvas.');await carregar()}catch(e){aviso(e.message||e,true)}finally{setBusy(btn,false)}}
+    function renderDispositivos(){const ds=central.dispositivos||[];document.getElementById('dispositivos').innerHTML=ds.length?`<table><thead><tr><th>Usuário</th><th>Perfil</th><th>Aparelho</th><th>Plataforma</th><th>Status</th><th>Token final</th></tr></thead><tbody>${ds.map(d=>`<tr><td>${esc(d.email)}</td><td>${esc(d.perfil)}</td><td>${esc(d.nomeDispositivo||d.navegador||'Não identificado')}</td><td>${esc(d.plataforma)}</td><td>${d.ativo?'Ativo':'Inativo'}</td><td>…${esc(d.tokenFinal)}</td></tr>`).join('')}</tbody></table>`:'<div class="empty">Nenhum aparelho cadastrado ainda.</div>'}
+    document.getElementById('btnSalvarGlobal').addEventListener('click',salvarGlobal);document.getElementById('btnRecarregar').addEventListener('click',()=>carregar().catch(e=>aviso(e.message||e,true)));
+    document.addEventListener('DOMContentLoaded',()=>carregar().catch(e=>{aviso('Acesso negado ou dados indisponíveis: '+(e.message||e),true);setTimeout(()=>location.href='configuracoes.html',2500)}));
+  </script>
+</body>
+</html>

@@ -26,6 +26,15 @@
     return 'Desktop';
   }
 
+  function nomeDispositivo_() {
+    const plataforma = plataforma_();
+    const navegador = /CriOS/.test(navigator.userAgent) ? 'Chrome' :
+      (/FxiOS/.test(navigator.userAgent) ? 'Firefox' :
+        (/Safari/.test(navigator.userAgent) && !/Chrome|Chromium/.test(navigator.userAgent) ? 'Safari' :
+          (/Chrome|Chromium/.test(navigator.userAgent) ? 'Chrome' : 'Navegador')));
+    return plataforma + ' - ' + navegador;
+  }
+
   async function status() {
     return Auth.apiCall('obterStatusNotificacoes');
   }
@@ -46,7 +55,8 @@
     await Auth.apiCall('registrarDispositivoNotificacao', Object.assign({
       token: token,
       plataforma: plataforma_(),
-      navegador: navigator.userAgent.slice(0, 120)
+      navegador: navigator.userAgent.slice(0, 120),
+      nomeDispositivo: nomeDispositivo_()
     }, preferencias || {}));
     return status();
   }

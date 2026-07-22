@@ -586,6 +586,7 @@
         <div class="row">
           <button class="btn primary" id="btnAtivarNotificacoes">Ativar neste aparelho</button>
           <button class="btn hidden" id="btnDesativarNotificacoes">Desativar</button>
+          <button class="btn" id="btnGerenciarNotificacoes">Gerenciar regras</button>
         </div>
         <label><input type="checkbox" id="prefEventosDia" checked> Lembretes dos eventos do dia</label>
         <label><input type="checkbox" id="prefEventoAlterado" checked> Evento criado ou editado</label>
@@ -1405,6 +1406,7 @@
       document.getElementById('btnAtivarNotificacoes')?.addEventListener('click', ativarNotificacoesNesteAparelho_);
       document.getElementById('btnDesativarNotificacoes')?.addEventListener('click', desativarNotificacoesNesteAparelho_);
       document.getElementById('btnSalvarPreferenciasNotificacao')?.addEventListener('click', salvarPreferenciasNotificacao_);
+      document.getElementById('btnGerenciarNotificacoes')?.addEventListener('click', () => safeNavigate_('config-notificacoes.html'));
       document.getElementById('btnVoltarModulos')?.addEventListener('click', voltarParaModulos);
 
       document.querySelectorAll('.tab').forEach((tab) => {
