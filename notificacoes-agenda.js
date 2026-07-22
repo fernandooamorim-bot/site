@@ -1,7 +1,49 @@
 /**
  * Primeira automação controlada: resumo dos eventos da data comercial.
- * Não instala gatilhos e não altera FCM_ATIVO.
+ * O gatilho pode ser instalado pelo proprietário, mas só envia quando a
+ * chave NOTIFICACOES_RESUMO_AUTOMATICO_ATIVO estiver ligada na CONFIG.
  */
+
+const NOTIFICACOES_HANDLER_AGENDADO_ = 'processarNotificacoesAgendadas';
+
+function processarNotificacoesAgendadas() {
+  if (!boolNotificacao_(obterConfig('NOTIFICACOES_RESUMO_AUTOMATICO_ATIVO'), false)) {
+    return { ok: true, ignorado: true, motivo: 'AUTOMACAO_DESATIVADA' };
+  }
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(1000)) return { ok: true, ignorado: true, motivo: 'PROCESSAMENTO_EM_ANDAMENTO' };
+  try {
+    return processarResumoEventosHoje_({});
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function atualizarAutomacaoResumoNotificacoes_(email, ativa) {
+  const habilitar = boolNotificacao_(ativa, false);
+  definirConfigNotificacao_(
+    'NOTIFICACOES_RESUMO_AUTOMATICO_ATIVO',
+    habilitar ? 'TRUE' : 'FALSE',
+    'Executa automaticamente o resumo diário de eventos no horário configurado.'
+  );
+  removerGatilhosNotificacaoPorHandler_(NOTIFICACOES_HANDLER_AGENDADO_);
+  if (habilitar) {
+    ScriptApp.newTrigger(NOTIFICACOES_HANDLER_AGENDADO_).timeBased().everyMinutes(15).create();
+  }
+  registrarLog('ATUALIZAR', 'CONFIG', 'NOTIFICACOES_RESUMO_AUTOMATICO_ATIVO',
+    (habilitar ? 'Automação ativada' : 'Automação desativada') + ' por ' + String(email || ''));
+  return { ok: true, ativa: habilitar, gatilhoInstalado: habilitar && possuiGatilhoNotificacao_(NOTIFICACOES_HANDLER_AGENDADO_) };
+}
+
+function possuiGatilhoNotificacao_(handler) {
+  return ScriptApp.getProjectTriggers().some(function (t) { return t.getHandlerFunction() === handler; });
+}
+
+function removerGatilhosNotificacaoPorHandler_(handler) {
+  ScriptApp.getProjectTriggers().forEach(function (t) {
+    if (t.getHandlerFunction() === handler) ScriptApp.deleteTrigger(t);
+  });
+}
 
 function executarResumoEventosHojeTeste_(email) {
   const alvo = String(obterConfig('NOTIFICACOES_DESTINATARIO_TESTE') || '').trim().toLowerCase();
@@ -26,6 +68,9 @@ function processarResumoEventosHoje_(opcoes) {
   const titulo = aplicarTemplateNotificacao_(regra.titulo || 'Eventos de hoje', { QTD_EVENTOS: eventos.length });
   const mensagem = aplicarTemplateNotificacao_(regra.mensagem, { QTD_EVENTOS: eventos.length });
   const modoTeste = boolNotificacao_(obterConfig('NOTIFICACOES_MODO_TESTE'), true);
+  if (!modoTeste && !boolNotificacao_(obterConfig('FCM_ATIVO'), false)) {
+    return { ok: true, ignorado: true, motivo: 'ENVIO_GLOBAL_DESLIGADO' };
+  }
   const emailRestrito = String(opts.emailRestrito || (modoTeste ? obterConfig('NOTIFICACOES_DESTINATARIO_TESTE') : '') || '').trim().toLowerCase();
   const dispositivos = listarTodosDispositivosNotificacao_Interno_().filter(function (d) {
     if (!d.ativo || !d.eventosDia) return false;
@@ -35,8 +80,9 @@ function processarResumoEventosHoje_(opcoes) {
 
   let enviados = 0; let duplicados = 0; const resultados = [];
   dispositivos.forEach(function (d) {
-    const dedupe = ['EVENTO_HOJE', hoje, d.email, d.identificador].join('|');
-    if (historicoNotificacaoPossuiChave_(dedupe)) { duplicados++; return; }
+    const dedupe = ['EVENTO_HOJE', hoje, d.email, hashIdentificadorNotificacao_(d.identificador)].join('|');
+    const dedupeLegado = ['EVENTO_HOJE', hoje, d.email, d.identificador].join('|');
+    if (historicoNotificacaoPossuiChave_(dedupe) || historicoNotificacaoPossuiChave_(dedupeLegado)) { duplicados++; return; }
     const baseHistorico = {
       codigoRegra: 'EVENTO_HOJE', email: d.email, perfil: d.perfil,
       identificadorFinal: d.identificador.slice(-10), titulo: titulo,
@@ -59,6 +105,11 @@ function processarResumoEventosHoje_(opcoes) {
     }
   });
   return { ok: true, dataComercial: hoje, eventos: eventos.length, enviados: enviados, duplicados: duplicados, resultados: resultados };
+}
+
+function hashIdentificadorNotificacao_(identificador) {
+  const bytes = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, String(identificador || ''), Utilities.Charset.UTF_8);
+  return Utilities.base64EncodeWebSafe(bytes).replace(/=+$/, '').slice(0, 20);
 }
 
 function listarEventosDataComercialNotificacao_(dataAlvo, timezone) {

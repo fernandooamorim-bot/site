@@ -44,6 +44,7 @@ function obterCentralNotificacoes_(email) {
       NOTIFICACOES_DIAS_RETER_HISTORICO: Number(obterConfig('NOTIFICACOES_DIAS_RETER_HISTORICO') || 180),
       NOTIFICACOES_MAX_TENTATIVAS: Number(obterConfig('NOTIFICACOES_MAX_TENTATIVAS') || 3),
       NOTIFICACOES_EMAIL_ATIVO: boolNotificacao_(obterConfig('NOTIFICACOES_EMAIL_ATIVO'), false),
+      NOTIFICACOES_RESUMO_AUTOMATICO_ATIVO: boolNotificacao_(obterConfig('NOTIFICACOES_RESUMO_AUTOMATICO_ATIVO'), false),
       AGENDA_HORA_VIRADA_MADRUGADA: Number(obterConfig('AGENDA_HORA_VIRADA_MADRUGADA') || 6)
     },
     diagnostico: {
@@ -54,12 +55,21 @@ function obterCentralNotificacoes_(email) {
       totalRegras: regras.length,
       dispositivosAtivos: dispositivos.filter(function (d) { return d.ativo; }).length,
       totalDispositivos: dispositivos.length,
+      gatilhoResumoInstalado: typeof possuiGatilhoNotificacao_ === 'function' && possuiGatilhoNotificacao_('processarNotificacoesAgendadas'),
       solicitante: String(email || ''),
       historico: historico
     },
     regras: regras,
     dispositivos: dispositivos
   };
+}
+
+function definirConfigNotificacao_(chave, valor, descricao) {
+  if (setConfig(chave, valor)) return true;
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('CONFIG');
+  if (!sheet) throw new Error('CONFIG_SHEET_NOT_FOUND');
+  sheet.appendRow([chave, valor, descricao || '']);
+  return true;
 }
 
 function listarRegrasNotificacoes_() {
