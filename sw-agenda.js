@@ -1,5 +1,23 @@
 const AGENDA_OFFLINE_CACHE = 'agenda-offline-v3';
 
+// Firebase Messaging usa o mesmo service worker já existente, evitando dois
+// controladores concorrentes para o PWA.
+try {
+  importScripts('https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js');
+  importScripts('https://www.gstatic.com/firebasejs/10.12.5/firebase-messaging-compat.js');
+  firebase.initializeApp({
+    apiKey: 'AIzaSyBwSb7AzenKzGXcOSNzFFNIehqGrPLCRtw',
+    authDomain: 'super-agenda-fa.firebaseapp.com',
+    projectId: 'super-agenda-fa',
+    storageBucket: 'super-agenda-fa.firebasestorage.app',
+    messagingSenderId: '860394426284',
+    appId: '1:860394426284:web:bfbae23ed378ceffc93409'
+  });
+  firebase.messaging();
+} catch (_) {
+  // O modo offline continua funcionando mesmo se o CDN estiver indisponível.
+}
+
 const SHELL_FILES = [
   './',
   './index.html',
@@ -91,6 +109,22 @@ self.addEventListener('fetch', (event) => {
           return response;
         })
         .catch(() => Response.error());
+    })
+  );
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const destino = (event.notification && event.notification.data && event.notification.data.url) || './index.html?menu=1';
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientes) => {
+      for (const cliente of clientes) {
+        if ('focus' in cliente) {
+          cliente.navigate(destino);
+          return cliente.focus();
+        }
+      }
+      return self.clients.openWindow ? self.clients.openWindow(destino) : null;
     })
   );
 });

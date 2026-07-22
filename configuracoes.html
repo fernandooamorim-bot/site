@@ -19,6 +19,7 @@
   <link rel="apple-touch-icon" sizes="180x180" href="img/apple-touch-icon.png"/>
   <title>Configurações</title>
   <script src="auth.js"></script>
+  <script src="notificacoes.js"></script>
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js" defer></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -578,6 +579,18 @@
         <h3><i data-lucide="activity"></i>Atividade do Sistema</h3>
         <p>Leitura humanizada dos logs da aba LOGS com filtros por período, tipo e busca textual.</p>
         <button class="btn" id="btnAbrirAtividadeSistema">Abrir atividade</button>
+      </article>
+      <article class="module-card" id="cardNotificacoes">
+        <h3><i data-lucide="bell-ring"></i>Notificações no celular</h3>
+        <p id="notificacoesResumo">Verificando disponibilidade neste aparelho...</p>
+        <div class="row">
+          <button class="btn primary" id="btnAtivarNotificacoes">Ativar neste aparelho</button>
+          <button class="btn hidden" id="btnDesativarNotificacoes">Desativar</button>
+        </div>
+        <label><input type="checkbox" id="prefEventosDia" checked> Lembretes dos eventos do dia</label>
+        <label><input type="checkbox" id="prefEventoAlterado" checked> Evento criado ou editado</label>
+        <label><input type="checkbox" id="prefFolhaCustos" checked> Folha de custos para aprovação</label>
+        <button class="btn hidden" id="btnSalvarPreferenciasNotificacao">Salvar preferências</button>
       </article>
     </section>
 
@@ -1389,6 +1402,9 @@
       document.getElementById('btnAbrirAtividadeSistema')?.addEventListener('click', () => {
         safeNavigate_('atividade-sistema.html');
       });
+      document.getElementById('btnAtivarNotificacoes')?.addEventListener('click', ativarNotificacoesNesteAparelho_);
+      document.getElementById('btnDesativarNotificacoes')?.addEventListener('click', desativarNotificacoesNesteAparelho_);
+      document.getElementById('btnSalvarPreferenciasNotificacao')?.addEventListener('click', salvarPreferenciasNotificacao_);
       document.getElementById('btnVoltarModulos')?.addEventListener('click', voltarParaModulos);
 
       document.querySelectorAll('.tab').forEach((tab) => {
@@ -1440,6 +1456,61 @@
       });
     }
 
+    function preferenciasNotificacaoDaTela_() {
+      return {
+        eventosDia: !!document.getElementById('prefEventosDia')?.checked,
+        eventoCriadoEditado: !!document.getElementById('prefEventoAlterado')?.checked,
+        folhaCustos: !!document.getElementById('prefFolhaCustos')?.checked
+      };
+    }
+
+    async function carregarStatusNotificacoes_() {
+      const resumo = document.getElementById('notificacoesResumo');
+      try {
+        const status = await NotificacoesFA.status();
+        const tokenAtivo = !!NotificacoesFA.token();
+        if (resumo) {
+          resumo.textContent = !status.disponivel
+            ? 'Firebase ainda não está completo na aba CONFIG.'
+            : tokenAtivo
+              ? 'Este aparelho está cadastrado. O envio global permanece controlado pela CONFIG.'
+              : 'Disponível. A permissão só será solicitada ao tocar em Ativar.';
+        }
+        document.getElementById('btnAtivarNotificacoes')?.classList.toggle('hidden', tokenAtivo || !status.disponivel);
+        document.getElementById('btnDesativarNotificacoes')?.classList.toggle('hidden', !tokenAtivo);
+        document.getElementById('btnSalvarPreferenciasNotificacao')?.classList.toggle('hidden', !tokenAtivo);
+        const atual = status.dispositivos && status.dispositivos[0];
+        if (atual && atual.preferencias) {
+          document.getElementById('prefEventosDia').checked = atual.preferencias.eventosDia;
+          document.getElementById('prefEventoAlterado').checked = atual.preferencias.eventoCriadoEditado;
+          document.getElementById('prefFolhaCustos').checked = atual.preferencias.folhaCustos;
+        }
+      } catch (err) {
+        if (resumo) resumo.textContent = 'Notificações ainda não disponíveis: ' + (err?.message || err);
+      }
+    }
+
+    async function ativarNotificacoesNesteAparelho_() {
+      const btn = document.getElementById('btnAtivarNotificacoes');
+      try {
+        setButtonLoading(btn, true, 'Ativando...');
+        await NotificacoesFA.ativar(preferenciasNotificacaoDaTela_());
+        await carregarStatusNotificacoes_();
+      } catch (err) {
+        alert('Não foi possível ativar: ' + (err?.message || err));
+      } finally { setButtonLoading(btn, false); }
+    }
+
+    async function desativarNotificacoesNesteAparelho_() {
+      await NotificacoesFA.desativar();
+      await carregarStatusNotificacoes_();
+    }
+
+    async function salvarPreferenciasNotificacao_() {
+      await NotificacoesFA.salvarPreferencias(preferenciasNotificacaoDaTela_());
+      await carregarStatusNotificacoes_();
+    }
+
     function escapeHtml(v) {
       return String(v || '')
         .replace(/&/g, '&amp;')
@@ -1467,6 +1538,7 @@
           preencherHeaderLocal_();
         }
         appBootFinalizado = true;
+        carregarStatusNotificacoes_();
       } catch (err) {
         if (appSaindoDaPagina || document.visibilityState === 'hidden') return;
         console.error('Erro ao abrir configurações:', err);
