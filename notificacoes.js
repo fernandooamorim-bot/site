@@ -159,7 +159,9 @@
     localStorage.removeItem(TOKEN_LEGADO_KEY);
     localStorage.setItem(DESATIVADO_KEY, '1');
     contextoPromise_ = null;
-    return status();
+    // A remoção já foi concluída. Uma falha transitória na consulta de status
+    // do iOS não deve transformar a desativação bem-sucedida em erro visual.
+    try { return await status(); } catch (_) { return { ok: true, dispositivos: [] }; }
   }
 
   async function salvarPreferencias(preferencias) {
