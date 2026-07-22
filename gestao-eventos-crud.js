@@ -86,6 +86,57 @@ function normalizarTemNF(valor) {
   );
 }
 
+function normalizarPerfilComissaoCadastro_(perfil) {
+  return String(perfil || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .toLowerCase();
+}
+
+function normalizarRegraComissaoCadastro_(dados, user, isEvento) {
+  if (!isEvento) {
+    return { tipo: 'N/A', valor: '' };
+  }
+
+  const tipo = String(dados.comissaoTipo || 'Padrão').trim() || 'Padrão';
+  const tiposValidos = ['Padrão', 'Percentual', 'Fixo', 'Sem Comissão'];
+  if (!tiposValidos.includes(tipo)) {
+    throw new Error('Tipo de comissão inválido.');
+  }
+
+  const perfilNorm = normalizarPerfilComissaoCadastro_((user && user.PERFIL) || '');
+  const proprietario = perfilNorm === 'proprietario';
+  if (!proprietario && (tipo === 'Percentual' || tipo === 'Fixo')) {
+    throw new Error('Apenas proprietário pode cadastrar comissão fixa ou percentual customizada.');
+  }
+
+  if (tipo === 'Padrão') {
+    return {
+      tipo: 'Padrão',
+      valor: Number(obterConfig('COMISSAO_PADRAO_PERCENTUAL')) || 0
+    };
+  }
+
+  if (tipo === 'Sem Comissão') {
+    return { tipo: 'Sem Comissão', valor: 0 };
+  }
+
+  const valor = tipo === 'Fixo'
+    ? normalizarValorMonetario_(dados.comissaoValor, { allowZero: true })
+    : normalizarNumeroEntrada_(dados.comissaoValor, {
+        decimals: 2,
+        allowNegative: false,
+        allowZero: true
+      });
+
+  if (valor === null || isNaN(valor)) {
+    throw new Error('Valor da comissão inválido.');
+  }
+
+  return { tipo: tipo, valor: valor };
+}
+
 function criarEvento(dados, email) {
   try {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -160,15 +211,25 @@ const horaInicio = dados.horaInicio
     // =====================================================
     // NORMALIZAÇÃO DE VALORES (evita variáveis indefinidas)
     // =====================================================
-    const valorTotal = isEvento ? Number(dados.valorTotal || 0) : 0;
-    const valorBV = isEvento ? Number(dados.valorBV || 0) : 0;
+    const valorTotal = isEvento
+      ? normalizarValorMonetario_(dados.valorTotal, { allowZero: false })
+      : 0;
+    const valorBV = isEvento
+      ? (normalizarValorMonetario_(dados.valorBV, { allowZero: true }) || 0)
+      : 0;
     const temNF = isEvento ? normalizarTemNF(dados.temNF) : false;
+    const regraComissao = normalizarRegraComissaoCadastro_(dados, user, isEvento);
+    const comissaoTipo = regraComissao.tipo;
+    const comissaoValor = regraComissao.valor;
 
-    const comissaoTipo = isEvento ? (dados.comissaoTipo || 'Padrão') : 'N/A';
-    let comissaoValor = isEvento ? dados.comissaoValor : '';
-
-    if (isEvento && comissaoTipo === 'Padrão') {
-      comissaoValor = Number(obterConfig('COMISSAO_PADRAO_PERCENTUAL')) || 0;
+    if (isEvento && !(valorTotal > 0)) {
+      throw new Error('Valor Total inválido. Use apenas números e separadores válidos.');
+    }
+    if (isEvento && valorBV < 0) {
+      throw new Error('Valor BV inválido.');
+    }
+    if (isEvento && (comissaoTipo === 'Fixo' || comissaoTipo === 'Percentual') && (comissaoValor === null || isNaN(comissaoValor))) {
+      throw new Error('Valor da comissão inválido.');
     }
 
     // =====================================================
@@ -198,7 +259,7 @@ const horaInicio = dados.horaInicio
       dataFimTexto,                      // 4 DATA_FIM
       horaInicio,                    // 5 HORA_INICIO
       duracaoNumero,                     // 6 DURACAO
-      isEvento ? dados.tipoEvento || '' : (isReserva ? (dados.tipoEvento || 'RESERVA') : tipoRegistro.toUpperCase()), // 7
+      isEvento ? dados.tipoEvento || '' : (isReserva ? (dados.tipoEvento || 'RESERVA') : ''), // 7
       (isEvento || isReserva) ? (dados.projeto || '') : '',               // 8
       dados.idContratante || '',         // 9
       nomeContratante,                   // 10 NOME_CONTRATANTE
@@ -209,10 +270,10 @@ const horaInicio = dados.horaInicio
       valorTotal,                        // 15 VALOR_TOTAL
       0,                                 // 16 VALOR_RECEBIDO
       valorTotal, // 17 VALOR_PENDENTE (no cadastro é sempre o valor cheio)
-      isEvento ? 'PENDENTE' : 'N/A', // 18
+      isEvento ? 'EM_ABERTO' : 'N/A', // 18
       dados.idVendedor || '',            // 19
       nomeVendedor,                      // 20 NOME_VENDEDOR
-      isEvento ? dados.comissaoTipo || 'Padrão' : 'N/A', // 21
+      comissaoTipo,                      // 21 COMISSAO_TIPO
       comissaoValor,                     // COMISSAO_VALOR// 22
       financeiro ? financeiro.valorComissaoCalculado : 0, // 23
       0,                                                  // 24 VALOR_COMISSAO_PAGO
@@ -258,7 +319,15 @@ const horaInicio = dados.horaInicio
     sheet.getRange(linha, 3).setNumberFormat('@STRING@');
     sheet.getRange(linha, 4).setNumberFormat('@STRING@');
 
-    registrarLog('CRIAR', 'EVENTOS', idEvento, tipoRegistro);
+    const payloadLogCriacao = {
+      tipo: 'CRIACAO_EVENTO',
+      tipoRegistro: tipoRegistro,
+      tipoEvento: isEvento ? String(dados.tipoEvento || '').trim() : '',
+      dataEvento: String(dados.data || '').trim(),
+      contratante: String(nomeContratante || '').trim(),
+      tituloEvento: montarTituloEventoParaLog_(tipoRegistro, dados, nomeContratante)
+    };
+    registrarLog('CRIAR', 'EVENTOS', idEvento, JSON.stringify(payloadLogCriacao));
 
     return {
       sucesso: true,
@@ -273,6 +342,31 @@ const horaInicio = dados.horaInicio
       mensagem: erro.message
     };
   }
+}
+
+function montarTituloEventoParaLog_(tipoRegistro, dados, nomeContratante) {
+  const tipo = String(tipoRegistro || '').trim();
+  const tipoEvento = String((dados && dados.tipoEvento) || '').trim();
+  const contratante = String(nomeContratante || '').trim();
+  const observacoes = String((dados && dados.observacoes) || '').trim();
+
+  if (tipo === 'Reunião') {
+    return ('Reunião' + (contratante ? (' - ' + contratante) : '')).trim();
+  }
+  if (tipo === 'Bloqueio') {
+    return ('Bloqueio' + (observacoes ? (' - ' + observacoes) : '')).trim();
+  }
+  if (tipo === 'Reserva') {
+    const baseReserva = contratante || observacoes || tipoEvento || 'Sem detalhes';
+    return ('Reserva - ' + baseReserva).trim();
+  }
+  if (tipo === 'Evento') {
+    const tipoEventoGenerico = !tipoEvento || /^evento$/i.test(tipoEvento);
+    if (tipoEventoGenerico) return contratante || 'Evento';
+    return contratante ? (tipoEvento + ' - ' + contratante) : tipoEvento;
+  }
+  const base = observacoes || contratante || tipoEvento;
+  return (tipo + (base ? (' - ' + base) : '')).trim() || 'Registro';
 }
 function buscarNomePorId(nomeAba, id) {
   if (!id) return '';
@@ -450,12 +544,41 @@ function listarEventos(filtros = {}) {
     const data = sheet.getDataRange().getValues();
     
     const eventos = [];
+    const passadoDiasRaw = Number(String(
+      filtros && (filtros.passadoDiasBoot !== undefined ? filtros.passadoDiasBoot : filtros.passadoDias)
+    ).trim());
+    const aplicarJanelaPassado = !isNaN(passadoDiasRaw) && passadoDiasRaw >= 0 && passadoDiasRaw <= 3650;
+    let inicioPassado = null;
+    if (aplicarJanelaPassado) {
+      inicioPassado = new Date();
+      inicioPassado.setHours(0, 0, 0, 0);
+      inicioPassado.setDate(inicioPassado.getDate() - Math.floor(passadoDiasRaw));
+    }
     
     // Começa da linha 2 (pula o cabeçalho)
     for (let i = 1; i < data.length; i++) {
       // Pula linhas vazias
       if (!data[i][0]) {
         continue;
+      }
+
+      const statusGeral = String(data[i][COL.STATUS_GERAL] || 'ATIVO').trim().toUpperCase();
+      const incluirCancelados = filtros && filtros.incluirCancelados === true;
+      if (!incluirCancelados && statusGeral === 'CANCELADO') {
+        continue;
+      }
+
+      // Janela de histórico (somente para bootstrap operacional):
+      // mantém todo futuro e corta apenas eventos finalizados antes do limite.
+      if (aplicarJanelaPassado && inicioPassado) {
+        const dataEventoRaw = data[i][COL.DATA_EVENTO];
+        const dataFimRaw = data[i][COL.DATA_FIM];
+        const dtEvento = parseDataComMeioDia(dataEventoRaw);
+        const dtFim = parseDataComMeioDia(dataFimRaw);
+        const dtReferencia = dtFim || dtEvento;
+        if (dtReferencia && dtReferencia < inicioPassado) {
+          continue;
+        }
       }
       
       // ========================================
@@ -545,8 +668,20 @@ function listarEventos(filtros = {}) {
         look: data[i][COL.LOOK],                // Look
         somResponsavel: data[i][COL.SOM_RESPONSAVEL], // Som responsável
         valor: data[i][COL.VALOR_TOTAL],        // 20000
+        valorRecebido: data[i][COL.VALOR_RECEBIDO],
+        valorPendente: data[i][COL.VALOR_PENDENTE],
+        valorNF: data[i][COL.VALOR_NF],
+        statusNF: data[i][COL.STATUS_NF],
+        valorBV: data[i][COL.VALOR_BV],
+        statusBV: data[i][COL.STATUS_BV],
+        folhaCustoValor: data[i][COL.FOLHA_CUSTO_VALOR], // espelho EVENTOS
         status: data[i][COL.STATUS_RECEBIMENTO], // "Pendente"
-        observacoes: data[i][COL.OBSERVACOES]   // Observações do evento
+        observacoes: data[i][COL.OBSERVACOES],   // Observações do evento
+        statusGeral: statusGeral,
+        dataCriacaoMs: normalizarTimestampMs_(data[i][COL.DATA_CRIACAO]),
+        ultimaEdicaoMs: normalizarTimestampMs_(data[i][COL.ULTIMA_EDICAO]),
+        criadoPor: String(data[i][COL.CRIADO_POR] || ''),
+        editadoPor: String(data[i][COL.EDITADO_POR] || '')
       };
       
       // ========================================
@@ -599,20 +734,33 @@ function listarEventos(filtros = {}) {
  * Lista eventos conforme perfil do usuário autenticado.
  * Músico: apenas Eventos dentro da janela de hoje até +1 mês, sem dados financeiros.
  */
-function listarEventosPorUsuario(email) {
-  return listarEventosBootstrap(email).eventos || [];
+function listarEventosPorUsuario(email, opts) {
+  return listarEventosBootstrap(email, opts).eventos || [];
 }
 
-function listarEventosBootstrap(email) {
+function listarEventosBootstrap(email, opts) {
   const user = requireUserByEmail(email);
-  return obterPayloadAgendaPorUsuario_(user);
+  return obterPayloadAgendaPorUsuario_(user, opts || {});
 }
 
-function obterPayloadAgendaPorUsuario_(user) {
+function obterPayloadAgendaPorUsuario_(user, opts) {
+  opts = opts || {};
   const cfgCache = obterConfiguracaoCacheCompartilhadoAgenda_();
+  const incluirCancelados = !!opts.incluirCancelados;
+  const perfilNormAgenda = normalizarPerfilCacheAgenda_(user && user.PERFIL);
+  const podeVerFinanceiroAgenda = perfilPodeVerFinanceiroAgenda_(user && user.PERFIL);
+  const escopoPerfil = podeVerFinanceiroAgenda
+    ? 'financeiro'
+    : (perfilNormAgenda === 'musico' ? 'musico' : 'restrito');
+  const passadoDiasBootNum = escopoPerfil === 'musico' ? null : obterPassadoDiasBootAgenda_(opts);
+  const optsAgenda = Object.assign({}, opts, {
+    incluirCancelados: incluirCancelados,
+    passadoDiasBoot: passadoDiasBootNum
+  });
 
   if (!cfgCache.ativo) {
-    return montarPayloadAgendaPorUsuarioSemCache_(user, '');
+    const syncVersion = obterSyncVersionAgendaPorPerfil_(String(user && user.PERFIL || ''));
+    return montarPayloadAgendaPorUsuarioSemCache_(user, syncVersion, optsAgenda);
   }
 
   try {
@@ -626,7 +774,9 @@ function obterPayloadAgendaPorUsuario_(user) {
     }
 
     const sync = montarSyncAgendaInfo_(String(user.PERFIL || ''), ss, sh);
-    const escopoPerfil = normalizarPerfilCacheAgenda_(user.PERFIL) === 'musico' ? 'musico' : 'gestor';
+    const passadoDiasBoot = escopoPerfil === 'musico'
+      ? 'musico_janela_fixa'
+      : String(passadoDiasBootNum);
     const diaBucket = escopoPerfil === 'musico'
       ? Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyyMMdd')
       : 'all';
@@ -634,7 +784,9 @@ function obterPayloadAgendaPorUsuario_(user) {
     const chaveCache = [
       'AGENDA_SHARED_V2',
       escopoPerfil,
+      'passado_boot_' + passadoDiasBoot,
       diaBucket,
+      incluirCancelados ? 'inc_cancelados' : 'sem_cancelados',
       sync.version
     ].join('|');
 
@@ -656,26 +808,51 @@ function obterPayloadAgendaPorUsuario_(user) {
       }
     }
 
-    const payload = montarPayloadAgendaPorUsuarioSemCache_(user, String(sync.version || ''));
+    const payload = montarPayloadAgendaPorUsuarioSemCache_(user, String(sync.version || ''), optsAgenda);
     salvarJsonCacheCompartilhadoAgenda_(cache, chaveCache, payload, cfgCache.ttlSegundos);
     return payload;
   } catch (e) {
     Logger.log('Falha no cache compartilhado da agenda: ' + e.message);
-    return montarPayloadAgendaPorUsuarioSemCache_(user, '');
+    return montarPayloadAgendaPorUsuarioSemCache_(user, '', optsAgenda);
   }
 }
 
-function montarPayloadAgendaPorUsuarioSemCache_(user, syncVersion) {
+function montarPayloadAgendaPorUsuarioSemCache_(user, syncVersion, opts) {
+  opts = opts || {};
   return {
-    eventos: listarEventosPorUsuarioSemCache_(user),
+    eventos: listarEventosPorUsuarioSemCache_(user, opts),
     syncVersion: String(syncVersion || '')
   };
 }
 
-function listarEventosPorUsuarioSemCache_(user) {
-  const eventos = listarEventos();
+function obterSyncVersionAgendaPorPerfil_(perfil) {
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const sh = ss.getSheetByName('EVENTOS');
+    if (!sh) return 'NO_EVENTOS_SHEET';
+    return String(montarSyncAgendaInfo_(String(perfil || ''), ss, sh).version || '');
+  } catch (_) {
+    return '';
+  }
+}
 
-  if (!user || normalizarPerfilCacheAgenda_(user.PERFIL) !== 'musico') {
+function listarEventosPorUsuarioSemCache_(user, opts) {
+  opts = opts || {};
+  const ehMusico = !!(user && normalizarPerfilCacheAgenda_(user.PERFIL) === 'musico');
+  const podeVerFinanceiroAgenda = perfilPodeVerFinanceiroAgenda_(user && user.PERFIL);
+  const passadoDiasBoot = ehMusico ? null : obterPassadoDiasBootAgenda_(opts);
+  const eventos = listarEventos({
+    incluirCancelados: !!opts.incluirCancelados,
+    passadoDiasBoot: passadoDiasBoot
+  });
+
+  if (!podeVerFinanceiroAgenda && !ehMusico) {
+    return eventos.map(function (evento) {
+      return sanitizarEventoFinanceiroAgenda_(evento);
+    });
+  }
+
+  if (!ehMusico) {
     return eventos;
   }
 
@@ -695,8 +872,23 @@ function listarEventosPorUsuarioSemCache_(user) {
       return data >= inicio && data <= limite;
     })
     .map(function (evento) {
-      return sanitizarEventoParaMusico_(evento);
+      return sanitizarEventoFinanceiroAgenda_(evento);
     });
+}
+
+function obterPassadoDiasBootAgenda_(opts) {
+  const fromOpts = Number(String(
+    opts && (opts.passadoDiasBoot !== undefined ? opts.passadoDiasBoot : opts.passadoDias)
+  ).trim());
+  if (!isNaN(fromOpts) && fromOpts >= 0 && fromOpts <= 3650) return Math.floor(fromOpts);
+
+  try {
+    const cfg = getConfig ? getConfig() : {};
+    const bruto = Number(String(cfg && cfg.AGENDA_PASSADO_DIAS_BOOT || '').trim());
+    if (!isNaN(bruto) && bruto >= 0 && bruto <= 3650) return Math.floor(bruto);
+  } catch (_) {}
+
+  return 90;
 }
 
 function lerJsonCacheCompartilhadoAgenda_(cache, chaveBase) {
@@ -898,6 +1090,11 @@ function normalizarPerfilCacheAgenda_(perfil) {
     .toLowerCase();
 }
 
+function perfilPodeVerFinanceiroAgenda_(perfil) {
+  const p = normalizarPerfilCacheAgenda_(perfil);
+  return p === 'proprietario' || p === 'socio' || p === 'administrador' || p === 'admin';
+}
+
 function obterAssinaturaConteudoAbaEventos_(sheet) {
   try {
     const lastRow = sheet.getLastRow();
@@ -1024,12 +1221,18 @@ function normalizarTimestampMs_(valor) {
   return d.getTime();
 }
 
-function sanitizarEventoParaMusico_(evento) {
+function sanitizarEventoFinanceiroAgenda_(evento) {
   if (!evento || typeof evento !== 'object') return evento;
 
-  // Remove campos financeiros sensíveis para o perfil Músico.
+  // Remove campos financeiros sensíveis para perfis sem acesso financeiro na Agenda.
   return Object.assign({}, evento, {
     valor: '',
+    valorRecebido: '',
+    valorPendente: '',
+    valorNF: '',
+    statusNF: '',
+    valorBV: '',
+    statusBV: '',
     status: ''
   });
 }
@@ -1554,6 +1757,8 @@ function buscarEventosPorData(dataBusca) {
 
     for (let i = 1; i < dados.length; i++) {
       if (!dados[i][0]) continue;
+      const statusGeral = String(dados[i][38] || 'ATIVO').trim().toUpperCase();
+      if (statusGeral === 'CANCELADO') continue;
 
       const dataEventoDate = normalizarData(dados[i][2]);
       const dataFimDate = normalizarData(dados[i][3]);
@@ -1687,8 +1892,11 @@ function carregarConfiguracoes() {
       return {
         AGENDA_FILTRO_PADRAO: 'proximos',
         AGENDA_CACHE_TIMEOUT: 300000,
+        AGENDA_OFFLINE_ATIVO: false,
+        AGENDA_OFFLINE_INDEX_CARD: true,
         AGENDA_CORES_PERSONALIZADAS: true,
-        AGENDA_LIMITE_TODOS: 200
+        AGENDA_LIMITE_TODOS: 200,
+        AGENDA_PASSADO_DIAS_BOOT: 90
       };
     }
     
@@ -1705,7 +1913,7 @@ function carregarConfiguracoes() {
       }
     }
     
-    Logger.log('Configurações carregadas:', JSON.stringify(config));
+    Logger.log('Configurações carregadas: ' + Object.keys(config).length + ' chave(s).');
     return config;
     
   } catch (e) {
@@ -1713,10 +1921,65 @@ function carregarConfiguracoes() {
     return {
       AGENDA_FILTRO_PADRAO: 'proximos',
       AGENDA_CACHE_TIMEOUT: 300000,
+      AGENDA_OFFLINE_ATIVO: false,
+      AGENDA_OFFLINE_INDEX_CARD: true,
       AGENDA_CORES_PERSONALIZADAS: true,
-      AGENDA_LIMITE_TODOS: 200
+      AGENDA_LIMITE_TODOS: 200,
+      AGENDA_PASSADO_DIAS_BOOT: 90
     };
   }
+}
+
+/**
+ * Configurações que podem ser enviadas ao navegador.
+ *
+ * A aba CONFIG também contém credenciais de integrações. Por isso, nenhum
+ * endpoint público deve devolver a aba inteira ou aceitar uma chave arbitrária.
+ * Novas chaves visíveis no frontend precisam ser incluídas explicitamente aqui.
+ */
+const CONFIG_PUBLICA_CHAVES = [
+  'COMISSAO_PADRAO_PERCENTUAL',
+  'REUNIAO_MOTIVOS_PADRAO',
+  'RESERVA_MOTIVOS_PADRAO',
+  'AGENDA_FILTRO_PADRAO',
+  'AGENDA_CACHE_TIMEOUT',
+  'AGENDA_CACHE_INSTANT_BOOT',
+  'AGENDA_CACHE_NOTIFY_UPDATE',
+  'AGENDA_OFFLINE_ATIVO',
+  'AGENDA_OFFLINE_INDEX_CARD',
+  'AGENDA_CORES_PERSONALIZADAS',
+  'AGENDA_LIMITE_TODOS',
+  'AGENDA_PASSADO_DIAS_BOOT',
+  'AGENDA_TITULO_CASE_MODE',
+  'AGENDA_TITULO_STOPWORDS_PT',
+  'AGENDA_HORA_VIRADA_MADRUGADA',
+  'AGENDA_VIRTUALIZACAO_ENABLED',
+  'AGENDA_VIRTUALIZACAO_THRESHOLD',
+  'AGENDA_VIRTUALIZACAO_BUFFER',
+  'AGENDA_VIRTUALIZACAO_DEBUG'
+];
+
+function chaveConfigPublica_(chave) {
+  return CONFIG_PUBLICA_CHAVES.indexOf(String(chave || '').trim()) !== -1;
+}
+
+function carregarConfiguracoesPublicas() {
+  const todas = carregarConfiguracoes() || {};
+  const publicas = {};
+  CONFIG_PUBLICA_CHAVES.forEach(function (chave) {
+    if (Object.prototype.hasOwnProperty.call(todas, chave)) {
+      publicas[chave] = todas[chave];
+    }
+  });
+  return publicas;
+}
+
+function obterConfigPublica(chave) {
+  const nome = String(chave || '').trim();
+  if (!chaveConfigPublica_(nome)) {
+    throw new Error('CONFIG_CHAVE_NAO_PUBLICA');
+  }
+  return obterConfig(nome);
 }
 
 function normalizarValorConfig_(valor) {

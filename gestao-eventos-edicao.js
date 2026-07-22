@@ -23,6 +23,8 @@ function buscarEventoPorID(idParcial) {
   for (let i = 1; i < dados.length; i++) {
     const linha = dados[i];
     if (!linha[COL.ID_EVENTO]) continue;
+    const statusGeral = String(linha[COL.STATUS_GERAL] || 'ATIVO').trim().toUpperCase();
+    if (statusGeral === 'CANCELADO') continue;
 
     const id = String(linha[COL.ID_EVENTO]).toUpperCase();
     if (!id.includes(busca)) continue;
@@ -49,6 +51,8 @@ function buscarEventoPorContratante(nomeParcial) {
 
   for (let i = 1; i < dados.length; i++) {
     const linha = dados[i];
+    const statusGeral = String(linha[COL.STATUS_GERAL] || 'ATIVO').trim().toUpperCase();
+    if (statusGeral === 'CANCELADO') continue;
     const id = String(linha[COL.ID_EVENTO] || '').trim();
     const nome = String(linha[COL.NOME_CONTRATANTE] || '').toLowerCase();
     const tipoEvento = String(linha[COL.TIPO_EVENTO] || '').trim();
@@ -60,7 +64,10 @@ function buscarEventoPorContratante(nomeParcial) {
     const dataEvento = normalizarData(linha[COL.DATA_EVENTO]);
     const pendente = Number(linha[COL.VALOR_PENDENTE] || 0);
     const statusRecebimento = String(linha[COL.STATUS_RECEBIMENTO] || '').toUpperCase();
-    const temPendencia = pendente > 0 || statusRecebimento === 'PENDENTE' || statusRecebimento === 'PARCIAL';
+    const temPendencia = pendente > 0 ||
+      statusRecebimento === 'PENDENTE' ||
+      statusRecebimento === 'EM_ABERTO' ||
+      statusRecebimento === 'PARCIAL';
 
     let prioridadeData = 999999;
     if (dataEvento instanceof Date && !isNaN(dataEvento.getTime())) {
@@ -107,6 +114,8 @@ function buscarEventoPorData(dataISO) {
   const eventos = [];
 
   for (let i = 1; i < dados.length; i++) {
+    const statusGeral = String(dados[i][COL.STATUS_GERAL] || 'ATIVO').trim().toUpperCase();
+    if (statusGeral === 'CANCELADO') continue;
     const dataEvento = normalizarData(dados[i][COL.DATA_EVENTO]);
     if (!dataEvento) continue;
 
@@ -159,6 +168,8 @@ function buscarEventoPorPeriodo(periodo) {
   const eventos = [];
 
   for (let i = 1; i < dados.length; i++) {
+    const statusGeral = String(dados[i][COL.STATUS_GERAL] || 'ATIVO').trim().toUpperCase();
+    if (statusGeral === 'CANCELADO') continue;
     const dataEvento = normalizarData(dados[i][COL.DATA_EVENTO]);
     if (!dataEvento) continue;
     if (dataEvento >= inicio && dataEvento <= fim) {
@@ -268,10 +279,13 @@ function buscarEventoParaEdicao(idEvento) {
   valorBV: Number(l[COL.VALOR_BV]) || 0,
   valorNF: Number(l[COL.VALOR_NF]) || 0,
   temNF: l[COL.TEM_NF] === true ? 'SIM' : 'NÃO',
+  comissaoTipo: l[COL.COMISSAO_TIPO] || 'Padrão',
+  comissaoValor: Number(l[COL.COMISSAO_VALOR]) || 0,
 
   look: l[COL.LOOK] || '',
   somResponsavel: l[COL.SOM_RESPONSAVEL] || '',
-  observacoes: l[COL.OBSERVACOES] || ''
+  observacoes: l[COL.OBSERVACOES] || '',
+  statusGeral: String(l[COL.STATUS_GERAL] || 'ATIVO').trim().toUpperCase()
 };
 
       return {
@@ -321,16 +335,27 @@ function validarAlteracoesEvento(idEvento, dadosEditados) {
   });
 
   // Financeiro simulado após edição
+  const valorTotalNovo = normalizarValorMonetario_(dadosEditados.valorTotal, { allowZero: false });
+  const valorBVNovo = normalizarValorMonetario_(dadosEditados.valorBV, { allowZero: true });
+  const linhaComissaoOriginal = [];
+  linhaComissaoOriginal[COL.COMISSAO_TIPO] = eventoOriginal.comissaoTipo || 'Padrão';
+  linhaComissaoOriginal[COL.COMISSAO_VALOR] = eventoOriginal.comissaoValor || 0;
+  const regraComissaoNova = normalizarRegraComissaoEdicao_(
+    dadosEditados || {},
+    linhaComissaoOriginal,
+    getUsuarioAtual()
+  );
+
   const financeiroNovo = calcularFinanceiroEvento({
-    valorTotal: Number(dadosEditados.valorTotal) || eventoOriginal.valorTotal,
-    valorBV: Number(dadosEditados.valorBV) || eventoOriginal.valorBV || 0,
+    valorTotal: valorTotalNovo !== null ? valorTotalNovo : eventoOriginal.valorTotal,
+    valorBV: valorBVNovo !== null ? valorBVNovo : (eventoOriginal.valorBV || 0),
     temNF:
       dadosEditados.temNF === true ||
       dadosEditados.temNF === 'SIM'
         ? true
         : false,
-    comissaoTipo: dadosEditados.comissaoTipo || eventoOriginal.comissaoTipo || 'Padrão',
-    comissaoValor: Number(dadosEditados.comissaoValor) || eventoOriginal.comissaoValor || 0,
+    comissaoTipo: regraComissaoNova.tipo,
+    comissaoValor: regraComissaoNova.valor,
     percentualNF: eventoOriginal.percentualNF || 0
   });
 
@@ -444,6 +469,81 @@ function verificarPermissaoEdicaoFinanceira(idEvento) {
   return { permitido: true };
 }
 
+function normalizarPerfilComissaoEdicao_(perfil) {
+  return String(perfil || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .toLowerCase();
+}
+
+function normalizarRegraComissaoEdicao_(dadosFormulario, linhaAtual, usuario) {
+  const tipoAtual = String(linhaAtual[COL.COMISSAO_TIPO] || 'Padrão').trim() || 'Padrão';
+  const valorAtual = Number(linhaAtual[COL.COMISSAO_VALOR]) || 0;
+  const recebeuTipo = Object.prototype.hasOwnProperty.call(dadosFormulario || {}, 'comissaoTipo');
+  const tipoSolicitado = recebeuTipo
+    ? String(dadosFormulario.comissaoTipo || '').trim()
+    : tipoAtual;
+  const tipoFinal = tipoSolicitado || tipoAtual;
+  const tiposValidos = ['Padrão', 'Percentual', 'Fixo', 'Sem Comissão'];
+
+  if (!tiposValidos.includes(tipoFinal)) {
+    throw new Error('Tipo de comissão inválido.');
+  }
+
+  const perfilNorm = normalizarPerfilComissaoEdicao_((usuario && usuario.PERFIL) || '');
+  const proprietario = perfilNorm === 'proprietario';
+  const tipoCustom = tipoFinal === 'Percentual' || tipoFinal === 'Fixo';
+  const tipoAtualCustom = tipoAtual === 'Percentual' || tipoAtual === 'Fixo';
+  const valorCustomSolicitado = tipoCustom
+    ? (tipoFinal === 'Fixo'
+        ? normalizarValorMonetario_(dadosFormulario.comissaoValor, { allowZero: true })
+        : normalizarNumeroEntrada_(dadosFormulario.comissaoValor, {
+            decimals: 2,
+            allowNegative: false,
+            allowZero: true
+          }))
+    : null;
+  const preservandoCustomExistente =
+    tipoCustom &&
+    tipoFinal === tipoAtual &&
+    (
+      !Object.prototype.hasOwnProperty.call(dadosFormulario || {}, 'comissaoValor') ||
+      Math.abs((Number(valorCustomSolicitado) || 0) - valorAtual) < 0.0001
+    );
+
+  if (!proprietario && tipoCustom && !preservandoCustomExistente) {
+    throw new Error('Apenas proprietário pode definir comissão fixa ou percentual customizada.');
+  }
+
+  if (!proprietario && tipoAtualCustom && tipoFinal !== tipoAtual && tipoFinal !== 'Sem Comissão') {
+    throw new Error('Comissão customizada só pode ser mantida ou alterada para Sem Comissão por esta conta.');
+  }
+
+  if (tipoFinal === 'Padrão') {
+    return {
+      tipo: 'Padrão',
+      valor: Number(obterConfig('COMISSAO_PADRAO_PERCENTUAL')) || 0
+    };
+  }
+
+  if (tipoFinal === 'Sem Comissão') {
+    return { tipo: 'Sem Comissão', valor: 0 };
+  }
+
+  if (preservandoCustomExistente) {
+    return { tipo: tipoAtual, valor: valorAtual };
+  }
+
+  const valor = valorCustomSolicitado;
+
+  if (valor === null || isNaN(valor)) {
+    throw new Error('Valor da comissão inválido.');
+  }
+
+  return { tipo: tipoFinal, valor: valor };
+}
+
 function salvarEdicaoEvento(idEvento, dadosFormulario, email) {
   exigirAcao('eventos:editar');
   Logger.log('═══════════════════════════════════════════════');
@@ -468,9 +568,23 @@ function salvarEdicaoEvento(idEvento, dadosFormulario, email) {
     nomeLocalEditado: dadosFormulario.nomeLocalEditado || dadosFormulario.nomeLocal || arguments[1]?.nomeLocalEditado,
     nomeContratanteFallback: dadosFormulario.nomeContratanteFallback || arguments[1]?.nomeContratanteFallback,
     nomeLocalFallback: dadosFormulario.nomeLocalFallback || arguments[1]?.nomeLocalFallback,
+    aplicarNomeContratanteNoMestre:
+      dadosFormulario.aplicarNomeContratanteNoMestre === true ||
+      dadosFormulario.aplicarNomeContratanteNoMestre === 'true' ||
+      dadosFormulario.aplicarNomeContratanteNoMestre === '1',
+    aplicarNomeLocalNoMestre:
+      dadosFormulario.aplicarNomeLocalNoMestre === true ||
+      dadosFormulario.aplicarNomeLocalNoMestre === 'true' ||
+      dadosFormulario.aplicarNomeLocalNoMestre === '1',
 
-    valorTotal: Number(dadosFormulario.valorTotal ?? arguments[1]?.valorTotal) || 0,
-    valorBV: Number(dadosFormulario.valorBV ?? arguments[1]?.valorBV) || 0,
+    valorTotal: (function() {
+      const parsed = normalizarValorMonetario_(dadosFormulario.valorTotal ?? arguments[1]?.valorTotal, { allowZero: false });
+      return parsed !== null ? parsed : 0;
+    })(),
+    valorBV: (function() {
+      const parsed = normalizarValorMonetario_(dadosFormulario.valorBV ?? arguments[1]?.valorBV, { allowZero: true });
+      return parsed !== null ? parsed : 0;
+    })(),
 
     // 🔑 AQUI ESTAVA O BUG
     temNF:
@@ -480,7 +594,10 @@ function salvarEdicaoEvento(idEvento, dadosFormulario, email) {
 
     look: dadosFormulario.look || arguments[1]?.look,
     somResponsavel: dadosFormulario.somResponsavel || arguments[1]?.somResponsavel,
-    observacoes: dadosFormulario.observacoes || arguments[1]?.observacoes
+    // Permite limpar observações com string vazia sem cair no fallback antigo.
+    observacoes: Object.prototype.hasOwnProperty.call(dadosFormulario || {}, 'observacoes')
+      ? dadosFormulario.observacoes
+      : arguments[1]?.observacoes
   };
 
   const converterReserva =
@@ -518,6 +635,7 @@ function salvarEdicaoEvento(idEvento, dadosFormulario, email) {
     Logger.log('✅ Evento encontrado na linha ' + (linhaIndex + 1));
 
     const linha = dadosSheet[linhaIndex];
+    const linhaOriginal = linha.slice();
     const tipoRegistroAtual = String(linha[COL.TIPO_REGISTRO] || 'Evento').trim() || 'Evento';
     const estaConvertendoReserva = converterReserva && tipoRegistroAtual === 'Reserva';
 
@@ -530,6 +648,12 @@ function salvarEdicaoEvento(idEvento, dadosFormulario, email) {
       }
       if (!(Number(dados.valorTotal) > 0)) {
         throw new Error('Para converter reserva em evento, informe um Valor Total maior que zero.');
+      }
+      if (!String(dados.idContratante || '').trim()) {
+        throw new Error('Para converter reserva em evento, regularize o Contratante (vínculo por ID).');
+      }
+      if (!String(dados.idEndereco || '').trim()) {
+        throw new Error('Para converter reserva em evento, regularize o Local (vínculo por ID).');
       }
       linha[COL.TIPO_REGISTRO] = 'Evento';
       linha[COL.COMISSAO_TIPO] = 'Padrão';
@@ -567,9 +691,9 @@ function salvarEdicaoEvento(idEvento, dadosFormulario, email) {
 
     // Outros campos
     linha[COL.DURACAO] = dados.duracao || '';
-    linha[COL.TIPO_EVENTO] = ehEventoFinal
+    linha[COL.TIPO_EVENTO] = (ehEventoFinal || tipoRegistroFinal === 'Reserva')
       ? (dados.tipoEvento || linha[COL.TIPO_EVENTO] || '')
-      : tipoRegistroFinal.toUpperCase();
+      : '';
     linha[COL.PROJETO] = (ehEventoFinal || tipoRegistroFinal === 'Reserva')
       ? (dados.projeto || '')
       : '';
@@ -588,7 +712,7 @@ function salvarEdicaoEvento(idEvento, dadosFormulario, email) {
     const nomeContratanteDigitado = String(dados.nomeContratanteEditado || '').trim();
     if (nomeContratanteDigitado) {
       linha[COL.NOME_CONTRATANTE] = nomeContratanteDigitado;
-      if (linha[COL.ID_CONTRATANTE]) {
+      if (linha[COL.ID_CONTRATANTE] && dados.aplicarNomeContratanteNoMestre) {
         atualizarNomeNaAbaMestrePorId_('CONTRATANTES', linha[COL.ID_CONTRATANTE], nomeContratanteDigitado);
       }
     }
@@ -612,7 +736,7 @@ function salvarEdicaoEvento(idEvento, dadosFormulario, email) {
     const nomeLocalDigitado = String(dados.nomeLocalEditado || '').trim();
     if (nomeLocalDigitado) {
       linha[COL.LOCAL] = nomeLocalDigitado;
-      if (linha[COL.ID_ENDERECO]) {
+      if (linha[COL.ID_ENDERECO] && dados.aplicarNomeLocalNoMestre) {
         atualizarNomeNaAbaMestrePorId_('ENDERECOS', linha[COL.ID_ENDERECO], nomeLocalDigitado);
       }
     }
@@ -645,10 +769,13 @@ function salvarEdicaoEvento(idEvento, dadosFormulario, email) {
 
       if (podeAlterarFinanceiro || estaConvertendoReserva) {
         const querBVAgora = Number(dados.valorBV) > 0;
+        const regraComissao = normalizarRegraComissaoEdicao_(dadosFormulario, linha, usuario);
 
         linha[COL.VALOR_TOTAL] = Number(dados.valorTotal) || linha[COL.VALOR_TOTAL];
         linha[COL.VALOR_RECEBIDO] = Number(linha[COL.VALOR_RECEBIDO]) || 0;
         linha[COL.VALOR_PENDENTE] = Math.max(0, Number(linha[COL.VALOR_TOTAL]) - Number(linha[COL.VALOR_RECEBIDO]));
+        linha[COL.COMISSAO_TIPO] = regraComissao.tipo;
+        linha[COL.COMISSAO_VALOR] = regraComissao.valor;
 
         if (querBVAgora) {
           linha[COL.VALOR_BV] = Number(dados.valorBV);
@@ -687,7 +814,15 @@ function salvarEdicaoEvento(idEvento, dadosFormulario, email) {
       linha[COL.VALOR_COMISSAO_CALCULADO] = financeiro.valorComissaoCalculado || 0;
       linha[COL.STATUS_COMISSAO] = financeiro.statusComissao || 'N/A';
       linha[COL.STATUS_BV] = financeiro.statusBV || 'N/A';
-      linha[COL.STATUS_RECEBIMENTO] = Number(linha[COL.VALOR_PENDENTE]) > 0 ? 'PENDENTE' : 'QUITADO';
+      const valorRecebidoAtual = Number(linha[COL.VALOR_RECEBIDO]) || 0;
+      const valorPendenteAtual = Number(linha[COL.VALOR_PENDENTE]) || 0;
+      if (valorPendenteAtual <= 0) {
+        linha[COL.STATUS_RECEBIMENTO] = 'QUITADO';
+      } else if (valorRecebidoAtual > 0) {
+        linha[COL.STATUS_RECEBIMENTO] = 'PARCIAL';
+      } else {
+        linha[COL.STATUS_RECEBIMENTO] = 'EM_ABERTO';
+      }
     } else {
       // Tipos não financeiros: limpa espelho financeiro para evitar poluição.
       linha[COL.VALOR_TOTAL] = 0;
@@ -749,6 +884,17 @@ function salvarEdicaoEvento(idEvento, dadosFormulario, email) {
       garantirMovimentacoesNF_BV(eventoAtualizado, emailExecutor);
     }
 
+    registrarLog(
+      'EDITAR',
+      'EVENTOS',
+      String(linha[COL.ID_EVENTO] || idEvento || ''),
+      JSON.stringify({
+        alteracoes: resumirAlteracoesEdicaoEvento_(linhaOriginal, linha),
+        origem: 'salvarEdicaoEvento',
+        editor: String(emailExecutor || '')
+      })
+    );
+
     Logger.log('✅ Evento salvo com sucesso!');
 
     // Retorno padronizado de sucesso (conforme instrução)
@@ -765,6 +911,169 @@ function salvarEdicaoEvento(idEvento, dadosFormulario, email) {
       mensagem: erro && erro.message ? erro.message : 'Erro inesperado ao salvar evento'
     };
   }
+}
+
+function resumirAlteracoesEdicaoEvento_(antes, depois) {
+  const campos = [
+    { k: 'tipoRegistro', i: COL.TIPO_REGISTRO },
+    { k: 'dataEvento', i: COL.DATA_EVENTO },
+    { k: 'dataFim', i: COL.DATA_FIM },
+    { k: 'horaInicio', i: COL.HORA_INICIO },
+    { k: 'duracao', i: COL.DURACAO },
+    { k: 'tipoEvento', i: COL.TIPO_EVENTO },
+    { k: 'projeto', i: COL.PROJETO },
+    { k: 'idContratante', i: COL.ID_CONTRATANTE },
+    { k: 'contratante', i: COL.NOME_CONTRATANTE },
+    { k: 'idEndereco', i: COL.ID_ENDERECO },
+    { k: 'local', i: COL.LOCAL },
+    { k: 'idCerimonialista', i: COL.ID_CERIMONIALISTA },
+    { k: 'cerimonialista', i: COL.NOME_CERIMONIALISTA },
+    { k: 'idVendedor', i: COL.ID_VENDEDOR },
+    { k: 'vendedor', i: COL.NOME_VENDEDOR },
+    { k: 'idBV', i: COL.ID_BV },
+    { k: 'nomeBV', i: COL.NOME_BV },
+    { k: 'valorTotal', i: COL.VALOR_TOTAL },
+    { k: 'valorBV', i: COL.VALOR_BV },
+    { k: 'temNF', i: COL.TEM_NF },
+    { k: 'valorNF', i: COL.VALOR_NF },
+    { k: 'look', i: COL.LOOK },
+    { k: 'somResponsavel', i: COL.SOM_RESPONSAVEL },
+    { k: 'statusGeral', i: COL.STATUS_GERAL },
+    { k: 'observacoes', i: COL.OBSERVACOES }
+  ];
+
+  const delta = [];
+  for (let i = 0; i < campos.length; i++) {
+    const campo = campos[i];
+    const de = normalizarValorAuditoriaEdicao_(antes[campo.i]);
+    const para = normalizarValorAuditoriaEdicao_(depois[campo.i]);
+    if (de === para) continue;
+    delta.push({ campo: campo.k, de: de, para: para });
+    if (delta.length >= 30) break;
+  }
+
+  return delta;
+}
+
+function normalizarValorAuditoriaEdicao_(valor) {
+  if (valor === null || typeof valor === 'undefined') return '';
+  if (Object.prototype.toString.call(valor) === '[object Date]') {
+    if (isNaN(valor.getTime())) return '';
+    return Utilities.formatDate(
+      valor,
+      Session.getScriptTimeZone() || 'America/Fortaleza',
+      "yyyy-MM-dd'T'HH:mm:ss"
+    );
+  }
+  if (typeof valor === 'number') {
+    if (isNaN(valor)) return '';
+    return String(Number(valor.toFixed(2)));
+  }
+  if (typeof valor === 'boolean') return valor ? 'true' : 'false';
+  const txt = String(valor).trim();
+  return txt.length > 180 ? (txt.slice(0, 177) + '...') : txt;
+}
+
+function cancelarEvento(idEvento, motivo) {
+  exigirAcao('eventos:cancelar');
+
+  const alvo = String(idEvento || '').trim();
+  if (!alvo) {
+    return { sucesso: false, mensagem: 'ID do evento não informado' };
+  }
+
+  const motivoLimpo = String(motivo || '').trim();
+  if (!motivoLimpo) {
+    return { sucesso: false, mensagem: 'Informe o motivo do cancelamento.' };
+  }
+
+  try {
+    const ss = SpreadsheetApp.getActive();
+    const sheet = ss.getSheetByName('EVENTOS');
+    if (!sheet) return { sucesso: false, mensagem: 'Planilha EVENTOS não encontrada' };
+
+    const dados = sheet.getDataRange().getValues();
+    let linhaIndex = -1;
+    for (let i = 1; i < dados.length; i++) {
+      if (String(dados[i][COL.ID_EVENTO] || '').trim() === alvo) {
+        linhaIndex = i;
+        break;
+      }
+    }
+    if (linhaIndex === -1) {
+      return { sucesso: false, mensagem: 'Evento não encontrado' };
+    }
+
+    const linha = dados[linhaIndex];
+    const tipoRegistro = String(linha[COL.TIPO_REGISTRO] || 'Evento').trim();
+    const statusAtual = String(linha[COL.STATUS_GERAL] || 'ATIVO').trim().toUpperCase();
+    if (statusAtual === 'CANCELADO') {
+      return { sucesso: true, jaCancelado: true, mensagem: 'Registro já está cancelado.' };
+    }
+
+    if (tipoRegistro === 'Evento' && temMovimentacaoFinanceiraAtivaPorEvento_(alvo)) {
+      return {
+        sucesso: false,
+        bloqueio: 'EVENTO_COM_MOVIMENTACAO_FINANCEIRA',
+        mensagem: 'Não é possível cancelar evento com movimentações financeiras. Use fluxo financeiro (estorno/ajustes).'
+      };
+    }
+
+    const usuario = (getUsuarioAtual() && getUsuarioAtual().email) || 'SISTEMA';
+    const dataTxt = Utilities.formatDate(new Date(), Session.getScriptTimeZone() || 'America/Fortaleza', 'dd/MM/yyyy HH:mm:ss');
+    const blocoCancelamento =
+      `[CANCELADO ${dataTxt} por ${usuario}] Motivo: ${motivoLimpo}`;
+    const obsAtual = String(linha[COL.OBSERVACOES] || '').trim();
+
+    linha[COL.STATUS_GERAL] = 'CANCELADO';
+    linha[COL.OBSERVACOES] = obsAtual ? `${obsAtual} | ${blocoCancelamento}` : blocoCancelamento;
+    linha[COL.ULTIMA_EDICAO] = new Date();
+    linha[COL.EDITADO_POR] = usuario;
+
+    sheet.getRange(linhaIndex + 1, 1, 1, linha.length).setValues([linha]);
+
+    registrarLog(
+      'CANCELAR',
+      'EVENTOS',
+      alvo,
+      `tipo=${tipoRegistro}; motivo=${motivoLimpo}; status_anterior=${statusAtual}; usuario=${usuario}`
+    );
+
+    return {
+      sucesso: true,
+      mensagem: 'Registro cancelado com sucesso.',
+      idEvento: alvo,
+      tipoRegistro: tipoRegistro
+    };
+  } catch (err) {
+    return {
+      sucesso: false,
+      mensagem: String(err && err.message ? err.message : err)
+    };
+  }
+}
+
+function temMovimentacaoFinanceiraAtivaPorEvento_(idEvento) {
+  const shMov = SpreadsheetApp.getActive().getSheetByName('MOVIMENTACOES_FINANCEIRAS');
+  if (!shMov) return false;
+
+  const data = shMov.getDataRange().getValues();
+  if (!data || data.length < 2) return false;
+
+  const head = data[0];
+  const idx = function (nome) { return head.indexOf(nome); };
+  const iEvento = idx('ID_EVENTO');
+  const iStatus = idx('STATUS');
+  if (iEvento === -1) return false;
+
+  const alvo = String(idEvento || '').trim();
+  for (let i = 1; i < data.length; i++) {
+    if (String(data[i][iEvento] || '').trim() !== alvo) continue;
+    const st = iStatus >= 0 ? String(data[i][iStatus] || '').trim().toUpperCase() : 'PROCESSADO';
+    if (st !== 'CANCELADO') return true;
+  }
+
+  return false;
 }
 
 function referenciaExisteNaAbaPorId_(nomeAba, id) {
@@ -1011,6 +1320,7 @@ function mapEventoResumo(l) {
     horaInicio: horaInicio,
     duracao: Number(l[COL.DURACAO]) || 0,
     valor: l[COL.VALOR_TOTAL] || 0,
+    statusGeral: String(l[COL.STATUS_GERAL] || 'ATIVO').trim().toUpperCase(),
     dataFormatada: dataNormalizada
       ? Utilities.formatDate(dataNormalizada, 'GMT-3', 'dd/MM/yyyy')
       : ''

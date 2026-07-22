@@ -295,7 +295,8 @@ function criarAbaUsuarios(ss) {
     'NOME',
     'PERFIL',
     'STATUS',
-    'DATA_CADASTRO'
+    'DATA_CADASTRO',
+    'PAGINA_INICIAL'
   ];
   
   sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
@@ -472,17 +473,17 @@ function inserirDadosIniciais(ss) {
   // USUARIOS
   const sheetUsuarios = ss.getSheetByName('USUARIOS');
   const usuarios = [
-    [1, 'fernando@exemplo.com', 'Fernando Amorim', 'Proprietário', 'Ativo', new Date()],
-    [2, 'suetonio@exemplo.com', 'Suetônio', 'Sócio', 'Ativo', new Date()],
-    [3, 'musico1@exemplo.com', 'Músico 1', 'Músico', 'Ativo', new Date()],
-    [4, 'musico2@exemplo.com', 'Músico 2', 'Músico', 'Ativo', new Date()],
-    [5, 'musico3@exemplo.com', 'Músico 3', 'Músico', 'Ativo', new Date()],
-    [6, 'musico4@exemplo.com', 'Músico 4', 'Músico', 'Ativo', new Date()],
-    [7, 'musico5@exemplo.com', 'Músico 5', 'Músico', 'Ativo', new Date()],
-    [8, 'musico6@exemplo.com', 'Músico 6', 'Músico', 'Ativo', new Date()],
-    [9, 'musico7@exemplo.com', 'Músico 7', 'Músico', 'Ativo', new Date()],
-    [10, 'musico8@exemplo.com', 'Músico 8', 'Músico', 'Ativo', new Date()],
-    [11, 'musico9@exemplo.com', 'Músico 9', 'Músico', 'Ativo', new Date()]
+    [1, 'fernando@exemplo.com', 'Fernando Amorim', 'Proprietário', 'Ativo', new Date(), 'menu'],
+    [2, 'suetonio@exemplo.com', 'Suetônio', 'Sócio', 'Ativo', new Date(), 'menu'],
+    [3, 'musico1@exemplo.com', 'Músico 1', 'Músico', 'Ativo', new Date(), 'menu'],
+    [4, 'musico2@exemplo.com', 'Músico 2', 'Músico', 'Ativo', new Date(), 'menu'],
+    [5, 'musico3@exemplo.com', 'Músico 3', 'Músico', 'Ativo', new Date(), 'menu'],
+    [6, 'musico4@exemplo.com', 'Músico 4', 'Músico', 'Ativo', new Date(), 'menu'],
+    [7, 'musico5@exemplo.com', 'Músico 5', 'Músico', 'Ativo', new Date(), 'menu'],
+    [8, 'musico6@exemplo.com', 'Músico 6', 'Músico', 'Ativo', new Date(), 'menu'],
+    [9, 'musico7@exemplo.com', 'Músico 7', 'Músico', 'Ativo', new Date(), 'menu'],
+    [10, 'musico8@exemplo.com', 'Músico 8', 'Músico', 'Ativo', new Date(), 'menu'],
+    [11, 'musico9@exemplo.com', 'Músico 9', 'Músico', 'Ativo', new Date(), 'menu']
   ];
   sheetUsuarios.getRange(2, 1, usuarios.length, usuarios[0].length).setValues(usuarios);
   

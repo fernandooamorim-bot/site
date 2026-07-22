@@ -22,9 +22,11 @@ function gerarAgendaSemanal(dataInicio, dataFim) {
     // Filtra eventos da semana (apenas tipo EVENTO, não reunião/bloqueio)
     for (let i = 1; i < data.length; i++) {
       const tipoRegistro = data[i][1];  // Col 2: TIPO_REGISTRO
+      const statusGeral = String(data[i][38] || 'ATIVO').trim().toUpperCase(); // Col 39: STATUS_GERAL
       const dataEvento = new Date(data[i][2]); // Col 3: DATA_EVENTO
       
-      if (tipoRegistro === 'Evento' && 
+      if (tipoRegistro === 'Evento' &&
+          statusGeral === 'ATIVO' &&
           dataEvento >= dataInicio && 
           dataEvento <= dataFim) {
         
@@ -367,6 +369,8 @@ function listarEventosAgendaSemanal_(dataInicio, dataFim) {
   for (let i = 1; i < dados.length; i++) {
     const row = dados[i];
     if (String(row[1] || '') !== 'Evento') continue;
+    const statusGeral = String(row[38] || 'ATIVO').trim().toUpperCase();
+    if (statusGeral !== 'ATIVO') continue;
 
     const dataEvento = parseDataEventoSheet_(row[2]);
     if (!dataEvento) continue;

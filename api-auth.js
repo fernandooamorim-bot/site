@@ -112,6 +112,10 @@ if (raw && raw.startsWith('{')) {
     emailAutenticado = autenticarRequisicaoComSessao_(params);
     globalThis.REQUEST_EMAIL = emailAutenticado;
 
+    if (action === 'atualizarPreferenciaPaginaInicial') {
+      return json(atualizarPreferenciaPaginaInicial_(emailAutenticado, params.paginaInicial));
+    }
+
     // ======================================================
     // 5. AGENDA
     // ======================================================
@@ -119,14 +123,18 @@ if (raw && raw.startsWith('{')) {
       exigirAcao('eventos:listar');
       return json({
         ok: true,
-        eventos: listarEventosPorUsuario(emailAutenticado)
+        eventos: listarEventosPorUsuario(emailAutenticado, {
+          incluirCancelados: paramBool_(params.incluirCancelados)
+        })
       });
     }
 
     if (action === 'listarEventosBootstrap') {
       exigirAcao('eventos:listar');
       return json(
-        Object.assign({ ok: true }, listarEventosBootstrap(emailAutenticado))
+        Object.assign({ ok: true }, listarEventosBootstrap(emailAutenticado, {
+          incluirCancelados: paramBool_(params.incluirCancelados)
+        }))
       );
     }
 
@@ -143,21 +151,41 @@ if (raw && raw.startsWith('{')) {
     // ======================================================
     // 6. CONFIGURAÇÕES
     // ======================================================
-    if (action === 'carregarConfiguracoes') return json(carregarConfiguracoes());
+    if (action === 'carregarConfiguracoes') return json(carregarConfiguracoesPublicas());
     if (action === 'listarDuracoesPadrao') return json(listarDuracoesPadrao());
     if (action === 'listarProjetosSugeridos') return json(listarProjetosSugeridos());
     if (action === 'listarTiposEvento') return json(listarTiposEvento());
-    if (action === 'obterConfig') return json(obterConfig(params.chave));
+    if (action === 'obterConfig') return json(obterConfigPublica(params.chave));
     if (action === 'obterPercentualNF') return json(obterPercentualNF());
+    if (action === 'listarAclReadOnly') {
+      exigirPerfilProprietario_();
+      return json(listarAclReadOnly_());
+    }
+    if (action === 'listarConfigCatalogReadOnly') {
+      exigirPerfilProprietario_();
+      return json(listarConfigCatalogReadOnly_());
+    }
+    if (action === 'listarAtividadeSistemaReadOnly') {
+      exigirPerfilProprietario_();
+      return json(listarAtividadeSistemaReadOnly_(params));
+    }
 
     // ======================================================
     // 7. LISTAGENS AUXILIARES
     // ======================================================
     if (action === 'listarVendedores') return json(listarVendedores());
-    if (action === 'listarContratantes') return json(listarContratantes());
-    if (action === 'listarCerimonialistas') return json(listarCerimonialistas());
-    if (action === 'listarEnderecos') return json(listarEnderecos());
-    if (action === 'listarParceirosBV') return json(listarParceirosBV());
+    if (action === 'listarContratantes') return json(listarContratantes(params));
+    if (action === 'listarCerimonialistas') return json(listarCerimonialistas(params));
+    if (action === 'listarEnderecos') return json(listarEnderecos(params));
+    if (action === 'listarParceirosBV') return json(listarParceirosBV(params));
+    if (action === 'buscarContratantesVinculo') {
+      exigirAcao('eventos:editar');
+      return json(buscarContratantesVinculo(params));
+    }
+    if (action === 'buscarEnderecosVinculo') {
+      exigirAcao('eventos:editar');
+      return json(buscarEnderecosVinculo(params));
+    }
 
     // ======================================================
     // 8. CADASTROS RÁPIDOS
@@ -180,6 +208,66 @@ if (raw && raw.startsWith('{')) {
     if (action === 'cadastrarParceiroBVRapido') {
       exigirAcao('eventos:criar');
       return json(cadastrarParceiroBVRapido(params));
+    }
+
+    if (action === 'regularizarContratante') {
+      exigirAcao('eventos:editar');
+      return json(regularizarContratante(params));
+    }
+
+    if (action === 'regularizarLocal') {
+      exigirAcao('eventos:editar');
+      return json(regularizarLocal(params));
+    }
+
+    if (action === 'atualizarContratante') {
+      exigirAcao('eventos:editar');
+      return json(atualizarContratante(params));
+    }
+
+    if (action === 'obterContratantePorId') {
+      exigirAcao('eventos:editar');
+      return json(obterContratantePorId(params));
+    }
+
+    if (action === 'obterEnderecoPorId') {
+      exigirAcao('eventos:editar');
+      return json(obterEnderecoPorId(params));
+    }
+
+    if (action === 'atualizarEndereco') {
+      exigirAcao('eventos:editar');
+      return json(atualizarEndereco(params));
+    }
+
+    if (action === 'obterCerimonialistaPorId') {
+      exigirAcao('eventos:editar');
+      return json(obterCerimonialistaPorId(params));
+    }
+
+    if (action === 'atualizarCerimonialista') {
+      exigirAcao('eventos:editar');
+      return json(atualizarCerimonialista(params));
+    }
+
+    if (action === 'obterParceiroBVPorId') {
+      exigirAcao('eventos:editar');
+      return json(obterParceiroBVPorId(params));
+    }
+
+    if (action === 'atualizarParceiroBV') {
+      exigirAcao('eventos:editar');
+      return json(atualizarParceiroBV(params));
+    }
+
+    if (action === 'inativarCadastroMestre') {
+      exigirAcao('eventos:editar');
+      return json(inativarCadastroMestre(params));
+    }
+
+    if (action === 'reativarCadastroMestre') {
+      exigirAcao('eventos:editar');
+      return json(reativarCadastroMestre(params));
     }
 
     // ======================================================
@@ -214,6 +302,12 @@ if (raw && raw.startsWith('{')) {
   return json(buscarEventoPorData(params.data));
 }
 
+function paramBool_(v) {
+  if (v === true || v === 1) return true;
+  const s = String(v || '').trim().toLowerCase();
+  return s === 'true' || s === '1' || s === 'sim' || s === 'yes' || s === 'on';
+}
+
     if (action === 'buscarEventoPorPeriodo') {
       exigirAcao('eventos:editar');
       return json(buscarEventoPorPeriodo(params.periodo));
@@ -234,6 +328,11 @@ if (raw && raw.startsWith('{')) {
       return json(salvarEdicaoEvento(params.idEvento, params));
     }
 
+    if (action === 'cancelarEvento') {
+      exigirAcao('eventos:cancelar');
+      return json(cancelarEvento(params.idEvento, params.motivo || ''));
+    }
+
     // ======================================================
 // 11. FINANCEIRO — CENTRAL FINANCEIRA
 // ======================================================
@@ -246,6 +345,11 @@ if (action === 'buscarResumoFinanceiroEvento') {
 if (action === 'listarRecebimentosPorEvento') {
   exigirAcao('eventos:visualizarFinanceiro');
   return json(listarRecebimentosPorEvento(params.idEvento));
+}
+
+if (action === 'financeiroGarantirVinculoContratanteEvento') {
+  exigirAcao('eventos:registrarRecebimento');
+  return json(financeiroGarantirVinculoContratanteEvento(params));
 }
 
 if (action === 'apiRegistrarRecebimento') {
@@ -274,10 +378,19 @@ if (action === 'apiEstornarRecebimento') {
 
 if (action === 'apiRegistrarSaidaEvento') {
   const tipoSaida = String(params.tipoSaida || '').trim();
+  const usuarioSaida = getUsuarioAtual();
+  const processamentoAutoFiscal = paramBool_(params.autoFiscalizacao);
+  if (
+    tipoSaida === 'BV_EVENTO' &&
+    processamentoAutoFiscal &&
+    String((usuarioSaida && usuarioSaida.PERFIL) || '') !== 'Proprietário'
+  ) {
+    throw new Error('FORBIDDEN_ACTION: eventos:processarBVAutoFiscalizacao');
+  }
   if (tipoSaida === 'BV_EVENTO') {
-    exigirAcao('eventos:registrarSaidaBV');
+    requirePermission(usuarioSaida, 'eventos:registrarSaidaBV');
   } else {
-    exigirAcao('eventos:registrarSaida');
+    requirePermission(usuarioSaida, 'eventos:registrarSaida');
   }
   return json(
     executarComIdempotenciaFinanceira_(
@@ -351,9 +464,157 @@ if (action === 'listarEventosFinanceiros') {
   return json(listarEventosFinanceiros());
 }
 
+if (action === 'pixAsaasCriarCobranca') {
+  const usuario = exigirAcao('eventos:visualizarFinanceiro');
+  const perfilNorm = String((usuario && usuario.PERFIL) || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .toLowerCase();
+  if (perfilNorm !== 'proprietario') {
+    throw new Error('FORBIDDEN_ACTION: pixAsaas:criarCobranca');
+  }
+  return json(pixAsaasCriarCobranca(params, emailAutenticado));
+}
+
+if (action === 'pixAsaasCriarPlanoParcelado') {
+  const usuario = exigirAcao('eventos:visualizarFinanceiro');
+  const perfilNorm = String((usuario && usuario.PERFIL) || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .toLowerCase();
+  if (perfilNorm !== 'proprietario') {
+    throw new Error('FORBIDDEN_ACTION: pixAsaas:criarPlanoParcelado');
+  }
+  return json(pixAsaasCriarPlanoParcelado(params, emailAutenticado));
+}
+
+if (action === 'pixAsaasConsultarCobranca') {
+  const usuario = exigirAcao('eventos:visualizarFinanceiro');
+  const perfilNorm = String((usuario && usuario.PERFIL) || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .toLowerCase();
+  if (perfilNorm !== 'proprietario') {
+    throw new Error('FORBIDDEN_ACTION: pixAsaas:consultarCobranca');
+  }
+  return json(pixAsaasConsultarCobranca(params));
+}
+
+if (action === 'pixAsaasCancelarCobranca') {
+  const usuario = exigirAcao('eventos:visualizarFinanceiro');
+  const perfilNorm = String((usuario && usuario.PERFIL) || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .toLowerCase();
+  if (perfilNorm !== 'proprietario') {
+    throw new Error('FORBIDDEN_ACTION: pixAsaas:cancelarCobranca');
+  }
+  return json(pixAsaasCancelarCobranca(params, emailAutenticado));
+}
+
+if (action === 'pixAsaasListarCobrancasEvento') {
+  const usuario = exigirAcao('eventos:visualizarFinanceiro');
+  const perfilNorm = String((usuario && usuario.PERFIL) || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .toLowerCase();
+  if (perfilNorm !== 'proprietario') {
+    throw new Error('FORBIDDEN_ACTION: pixAsaas:listarCobrancasEvento');
+  }
+  return json(pixAsaasListarCobrancasEvento(params));
+}
+
+if (action === 'pixAsaasObterContatoEvento') {
+  const usuario = exigirAcao('eventos:visualizarFinanceiro');
+  const perfilNorm = String((usuario && usuario.PERFIL) || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .toLowerCase();
+  if (perfilNorm !== 'proprietario') {
+    throw new Error('FORBIDDEN_ACTION: pixAsaas:obterContatoEvento');
+  }
+  return json(pixAsaasObterContatoEvento(params));
+}
+
+if (action === 'pixAsaasAtualizarContatoEvento') {
+  const usuario = exigirAcao('eventos:visualizarFinanceiro');
+  const perfilNorm = String((usuario && usuario.PERFIL) || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .toLowerCase();
+  if (perfilNorm !== 'proprietario') {
+    throw new Error('FORBIDDEN_ACTION: pixAsaas:atualizarContatoEvento');
+  }
+  return json(pixAsaasAtualizarContatoEvento(params, emailAutenticado));
+}
+
+if (action === 'pixAsaasReconciliar') {
+  const usuario = exigirAcao('eventos:visualizarFinanceiro');
+  const perfilNorm = String((usuario && usuario.PERFIL) || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .toLowerCase();
+  if (perfilNorm !== 'proprietario') {
+    throw new Error('FORBIDDEN_ACTION: pixAsaas:reconciliar');
+  }
+  return json(pixAsaasReconciliar(params, emailAutenticado));
+}
+
+if (action === 'pixAsaasConfigurarReconciliacao') {
+  const usuario = exigirAcao('eventos:visualizarFinanceiro');
+  const perfilNorm = String((usuario && usuario.PERFIL) || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .toLowerCase();
+  if (perfilNorm !== 'proprietario') {
+    throw new Error('FORBIDDEN_ACTION: pixAsaas:configurarReconciliacao');
+  }
+  return json(pixAsaasConfigurarReconciliacao(params, emailAutenticado));
+}
+
 if (action === 'obterDashboardGestao') {
   exigirAcao('eventos:visualizarFinanceiro');
   return json(obterDashboardGestao(params));
+}
+
+if (action === 'obterMetaAnualDashboard') {
+  const usuario = exigirAcao('eventos:visualizarFinanceiro');
+  const bruto = obterConfig('DASHBOARD_META_ANUAL_PCT');
+  const valor = Number(bruto);
+  const metaPct = Number.isFinite(valor) ? Math.max(0, Math.min(200, valor)) : 30;
+  const perfil = String(usuario?.PERFIL || '');
+  const podeEditar = perfil === 'Proprietário';
+  return json({ sucesso: true, metaPct: metaPct, podeEditar: podeEditar });
+}
+
+if (action === 'atualizarMetaAnualDashboard') {
+  const usuario = exigirAcao('eventos:visualizarFinanceiro');
+  if (String(usuario?.PERFIL || '') !== 'Proprietário') {
+    throw new Error('FORBIDDEN_ACTION: dashboard:metaAnual:editar');
+  }
+  const metaPct = Number(params?.metaPct);
+  if (!Number.isFinite(metaPct)) {
+    throw new Error('INVALID_META_PCT');
+  }
+  const safe = Math.max(0, Math.min(200, Math.round(metaPct)));
+  let ok = setConfig('DASHBOARD_META_ANUAL_PCT', safe);
+  if (!ok) {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const sh = ss.getSheetByName('CONFIG');
+    if (!sh) throw new Error('CONFIG_SHEET_NOT_FOUND');
+    sh.appendRow(['DASHBOARD_META_ANUAL_PCT', safe, 'Percentual da meta anual do dashboard sobre vendido do ano anterior (%)']);
+    ok = true;
+  }
+  return json({ sucesso: true, metaPct: safe });
 }
 
 if (action === 'diagnosticarIntegridadeFinanceira') {
@@ -362,7 +623,10 @@ if (action === 'diagnosticarIntegridadeFinanceira') {
 }
 
 if (action === 'reconciliarResumoFinanceiroEvento') {
-  exigirAcao('eventos:editar');
+  const usuario = exigirAcao('eventos:editar');
+  if (String(usuario.PERFIL || '') !== 'Proprietário') {
+    throw new Error('FORBIDDEN_ACTION: eventos:reconciliarFinanceiro');
+  }
   return json(reconciliarResumoFinanceiroEvento(params.idEvento));
 }
 
@@ -457,6 +721,81 @@ if (action === 'gerarOrcamentoInterno') {
   return json(gerarOrcamentoInterno(params, emailAutenticado));
 }
 
+// ======================================================
+// 14. FOLHA DE CUSTOS (UTILITÁRIO EXTERNO INTEGRADO)
+// ======================================================
+if (action === 'folhaCustosProxy') {
+  const usuario = exigirAcao('eventos:listar');
+  const perfilNorm = String((usuario && usuario.PERFIL) || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .toLowerCase();
+  const permitido = (
+    perfilNorm === 'proprietario' ||
+    perfilNorm === 'producao'
+  );
+  if (!permitido) {
+    throw new Error('FORBIDDEN_ACTION: folhaCustos:acessar');
+  }
+  return json(folhaCustosProxy(params, emailAutenticado));
+}
+
+if (action === 'listarPendenciasFolhaCustoAprovacao') {
+  const usuario = exigirAcao('eventos:visualizarFinanceiro');
+  const perfilNorm = String((usuario && usuario.PERFIL) || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .toLowerCase();
+  if (!(perfilNorm === 'proprietario' || perfilNorm === 'socio' || perfilNorm === 'administrador' || perfilNorm === 'admin')) {
+    throw new Error('FORBIDDEN_ACTION: folhaCustos:listarPendencias');
+  }
+  return json(listarPendenciasFolhaCustoAprovacao(params, emailAutenticado));
+}
+
+if (action === 'aprovarPendenciaFolhaCusto') {
+  const usuario = exigirAcao('eventos:registrarSaida');
+  const perfilNorm = String((usuario && usuario.PERFIL) || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .toLowerCase();
+  if (!(perfilNorm === 'proprietario' || perfilNorm === 'socio' || perfilNorm === 'administrador' || perfilNorm === 'admin')) {
+    throw new Error('FORBIDDEN_ACTION: folhaCustos:aprovar');
+  }
+  return json(
+    executarComIdempotenciaFinanceira_(
+      { action: action, email: emailAutenticado, params: params },
+      function () {
+        return aprovarPendenciaFolhaCusto(params, emailAutenticado);
+      }
+    )
+  );
+}
+
+// ======================================================
+// 15. PRECIFICADOR DE SHOW (UTILITÁRIO EXTERNO INTEGRADO)
+// ======================================================
+if (action === 'precificadorShowProxy') {
+  const usuario = exigirAcao('eventos:visualizarFinanceiro');
+  const perfilNorm = String((usuario && usuario.PERFIL) || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .toLowerCase();
+  const permitido = (
+    perfilNorm === 'proprietario' ||
+    perfilNorm === 'administrador' ||
+    perfilNorm === 'admin' ||
+    perfilNorm === 'socio'
+  );
+  if (!permitido) {
+    throw new Error('FORBIDDEN_ACTION: precificadorShow:acessar');
+  }
+  return json(precificadorShowProxy(params, emailAutenticado));
+}
+
     // ======================================================
     // FALLBACK
     // ======================================================
@@ -545,6 +884,11 @@ if (action === 'gerarOrcamentoInterno') {
 
   // Para orçamento integrado, também devolve erro técnico para diagnóstico rápido.
   if (action === 'gerarOrcamentoInterno') {
+    mensagem = msg || mensagem;
+  }
+
+  // Para folha de custos integrada, também devolve erro técnico para diagnóstico rápido.
+  if (action === 'folhaCustosProxy') {
     mensagem = msg || mensagem;
   }
 
@@ -826,7 +1170,8 @@ function verificarUsuario(params) {
       user: {
         email: userSessao.EMAIL,
         nome: userSessao.NOME,
-        perfil: userSessao.PERFIL
+        perfil: userSessao.PERFIL,
+        paginaInicial: normalizarPaginaInicialUsuario_(userSessao.PAGINA_INICIAL)
       }
     });
   }
@@ -846,7 +1191,8 @@ function verificarUsuario(params) {
     user: {
       email: user.EMAIL,
       nome: user.NOME,
-      perfil: user.PERFIL
+      perfil: user.PERFIL,
+      paginaInicial: normalizarPaginaInicialUsuario_(user.PAGINA_INICIAL)
     }
   });
 }
@@ -1039,6 +1385,7 @@ function requireUserByEmail(email) {
 const SOCIO_RULES = [
   'eventos:criar',
   'eventos:editar',
+  'eventos:cancelar',
   'eventos:listar',
   'eventos:visualizarFinanceiro',
   'eventos:registrarSaidaBV',
@@ -1051,7 +1398,9 @@ const ACL = {
   'Sócio': SOCIO_RULES,
   'Administrador': SOCIO_RULES,
   'Admin': SOCIO_RULES,
-  'Músico': ['eventos:listar']
+  'Músico': ['eventos:listar'],
+  'Produção': ['eventos:listar'],
+  'Producao': ['eventos:listar']
 };
 
 function requirePermission(user, action) {
@@ -1116,6 +1465,7 @@ function buscarUsuarioPorEmail(email) {
   const iNome   = headers.indexOf('NOME');
   const iPerfil = headers.indexOf('PERFIL');
   const iStatus = headers.indexOf('STATUS');
+  const iPaginaInicial = headers.indexOf('PAGINA_INICIAL');
 
   if (iEmail === -1 || iPerfil === -1 || iStatus === -1) {
     throw new Error('COLUNAS_USUARIOS_INVALIDAS');
@@ -1130,12 +1480,69 @@ function buscarUsuarioPorEmail(email) {
         EMAIL: data[i][iEmail],
         NOME: data[i][iNome],
         PERFIL: data[i][iPerfil],
-        STATUS: data[i][iStatus]
+        STATUS: data[i][iStatus],
+        PAGINA_INICIAL: iPaginaInicial >= 0 ? data[i][iPaginaInicial] : ''
       };
     }
   }
 
   return null;
+}
+
+function normalizarPaginaInicialUsuario_(valor) {
+  const s = String(valor || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .toLowerCase();
+
+  if (s === 'agenda' || s === 'agendas' || s === 'direto_agenda' || s === 'direto_para_agenda') {
+    return 'agenda';
+  }
+
+  return 'menu';
+}
+
+function atualizarPreferenciaPaginaInicial_(email, paginaInicial) {
+  requireUserByEmail(email);
+
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName('USUARIOS');
+  if (!sheet) throw new Error('ABA_USUARIOS_NAO_ENCONTRADA');
+
+  const data = sheet.getDataRange().getValues();
+  if (data.length < 2) throw new Error('USER_NOT_FOUND');
+
+  let headers = data[0].map(h =>
+    String(h)
+      .toUpperCase()
+      .replace(/\s+/g, '_')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+  );
+
+  const iEmail = headers.indexOf('EMAIL');
+  if (iEmail === -1) throw new Error('COLUNAS_USUARIOS_INVALIDAS');
+
+  let iPaginaInicial = headers.indexOf('PAGINA_INICIAL');
+  if (iPaginaInicial === -1) {
+    iPaginaInicial = headers.length;
+    sheet.getRange(1, iPaginaInicial + 1).setValue('PAGINA_INICIAL');
+    headers = headers.concat(['PAGINA_INICIAL']);
+  }
+
+  const emailBusca = String(email || '').toLowerCase().trim();
+  const preferencia = normalizarPaginaInicialUsuario_(paginaInicial);
+
+  for (let i = 1; i < data.length; i++) {
+    const emailLinha = String(data[i][iEmail]).toLowerCase().trim();
+    if (emailLinha === emailBusca) {
+      sheet.getRange(i + 1, iPaginaInicial + 1).setValue(preferencia);
+      return { ok: true, paginaInicial: preferencia };
+    }
+  }
+
+  throw new Error('USER_NOT_FOUND');
 }
 
 /**
@@ -1147,4 +1554,302 @@ function json(payload) {
   return ContentService
     .createTextOutput(JSON.stringify(payload))
     .setMimeType(ContentService.MimeType.JSON);
+}
+
+function exigirPerfilProprietario_() {
+  const usuario = getUsuarioAtual();
+  const perfil = normalizarPerfilAcl_(usuario && usuario.PERFIL);
+  if (perfil !== 'proprietario') {
+    throw new Error('FORBIDDEN_ACTION: owner-only');
+  }
+  return usuario;
+}
+
+function normalizarPerfilAcl_(perfil) {
+  return String(perfil || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .toLowerCase();
+}
+
+function listarAclReadOnly_() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sh = ss.getSheetByName('USUARIOS');
+  if (!sh) throw new Error('ABA_USUARIOS_NAO_ENCONTRADA');
+
+  const data = sh.getDataRange().getValues();
+  if (!data || data.length < 1) return { ok: true, usuarios: [], perfisAcl: ACL, acoesCatalogo: [] };
+
+  const headers = data[0].map(function (h) {
+    return String(h || '')
+      .toUpperCase()
+      .replace(/\s+/g, '_')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '');
+  });
+
+  const iEmail = headers.indexOf('EMAIL');
+  const iNome = headers.indexOf('NOME');
+  const iPerfil = headers.indexOf('PERFIL');
+  const iStatus = headers.indexOf('STATUS');
+  if (iEmail < 0 || iPerfil < 0 || iStatus < 0) {
+    throw new Error('COLUNAS_USUARIOS_INVALIDAS');
+  }
+
+  const usuarios = [];
+  for (var i = 1; i < data.length; i++) {
+    const row = data[i];
+    const perfilRaw = String(row[iPerfil] || '').trim();
+    const regras = ACL[perfilRaw] || [];
+    usuarios.push({
+      email: String(row[iEmail] || '').trim(),
+      nome: String(row[iNome] || '').trim(),
+      perfil: perfilRaw,
+      status: String(row[iStatus] || '').trim(),
+      regras: regras.slice(),
+      acessoTotal: regras.indexOf('*') >= 0
+    });
+  }
+
+  const catalogSet = {};
+  Object.keys(ACL).forEach(function (perfil) {
+    const regras = ACL[perfil] || [];
+    regras.forEach(function (regra) {
+      const acao = String(regra || '').trim();
+      if (!acao || acao === '*') return;
+      catalogSet[acao] = true;
+    });
+  });
+
+  return {
+    ok: true,
+    usuarios: usuarios,
+    perfisAcl: ACL,
+    acoesCatalogo: Object.keys(catalogSet).sort()
+  };
+}
+
+function listarConfigCatalogReadOnly_() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sh = ss.getSheetByName('CONFIG');
+  if (!sh) throw new Error('CONFIG_SHEET_NOT_FOUND');
+
+  const data = sh.getDataRange().getValues();
+  if (!data || data.length < 2) {
+    return { ok: true, itens: [], resumo: { total: 0, categorias: {} } };
+  }
+
+  const headers = data[0].map(function (h) {
+    return String(h || '')
+      .toUpperCase()
+      .replace(/\s+/g, '_')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '');
+  });
+
+  const iChave = headers.indexOf('CHAVE');
+  const iValor = headers.indexOf('VALOR');
+  const iDesc = headers.indexOf('DESCRICAO');
+  if (iChave < 0 || iValor < 0) {
+    throw new Error('COLUNAS_CONFIG_INVALIDAS');
+  }
+
+  const itens = [];
+  const categorias = {};
+  for (var i = 1; i < data.length; i++) {
+    const row = data[i];
+    const chave = String(row[iChave] || '').trim();
+    if (!chave) continue;
+
+    const valor = row[iValor];
+    const categoria = categorizarChaveConfig_(chave);
+    categorias[categoria] = (categorias[categoria] || 0) + 1;
+
+    itens.push({
+      chave: chave,
+      valor: valor,
+      tipoValor: inferirTipoValorConfig_(valor),
+      descricao: iDesc >= 0 ? String(row[iDesc] || '').trim() : '',
+      categoria: categoria
+    });
+  }
+
+  itens.sort(function (a, b) {
+    if (a.categoria !== b.categoria) return a.categoria.localeCompare(b.categoria, 'pt-BR');
+    return a.chave.localeCompare(b.chave, 'pt-BR');
+  });
+
+  return {
+    ok: true,
+    itens: itens,
+    resumo: {
+      total: itens.length,
+      categorias: categorias
+    }
+  };
+}
+
+function categorizarChaveConfig_(chave) {
+  const c = String(chave || '').trim().toUpperCase();
+  if (!c) return 'GERAL';
+  if (c.indexOf('AUTH_') === 0) return 'AUTENTICACAO';
+  if (c.indexOf('AGENDA_') === 0) return 'AGENDA';
+  if (c.indexOf('ASAAS_') === 0 || c.indexOf('PIX_') === 0 || c.indexOf('WOOVI_') === 0) return 'PAGAMENTOS';
+  if (c.indexOf('ORCAMENTO_') === 0) return 'ORCAMENTO';
+  if (c.indexOf('FOLHA_') === 0) return 'FOLHA_CUSTOS';
+  if (c.indexOf('COMISSAO_') === 0 || c.indexOf('NF_') === 0 || c.indexOf('FINANCEIRO_') === 0) return 'FINANCEIRO';
+  if (c.indexOf('PREFIXO_') === 0) return 'IDENTIFICADORES';
+  return 'GERAL';
+}
+
+function inferirTipoValorConfig_(valor) {
+  if (valor === null || typeof valor === 'undefined' || String(valor).trim() === '') return 'vazio';
+  if (typeof valor === 'boolean') return 'booleano';
+  if (Object.prototype.toString.call(valor) === '[object Date]') return 'data';
+  if (typeof valor === 'number') return 'numero';
+  const raw = String(valor).trim();
+  const lower = raw.toLowerCase();
+  if (lower === 'true' || lower === 'false') return 'booleano_texto';
+  if (!isNaN(Number(raw))) return 'numero_texto';
+  return 'texto';
+}
+
+function listarAtividadeSistemaReadOnly_(params) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sh = ss.getSheetByName('LOGS');
+  if (!sh) throw new Error('LOGS_SHEET_NOT_FOUND');
+
+  const maxRows = Math.min(Math.max(Number(params && params.maxRows) || 300, 50), 2000);
+  const dias = Math.min(Math.max(Number(params && params.dias) || 30, 1), 365);
+  const busca = String((params && params.busca) || '').trim().toLowerCase();
+  const tipo = String((params && params.tipo) || 'TODOS').trim().toUpperCase();
+
+  const data = sh.getDataRange().getValues();
+  if (!data || data.length < 2) {
+    return {
+      ok: true,
+      logs: [],
+      resumo: { total: 0, porTipo: {}, porTabela: {}, porAcao: {} },
+      cobertura: montarCoberturaAtividade_(0, {})
+    };
+  }
+
+  const headers = data[0].map(function (h) {
+    return String(h || '')
+      .toUpperCase()
+      .replace(/\s+/g, '_')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '');
+  });
+
+  const iId = headers.indexOf('ID_LOG');
+  const iData = headers.indexOf('DATA_HORA');
+  const iUsuario = headers.indexOf('USUARIO');
+  const iAcao = headers.indexOf('ACAO');
+  const iTabela = headers.indexOf('TABELA');
+  const iRegistro = headers.indexOf('ID_REGISTRO');
+  const iDetalhes = headers.indexOf('DETALHES');
+
+  if (iData < 0 || iAcao < 0) throw new Error('COLUNAS_LOGS_INVALIDAS');
+
+  const limiteData = new Date(Date.now() - (dias * 24 * 60 * 60 * 1000));
+  const logs = [];
+  const resumo = {
+    total: 0,
+    porTipo: {},
+    porTabela: {},
+    porAcao: {}
+  };
+
+  for (var i = data.length - 1; i >= 1; i--) {
+    const row = data[i];
+    const dtRaw = row[iData];
+    const dataHora = dtRaw instanceof Date ? dtRaw : new Date(dtRaw);
+    if (!(dataHora instanceof Date) || isNaN(dataHora.getTime()) || dataHora < limiteData) continue;
+
+    const acao = String(row[iAcao] || '').trim();
+    const tabela = iTabela >= 0 ? String(row[iTabela] || '').trim() : '';
+    const usuario = iUsuario >= 0 ? String(row[iUsuario] || '').trim() : '';
+    const detalhes = iDetalhes >= 0 ? String(row[iDetalhes] || '').trim() : '';
+    const idRegistro = iRegistro >= 0 ? String(row[iRegistro] || '').trim() : '';
+    const idLog = iId >= 0 ? String(row[iId] || '').trim() : '';
+
+    const tipoLog = inferirTipoLogAtividade_(acao, tabela, detalhes);
+    if (tipo !== 'TODOS' && tipoLog !== tipo) continue;
+
+    if (busca) {
+      const blob = [idLog, usuario, acao, tabela, idRegistro, detalhes, tipoLog]
+        .join(' ')
+        .toLowerCase();
+      if (blob.indexOf(busca) < 0) continue;
+    }
+
+    logs.push({
+      idLog: idLog,
+      dataHora: dataHora,
+      usuario: usuario,
+      acao: acao,
+      tabela: tabela,
+      idRegistro: idRegistro,
+      detalhes: detalhes,
+      tipo: tipoLog
+    });
+
+    resumo.total++;
+    resumo.porTipo[tipoLog] = (resumo.porTipo[tipoLog] || 0) + 1;
+    const tabelaKey = tabela || 'SEM_TABELA';
+    resumo.porTabela[tabelaKey] = (resumo.porTabela[tabelaKey] || 0) + 1;
+    const acaoKey = acao || 'SEM_ACAO';
+    resumo.porAcao[acaoKey] = (resumo.porAcao[acaoKey] || 0) + 1;
+
+    if (logs.length >= maxRows) break;
+  }
+
+  return {
+    ok: true,
+    logs: logs,
+    resumo: resumo,
+    cobertura: montarCoberturaAtividade_(logs.length, resumo.porTipo)
+  };
+}
+
+function inferirTipoLogAtividade_(acao, tabela, detalhes) {
+  const txt = (String(acao || '') + ' ' + String(tabela || '') + ' ' + String(detalhes || '')).toUpperCase();
+  if (/ERRO|FALHA|EXCEPTION|INVALID|NEGADO|FORBIDDEN/.test(txt)) return 'ERRO';
+  if (/CRIAR|CADASTRAR|NOVO|ATUALIZAR|EDITAR|INATIVAR|REATIVAR|REGULARIZAR/.test(txt)) return 'CADASTRO';
+  if (/FINANCEIRO|RECEBIMENTO|SAIDA|COMISSAO|NF|BV|PIX|ASAAS|WOOVI|ESTORNO|FECHAMENTO/.test(txt)) return 'FINANCEIRO';
+  if (/AGENDA|EVENTO|RESERVA|REUNIAO|BLOQUEIO/.test(txt)) return 'AGENDA';
+  if (/CONFIG|ACL|AUTH|LOGIN|USUARIO|SESSAO/.test(txt)) return 'SISTEMA';
+  return 'OUTROS';
+}
+
+function montarCoberturaAtividade_(total, porTipo) {
+  const tiposEsperados = ['CADASTRO', 'ERRO', 'FINANCEIRO', 'AGENDA', 'SISTEMA'];
+  const faltantes = [];
+  for (var i = 0; i < tiposEsperados.length; i++) {
+    const t = tiposEsperados[i];
+    if (!(porTipo && porTipo[t] > 0)) faltantes.push(t);
+  }
+
+  const nivel = total === 0
+    ? 'BAIXA'
+    : (faltantes.length >= 3 ? 'MEDIA' : 'ALTA');
+
+  const observacoes = [];
+  if (total === 0) {
+    observacoes.push('Nenhum log encontrado no período consultado.');
+  }
+  if (faltantes.length) {
+    observacoes.push('Sem ocorrências no período para: ' + faltantes.join(', ') + '.');
+  } else {
+    observacoes.push('Cobertura equilibrada entre operações de cadastro, financeiro, agenda e sistema.');
+  }
+  observacoes.push('Logs de erro da API são persistidos automaticamente na aba LOGS.');
+
+  return {
+    nivel: nivel,
+    faltantes: faltantes,
+    observacoes: observacoes
+  };
 }

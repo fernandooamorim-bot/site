@@ -40,6 +40,7 @@ function gerarOrcamentoInterno(params, email) {
       valorPocket: converterNumeroOrcamento_(params.valorPocket),
       valorGold: converterNumeroOrcamento_(params.valorGold),
       valorPremium: converterNumeroOrcamento_(params.valorPremium),
+      valorDebut: converterNumeroOrcamento_(params.valorDebut),
       observacoes: String(params.observacoes || '').trim()
     }
   };

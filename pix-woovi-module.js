@@ -24,12 +24,6 @@ function processarWebhookWoovi(e) {
 
     const secret = obterConfigSeguro('WOOVI_WEBHOOK_SECRET_TEST');
 
-    // DEBUG: registrar headers recebidos para identificar qual assinatura está chegando
-    registrarLogWebhook('DEBUG_HEADERS', {
-      headers: e.headers,
-      signatureHeaderCapturado: signatureHeader
-    });
-
     if (!validarAssinaturaWooviHMAC(rawBody, signatureHeader, secret)) {
       registrarLogWebhook('INVALID_SIGNATURE', payload);
       return respostaWebhook({ error: 'INVALID_SIGNATURE' }, 401);
@@ -91,20 +85,42 @@ function registrarRecebimentoAutomatico({ idEvento, valor, referencia, rawPayloa
   lock.waitLock(30000);
 
   try {
-    apiRegistrarRecebimento({
-      idEvento: idEvento,
-      valor: valor,
-      referencia: referencia,
-      origem: 'PIX_WOOVI_AUTOMATICO'
+    executarComoSistemaWebhookWoovi_(function () {
+      apiRegistrarRecebimento({
+        idEvento: idEvento,
+        valor: valor,
+        referencia: referencia,
+        origem: 'PIX_WOOVI_AUTOMATICO'
+      });
     });
-
-    atualizarStatusPagamentoEvento(idEvento);
+    executarComoSistemaWebhookWoovi_(function () {
+      atualizarStatusPagamentoEvento(idEvento);
+    });
 
     atualizarCobrancaPix(idEvento, referencia, valor, rawPayload);
 
   } finally {
     lock.releaseLock();
   }
+}
+
+function executarComoSistemaWebhookWoovi_(fn) {
+  const prev = globalThis.REQUEST_EMAIL || '';
+  try {
+    globalThis.REQUEST_EMAIL = resolverEmailSistemaWebhookWoovi_();
+    return fn();
+  } finally {
+    if (prev) globalThis.REQUEST_EMAIL = prev;
+    else {
+      try { delete globalThis.REQUEST_EMAIL; } catch (_) { globalThis.REQUEST_EMAIL = ''; }
+    }
+  }
+}
+
+function resolverEmailSistemaWebhookWoovi_() {
+  const fromConfig = String(obterConfigSeguro('EMAIL_NOTIFICACOES') || '').trim().toLowerCase();
+  if (fromConfig) return fromConfig;
+  return 'fernando.c.amorim@gmail.com';
 }
 
 function atualizarStatusPagamentoEvento(idEvento) {
@@ -195,9 +211,23 @@ function registrarLogWebhook(status, payload) {
     '',
     status,
     new Date(),
-    JSON.stringify(payload),
+    JSON.stringify(resumirPayloadWebhookWoovi_(payload)),
     ''
   ]);
+}
+
+function resumirPayloadWebhookWoovi_(payload) {
+  const p = payload && typeof payload === 'object' ? payload : {};
+  const pix = p.pix && typeof p.pix === 'object' ? p.pix : {};
+  const charge = p.charge && typeof p.charge === 'object' ? p.charge : {};
+  return {
+    event: String(p.event || ''),
+    transactionId: String(pix.transactionID || charge.transactionID || charge.identifier || ''),
+    correlationId: String(charge.correlationID || (pix.charge && pix.charge.correlationID) || charge.comment || ''),
+    value: Number(pix.value || charge.value || 0),
+    chargeStatus: String(charge.status || ''),
+    error: String(p.erro || p.error || '').slice(0, 300)
+  };
 }
 
 function respostaWebhook(obj, statusCode) {
@@ -207,13 +237,24 @@ function respostaWebhook(obj, statusCode) {
 }
 
 function obterConfigSeguro(chave) {
+  const nome = String(chave || '').trim();
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheet = ss.getSheetByName('CONFIG');
   const data = sheet.getDataRange().getValues();
 
   for (let i = 1; i < data.length; i++) {
-    if (data[i][0] === chave) return data[i][1];
+    if (String(data[i][0] || '').trim() === nome) return data[i][1];
   }
+
+  // Contingência opcional: somente se a chave não existir na CONFIG.
+  // A planilha continua sendo a fonte principal de configuração do sistema.
+  try {
+    const props = PropertiesService.getScriptProperties();
+    const valorContingencia = props.getProperty(nome);
+    if (valorContingencia !== null && String(valorContingencia).trim() !== '') {
+      return valorContingencia;
+    }
+  } catch (_) {}
 
   return '';
 }

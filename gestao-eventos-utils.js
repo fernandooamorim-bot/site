@@ -316,6 +316,8 @@ function buscarEvento(id) {
   
   for (let i = 1; i < data.length; i++) {
     if (data[i][COL.ID_EVENTO] === id) {
+      const valorRecebido = Number(data[i][COL.VALOR_RECEBIDO]) || 0;
+      const valorPendente = Number(data[i][COL.VALOR_PENDENTE]) || 0;
       return {
         id: data[i][COL.ID_EVENTO],
         tipo: data[i][COL.TIPO_REGISTRO],
@@ -325,9 +327,13 @@ function buscarEvento(id) {
         nomeContratante: data[i][COL.NOME_CONTRATANTE],
         idContratante: data[i][COL.ID_CONTRATANTE],
         valorTotal: data[i][COL.VALOR_TOTAL],        // Col 15 (antes 14)
-        valorRecebido: data[i][COL.VALOR_RECEBIDO],  // Col 16 (antes 15)
-        valorPendente: data[i][COL.VALOR_PENDENTE],  // Col 17 (antes 16)
-        statusRecebimento: data[i][COL.STATUS_RECEBIMENTO], // Col 18 (antes 17)
+        valorRecebido: valorRecebido,  // Col 16 (antes 15)
+        valorPendente: valorPendente,  // Col 17 (antes 16)
+        statusRecebimento: normalizarStatusRecebimentoEvento_(
+          data[i][COL.STATUS_RECEBIMENTO],
+          valorRecebido,
+          valorPendente
+        ), // Col 18 (antes 17)
         idVendedor: data[i][COL.ID_VENDEDOR],        // Col 19 (antes 18)
         nomeVendedor: data[i][COL.NOME_VENDEDOR],    // Col 20 (antes 19)
         comissaoTipo: data[i][COL.COMISSAO_TIPO],    // Col 21 (antes 20)
@@ -349,6 +355,21 @@ function buscarEvento(id) {
   return null;
 }
 
+function normalizarStatusRecebimentoEvento_(statusRaw, valorRecebido, valorPendente) {
+  const status = String(statusRaw || '').trim().toUpperCase();
+  if (status === 'N/A') return 'N/A';
+  if (status === 'QUITADO') return 'QUITADO';
+  if (status === 'PARCIAL') return 'PARCIAL';
+  if (status === 'EM_ABERTO' || status === 'ABERTO') return 'EM_ABERTO';
+  if (status === 'PENDENTE') {
+    if ((Number(valorRecebido) || 0) > 0 && (Number(valorPendente) || 0) > 0) return 'PARCIAL';
+    return 'EM_ABERTO';
+  }
+  if ((Number(valorPendente) || 0) <= 0) return 'QUITADO';
+  if ((Number(valorRecebido) || 0) > 0) return 'PARCIAL';
+  return 'EM_ABERTO';
+}
+
 // ========================================
 // LISTAS PARA DROPDOWNS
 // ========================================
@@ -356,16 +377,24 @@ function buscarEvento(id) {
 /**
  * Retorna lista de contratantes para dropdown
  */
-function listarContratantes() {
+function incluirRegistroInativo_(statusRaw, incluirInativos) {
+  if (incluirInativos) return true;
+  return String(statusRaw || '').trim().toUpperCase() !== 'INATIVO';
+}
+
+function listarContratantes(dados) {
+  const incluirInativos = String((dados && dados.incluirInativos) || '').trim().toUpperCase() === 'TRUE';
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheet = ss.getSheetByName('CONTRATANTES');
   const data = sheet.getDataRange().getValues();
   
   const lista = [];
   for (let i = 1; i < data.length; i++) {
+    if (!incluirRegistroInativo_(data[i][6], incluirInativos)) continue;
     lista.push({
       id: data[i][0],
-      nome: data[i][1]
+      nome: data[i][1],
+      status: String(data[i][6] || '').trim().toUpperCase() === 'INATIVO' ? 'INATIVO' : 'ATIVO'
     });
   }
   
@@ -396,16 +425,19 @@ function listarVendedores() {
 /**
  * Retorna lista de cerimonialistas
  */
-function listarCerimonialistas() {
+function listarCerimonialistas(dados) {
+  const incluirInativos = String((dados && dados.incluirInativos) || '').trim().toUpperCase() === 'TRUE';
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheet = ss.getSheetByName('CERIMONIALISTAS');
   const data = sheet.getDataRange().getValues();
   
   const lista = [];
   for (let i = 1; i < data.length; i++) {
+    if (!incluirRegistroInativo_(data[i][5], incluirInativos)) continue;
     lista.push({
       id: data[i][0],
-      nome: data[i][1]
+      nome: data[i][1],
+      status: String(data[i][5] || '').trim().toUpperCase() === 'INATIVO' ? 'INATIVO' : 'ATIVO'
     });
   }
   
@@ -415,24 +447,82 @@ function listarCerimonialistas() {
 /**
  * Retorna lista de endereços
  */
-function listarEnderecos() {
+function listarEnderecos(dados) {
+  const incluirInativos = String((dados && dados.incluirInativos) || '').trim().toUpperCase() === 'TRUE';
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheet = ss.getSheetByName('ENDERECOS');
   const data = sheet.getDataRange().getValues();
   
   const lista = [];
   for (let i = 1; i < data.length; i++) {
+    if (!incluirRegistroInativo_(data[i][8], incluirInativos)) continue;
     lista.push({
       id: data[i][0],
       nome: data[i][1],
-      endereco: data[i][2]
+      endereco: data[i][2],
+      status: String(data[i][8] || '').trim().toUpperCase() === 'INATIVO' ? 'INATIVO' : 'ATIVO'
     });
   }
   
   return lista;
 }
 
-function listarParceirosBV() {
+function normalizarBuscaCadastro_(valor) {
+  return String(valor || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .toLowerCase();
+}
+
+function buscarContratantesVinculo(dados) {
+  const termo = normalizarBuscaCadastro_((dados && dados.q) || '');
+  const limite = Math.max(1, Math.min(50, Number((dados && dados.limit) || 20) || 20));
+  if (termo.length < 2) return [];
+
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName('CONTRATANTES');
+  if (!sheet) return [];
+  const data = sheet.getDataRange().getValues();
+  const lista = [];
+
+  for (let i = 1; i < data.length; i++) {
+    if (!incluirRegistroInativo_(data[i][6], false)) continue;
+    const nome = String(data[i][1] || '');
+    if (!nome) continue;
+    if (!normalizarBuscaCadastro_(nome).includes(termo)) continue;
+    lista.push({ id: data[i][0], nome: nome });
+  }
+
+  lista.sort((a, b) => String(a.nome || '').localeCompare(String(b.nome || ''), 'pt-BR'));
+  return lista.slice(0, limite);
+}
+
+function buscarEnderecosVinculo(dados) {
+  const termo = normalizarBuscaCadastro_((dados && dados.q) || '');
+  const limite = Math.max(1, Math.min(50, Number((dados && dados.limit) || 20) || 20));
+  if (termo.length < 2) return [];
+
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName('ENDERECOS');
+  if (!sheet) return [];
+  const data = sheet.getDataRange().getValues();
+  const lista = [];
+
+  for (let i = 1; i < data.length; i++) {
+    if (!incluirRegistroInativo_(data[i][8], false)) continue;
+    const nome = String(data[i][1] || '');
+    if (!nome) continue;
+    if (!normalizarBuscaCadastro_(nome).includes(termo)) continue;
+    lista.push({ id: data[i][0], nome: nome });
+  }
+
+  lista.sort((a, b) => String(a.nome || '').localeCompare(String(b.nome || ''), 'pt-BR'));
+  return lista.slice(0, limite);
+}
+
+function listarParceirosBV(dados) {
+  const incluirInativos = String((dados && dados.incluirInativos) || '').trim().toUpperCase() === 'TRUE';
   Logger.log('📋 listarParceirosBV');
   try {
     const sheet = SpreadsheetApp.getActive().getSheetByName('PARCEIROS_BV');
@@ -444,8 +534,13 @@ function listarParceirosBV() {
     for (let i = 1; i < dados.length; i++) {
       const id = dados[i][0];
       const nome = dados[i][1];
+      if (!incluirRegistroInativo_(dados[i][5], incluirInativos)) continue;
       if (id && nome) {
-        lista.push({ id: String(id), nome: String(nome) });
+        lista.push({
+          id: String(id),
+          nome: String(nome),
+          status: String(dados[i][5] || '').trim().toUpperCase() === 'INATIVO' ? 'INATIVO' : 'ATIVO'
+        });
       }
     }
 
@@ -556,4 +651,103 @@ function normalizarData(valor) {
   }
 
   return null;
+}
+
+/**
+ * Normaliza entrada numérica (pt-BR e en-US) para Number canônico.
+ * Exemplos aceitos:
+ * - 15000
+ * - 15000,50
+ * - 15.000,00
+ * - 15.000
+ * - 15,000.50
+ */
+function normalizarNumeroEntrada_(raw, opts) {
+  const cfg = opts || {};
+  const allowZero = cfg.allowZero !== false;
+  const allowNegative = cfg.allowNegative === true;
+  const decimals = Number.isInteger(cfg.decimals) ? cfg.decimals : null;
+
+  if (raw === null || typeof raw === 'undefined') return null;
+  if (typeof raw === 'number') {
+    if (!isFinite(raw)) return null;
+    let nNum = raw;
+    if (!allowNegative && nNum < 0) return null;
+    if (!allowZero && nNum <= 0) return null;
+    if (decimals !== null) nNum = Number(nNum.toFixed(decimals));
+    return nNum;
+  }
+
+  let s = String(raw).trim();
+  if (!s) return null;
+  if (/[A-Za-z\u00C0-\u024F]/.test(s)) return null;
+
+  s = s
+    .replace(/\s+/g, '')
+    .replace(/R\$/gi, '')
+    .replace(/[^\d,.\-]/g, '');
+
+  if (!s || s === '-' || s === ',' || s === '.') return null;
+  if ((s.match(/-/g) || []).length > 1) return null;
+  if (s.includes('-') && s.indexOf('-') !== 0) return null;
+
+  const comma = s.indexOf(',') !== -1;
+  const dot = s.indexOf('.') !== -1;
+
+  if (comma && dot) {
+    const lastComma = s.lastIndexOf(',');
+    const lastDot = s.lastIndexOf('.');
+    if (lastComma > lastDot) {
+      s = s.replace(/\./g, '').replace(',', '.');
+    } else {
+      s = s.replace(/,/g, '');
+    }
+  } else if (comma) {
+    const partsComma = s.split(',');
+    if (partsComma.length > 2) {
+      const decimalPart = partsComma[partsComma.length - 1];
+      if (decimalPart.length > 0 && decimalPart.length <= 2) {
+        s = partsComma.slice(0, -1).join('') + '.' + decimalPart;
+      } else {
+        s = partsComma.join('');
+      }
+    } else {
+      const decimalPart = partsComma[1] || '';
+      if (decimalPart.length > 0 && decimalPart.length <= 2) {
+        s = partsComma[0] + '.' + decimalPart;
+      } else {
+        s = partsComma[0] + decimalPart;
+      }
+    }
+  } else if (dot) {
+    const partsDot = s.split('.');
+    if (partsDot.length > 2) {
+      const decimalPart = partsDot[partsDot.length - 1];
+      if (decimalPart.length > 0 && decimalPart.length <= 2) {
+        s = partsDot.slice(0, -1).join('') + '.' + decimalPart;
+      } else {
+        s = partsDot.join('');
+      }
+    } else {
+      const decimalPart = partsDot[1] || '';
+      if (!(decimalPart.length > 0 && decimalPart.length <= 2)) {
+        s = partsDot[0] + decimalPart;
+      }
+    }
+  }
+
+  const n = Number(s);
+  if (!isFinite(n)) return null;
+  if (!allowNegative && n < 0) return null;
+  if (!allowZero && n <= 0) return null;
+
+  return decimals !== null ? Number(n.toFixed(decimals)) : n;
+}
+
+function normalizarValorMonetario_(raw, opts) {
+  return normalizarNumeroEntrada_(raw, {
+    decimals: 2,
+    allowNegative: false,
+    allowZero: !(opts && opts.allowZero === false)
+  });
 }
