@@ -2436,7 +2436,7 @@ ${podeAprovarFolha ? `
 `;
 
   if (podeAprovarFolha) {
-    carregarPendenciasFolhaCustosAprovacao_({ forceRefresh: true }).catch(() => {});
+    carregarPendenciasFolhaCustosAprovacao_({ forceRefresh: false }).catch(() => {});
   }
 }
 

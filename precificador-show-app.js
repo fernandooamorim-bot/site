@@ -84,6 +84,14 @@ function setupEventListeners() {
   const btnLogout = document.getElementById('btn-logout');
   if (btnLogout) btnLogout.addEventListener('click', () => Auth.logout());
 
+  const btnEditarProducao = document.getElementById('btn-editar-producao');
+  if (btnEditarProducao) {
+    btnEditarProducao.addEventListener('click', function (event) {
+      event.preventDefault();
+      toggleEdicaoProducao();
+    });
+  }
+
   const bvTipo = document.getElementById('bv-tipo');
   if (bvTipo) {
     bvTipo.addEventListener('change', function () {
