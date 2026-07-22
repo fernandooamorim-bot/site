@@ -185,6 +185,10 @@ if (raw && raw.startsWith('{')) {
       exigirPerfilProprietario_();
       return json(enviarNotificacaoTeste_(emailAutenticado));
     }
+    if (action === 'executarResumoEventosHojeTeste') {
+      exigirPerfilProprietario_();
+      return json(executarResumoEventosHojeTeste_(emailAutenticado));
+    }
     if (action === 'obterCentralNotificacoes') {
       exigirPerfilProprietario_();
       return json(obterCentralNotificacoes_(emailAutenticado));
