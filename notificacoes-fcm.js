@@ -176,6 +176,74 @@ function atualizarConfigNotificacoes_(email, params) {
   return { ok: true, chave: chave, valor: valor };
 }
 
+/**
+ * Persiste toda a configuração da Central em uma única execução.
+ * Evita dezenas de viagens HTTP e aplica os interruptores de segurança
+ * (modo de teste, envio real e e-mail) somente após os gatilhos.
+ */
+function salvarConfiguracaoGlobalNotificacoes_(email, params) {
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(5000)) throw new Error('NOTIFICACAO_CONFIG_EM_USO');
+  try {
+    let recebida = {};
+    try {
+      recebida = JSON.parse(String(params.configuracao || '{}'));
+    } catch (_) {
+      throw new Error('NOTIFICACAO_CONFIG_JSON_INVALIDO');
+    }
+    const chavesRecebidas = Object.keys(recebida);
+    const desconhecidas = chavesRecebidas.filter(function (chave) {
+      return NOTIFICACOES_CONFIG_EDITAVEL_.indexOf(String(chave).trim().toUpperCase()) === -1;
+    });
+    if (desconhecidas.length) throw new Error('NOTIFICACAO_CONFIG_NAO_EDITAVEL');
+
+    const desejaFCM = boolNotificacao_(recebida.FCM_ATIVO, false);
+    const desejaModoTeste = boolNotificacao_(recebida.NOTIFICACOES_MODO_TESTE, true);
+    const desejaEmail = boolNotificacao_(recebida.NOTIFICACOES_EMAIL_ATIVO, false);
+    const fcmAtual = boolNotificacao_(obterConfig('FCM_ATIVO'), false);
+    if (desejaFCM && !fcmAtual && !boolNotificacao_(params.confirmarAtivacaoReal, false)) {
+      throw new Error('FCM_ATIVACAO_CONFIRMACAO_OBRIGATORIA');
+    }
+
+    // Primeiro persiste os campos sem capacidade de disparo.
+    chavesRecebidas.filter(function (chave) {
+      return ['FCM_ATIVO', 'NOTIFICACOES_MODO_TESTE', 'NOTIFICACOES_EMAIL_ATIVO'].indexOf(chave) === -1;
+    }).forEach(function (chave) {
+      atualizarConfigNotificacoes_(email, { chave: chave, valor: recebida[chave] });
+    });
+
+    // Instala/atualiza os gatilhos enquanto os canais permanecem no estado anterior.
+    const automacoes = atualizarAutomacoesNotificacoes_(email, {
+      resumo: params.resumo,
+      lembretes: params.lembretes,
+      pendencias: params.pendencias
+    });
+
+    // A ativação inicial passa internamente pelo modo de teste para respeitar
+    // a salvaguarda existente; o estado final solicitado é aplicado em seguida.
+    if (desejaFCM !== fcmAtual) {
+      if (desejaFCM && !boolNotificacao_(obterConfig('NOTIFICACOES_MODO_TESTE'), true)) {
+        atualizarConfigNotificacoes_(email, { chave: 'NOTIFICACOES_MODO_TESTE', valor: true });
+      }
+      atualizarConfigNotificacoes_(email, { chave: 'FCM_ATIVO', valor: desejaFCM });
+    }
+    atualizarConfigNotificacoes_(email, { chave: 'NOTIFICACOES_MODO_TESTE', valor: desejaModoTeste });
+    atualizarConfigNotificacoes_(email, { chave: 'NOTIFICACOES_EMAIL_ATIVO', valor: desejaEmail });
+
+    return {
+      ok: true,
+      configuracao: {
+        FCM_ATIVO: desejaFCM,
+        NOTIFICACOES_MODO_TESTE: desejaModoTeste,
+        NOTIFICACOES_EMAIL_ATIVO: desejaEmail
+      },
+      automacoes: automacoes
+    };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
 function listarTodosDispositivosNotificacao_() {
   const sheet = obterOuCriarAbaDispositivosNotificacao_();
   const dados = sheet.getDataRange().getValues();

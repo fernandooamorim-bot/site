@@ -213,6 +213,10 @@ if (raw && raw.startsWith('{')) {
       exigirPerfilProprietario_();
       return json(atualizarConfigNotificacoes_(emailAutenticado, params));
     }
+    if (action === 'salvarConfiguracaoGlobalNotificacoes') {
+      exigirPerfilProprietario_();
+      return json(salvarConfiguracaoGlobalNotificacoes_(emailAutenticado, params));
+    }
 
     // ======================================================
     // 7. LISTAGENS AUXILIARES
