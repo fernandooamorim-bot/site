@@ -193,6 +193,14 @@ if (raw && raw.startsWith('{')) {
       exigirPerfilProprietario_();
       return json(atualizarAutomacaoResumoNotificacoes_(emailAutenticado, params.ativa));
     }
+    if (action === 'atualizarAutomacoesNotificacoes') {
+      exigirPerfilProprietario_();
+      return json(atualizarAutomacoesNotificacoes_(emailAutenticado, params));
+    }
+    if (action === 'enviarComunicadoManual') {
+      exigirPerfilProprietario_();
+      return json(enviarComunicadoManual_(emailAutenticado, params));
+    }
     if (action === 'obterCentralNotificacoes') {
       exigirPerfilProprietario_();
       return json(obterCentralNotificacoes_(emailAutenticado));
@@ -311,7 +319,13 @@ if (raw && raw.startsWith('{')) {
     // ======================================================
     if (action === 'criarEvento') {
       exigirAcao('eventos:criar');
-      return json(criarEvento(params, emailAutenticado));
+      const resultadoCriacao = criarEvento(params, emailAutenticado);
+      if (resultadoCriacao && resultadoCriacao.sucesso && resultadoCriacao.idEvento) {
+        executarNotificacaoSemBloquear_('EVENTO_CRIADO', function () {
+          return notificarEventoCriado_(resultadoCriacao.idEvento);
+        });
+      }
+      return json(resultadoCriacao);
     }
 
     // ======================================================
@@ -361,12 +375,24 @@ function paramBool_(v) {
 
     if (action === 'salvarEdicaoEvento') {
       exigirAcao('eventos:editar');
-      return json(salvarEdicaoEvento(params.idEvento, params));
+      const resultadoEdicao = salvarEdicaoEvento(params.idEvento, params, emailAutenticado);
+      if (resultadoEdicao && resultadoEdicao.sucesso) {
+        executarNotificacaoSemBloquear_('EVENTO_ALTERADO_IMPORTANTE', function () {
+          return notificarEventoAlterado_(params.idEvento, params);
+        });
+      }
+      return json(resultadoEdicao);
     }
 
     if (action === 'cancelarEvento') {
       exigirAcao('eventos:cancelar');
-      return json(cancelarEvento(params.idEvento, params.motivo || ''));
+      const resultadoCancelamento = cancelarEvento(params.idEvento, params.motivo || '');
+      if (resultadoCancelamento && resultadoCancelamento.sucesso && !resultadoCancelamento.jaCancelado) {
+        executarNotificacaoSemBloquear_('EVENTO_CANCELADO', function () {
+          return notificarEventoCancelado_(params.idEvento);
+        });
+      }
+      return json(resultadoCancelamento);
     }
 
     // ======================================================
@@ -774,7 +800,19 @@ if (action === 'folhaCustosProxy') {
   if (!permitido) {
     throw new Error('FORBIDDEN_ACTION: folhaCustos:acessar');
   }
-  return json(folhaCustosProxy(params, emailAutenticado));
+  const resultadoFolhaProxy = folhaCustosProxy(params, emailAutenticado);
+  if (resultadoFolhaProxy && resultadoFolhaProxy.sucesso &&
+      String(params.externalAction || '') === 'salvarFolhaCusto') {
+    executarNotificacaoSemBloquear_('FOLHA_CUSTOS_ENVIADA', function () {
+      const payloadFolha = extrairPayloadFolhaCustos_(params);
+      const folhaEnviada = payloadFolha.data && typeof payloadFolha.data === 'object' ? payloadFolha.data : payloadFolha;
+      if (String(folhaEnviada.statusAprovacao || '').toUpperCase().indexOf('PENDENTE') !== -1) {
+        return notificarFolhaEnviada_(folhaEnviada);
+      }
+      return { ok: true, ignorado: true };
+    });
+  }
+  return json(resultadoFolhaProxy);
 }
 
 if (action === 'listarPendenciasFolhaCustoAprovacao') {
@@ -804,7 +842,13 @@ if (action === 'aprovarPendenciaFolhaCusto') {
     executarComIdempotenciaFinanceira_(
       { action: action, email: emailAutenticado, params: params },
       function () {
-        return aprovarPendenciaFolhaCusto(params, emailAutenticado);
+        const resultadoAprovacaoFolha = aprovarPendenciaFolhaCusto(params, emailAutenticado);
+        if (resultadoAprovacaoFolha && resultadoAprovacaoFolha.sucesso) {
+          executarNotificacaoSemBloquear_('FOLHA_CUSTOS_DECISAO', function () {
+            return notificarFolhaAprovada_(resultadoAprovacaoFolha);
+          });
+        }
+        return resultadoAprovacaoFolha;
       }
     )
   );

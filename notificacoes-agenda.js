@@ -28,7 +28,11 @@ function atualizarAutomacaoResumoNotificacoes_(email, ativa) {
   );
   removerGatilhosNotificacaoPorHandler_(NOTIFICACOES_HANDLER_AGENDADO_);
   if (habilitar) {
-    ScriptApp.newTrigger(NOTIFICACOES_HANDLER_AGENDADO_).timeBased().everyMinutes(15).create();
+    const hora = validarHoraNotificacao_(obterConfig('NOTIFICACOES_HORA_RESUMO_DIA')) || '09:00';
+    const partes = hora.split(':').map(Number);
+    ScriptApp.newTrigger(NOTIFICACOES_HANDLER_AGENDADO_).timeBased()
+      .atHour(partes[0]).nearMinute(partes[1]).everyDays(1)
+      .inTimezone(String(obterConfig('NOTIFICACOES_TIMEZONE') || 'America/Fortaleza')).create();
   }
   registrarLog('ATUALIZAR', 'CONFIG', 'NOTIFICACOES_RESUMO_AUTOMATICO_ATIVO',
     (habilitar ? 'Automação ativada' : 'Automação desativada') + ' por ' + String(email || ''));
@@ -43,6 +47,38 @@ function removerGatilhosNotificacaoPorHandler_(handler) {
   ScriptApp.getProjectTriggers().forEach(function (t) {
     if (t.getHandlerFunction() === handler) ScriptApp.deleteTrigger(t);
   });
+}
+
+function atualizarAutomacoesNotificacoes_(email, params) {
+  const resumo = boolNotificacao_(params.resumo, false);
+  const lembretes = boolNotificacao_(params.lembretes, false);
+  const pendencias = boolNotificacao_(params.pendencias, false);
+  atualizarAutomacaoResumoNotificacoes_(email, resumo);
+  definirConfigNotificacao_('NOTIFICACOES_LEMBRETES_HORARIO_ATIVO', lembretes ? 'TRUE' : 'FALSE',
+    'Ativa lembretes baseados no horário real do evento.');
+  definirConfigNotificacao_('NOTIFICACOES_PENDENCIAS_MATINAIS_ATIVO', pendencias ? 'TRUE' : 'FALSE',
+    'Ativa a verificação matinal de pendências financeiras e folhas.');
+  obterOuCriarFilaNotificacoes_();
+  removerGatilhosNotificacaoPorHandler_('processarLembretesEventoProximo');
+  removerGatilhosNotificacaoPorHandler_('processarPendenciasMatinaisNotificacoes');
+  removerGatilhosNotificacaoPorHandler_('processarFilaNotificacoes');
+  ScriptApp.newTrigger('processarFilaNotificacoes').timeBased().everyMinutes(5).create();
+  if (lembretes) {
+    ScriptApp.newTrigger('processarLembretesEventoProximo').timeBased().everyMinutes(15).create();
+  }
+  if (pendencias) {
+    ScriptApp.newTrigger('processarPendenciasMatinaisNotificacoes').timeBased()
+      .atHour(9).nearMinute(30).everyDays(1)
+      .inTimezone(String(obterConfig('NOTIFICACOES_TIMEZONE') || 'America/Fortaleza')).create();
+  }
+  return {
+    ok: true, resumo: resumo, lembretes: lembretes, pendencias: pendencias,
+    gatilhos: {
+      resumo: possuiGatilhoNotificacao_(NOTIFICACOES_HANDLER_AGENDADO_),
+      lembretes: possuiGatilhoNotificacao_('processarLembretesEventoProximo'),
+      pendencias: possuiGatilhoNotificacao_('processarPendenciasMatinaisNotificacoes')
+    }
+  };
 }
 
 function executarResumoEventosHojeTeste_(email) {
@@ -72,39 +108,19 @@ function processarResumoEventosHoje_(opcoes) {
     return { ok: true, ignorado: true, motivo: 'ENVIO_GLOBAL_DESLIGADO' };
   }
   const emailRestrito = String(opts.emailRestrito || (modoTeste ? obterConfig('NOTIFICACOES_DESTINATARIO_TESTE') : '') || '').trim().toLowerCase();
-  const dispositivos = listarTodosDispositivosNotificacao_Interno_().filter(function (d) {
-    if (!d.ativo || !d.eventosDia) return false;
-    if (emailRestrito && d.email !== emailRestrito) return false;
-    return regra.perfis.indexOf(d.perfil) !== -1;
-  });
-
-  let enviados = 0; let duplicados = 0; const resultados = [];
-  dispositivos.forEach(function (d) {
-    const dedupe = ['EVENTO_HOJE', hoje, d.email, hashIdentificadorNotificacao_(d.identificador)].join('|');
-    const dedupeLegado = ['EVENTO_HOJE', hoje, d.email, d.identificador].join('|');
-    if (historicoNotificacaoPossuiChave_(dedupe) || historicoNotificacaoPossuiChave_(dedupeLegado)) { duplicados++; return; }
-    const baseHistorico = {
-      codigoRegra: 'EVENTO_HOJE', email: d.email, perfil: d.perfil,
-      identificadorFinal: d.identificador.slice(-10), titulo: titulo,
-      mensagem: mensagem, dedupe: dedupe
-    };
-    try {
-      const resposta = enviarFcmHttpV1_(d.identificador, {
-        title: titulo, body: mensagem, url: './agenda.html', tipo: 'EVENTO_HOJE'
-      }, {
-        permitirComEnvioGlobalDesligado: modoTeste,
-        identificadorTipo: d.identificadorTipo
-      });
-      if (resposta.ignorado) throw new Error(resposta.motivo || 'FCM_IGNORADO');
-      registrarHistoricoNotificacao_(baseHistorico, 'ENVIADO', '', '');
-      enviados++;
-      resultados.push({ plataforma: d.plataforma, final: d.identificador.slice(-10), status: 'ENVIADO' });
-    } catch (erro) {
-      registrarHistoricoNotificacao_(baseHistorico, 'ERRO', 'FCM_SEND_ERROR', String(erro && erro.message || erro));
-      resultados.push({ plataforma: d.plataforma, final: d.identificador.slice(-10), status: 'ERRO' });
-    }
-  });
-  return { ok: true, dataComercial: hoje, eventos: eventos.length, enviados: enviados, duplicados: duplicados, resultados: resultados };
+  const resultado = despacharRegraNotificacao_('EVENTO_HOJE', {
+    referencia: hoje,
+    valores: { QTD_EVENTOS: eventos.length },
+    link: './agenda.html'
+  }, { emailRestrito: emailRestrito });
+  return {
+    ok: true, dataComercial: hoje, eventos: eventos.length,
+    enviados: Number(resultado.enviadosPush || 0) + Number(resultado.enviadosEmail || 0),
+    enviadosPush: resultado.enviadosPush || 0,
+    enviadosEmail: resultado.enviadosEmail || 0,
+    duplicados: resultado.duplicados || 0,
+    erros: resultado.erros || 0
+  };
 }
 
 function hashIdentificadorNotificacao_(identificador) {
@@ -157,7 +173,10 @@ function listarTodosDispositivosNotificacao_Interno_() {
       perfil: String(valorPorHeaderNotificacao_(r, idx, 'PERFIL') || '').trim(),
       plataforma: String(valorPorHeaderNotificacao_(r, idx, 'PLATAFORMA') || ''),
       ativo: boolNotificacao_(valorPorHeaderNotificacao_(r, idx, 'ATIVO'), false),
-      eventosDia: boolNotificacao_(valorPorHeaderNotificacao_(r, idx, 'EVENTOS_DIA'), true)
+      eventosDia: boolNotificacao_(valorPorHeaderNotificacao_(r, idx, 'EVENTOS_DIA'), true),
+      eventoCriadoEditado: boolNotificacao_(valorPorHeaderNotificacao_(r, idx, 'EVENTO_CRIADO_EDITADO'), true),
+      folhaCustos: boolNotificacao_(valorPorHeaderNotificacao_(r, idx, 'FOLHA_CUSTOS'), true),
+      ultimoAcesso: valorPorHeaderNotificacao_(r, idx, 'ULTIMO_ACESSO')
     };
   });
 }
@@ -180,8 +199,8 @@ function historicoNotificacaoPossuiChave_(chave) {
 function registrarHistoricoNotificacao_(base, status, codigoErro, detalheErro) {
   const agora = new Date();
   obterAbaHistoricoNotificacoes_().appendRow([
-    Utilities.getUuid(), base.codigoRegra, '', base.email, base.perfil,
-    base.identificadorFinal, 'PUSH', base.titulo, String(base.mensagem || '').slice(0, 240),
+    Utilities.getUuid(), base.codigoRegra, base.idEvento || '', base.email, base.perfil,
+    base.identificadorFinal, base.canal || 'PUSH', base.titulo, String(base.mensagem || '').slice(0, 240),
     status, 1, agora, status === 'ENVIADO' ? agora : '', codigoErro || '',
     String(detalheErro || '').slice(0, 500), base.dedupe, agora
   ]);

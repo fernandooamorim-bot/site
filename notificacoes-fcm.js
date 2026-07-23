@@ -45,6 +45,8 @@ function obterCentralNotificacoes_(email) {
       NOTIFICACOES_MAX_TENTATIVAS: Number(obterConfig('NOTIFICACOES_MAX_TENTATIVAS') || 3),
       NOTIFICACOES_EMAIL_ATIVO: boolNotificacao_(obterConfig('NOTIFICACOES_EMAIL_ATIVO'), false),
       NOTIFICACOES_RESUMO_AUTOMATICO_ATIVO: boolNotificacao_(obterConfig('NOTIFICACOES_RESUMO_AUTOMATICO_ATIVO'), false),
+      NOTIFICACOES_LEMBRETES_HORARIO_ATIVO: boolNotificacao_(obterConfig('NOTIFICACOES_LEMBRETES_HORARIO_ATIVO'), false),
+      NOTIFICACOES_PENDENCIAS_MATINAIS_ATIVO: boolNotificacao_(obterConfig('NOTIFICACOES_PENDENCIAS_MATINAIS_ATIVO'), false),
       AGENDA_HORA_VIRADA_MADRUGADA: Number(obterConfig('AGENDA_HORA_VIRADA_MADRUGADA') || 6)
     },
     diagnostico: {
@@ -56,11 +58,15 @@ function obterCentralNotificacoes_(email) {
       dispositivosAtivos: dispositivos.filter(function (d) { return d.ativo; }).length,
       totalDispositivos: dispositivos.length,
       gatilhoResumoInstalado: typeof possuiGatilhoNotificacao_ === 'function' && possuiGatilhoNotificacao_('processarNotificacoesAgendadas'),
+      gatilhoLembretesInstalado: typeof possuiGatilhoNotificacao_ === 'function' && possuiGatilhoNotificacao_('processarLembretesEventoProximo'),
+      gatilhoPendenciasInstalado: typeof possuiGatilhoNotificacao_ === 'function' && possuiGatilhoNotificacao_('processarPendenciasMatinaisNotificacoes'),
+      gatilhoFilaInstalado: typeof possuiGatilhoNotificacao_ === 'function' && possuiGatilhoNotificacao_('processarFilaNotificacoes'),
       solicitante: String(email || ''),
       historico: historico
     },
     regras: regras,
-    dispositivos: dispositivos
+    dispositivos: dispositivos,
+    cobertura: typeof obterCoberturaNotificacoes_ === 'function' ? obterCoberturaNotificacoes_() : []
   };
 }
 
