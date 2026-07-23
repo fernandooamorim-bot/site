@@ -1339,6 +1339,9 @@ let asaasContatoEvento = { whatsapp: '', email: '', cpfCnpj: '' };
 let eventoRequerVinculoContratante = false;
 let pendenciasFolhaAprovacao = [];
 let pendenciasFolhaAprovacaoUltimaAtualizacao = 0;
+let pendenciasFolhaAprovacaoPromise = null;
+const pendenciasFolhaAprovacaoCacheLocalMs = 60 * 1000;
+const aprovacoesFolhaEmAndamento = new Set();
 let ajustesDetalhadosComissao = [];
 let previewComissaoAtual = null;
 let fiscalEventosCache = [];
@@ -2576,8 +2579,37 @@ async function carregarPendenciasFolhaCustosAprovacao_(opts) {
   const forceRefresh = !!(opts && opts.forceRefresh === true);
   const box = document.getElementById('folhaPendenciasBox');
   if (!box) return;
-  box.innerHTML = '<span class="muted">Carregando pendências...</span>';
-  try {
+  const cacheLocalValido = (
+    !forceRefresh &&
+    pendenciasFolhaAprovacaoUltimaAtualizacao > 0 &&
+    (Date.now() - pendenciasFolhaAprovacaoUltimaAtualizacao) < pendenciasFolhaAprovacaoCacheLocalMs
+  );
+  if (cacheLocalValido) {
+    box.innerHTML = pendenciasFolhaAprovacao.length
+      ? renderPendenciasFolhaCustosHtml_(pendenciasFolhaAprovacao)
+      : '<span class="muted">Sem pendências de folha para aprovação (resultado recente).</span>';
+    return;
+  }
+  if (pendenciasFolhaAprovacaoPromise) {
+    try {
+      await pendenciasFolhaAprovacaoPromise;
+    } catch (_) {}
+    const boxAtual = document.getElementById('folhaPendenciasBox');
+    if (!boxAtual) return;
+    if (pendenciasFolhaAprovacaoUltimaAtualizacao > 0) {
+      boxAtual.innerHTML = pendenciasFolhaAprovacao.length
+        ? renderPendenciasFolhaCustosHtml_(pendenciasFolhaAprovacao)
+        : '<span class="muted">Sem pendências de folha para aprovação.</span>';
+    } else {
+      boxAtual.innerHTML = '<span class="muted">Não foi possível atualizar as pendências.</span>';
+    }
+    return;
+  }
+  const possuiResultadoAnterior = pendenciasFolhaAprovacaoUltimaAtualizacao > 0;
+  box.innerHTML = possuiResultadoAnterior
+    ? `<div class="muted" style="font-size:12px;margin-bottom:8px">Atualizando pendências em segundo plano...</div>${renderPendenciasFolhaCustosHtml_(pendenciasFolhaAprovacao)}`
+    : '<span class="muted">Carregando pendências...</span>';
+  pendenciasFolhaAprovacaoPromise = (async function () {
     const resp = await Auth.apiCall('listarPendenciasFolhaCustoAprovacao', { forceRefresh: forceRefresh });
     pendenciasFolhaAprovacao = Array.isArray(resp?.pendentes) ? resp.pendentes : [];
     pendenciasFolhaAprovacaoUltimaAtualizacao = Date.now();
@@ -2604,6 +2636,9 @@ async function carregarPendenciasFolhaCustosAprovacao_(opts) {
       </div>
     `).join('')}
     `;
+  })();
+  try {
+    return await pendenciasFolhaAprovacaoPromise;
   } catch (err) {
     console.error('Erro ao carregar pendências de folha:', err);
     const temCacheLocal = Array.isArray(pendenciasFolhaAprovacao) && pendenciasFolhaAprovacao.length > 0;
@@ -2624,6 +2659,8 @@ async function carregarPendenciasFolhaCustosAprovacao_(opts) {
         <button type="button" class="btn secondary" style="margin-left:8px" onclick="carregarPendenciasFolhaCustosAprovacao_({ forceRefresh: true })">Tentar novamente</button>
       </div>
     `;
+  } finally {
+    pendenciasFolhaAprovacaoPromise = null;
   }
 }
 
@@ -2658,21 +2695,29 @@ async function aprovarPendenciaFolhaCusto_(idFolha) {
   if (!ehProprietario_()) return alert('Ação restrita ao proprietário.');
   const id = String(idFolha || '').trim();
   if (!id) return;
+  if (aprovacoesFolhaEmAndamento.has(id)) return;
   const pendencia = pendenciasFolhaAprovacao.find(p => String(p.id || '').trim() === id);
   const msg = pendencia
     ? `Aprovar folha do evento ${pendencia.idEvento} no valor de R$ ${Number(pendencia.valorTotal || 0).toFixed(2)}?`
     : 'Confirmar aprovação da folha de custos?';
   if (!confirm(msg)) return;
 
+  const operationKeyTipo = 'aprovarFolha:' + id;
+  aprovacoesFolhaEmAndamento.add(id);
   showLoading('Aprovando folha de custos...');
   try {
-    const resp = await Auth.apiCall('aprovarPendenciaFolhaCusto', { idFolha: id });
+    const resp = await Auth.apiCall('aprovarPendenciaFolhaCusto', {
+      idFolha: id,
+      operationKey: obterOuCriarOperationKey(operationKeyTipo)
+    });
     if (!resp || resp.sucesso !== true) {
       alert(resp?.mensagem || 'Não foi possível aprovar a folha.');
       return;
     }
+    consumirOperationKey(operationKeyTipo);
     alert('Folha aprovada e lançada na Agenda com sucesso.');
     pendenciasFolhaAprovacao = (pendenciasFolhaAprovacao || []).filter(p => String(p.id || '').trim() !== id);
+    pendenciasFolhaAprovacaoUltimaAtualizacao = 0;
     const box = document.getElementById('folhaPendenciasBox');
     if (box && !pendenciasFolhaAprovacao.length) {
       box.innerHTML = '<span class="muted">Sem pendências de folha para aprovação.</span>';
@@ -2686,6 +2731,7 @@ async function aprovarPendenciaFolhaCusto_(idFolha) {
   } catch (err) {
     tratarErroApi(err);
   } finally {
+    aprovacoesFolhaEmAndamento.delete(id);
     hideLoading();
   }
 }
