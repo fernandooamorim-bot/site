@@ -63,7 +63,7 @@ function atualizarAutomacoesNotificacoes_(email, params) {
   removerGatilhosNotificacaoPorHandler_('processarPendenciasMatinaisNotificacoes');
   removerGatilhosNotificacaoPorHandler_('processarFilaNotificacoes');
   removerGatilhosNotificacaoPorHandler_('processarCicloNotificacoes');
-  ScriptApp.newTrigger('processarCicloNotificacoes').timeBased().everyMinutes(5).create();
+  ScriptApp.newTrigger('processarCicloNotificacoes').timeBased().everyMinutes(30).create();
   if (pendencias) {
     ScriptApp.newTrigger('processarPendenciasMatinaisNotificacoes').timeBased()
       .atHour(9).nearMinute(30).everyDays(1)

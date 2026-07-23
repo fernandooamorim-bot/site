@@ -75,26 +75,19 @@ function processarFilaNotificacoes() {
 }
 
 /**
- * Um único gatilho atende a fila imediata e os lembretes por horário.
- * A fila continua responsiva a cada 5 minutos, enquanto a varredura mais
- * pesada de eventos é limitada a aproximadamente uma vez a cada 15 minutos.
+ * Um único gatilho atende a fila e os lembretes por horário.
+ * Para este sistema, até 30 minutos de latência operacional é aceitável e
+ * reduz o consumo diário do Apps Script para apenas 48 ciclos.
  */
 function processarCicloNotificacoes() {
   const fila = executarNotificacaoSemBloquear_('FILA', function () {
     return processarFilaNotificacoes();
   });
-  let lembretes = { ok: true, ignorado: true, motivo: 'INTERVALO_LEMBRETE' };
+  let lembretes = { ok: true, ignorado: true, motivo: 'LEMBRETES_DESATIVADOS' };
   if (boolNotificacao_(obterConfig('NOTIFICACOES_LEMBRETES_HORARIO_ATIVO'), false)) {
-    const props = PropertiesService.getScriptProperties();
-    const chave = 'NOTIFICACOES_ULTIMA_VARREDURA_LEMBRETES_MS';
-    const agora = Date.now();
-    const ultima = Number(props.getProperty(chave) || 0);
-    if (!ultima || agora - ultima >= 13 * 60 * 1000) {
-      props.setProperty(chave, String(agora));
-      lembretes = executarNotificacaoSemBloquear_('EVENTO_ANTECEDENCIA', function () {
-        return processarLembretesEventoProximo();
-      });
-    }
+    lembretes = executarNotificacaoSemBloquear_('EVENTO_ANTECEDENCIA', function () {
+      return processarLembretesEventoProximo();
+    });
   }
   return { ok: true, fila: fila, lembretes: lembretes };
 }
@@ -414,7 +407,10 @@ function processarLembretesEventoProximo() {
   if (!regra || !regra.ativo) return { ok: true, ignorado: true, motivo: 'REGRA_DESATIVADA' };
   const agora = new Date();
   const antecedencia = Math.max(1, Number(regra.antecedenciaMin || obterConfig('NOTIFICACOES_ANTECEDENCIA_EVENTO_MIN') || 60));
-  const margem = 16;
+  // O ciclo roda a cada 30 minutos. A margem de 35 minutos tolera a pequena
+  // variação natural dos gatilhos sem perder o lembrete; a deduplicação
+  // garante no máximo um envio por aparelho e horário real do evento.
+  const margem = 35;
   const eventos = listarLinhasEventosAtivosNotificacao_();
   let processados = 0;
   eventos.forEach(function (linha) {
