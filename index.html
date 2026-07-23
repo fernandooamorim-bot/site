@@ -422,6 +422,57 @@
       flex: 1;
     }
 
+    .header-notifications {
+      min-width: 42px;
+      height: 42px;
+      margin-right: 8px;
+      padding: 0 12px;
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: var(--radius-full);
+      background: rgba(255,255,255,0.06);
+      color: rgba(255,255,255,0.86);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      cursor: pointer;
+      transition: background .2s, border-color .2s, color .2s;
+    }
+    .header-notifications:hover {
+      background: rgba(255,255,255,0.11);
+      border-color: rgba(255,255,255,0.18);
+    }
+    .header-notifications i,
+    .header-notifications svg { width: 18px; height: 18px; }
+    .header-notifications-label {
+      font-size: 11px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+    .header-notifications-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #94a3b8;
+      box-shadow: 0 0 0 3px rgba(148,163,184,.15);
+      flex: 0 0 auto;
+    }
+    .header-notifications[data-state="active"] .header-notifications-dot {
+      background: #22c55e;
+      box-shadow: 0 0 0 3px rgba(34,197,94,.16);
+    }
+    .header-notifications[data-state="attention"] .header-notifications-dot {
+      background: #f59e0b;
+      box-shadow: 0 0 0 3px rgba(245,158,11,.18);
+    }
+    .header-notifications[data-state="checking"] .header-notifications-dot {
+      background: #60a5fa;
+      animation: notificationDotPulse 1s ease-in-out infinite;
+    }
+    @keyframes notificationDotPulse {
+      50% { opacity: .35; transform: scale(.75); }
+    }
+
     /* User Pill */
     .header-user {
       display: flex;
@@ -715,6 +766,11 @@
     .notification-invite-primary{border:1px solid var(--navy-700);background:var(--navy-700);color:#fff}
     .notification-invite-later{border:1px solid var(--gray-300);background:#fff;color:var(--gray-600)}
     @media(max-width:650px){.notification-invite{align-items:stretch;flex-direction:column}.notification-invite-actions{padding-left:36px}}
+    @media(max-width:650px){
+      .header-notifications{width:40px;height:40px;min-width:40px;padding:0;margin-right:5px}
+      .header-notifications-label{display:none}
+      .header-notifications-dot{position:absolute;margin:0 0 22px 23px;width:7px;height:7px}
+    }
 
     .offline-lock .nav-card.disabled-offline {
       opacity: 0.52;
@@ -1194,6 +1250,13 @@
       </div>
 
       <div class="header-spacer"></div>
+
+      <button class="header-notifications" id="headerNotifications" type="button"
+              data-state="checking" title="Verificando notificações" aria-label="Verificando notificações">
+        <i data-lucide="bell"></i>
+        <span class="header-notifications-label" id="headerNotificationsLabel">Verificando</span>
+        <span class="header-notifications-dot" aria-hidden="true"></span>
+      </button>
 
       <div class="header-user" id="userBox">
         <div class="user-avatar" id="userAvatar">...</div>
@@ -1908,17 +1971,54 @@
     iniciarConviteNotificacoes_();
   }
 
-  const NOTIFICACAO_CONVITE_ADIADO_KEY = 'notificacoes_convite_adiado_ate';
-  const NOTIFICACAO_CONVITE_CONTAGEM_KEY = 'notificacoes_convite_contagem';
+  const NOTIFICACAO_CONVITE_DECIDIDO_KEY = 'notificacoes_convite_decidido_v1';
+
+  function estadoVisualNotificacoes_(estado) {
+    const btn = document.getElementById('headerNotifications');
+    const label = document.getElementById('headerNotificationsLabel');
+    if (!btn || !label) return;
+    let visual = 'inactive';
+    let texto = 'Ativar avisos';
+    let titulo = 'Notificações desativadas neste aparelho. Toque para ativar.';
+    if (!('Notification' in window) || !('serviceWorker' in navigator)) {
+      visual = 'attention'; texto = 'Indisponível';
+      titulo = 'Este navegador não oferece suporte a notificações.';
+    } else if (Notification.permission === 'denied') {
+      visual = 'attention'; texto = 'Avisos bloqueados';
+      titulo = 'Notificações bloqueadas. Toque para ver como reativar.';
+    } else if (estado && estado.ativo) {
+      visual = 'active'; texto = 'Avisos ativos';
+      titulo = estado.confirmado
+        ? 'Notificações ativas neste aparelho. Toque para gerenciar.'
+        : 'Notificações ativas neste aparelho. Confirmando sincronização.';
+    } else if (estado && estado.sincronizando) {
+      visual = 'checking'; texto = 'Verificando';
+      titulo = 'Verificando notificações neste aparelho.';
+    }
+    btn.dataset.state = visual;
+    btn.title = titulo;
+    btn.setAttribute('aria-label', titulo);
+    label.textContent = texto;
+  }
+
+  function marcarDecisaoConviteNotificacoes_() {
+    localStorage.setItem(NOTIFICACAO_CONVITE_DECIDIDO_KEY, '1');
+    document.getElementById('notificationInvite')?.classList.remove('show');
+  }
 
   async function iniciarConviteNotificacoes_() {
     const box = document.getElementById('notificationInvite');
     if (!box || !window.NotificacoesFA) return;
-    const adiadoAte = Number(localStorage.getItem(NOTIFICACAO_CONVITE_ADIADO_KEY) || 0);
-    if (adiadoAte > Date.now()) return;
+    const local = NotificacoesFA.estadoLocal();
+    estadoVisualNotificacoes_(
+      local.ativo || local.desativado ? local : Object.assign({}, local, { sincronizando:true })
+    );
+    if (local.ativo || local.desativado) marcarDecisaoConviteNotificacoes_();
     const ios = /iPad|iPhone|iPod/.test(navigator.userAgent || '');
     const instalado = window.matchMedia?.('(display-mode: standalone)').matches || window.navigator.standalone === true;
-    if (ios && !instalado) {
+    const conviteDecidido = localStorage.getItem(NOTIFICACAO_CONVITE_DECIDIDO_KEY) === '1';
+    if (ios && !instalado && !conviteDecidido) {
+      estadoVisualNotificacoes_(local);
       const desc = document.getElementById('notificationInviteDesc');
       const btn = document.getElementById('notificationInviteActivate');
       if (desc) desc.textContent = 'Para receber avisos no iPhone, adicione a Super Agenda à Tela de Início pelo botão Compartilhar do Safari.';
@@ -1927,13 +2027,21 @@
       if (window.lucide) lucide.createIcons();
       return;
     }
-    if (!('Notification' in window) || !('serviceWorker' in navigator)) return;
-    if (NotificacoesFA.estadoLocal().desativado) return;
+    if (!('Notification' in window) || !('serviceWorker' in navigator)) {
+      estadoVisualNotificacoes_(null);
+      return;
+    }
     try {
       const status = await NotificacoesFA.sincronizar({
         eventosDia:true, eventoCriadoEditado:true, folhaCustos:true
       });
-      if (!status || !status.disponivel || NotificacoesFA.token()) return;
+      const reconciliado = NotificacoesFA.estadoLocal();
+      estadoVisualNotificacoes_(reconciliado);
+      if (reconciliado.ativo) {
+        marcarDecisaoConviteNotificacoes_();
+        return;
+      }
+      if (!status || !status.disponivel || conviteDecidido || reconciliado.desativado) return;
       const desc = document.getElementById('notificationInviteDesc');
       if (Notification.permission === 'denied' && desc) {
         desc.textContent = 'As notificações estão bloqueadas neste navegador. Abra Configurações para consultar como reativar.';
@@ -1941,7 +2049,9 @@
       }
       box.classList.add('show');
       if (window.lucide) lucide.createIcons();
-    } catch (_) {}
+    } catch (_) {
+      estadoVisualNotificacoes_(NotificacoesFA.estadoLocal());
+    }
   }
 
   async function ativarPeloConviteNotificacoes_() {
@@ -1959,9 +2069,8 @@
     btn.disabled = true; btn.textContent = 'Ativando...';
     try {
       await NotificacoesFA.ativar({ eventosDia:true, eventoCriadoEditado:true, folhaCustos:true });
-      localStorage.removeItem(NOTIFICACAO_CONVITE_ADIADO_KEY);
-      localStorage.removeItem(NOTIFICACAO_CONVITE_CONTAGEM_KEY);
-      box.classList.remove('show');
+      marcarDecisaoConviteNotificacoes_();
+      estadoVisualNotificacoes_(NotificacoesFA.estadoLocal());
     } catch (erro) {
       const desc = document.getElementById('notificationInviteDesc');
       if (desc) desc.textContent = 'Não foi possível ativar: ' + String(erro?.message || erro);
@@ -1971,15 +2080,44 @@
   }
 
   function adiarConviteNotificacoes_() {
-    const contagem = Number(localStorage.getItem(NOTIFICACAO_CONVITE_CONTAGEM_KEY) || 0) + 1;
-    const dias = contagem >= 3 ? 30 : 7;
-    localStorage.setItem(NOTIFICACAO_CONVITE_CONTAGEM_KEY, String(contagem));
-    localStorage.setItem(NOTIFICACAO_CONVITE_ADIADO_KEY, String(Date.now() + dias * 86400000));
-    document.getElementById('notificationInvite')?.classList.remove('show');
+    marcarDecisaoConviteNotificacoes_();
+  }
+
+  async function acionarControleNotificacoes_() {
+    if (!window.NotificacoesFA) return;
+    const estado = NotificacoesFA.estadoLocal();
+    const ios = /iPad|iPhone|iPod/.test(navigator.userAgent || '');
+    const instalado = window.matchMedia?.('(display-mode: standalone)').matches || window.navigator.standalone === true;
+    if (estado.ativo) {
+      window.location.href = 'configuracoes.html#cardNotificacoes';
+      return;
+    }
+    if (ios && !instalado) {
+      alert('No Safari, toque no botão Compartilhar e escolha “Adicionar à Tela de Início”. Depois abra a Super Agenda pelo novo ícone e toque no sino para ativar.');
+      return;
+    }
+    if (!('Notification' in window) || Notification.permission === 'denied') {
+      window.location.href = 'configuracoes.html#cardNotificacoes';
+      return;
+    }
+    const btn = document.getElementById('headerNotifications');
+    if (btn) btn.disabled = true;
+    estadoVisualNotificacoes_({ sincronizando:true });
+    try {
+      await NotificacoesFA.ativar({ eventosDia:true, eventoCriadoEditado:true, folhaCustos:true });
+      marcarDecisaoConviteNotificacoes_();
+      estadoVisualNotificacoes_(NotificacoesFA.estadoLocal());
+    } catch (erro) {
+      estadoVisualNotificacoes_(NotificacoesFA.estadoLocal());
+      alert('Não foi possível ativar as notificações: ' + String(erro?.message || erro));
+    } finally {
+      if (btn) btn.disabled = false;
+    }
   }
 
   document.getElementById('notificationInviteActivate')?.addEventListener('click', ativarPeloConviteNotificacoes_);
   document.getElementById('notificationInviteLater')?.addEventListener('click', adiarConviteNotificacoes_);
+  document.getElementById('headerNotifications')?.addEventListener('click', acionarControleNotificacoes_);
 
   /**
    * ============================================
