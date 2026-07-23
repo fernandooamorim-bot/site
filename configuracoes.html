@@ -1683,9 +1683,26 @@
 
     async function ativarNotificacoesNesteAparelho_() {
       const btn = document.getElementById('btnAtivarNotificacoes');
+      const resumo = document.getElementById('notificacoesResumo');
+      const etapas = {
+        permissao: ['Aguardando permissão...', 'Confirme a permissão de notificações neste aparelho.'],
+        preparando: ['Preparando...', 'Conectando este aparelho ao serviço de notificações.'],
+        registrando: ['Registrando aparelho...', 'O Firebase está gerando a identificação segura deste aparelho.'],
+        confirmando: ['Confirmando...', 'Salvando o aparelho e suas preferências no sistema.'],
+        concluido: ['Concluindo...', 'Notificações ativadas. Confirmando a sincronização final.']
+      };
       try {
-        setButtonLoading(btn, true, 'Ativando...');
-        await NotificacoesFA.ativar(preferenciasNotificacaoDaTela_());
+        setButtonLoading(btn, true, 'Preparando...');
+        await NotificacoesFA.ativar(preferenciasNotificacaoDaTela_(), {
+          onEtapa(etapa) {
+            const info = etapas[etapa] || ['Ativando...', 'Configurando notificações neste aparelho.'];
+            setButtonLoading(btn, true, info[0]);
+            if (resumo) {
+              resumo.textContent = info[1];
+              resumo.classList.add('sincronizando');
+            }
+          }
+        });
         await carregarStatusNotificacoes_();
       } catch (err) {
         alert('Não foi possível ativar: ' + (err?.message || err));

@@ -8,6 +8,8 @@
   const SDK_BASE = 'https://www.gstatic.com/firebasejs/12.16.0/';
   let sdkPromise_ = null;
   let contextoPromise_ = null;
+  let configFirebaseCache_ = null;
+  let configFirebaseCacheEm_ = 0;
 
   function plataforma_() {
     const ua = navigator.userAgent || '';
@@ -83,10 +85,22 @@
 
   async function status(identificador) {
     const token = identificador === undefined ? identificadorLocal_() : String(identificador || '');
-    return Auth.apiCall('obterStatusNotificacoes', {
+    const resposta = await Auth.apiCall('obterStatusNotificacoes', {
       token: token,
       identificadorTipo: tipoLocal_()
     });
+    if (resposta && resposta.disponivel) {
+      configFirebaseCache_ = resposta;
+      configFirebaseCacheEm_ = Date.now();
+    }
+    return resposta;
+  }
+
+  async function obterConfigFirebase_() {
+    if (configFirebaseCache_ && Date.now() - configFirebaseCacheEm_ < 120000) {
+      return configFirebaseCache_;
+    }
+    return status(identificadorLocal_());
   }
 
   async function contextoFirebase_(cfg) {
@@ -169,7 +183,13 @@
     const identificador = identificadorLocal_();
     if (!('Notification' in window) || !('serviceWorker' in navigator)) return status(identificador);
     if (localStorage.getItem(DESATIVADO_KEY) === '1') return status('');
-    if (!identificador) return status('');
+    if (!identificador) {
+      const cfg = await status('');
+      // Antecipação segura: baixa o SDK e prepara o service worker sem pedir
+      // permissão e sem cadastrar o aparelho. Isso reduz a espera após o toque.
+      if (cfg && cfg.disponivel) contextoFirebase_(cfg).catch(() => {});
+      return cfg;
+    }
     if (Notification.permission !== 'granted') {
       await Auth.apiCall('removerDispositivoNotificacao', { token: identificador }).catch(() => {});
       limparIdentificadorLocal_();
@@ -192,17 +212,27 @@
     return cfg;
   }
 
-  async function ativar(preferencias) {
+  async function ativar(preferencias, opcoes) {
+    const informar = opcoes && typeof opcoes.onEtapa === 'function'
+      ? opcoes.onEtapa
+      : function () {};
     if (!('Notification' in window) || !('serviceWorker' in navigator)) throw new Error('NOTIFICACOES_NAO_SUPORTADAS');
+    informar('permissao');
     let permissao = Notification.permission;
     if (permissao === 'default') permissao = await Notification.requestPermission();
     if (permissao !== 'granted') throw new Error('PERMISSAO_NAO_CONCEDIDA');
-    const cfg = await status(identificadorLocal_());
+    informar('preparando');
+    const cfg = await obterConfigFirebase_();
     if (!cfg.disponivel) throw new Error('FCM_CONFIG_INCOMPLETA');
+    informar('registrando');
     const atual = await registrarFid_(cfg);
     configurarForeground_(atual);
+    informar('confirmando');
     await salvarFid_(atual.fid, preferencias);
-    return status(atual.fid);
+    informar('concluido');
+    // A tela fará uma única reconciliação depois da gravação. Evita uma
+    // consulta duplicada ao Apps Script dentro da própria ativação.
+    return { ok: true, dispositivoAtual: { encontrado: true, ativo: true } };
   }
 
   async function desativar() {
