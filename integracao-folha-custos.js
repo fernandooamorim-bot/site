@@ -240,7 +240,7 @@ function acaoFolhaCustosPermitida_(action) {
 function listarPendenciasFolhaCustoAprovacao(params, email) {
   const p = (params && typeof params === 'object') ? params : {};
   const forceRefresh = p.forceRefresh === true || String(p.forceRefresh || '').trim().toLowerCase() === 'true';
-  const ttlSegundos = 45;
+  const ttlSegundos = 120;
 
   if (!forceRefresh) {
     const cached = lerCachePendenciasFolhaCusto_();
@@ -339,7 +339,7 @@ function listarPendenciasFolhaCustoAprovacao(params, email) {
     updatedAt: new Date().toISOString(),
     fromCache: false
   };
-  salvarCachePendenciasFolhaCusto_(payload, pendentes.length ? ttlSegundos : 10);
+  salvarCachePendenciasFolhaCusto_(payload, pendentes.length ? ttlSegundos : 60);
   return payload;
 }
 

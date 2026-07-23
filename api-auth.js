@@ -462,7 +462,11 @@ if (action === 'apiRegistrarSaidaEvento') {
     executarComIdempotenciaFinanceira_(
       { action: action, email: emailAutenticado, params: params },
       function () {
-        return apiRegistrarSaidaEvento(params);
+        const resultadoSaida = apiRegistrarSaidaEvento(params);
+        if (tipoSaida === 'FOLHA_EVENTO' && resultadoSaida && resultadoSaida.sucesso) {
+          limparCacheFolhaCustoAprovacao_(params.idEvento);
+        }
+        return resultadoSaida;
       }
     )
   );
@@ -807,9 +811,16 @@ if (action === 'folhaCustosProxy') {
   const resultadoFolhaProxy = folhaCustosProxy(params, emailAutenticado);
   if (resultadoFolhaProxy && resultadoFolhaProxy.sucesso &&
       String(params.externalAction || '') === 'salvarFolhaCusto') {
+    const payloadFolhaSalva = extrairPayloadFolhaCustos_(params);
+    const dadosFolhaSalva = payloadFolhaSalva.data && typeof payloadFolhaSalva.data === 'object'
+      ? payloadFolhaSalva.data
+      : payloadFolhaSalva;
+    const metaFolhaSalva = extrairMetaAgendaFolha_(dadosFolhaSalva);
+    limparCacheFolhaCustoAprovacao_(
+      String((metaFolhaSalva && metaFolhaSalva.idEvento) || dadosFolhaSalva.idEvento || dadosFolhaSalva.idEventoAgenda || '').trim()
+    );
     executarNotificacaoSemBloquear_('FOLHA_CUSTOS_ENVIADA', function () {
-      const payloadFolha = extrairPayloadFolhaCustos_(params);
-      const folhaEnviada = payloadFolha.data && typeof payloadFolha.data === 'object' ? payloadFolha.data : payloadFolha;
+      const folhaEnviada = dadosFolhaSalva;
       if (String(folhaEnviada.statusAprovacao || '').toUpperCase().indexOf('PENDENTE') !== -1) {
         return notificarFolhaEnviada_(folhaEnviada);
       }
@@ -839,7 +850,7 @@ if (action === 'aprovarPendenciaFolhaCusto') {
     .replace(/[\u0300-\u036f]/g, '')
     .trim()
     .toLowerCase();
-  if (!(perfilNorm === 'proprietario' || perfilNorm === 'socio' || perfilNorm === 'administrador' || perfilNorm === 'admin')) {
+  if (perfilNorm !== 'proprietario') {
     throw new Error('FORBIDDEN_ACTION: folhaCustos:aprovar');
   }
   return json(
@@ -1160,7 +1171,8 @@ function acaoPermiteIdempotencia_(action) {
     acao === 'apiRegistrarRecebimento' ||
     acao === 'apiRegistrarSaidaEvento' ||
     acao === 'apiEstornarRecebimento' ||
-    acao === 'fecharComissaoVendedor'
+    acao === 'fecharComissaoVendedor' ||
+    acao === 'aprovarPendenciaFolhaCusto'
   );
 }
 
