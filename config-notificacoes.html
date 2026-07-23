@@ -74,7 +74,7 @@
         <div class="field"><label>Máximo de tentativas</label><input id="cfgNOTIFICACOES_MAX_TENTATIVAS" type="number" min="1"></div>
       </div>
       <div class="automation"><label class="toggle"><input id="cfgNOTIFICACOES_RESUMO_AUTOMATICO_ATIVO" type="checkbox"> Resumo diário automático</label><small>Executa uma vez por dia, próximo ao horário configurado. No modo de teste, somente o e-mail de teste recebe.</small></div>
-      <div class="automation"><label class="toggle"><input id="cfgNOTIFICACOES_LEMBRETES_HORARIO_ATIVO" type="checkbox"> Lembretes próximos ao horário do evento</label><small>Verifica a cada 15 minutos somente para localizar eventos que chegaram à antecedência configurada.</small></div>
+      <div class="automation"><label class="toggle"><input id="cfgNOTIFICACOES_LEMBRETES_HORARIO_ATIVO" type="checkbox"> Ciclo de fila e lembretes por horário</label><small>Executa a cada 30 minutos. Processa avisos pendentes e localiza eventos próximos da antecedência configurada.</small></div>
       <div class="automation"><label class="toggle"><input id="cfgNOTIFICACOES_PENDENCIAS_MATINAIS_ATIVO" type="checkbox"> Pendências financeiras e folhas pela manhã</label><small>Executa uma vez ao dia, por volta de 09:30, sem modificar qualquer lançamento.</small></div>
       <div class="actions"><button class="btn primary" id="btnSalvarGlobal">Salvar configuração global</button><button class="btn" id="btnEnviarTeste">Enviar teste técnico</button><button class="btn" id="btnTestarResumoHoje">Testar resumo de hoje</button><button class="btn" id="btnRecarregar">Recarregar</button></div>
     </section>
