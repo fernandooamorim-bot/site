@@ -435,6 +435,11 @@ function processarPendenciasMatinaisNotificacoes() {
   listarLinhasEventosAtivosNotificacao_().forEach(function (linha) {
     const instante = instanteRealEventoNotificacao_(linha);
     if (!instante || instante >= agora) return;
+    const horasDesdeEvento = (agora.getTime() - instante.getTime()) / 3600000;
+    // Fase inicial segura: não transformar pendências históricas em uma
+    // enxurrada no primeiro processamento. O painel financeiro continua sendo
+    // a fonte para passivos antigos; a notificação cobre apenas o pós-evento.
+    if (horasDesdeEvento > 48) return;
     const id = String(linha[COL.ID_EVENTO] || '');
     const valores = montarValoresEventoNotificacao_(linha);
     const recebido = Number(linha[COL.VALOR_RECEBIDO] || 0);
