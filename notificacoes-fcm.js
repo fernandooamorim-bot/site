@@ -244,9 +244,13 @@ function formatarHoraValorNotificacao_(valor) {
   return m ? String(Number(m[1])).padStart(2, '0') + ':' + m[2] : s;
 }
 
-function obterStatusNotificacoes_(email) {
+function obterStatusNotificacoes_(email, params) {
   const cfg = carregarConfigNotificacoes_();
   const registros = listarDispositivosNotificacaoPorEmail_(email);
+  const identificadorAtual = String((params && params.token) || '').trim();
+  const registroAtual = identificadorAtual ? registros.filter(function (r) {
+    return String(r.TOKEN || '') === identificadorAtual;
+  })[0] : null;
   return {
     ok: true,
     disponivel: cfg.configurada,
@@ -254,6 +258,18 @@ function obterStatusNotificacoes_(email) {
     credencialInstalada: cfg.credencialInstalada,
     vapidPublicKey: cfg.vapidPublicKey,
     firebase: cfg.firebasePublica,
+    dispositivoAtual: registroAtual ? {
+      encontrado: true,
+      ativo: boolNotificacao_(registroAtual.ATIVO, false),
+      identificadorTipo: normalizarTipoIdentificadorNotificacao_(registroAtual.TIPO_IDENTIFICADOR),
+      tokenFinal: String(registroAtual.TOKEN || '').slice(-10),
+      preferencias: {
+        eventosDia: boolNotificacao_(registroAtual.EVENTOS_DIA, true),
+        eventoCriadoEditado: boolNotificacao_(registroAtual.EVENTO_CRIADO_EDITADO, true),
+        folhaCustos: boolNotificacao_(registroAtual.FOLHA_CUSTOS, true)
+      },
+      atualizadoEm: registroAtual.ATUALIZADO_EM
+    } : { encontrado: false, ativo: false },
     dispositivos: registros.map(function (r) {
       return {
         tokenFinal: String(r.TOKEN || '').slice(-10),
@@ -280,36 +296,61 @@ function registrarDispositivoNotificacao_(email, params) {
   }
 
   const user = requireUserByEmail(email);
-  const sheet = obterOuCriarAbaDispositivosNotificacao_();
-  const dados = sheet.getDataRange().getValues();
-  const agora = new Date();
-  let linha = -1;
-  for (let i = 1; i < dados.length; i++) {
-    if (String(dados[i][0] || '') === token) { linha = i + 1; break; }
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(5000)) throw new Error('FCM_CADASTRO_EM_ANDAMENTO');
+  try {
+    const sheet = obterOuCriarAbaDispositivosNotificacao_();
+    const dados = sheet.getDataRange().getValues();
+    const agora = new Date();
+    let linha = -1;
+    for (let i = 1; i < dados.length; i++) {
+      if (String(dados[i][0] || '') === token) {
+        const emailExistente = String(dados[i][1] || '').trim().toLowerCase();
+        if (emailExistente && emailExistente !== String(email || '').trim().toLowerCase()) {
+          throw new Error('FCM_IDENTIFICADOR_VINCULADO_OUTRO_USUARIO');
+        }
+        linha = i + 1;
+        break;
+      }
+    }
+
+    const anterior = linha > 0 ? sheet.getRange(linha, 1, 1, NOTIFICACOES_HEADERS_.length).getValues()[0] : [];
+    const valores = [[
+      token,
+      String(email || '').trim().toLowerCase(),
+      String(user.PERFIL || ''),
+      limitarTextoNotificacao_(params.plataforma, 60),
+      limitarTextoNotificacao_(params.navegador, 120),
+      true,
+      boolNotificacao_(params.eventosDia, anterior.length ? anterior[6] : true),
+      boolNotificacao_(params.eventoCriadoEditado, anterior.length ? anterior[7] : true),
+      boolNotificacao_(params.folhaCustos, anterior.length ? anterior[8] : true),
+      anterior[9] || agora,
+      agora,
+      '',
+      limitarTextoNotificacao_(params.nomeDispositivo, 80),
+      agora,
+      identificadorTipo
+    ]];
+
+    if (linha > 0) sheet.getRange(linha, 1, 1, valores[0].length).setValues(valores);
+    else sheet.getRange(sheet.getLastRow() + 1, 1, 1, valores[0].length).setValues(valores);
+
+    const tokenAnterior = String(params.tokenAnterior || '').trim();
+    if (tokenAnterior && tokenAnterior !== token) {
+      for (let i = 1; i < dados.length; i++) {
+        if (String(dados[i][0] || '') === tokenAnterior &&
+            String(dados[i][1] || '').trim().toLowerCase() === String(email || '').trim().toLowerCase()) {
+          sheet.getRange(i + 1, 6).setValue(false);
+          sheet.getRange(i + 1, 11).setValue(agora);
+          break;
+        }
+      }
+    }
+    return { ok: true, criado: linha < 0, reativado: linha > 0 };
+  } finally {
+    lock.releaseLock();
   }
-
-  const anterior = linha > 0 ? sheet.getRange(linha, 1, 1, NOTIFICACOES_HEADERS_.length).getValues()[0] : [];
-  const valores = [[
-    token,
-    String(email || '').trim().toLowerCase(),
-    String(user.PERFIL || ''),
-    limitarTextoNotificacao_(params.plataforma, 60),
-    limitarTextoNotificacao_(params.navegador, 120),
-    true,
-    boolNotificacao_(params.eventosDia, anterior.length ? anterior[6] : true),
-    boolNotificacao_(params.eventoCriadoEditado, anterior.length ? anterior[7] : true),
-    boolNotificacao_(params.folhaCustos, anterior.length ? anterior[8] : true),
-    anterior[9] || agora,
-    agora,
-    '',
-    limitarTextoNotificacao_(params.nomeDispositivo, 80),
-    agora,
-    identificadorTipo
-  ]];
-
-  if (linha > 0) sheet.getRange(linha, 1, 1, valores[0].length).setValues(valores);
-  else sheet.getRange(sheet.getLastRow() + 1, 1, 1, valores[0].length).setValues(valores);
-  return { ok: true };
 }
 
 function removerDispositivoNotificacao_(email, params) {
@@ -404,10 +445,28 @@ function enviarFcmHttpV1_(token, notificacao, opcoes) {
     headers: { Authorization: 'Bearer ' + accessToken }, payload: JSON.stringify(payload)
   });
   const code = resp.getResponseCode();
-  if (code < 200 || code >= 300) throw new Error('FCM_SEND_FAILED_' + code);
+  if (code < 200 || code >= 300) {
+    if (code === 404) marcarDispositivoNotificacaoInvalido_(token, 'FCM_IDENTIFICADOR_NAO_ENCONTRADO');
+    throw new Error('FCM_SEND_FAILED_' + code);
+  }
   let resposta = {};
   try { resposta = JSON.parse(resp.getContentText() || '{}'); } catch (_) {}
   return { ok: true, firebaseMessageName: String(resposta.name || '') };
+}
+
+function marcarDispositivoNotificacaoInvalido_(token, motivo) {
+  const identificador = String(token || '').trim();
+  if (!identificador) return false;
+  const sheet = obterOuCriarAbaDispositivosNotificacao_();
+  const dados = sheet.getDataRange().getValues();
+  for (let i = 1; i < dados.length; i++) {
+    if (String(dados[i][0] || '') !== identificador) continue;
+    sheet.getRange(i + 1, 6).setValue(false);
+    sheet.getRange(i + 1, 11).setValue(new Date());
+    sheet.getRange(i + 1, 12).setValue(String(motivo || 'FCM_IDENTIFICADOR_INVALIDO').slice(0, 200));
+    return true;
+  }
+  return false;
 }
 
 function obterAccessTokenFcm_(cred) {

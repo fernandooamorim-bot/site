@@ -170,7 +170,7 @@ if (raw && raw.startsWith('{')) {
       return json(listarAtividadeSistemaReadOnly_(params));
     }
     if (action === 'obterStatusNotificacoes') {
-      return json(obterStatusNotificacoes_(emailAutenticado));
+      return json(obterStatusNotificacoes_(emailAutenticado, params));
     }
     if (action === 'registrarDispositivoNotificacao') {
       return json(registrarDispositivoNotificacao_(emailAutenticado, params));
