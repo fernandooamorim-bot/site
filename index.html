@@ -1928,8 +1928,11 @@
       return;
     }
     if (!('Notification' in window) || !('serviceWorker' in navigator)) return;
+    if (NotificacoesFA.estadoLocal().desativado) return;
     try {
-      const status = await NotificacoesFA.status();
+      const status = await NotificacoesFA.sincronizar({
+        eventosDia:true, eventoCriadoEditado:true, folhaCustos:true
+      });
       if (!status || !status.disponivel || NotificacoesFA.token()) return;
       const desc = document.getElementById('notificationInviteDesc');
       if (Notification.permission === 'denied' && desc) {

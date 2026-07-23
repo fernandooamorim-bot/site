@@ -208,6 +208,19 @@
       color: var(--muted);
       line-height: 1.5;
     }
+    #notificacoesResumo.sincronizando::after {
+      content: "";
+      display: inline-block;
+      width: 11px;
+      height: 11px;
+      margin-left: 7px;
+      border: 2px solid #cbd5e1;
+      border-top-color: var(--primary);
+      border-radius: 50%;
+      vertical-align: -2px;
+      animation: notificacaoSpin .75s linear infinite;
+    }
+    @keyframes notificacaoSpin { to { transform: rotate(360deg); } }
     .module-card .btn { width: fit-content; }
     .tabs {
       display: flex;
@@ -1468,27 +1481,58 @@
 
     async function carregarStatusNotificacoes_() {
       const resumo = document.getElementById('notificacoesResumo');
+      const estadoInicial = NotificacoesFA.estadoLocal();
+      aplicarEstadoVisualNotificacoes_(estadoInicial, true);
       try {
         const status = await NotificacoesFA.sincronizar(preferenciasNotificacaoDaTela_());
         const tokenAtivo = !!NotificacoesFA.token();
         if (resumo) {
+          resumo.classList.remove('sincronizando');
           resumo.textContent = !status.disponivel
             ? 'Firebase ainda não está completo na aba CONFIG.'
             : tokenAtivo
-              ? 'Este aparelho está cadastrado. O envio global permanece controlado pela CONFIG.'
+              ? 'Notificações ativas e sincronizadas neste aparelho.'
+              : status.reconciliacao === 'CACHE_LOCAL_INVALIDADO'
+                ? 'O cadastro anterior não estava mais ativo. Você pode ativar novamente.'
               : 'Disponível. A permissão só será solicitada ao tocar em Ativar.';
         }
         document.getElementById('btnAtivarNotificacoes')?.classList.toggle('hidden', tokenAtivo || !status.disponivel);
         document.getElementById('btnDesativarNotificacoes')?.classList.toggle('hidden', !tokenAtivo);
         document.getElementById('btnSalvarPreferenciasNotificacao')?.classList.toggle('hidden', !tokenAtivo);
-        const atual = status.dispositivos && status.dispositivos[0];
+        const atual = status.dispositivoAtual;
         if (atual && atual.preferencias) {
           document.getElementById('prefEventosDia').checked = atual.preferencias.eventosDia;
           document.getElementById('prefEventoAlterado').checked = atual.preferencias.eventoCriadoEditado;
           document.getElementById('prefFolhaCustos').checked = atual.preferencias.folhaCustos;
         }
       } catch (err) {
-        if (resumo) resumo.textContent = 'Notificações ainda não disponíveis: ' + (err?.message || err);
+        if (resumo) {
+          resumo.classList.remove('sincronizando');
+          resumo.textContent = estadoInicial.ativo
+            ? 'Ativas neste aparelho; não foi possível confirmar a sincronização agora.'
+            : 'Notificações ainda não disponíveis: ' + (err?.message || err);
+        }
+      }
+    }
+
+    function aplicarEstadoVisualNotificacoes_(estado, confirmando) {
+      const resumo = document.getElementById('notificacoesResumo');
+      const ativo = !!(estado && estado.ativo);
+      if (resumo) {
+        resumo.classList.toggle('sincronizando', !!confirmando);
+        resumo.textContent = ativo
+          ? (confirmando ? 'Notificações ativas neste aparelho. Confirmando sincronização' : 'Notificações ativas neste aparelho.')
+          : estado?.permissao === 'denied'
+            ? 'Notificações bloqueadas nas permissões deste navegador.'
+            : (confirmando ? 'Verificando o cadastro deste aparelho' : 'Notificações disponíveis neste aparelho.');
+      }
+      document.getElementById('btnAtivarNotificacoes')?.classList.toggle('hidden', ativo);
+      document.getElementById('btnDesativarNotificacoes')?.classList.toggle('hidden', !ativo);
+      document.getElementById('btnSalvarPreferenciasNotificacao')?.classList.toggle('hidden', !ativo);
+      if (estado?.preferencias) {
+        document.getElementById('prefEventosDia').checked = estado.preferencias.eventosDia !== false;
+        document.getElementById('prefEventoAlterado').checked = estado.preferencias.eventoCriadoEditado !== false;
+        document.getElementById('prefFolhaCustos').checked = estado.preferencias.folhaCustos !== false;
       }
     }
 
