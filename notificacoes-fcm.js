@@ -14,7 +14,7 @@ const NOTIFICACOES_HEADERS_ = [
   'CRIADO_EM', 'ATUALIZADO_EM', 'ULTIMO_ERRO', 'NOME_DISPOSITIVO',
   'ULTIMO_ACESSO', 'TIPO_IDENTIFICADOR'
 ];
-const NOTIFICACOES_PERFIS_PERMITIDOS_ = ['Proprietário', 'Sócio', 'Administrador', 'Produção', 'Músico'];
+const NOTIFICACOES_PERFIS_PERMITIDOS_ = ['Proprietário', 'Administrador', 'Produção', 'Músico'];
 const NOTIFICACOES_CONFIG_EDITAVEL_ = [
   'FCM_ATIVO', 'NOTIFICACOES_MODO_TESTE', 'NOTIFICACOES_DESTINATARIO_TESTE',
   'NOTIFICACOES_HORA_RESUMO_DIA', 'NOTIFICACOES_ANTECEDENCIA_EVENTO_MIN',
@@ -58,9 +58,12 @@ function obterCentralNotificacoes_(email) {
       dispositivosAtivos: dispositivos.filter(function (d) { return d.ativo; }).length,
       totalDispositivos: dispositivos.length,
       gatilhoResumoInstalado: typeof possuiGatilhoNotificacao_ === 'function' && possuiGatilhoNotificacao_('processarNotificacoesAgendadas'),
-      gatilhoLembretesInstalado: typeof possuiGatilhoNotificacao_ === 'function' && possuiGatilhoNotificacao_('processarLembretesEventoProximo'),
+      gatilhoLembretesInstalado: typeof possuiGatilhoNotificacao_ === 'function' &&
+        boolNotificacao_(obterConfig('NOTIFICACOES_LEMBRETES_HORARIO_ATIVO'), false) &&
+        (possuiGatilhoNotificacao_('processarCicloNotificacoes') || possuiGatilhoNotificacao_('processarLembretesEventoProximo')),
       gatilhoPendenciasInstalado: typeof possuiGatilhoNotificacao_ === 'function' && possuiGatilhoNotificacao_('processarPendenciasMatinaisNotificacoes'),
-      gatilhoFilaInstalado: typeof possuiGatilhoNotificacao_ === 'function' && possuiGatilhoNotificacao_('processarFilaNotificacoes'),
+      gatilhoFilaInstalado: typeof possuiGatilhoNotificacao_ === 'function' &&
+        (possuiGatilhoNotificacao_('processarCicloNotificacoes') || possuiGatilhoNotificacao_('processarFilaNotificacoes')),
       solicitante: String(email || ''),
       historico: historico
     },
@@ -96,7 +99,10 @@ function listarRegrasNotificacoes_() {
       canalPush: boolNotificacao_(valorPorHeaderNotificacao_(r, idx, 'CANAL_PUSH'), true),
       canalEmail: boolNotificacao_(valorPorHeaderNotificacao_(r, idx, 'CANAL_EMAIL'), false),
       prioridade: String(valorPorHeaderNotificacao_(r, idx, 'PRIORIDADE') || 'NORMAL').trim().toUpperCase(),
-      perfis: String(valorPorHeaderNotificacao_(r, idx, 'PERFIS_DESTINATARIOS') || '').split(';').map(function (p) { return p.trim(); }).filter(Boolean),
+      perfis: Array.from(new Set(
+        String(valorPorHeaderNotificacao_(r, idx, 'PERFIS_DESTINATARIOS') || '')
+          .split(';').map(normalizarPerfilNotificacao_).filter(Boolean)
+      )),
       antecedenciaMin: Number(valorPorHeaderNotificacao_(r, idx, 'ANTECEDENCIA_MIN') || 0),
       horarioEnvio: formatarHoraValorNotificacao_(valorPorHeaderNotificacao_(r, idx, 'HORARIO_ENVIO')),
       agrupar: boolNotificacao_(valorPorHeaderNotificacao_(r, idx, 'AGRUPAR'), false),
@@ -116,9 +122,11 @@ function atualizarRegraNotificacao_(email, params) {
   if (!sheet) throw new Error('NOTIFICACOES_REGRAS_SHEET_NOT_FOUND');
   const dados = sheet.getDataRange().getValues();
   const idx = indexarHeadersNotificacao_(dados[0] || []);
-  const perfisRecebidos = parseJsonArrayNotificacao_(params.perfis).filter(function (p) {
-    return NOTIFICACOES_PERFIS_PERMITIDOS_.indexOf(String(p)) !== -1;
-  });
+  const perfisRecebidos = Array.from(new Set(
+    parseJsonArrayNotificacao_(params.perfis).map(normalizarPerfilNotificacao_).filter(function (p) {
+      return NOTIFICACOES_PERFIS_PERMITIDOS_.indexOf(p) !== -1;
+    })
+  ));
   if (!perfisRecebidos.length) throw new Error('NOTIFICACAO_PERFIL_REQUIRED');
   const prioridade = String(params.prioridade || 'NORMAL').trim().toUpperCase();
   if (['BAIXA', 'NORMAL', 'ALTA', 'CRITICA'].indexOf(prioridade) === -1) throw new Error('NOTIFICACAO_PRIORIDADE_INVALIDA');
@@ -636,6 +644,15 @@ function listarDispositivosNotificacaoPorEmail_(email) {
 function boolNotificacao_(valor, fallback) {
   if (valor === undefined || valor === null || String(valor).trim() === '') return !!fallback;
   return ['true', '1', 'sim', 'yes', 'on'].indexOf(String(valor).trim().toLowerCase()) !== -1;
+}
+
+function normalizarPerfilNotificacao_(perfil) {
+  const p = String(perfil || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
+  if (p === 'proprietario') return 'Proprietário';
+  if (p === 'socio' || p === 'administrador' || p === 'admin') return 'Administrador';
+  if (p === 'producao') return 'Produção';
+  if (p === 'musico') return 'Músico';
+  return '';
 }
 
 function limitarTextoNotificacao_(valor, max) {

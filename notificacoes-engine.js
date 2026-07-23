@@ -74,6 +74,31 @@ function processarFilaNotificacoes() {
   }
 }
 
+/**
+ * Um único gatilho atende a fila imediata e os lembretes por horário.
+ * A fila continua responsiva a cada 5 minutos, enquanto a varredura mais
+ * pesada de eventos é limitada a aproximadamente uma vez a cada 15 minutos.
+ */
+function processarCicloNotificacoes() {
+  const fila = executarNotificacaoSemBloquear_('FILA', function () {
+    return processarFilaNotificacoes();
+  });
+  let lembretes = { ok: true, ignorado: true, motivo: 'INTERVALO_LEMBRETE' };
+  if (boolNotificacao_(obterConfig('NOTIFICACOES_LEMBRETES_HORARIO_ATIVO'), false)) {
+    const props = PropertiesService.getScriptProperties();
+    const chave = 'NOTIFICACOES_ULTIMA_VARREDURA_LEMBRETES_MS';
+    const agora = Date.now();
+    const ultima = Number(props.getProperty(chave) || 0);
+    if (!ultima || agora - ultima >= 13 * 60 * 1000) {
+      props.setProperty(chave, String(agora));
+      lembretes = executarNotificacaoSemBloquear_('EVENTO_ANTECEDENCIA', function () {
+        return processarLembretesEventoProximo();
+      });
+    }
+  }
+  return { ok: true, fila: fila, lembretes: lembretes };
+}
+
 function obterRegraNotificacaoPorCodigo_(codigo) {
   const alvo = String(codigo || '').trim().toUpperCase();
   return listarRegrasNotificacoes_().filter(function (r) { return r.codigo === alvo; })[0] || null;
@@ -134,7 +159,7 @@ function despacharRegraNotificacao_(codigo, contexto, opcoes) {
   const dispositivos = listarTodosDispositivosNotificacao_Interno_().filter(function (d) {
     if (!d.ativo || !preferenciasDispositivoPermitemRegra_(d, codigo)) return false;
     if (emailRestrito && d.email !== emailRestrito) return false;
-    return regra.perfis.indexOf(d.perfil) !== -1;
+    return regra.perfis.indexOf(normalizarPerfilNotificacao_(d.perfil)) !== -1;
   });
 
   let enviadosPush = 0; let enviadosEmail = 0; let duplicados = 0; let erros = 0;
@@ -166,7 +191,7 @@ function despacharRegraNotificacao_(codigo, contexto, opcoes) {
     const destinatarios = {};
     listarUsuariosAtivosNotificacao_().forEach(function (u) {
       if (emailRestrito && u.email !== emailRestrito) return;
-      if (regra.perfis.indexOf(u.perfil) !== -1) destinatarios[u.email] = u;
+      if (regra.perfis.indexOf(normalizarPerfilNotificacao_(u.perfil)) !== -1) destinatarios[u.email] = u;
     });
     Object.keys(destinatarios).forEach(function (email) {
       const u = destinatarios[email];
@@ -257,9 +282,11 @@ function enviarComunicadoManual_(emailAutor, params) {
   const titulo = limitarTextoNotificacao_(params.titulo, 100);
   const mensagem = limitarTextoNotificacao_(params.mensagem, 400);
   if (titulo.length < 3 || mensagem.length < 3) throw new Error('COMUNICADO_TITULO_MENSAGEM_OBRIGATORIOS');
-  const perfis = parseJsonArrayNotificacao_(params.perfis).filter(function (p) {
-    return NOTIFICACOES_PERFIS_PERMITIDOS_.indexOf(p) !== -1;
-  });
+  const perfis = Array.from(new Set(
+    parseJsonArrayNotificacao_(params.perfis).map(normalizarPerfilNotificacao_).filter(function (p) {
+      return NOTIFICACOES_PERFIS_PERMITIDOS_.indexOf(p) !== -1;
+    })
+  ));
   const emails = parseJsonArrayNotificacao_(params.emails).map(function (e) { return String(e).trim().toLowerCase(); });
   if (!perfis.length && !emails.length) throw new Error('COMUNICADO_DESTINATARIO_OBRIGATORIO');
   const codigo = 'COMUNICADO_MANUAL';
@@ -272,7 +299,7 @@ function enviarComunicadoManual_(emailAutor, params) {
   const emailTeste = String(obterConfig('NOTIFICACOES_DESTINATARIO_TESTE') || '').trim().toLowerCase();
   const permitidos = {};
   listarUsuariosAtivosNotificacao_().forEach(function (u) {
-    const porPerfil = perfis.length && perfis.indexOf(u.perfil) !== -1;
+    const porPerfil = perfis.length && perfis.indexOf(normalizarPerfilNotificacao_(u.perfil)) !== -1;
     const porEmail = emails.indexOf(u.email) !== -1;
     if (porPerfil || porEmail) permitidos[u.email] = u;
   });

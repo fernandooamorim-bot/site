@@ -62,10 +62,8 @@ function atualizarAutomacoesNotificacoes_(email, params) {
   removerGatilhosNotificacaoPorHandler_('processarLembretesEventoProximo');
   removerGatilhosNotificacaoPorHandler_('processarPendenciasMatinaisNotificacoes');
   removerGatilhosNotificacaoPorHandler_('processarFilaNotificacoes');
-  ScriptApp.newTrigger('processarFilaNotificacoes').timeBased().everyMinutes(5).create();
-  if (lembretes) {
-    ScriptApp.newTrigger('processarLembretesEventoProximo').timeBased().everyMinutes(15).create();
-  }
+  removerGatilhosNotificacaoPorHandler_('processarCicloNotificacoes');
+  ScriptApp.newTrigger('processarCicloNotificacoes').timeBased().everyMinutes(5).create();
   if (pendencias) {
     ScriptApp.newTrigger('processarPendenciasMatinaisNotificacoes').timeBased()
       .atHour(9).nearMinute(30).everyDays(1)
@@ -75,7 +73,7 @@ function atualizarAutomacoesNotificacoes_(email, params) {
     ok: true, resumo: resumo, lembretes: lembretes, pendencias: pendencias,
     gatilhos: {
       resumo: possuiGatilhoNotificacao_(NOTIFICACOES_HANDLER_AGENDADO_),
-      lembretes: possuiGatilhoNotificacao_('processarLembretesEventoProximo'),
+      lembretes: possuiGatilhoNotificacao_('processarCicloNotificacoes'),
       pendencias: possuiGatilhoNotificacao_('processarPendenciasMatinaisNotificacoes')
     }
   };
