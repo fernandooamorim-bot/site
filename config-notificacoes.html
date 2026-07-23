@@ -22,10 +22,28 @@
     .rules{display:grid;gap:12px}.rule{border:1px solid var(--line);border-radius:13px;padding:14px}.rule-head{display:flex;justify-content:space-between;gap:12px}.rule h3{font-size:14px;margin:0}.rule p{font-size:12px;color:var(--muted);margin:5px 0 12px}.rule-grid{display:grid;grid-template-columns:180px 160px minmax(240px,1fr) 150px 130px;gap:12px;align-items:start}.profiles{display:flex;flex-wrap:wrap;gap:7px}.profiles label{font-size:11px;background:#f8fafc;border:1px solid var(--line);border-radius:999px;padding:6px 8px}.pill{font-size:10px;padding:4px 7px;border-radius:999px;background:#e2e8f0}.pill.on{background:#dcfce7;color:var(--ok)}
     table{width:100%;border-collapse:collapse;font-size:12px}th,td{text-align:left;padding:9px;border-bottom:1px solid var(--line)}th{color:#475569}.empty{text-align:center;padding:22px;color:var(--muted)}textarea{width:100%;min-height:90px;padding:10px;border:1px solid #cbd5e1;border-radius:9px;font:inherit;resize:vertical}.status-on{color:var(--ok);font-weight:700}.status-off{color:#9a3412;font-weight:700}
     #status{position:fixed;right:16px;bottom:16px;max-width:380px;padding:11px 14px;border-radius:10px;background:var(--navy);color:#fff;display:none;font-size:12px}.hidden{display:none!important}
+    .page-loading{position:fixed;inset:0;z-index:100;background:rgba(245,247,251,.96);display:flex;align-items:center;justify-content:center;padding:24px;transition:opacity .22s,visibility .22s}
+    .page-loading.hidden-loading{opacity:0;visibility:hidden;pointer-events:none}
+    .page-loading-card{width:min(360px,100%);padding:28px;text-align:center;background:#fff;border:1px solid var(--line);border-radius:18px;box-shadow:0 18px 55px rgba(15,23,42,.12)}
+    .page-loading-icon{width:52px;height:52px;margin:0 auto 15px;border-radius:15px;background:#eef4fb;color:var(--blue);display:grid;place-items:center;position:relative}
+    .page-loading-icon i,.page-loading-icon svg{width:25px;height:25px}
+    .page-loading-icon::after{content:"";position:absolute;inset:-6px;border:3px solid #dbe7f5;border-top-color:var(--blue);border-radius:20px;animation:centralSpin .85s linear infinite}
+    .page-loading-card strong{display:block;font-size:15px}.page-loading-card span{display:block;margin-top:7px;color:var(--muted);font-size:12px;line-height:1.45}
+    .page-loading-progress{height:4px;margin-top:18px;border-radius:999px;background:#e7edf5;overflow:hidden}
+    .page-loading-progress::after{content:"";display:block;width:45%;height:100%;border-radius:inherit;background:linear-gradient(90deg,var(--blue),#4d78a7);animation:centralProgress 1.15s ease-in-out infinite}
+    @keyframes centralSpin{to{transform:rotate(360deg)}}@keyframes centralProgress{from{transform:translateX(-110%)}to{transform:translateX(245%)}}
     @media(max-width:900px){.diag,.grid{grid-template-columns:1fr 1fr}.rule-grid{grid-template-columns:1fr}.diag{grid-template-columns:1fr 1fr}main{padding:12px}}
   </style>
 </head>
 <body>
+  <div class="page-loading" id="pageLoading" role="status" aria-live="polite">
+    <div class="page-loading-card">
+      <div class="page-loading-icon"><i data-lucide="bell-ring"></i></div>
+      <strong>Carregando Central de Notificações</strong>
+      <span>Consultando regras, aparelhos e configurações de envio.</span>
+      <div class="page-loading-progress" aria-hidden="true"></div>
+    </div>
+  </div>
   <header><a href="configuracoes.html"><i data-lucide="arrow-left"></i>Central de Notificações</a><button class="btn" onclick="Auth.logout()">Sair</button></header>
   <main>
     <section class="hero">
@@ -83,7 +101,8 @@
     function bool(v){return v===true||String(v).toLowerCase()==='true'||String(v)==='1'}
     function aviso(msg,erro){const el=document.getElementById('status');el.textContent=msg;el.style.background=erro?'#991b1b':'#0f1a2e';el.style.display='block';setTimeout(()=>el.style.display='none',3500)}
     function setBusy(btn,on,txt){if(!btn)return;btn.disabled=on;if(on){btn.dataset.old=btn.textContent;btn.textContent=txt||'Salvando...'}else btn.textContent=btn.dataset.old||btn.textContent}
-    async function carregar(){central=await Auth.apiCall('obterCentralNotificacoes');renderTudo()}
+    function mostrarCarregamento(on){const el=document.getElementById('pageLoading');if(el)el.classList.toggle('hidden-loading',!on)}
+    async function carregar(){mostrarCarregamento(true);try{central=await Auth.apiCall('obterCentralNotificacoes');renderTudo()}finally{mostrarCarregamento(false)}}
     function renderTudo(){renderDiag();renderConfig();renderRegras();renderDispositivos();renderCobertura();renderPerfisManual();renderUsuariosManual();if(window.lucide)lucide.createIcons()}
     function renderDiag(){const d=central.diagnostico||{};const automacoes=[d.gatilhoResumoInstalado,d.gatilhoLembretesInstalado,d.gatilhoPendenciasInstalado].filter(Boolean).length;const itens=[['Firebase',d.firebaseConfigurado?'Configurado':'Incompleto'],['Automações',automacoes+' / 3'],['Envio real',d.envioGlobalAtivo?'ATIVO':'Desligado'],['Regras ativas',(d.regrasAtivas||0)+' / '+(d.totalRegras||0)],['Aparelhos ativos',(d.dispositivosAtivos||0)+' / '+(d.totalDispositivos||0)]];document.getElementById('diagnostico').innerHTML=itens.map(x=>`<div class="chip">${esc(x[0])}<strong>${esc(x[1])}</strong></div>`).join('')}
     function renderConfig(){const c=central.configuracao||{};Object.keys(c).forEach(k=>{const el=document.getElementById('cfg'+k);if(!el)return;if(el.type==='checkbox')el.checked=bool(c[k]);else el.value=c[k]??''})}

@@ -221,6 +221,128 @@
       animation: notificacaoSpin .75s linear infinite;
     }
     @keyframes notificacaoSpin { to { transform: rotate(360deg); } }
+    .notification-device-card {
+      overflow: hidden;
+      align-content: start;
+    }
+    .notification-device-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 10px;
+    }
+    .notification-status-dot {
+      width: 9px;
+      height: 9px;
+      margin-top: 5px;
+      border-radius: 50%;
+      background: #94a3b8;
+      box-shadow: 0 0 0 4px #f1f5f9;
+      flex: 0 0 auto;
+    }
+    .notification-device-card.device-active .notification-status-dot {
+      background: #22c55e;
+      box-shadow: 0 0 0 4px #dcfce7;
+    }
+    .notification-device-card.device-checking .notification-status-dot {
+      background: #3b82f6;
+      box-shadow: 0 0 0 4px #dbeafe;
+      animation: notificacaoPulse 1s ease-in-out infinite;
+    }
+    @keyframes notificacaoPulse { 50% { opacity: .35; transform: scale(.78); } }
+    .notification-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .notification-preferences {
+      display: grid;
+      gap: 8px;
+      padding-top: 12px;
+      margin-top: 2px;
+      border-top: 1px solid #e8edf5;
+    }
+    .notification-preferences-head strong {
+      display: block;
+      font-size: 12px;
+      color: var(--text);
+    }
+    .notification-preferences-head span {
+      display: block;
+      margin-top: 2px;
+      font-size: 10px;
+      color: var(--muted);
+      line-height: 1.4;
+    }
+    .notification-preference {
+      position: relative;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 11px;
+      border: 1px solid #e2e8f0;
+      border-radius: 11px;
+      background: #f8fafc;
+      cursor: pointer;
+      transition: border-color .18s, background .18s;
+    }
+    .notification-preference:hover {
+      border-color: #bfcee4;
+      background: #fff;
+    }
+    .notification-preference-copy strong {
+      display: block;
+      font-size: 11px;
+      line-height: 1.35;
+    }
+    .notification-preference-copy span {
+      display: block;
+      margin-top: 2px;
+      color: var(--muted);
+      font-size: 9px;
+      line-height: 1.35;
+    }
+    .notification-switch {
+      position: relative;
+      width: 38px;
+      height: 22px;
+      flex: 0 0 auto;
+    }
+    .notification-switch input {
+      position: absolute;
+      opacity: 0;
+      pointer-events: none;
+    }
+    .notification-switch-track {
+      position: absolute;
+      inset: 0;
+      border-radius: 999px;
+      background: #cbd5e1;
+      transition: background .2s;
+    }
+    .notification-switch-track::after {
+      content: "";
+      position: absolute;
+      width: 16px;
+      height: 16px;
+      top: 3px;
+      left: 3px;
+      border-radius: 50%;
+      background: #fff;
+      box-shadow: 0 1px 3px rgba(15,23,42,.28);
+      transition: transform .2s;
+    }
+    .notification-switch input:checked + .notification-switch-track {
+      background: var(--primary);
+    }
+    .notification-switch input:checked + .notification-switch-track::after {
+      transform: translateX(16px);
+    }
+    .notification-switch input:focus-visible + .notification-switch-track {
+      outline: 3px solid rgba(30,58,95,.18);
+      outline-offset: 2px;
+    }
     .module-card .btn { width: fit-content; }
     .tabs {
       display: flex;
@@ -593,17 +715,35 @@
         <p>Leitura humanizada dos logs da aba LOGS com filtros por período, tipo e busca textual.</p>
         <button class="btn" id="btnAbrirAtividadeSistema">Abrir atividade</button>
       </article>
-      <article class="module-card" id="cardNotificacoes">
-        <h3><i data-lucide="bell-ring"></i>Notificações no celular</h3>
+      <article class="module-card notification-device-card" id="cardNotificacoes">
+        <div class="notification-device-head">
+          <h3><i data-lucide="bell-ring"></i>Notificações no celular</h3>
+          <span class="notification-status-dot" aria-hidden="true"></span>
+        </div>
         <p id="notificacoesResumo">Verificando disponibilidade neste aparelho...</p>
-        <div class="row">
+        <div class="notification-actions">
           <button class="btn primary" id="btnAtivarNotificacoes">Ativar neste aparelho</button>
           <button class="btn hidden" id="btnDesativarNotificacoes">Desativar</button>
           <button class="btn" id="btnGerenciarNotificacoes">Gerenciar regras</button>
         </div>
-        <label><input type="checkbox" id="prefEventosDia" checked> Lembretes dos eventos do dia</label>
-        <label><input type="checkbox" id="prefEventoAlterado" checked> Evento criado ou editado</label>
-        <label><input type="checkbox" id="prefFolhaCustos" checked> Folha de custos para aprovação</label>
+        <div class="notification-preferences">
+          <div class="notification-preferences-head">
+            <strong>Preferências deste aparelho</strong>
+            <span>Escolha os avisos opcionais que deseja receber neste celular ou navegador.</span>
+          </div>
+          <label class="notification-preference">
+            <span class="notification-preference-copy"><strong>Eventos do dia</strong><span>Resumo e lembretes dos seus eventos.</span></span>
+            <span class="notification-switch"><input type="checkbox" id="prefEventosDia" checked><span class="notification-switch-track"></span></span>
+          </label>
+          <label class="notification-preference">
+            <span class="notification-preference-copy"><strong>Evento criado ou editado</strong><span>Avisos sobre novas agendas e alterações importantes.</span></span>
+            <span class="notification-switch"><input type="checkbox" id="prefEventoAlterado" checked><span class="notification-switch-track"></span></span>
+          </label>
+          <label class="notification-preference">
+            <span class="notification-preference-copy"><strong>Folha de custos</strong><span>Envio, pendência e decisão de aprovação.</span></span>
+            <span class="notification-switch"><input type="checkbox" id="prefFolhaCustos" checked><span class="notification-switch-track"></span></span>
+          </label>
+        </div>
         <button class="btn hidden" id="btnSalvarPreferenciasNotificacao">Salvar preferências</button>
       </article>
     </section>
@@ -1517,7 +1657,12 @@
 
     function aplicarEstadoVisualNotificacoes_(estado, confirmando) {
       const resumo = document.getElementById('notificacoesResumo');
+      const card = document.getElementById('cardNotificacoes');
       const ativo = !!(estado && estado.ativo);
+      if (card) {
+        card.classList.toggle('device-active', ativo);
+        card.classList.toggle('device-checking', !!confirmando);
+      }
       if (resumo) {
         resumo.classList.toggle('sincronizando', !!confirmando);
         resumo.textContent = ativo
