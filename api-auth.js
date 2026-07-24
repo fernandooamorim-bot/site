@@ -205,6 +205,14 @@ if (raw && raw.startsWith('{')) {
       exigirPerfilProprietario_();
       return json(obterCentralNotificacoes_(emailAutenticado));
     }
+    if (action === 'gerenciarDispositivoNotificacao') {
+      exigirPerfilProprietario_();
+      return json(gerenciarDispositivoNotificacao_(emailAutenticado, params));
+    }
+    if (action === 'executarManutencaoDispositivosNotificacao') {
+      exigirPerfilProprietario_();
+      return json(executarManutencaoDispositivosSeNecessario_({ forcar: true }));
+    }
     if (action === 'atualizarRegraNotificacao') {
       exigirPerfilProprietario_();
       return json(atualizarRegraNotificacao_(emailAutenticado, params));
@@ -382,7 +390,10 @@ function paramBool_(v) {
       const resultadoEdicao = salvarEdicaoEvento(params.idEvento, params, emailAutenticado);
       if (resultadoEdicao && resultadoEdicao.sucesso) {
         executarNotificacaoSemBloquear_('EVENTO_ALTERADO_IMPORTANTE', function () {
-          return notificarEventoAlterado_(params.idEvento, params);
+          return notificarEventoAlterado_(
+            params.idEvento,
+            resultadoEdicao.alteracoes || []
+          );
         });
       }
       return json(resultadoEdicao);

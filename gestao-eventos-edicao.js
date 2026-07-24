@@ -884,12 +884,14 @@ function salvarEdicaoEvento(idEvento, dadosFormulario, email) {
       garantirMovimentacoesNF_BV(eventoAtualizado, emailExecutor);
     }
 
+    const alteracoesEvento = resumirAlteracoesEdicaoEvento_(linhaOriginal, linha);
+
     registrarLog(
       'EDITAR',
       'EVENTOS',
       String(linha[COL.ID_EVENTO] || idEvento || ''),
       JSON.stringify({
-        alteracoes: resumirAlteracoesEdicaoEvento_(linhaOriginal, linha),
+        alteracoes: alteracoesEvento,
         origem: 'salvarEdicaoEvento',
         editor: String(emailExecutor || '')
       })
@@ -901,7 +903,8 @@ function salvarEdicaoEvento(idEvento, dadosFormulario, email) {
     return {
       sucesso: true,
       mensagem: 'Evento atualizado com sucesso',
-      eventoId: linha[COL.ID_EVENTO]
+      eventoId: linha[COL.ID_EVENTO],
+      alteracoes: alteracoesEvento
     };
 
   } catch (erro) {

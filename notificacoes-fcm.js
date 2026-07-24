@@ -21,10 +21,12 @@ const NOTIFICACOES_CONFIG_EDITAVEL_ = [
   'NOTIFICACOES_ANTECEDENCIA_PREPARACAO_HORAS', 'NOTIFICACOES_HORARIO_INICIO',
   'NOTIFICACOES_HORARIO_FIM', 'NOTIFICACOES_TIMEZONE',
   'NOTIFICACOES_DIAS_RETER_HISTORICO', 'NOTIFICACOES_MAX_TENTATIVAS',
+  'NOTIFICACOES_DISPOSITIVO_INATIVO_DIAS', 'NOTIFICACOES_DISPOSITIVO_REMOVER_DIAS',
   'NOTIFICACOES_EMAIL_ATIVO'
 ];
 
 function obterCentralNotificacoes_(email) {
+  const manutencao = executarManutencaoDispositivosSeNecessario_();
   const cfg = carregarConfigNotificacoes_();
   const regras = listarRegrasNotificacoes_();
   const dispositivos = listarTodosDispositivosNotificacao_();
@@ -42,6 +44,8 @@ function obterCentralNotificacoes_(email) {
       NOTIFICACOES_HORARIO_FIM: String(obterConfig('NOTIFICACOES_HORARIO_FIM') || '23:00'),
       NOTIFICACOES_TIMEZONE: String(obterConfig('NOTIFICACOES_TIMEZONE') || 'America/Fortaleza'),
       NOTIFICACOES_DIAS_RETER_HISTORICO: Number(obterConfig('NOTIFICACOES_DIAS_RETER_HISTORICO') || 180),
+      NOTIFICACOES_DISPOSITIVO_INATIVO_DIAS: Number(obterConfig('NOTIFICACOES_DISPOSITIVO_INATIVO_DIAS') || 90),
+      NOTIFICACOES_DISPOSITIVO_REMOVER_DIAS: Number(obterConfig('NOTIFICACOES_DISPOSITIVO_REMOVER_DIAS') || 180),
       NOTIFICACOES_MAX_TENTATIVAS: Number(obterConfig('NOTIFICACOES_MAX_TENTATIVAS') || 3),
       NOTIFICACOES_EMAIL_ATIVO: boolNotificacao_(obterConfig('NOTIFICACOES_EMAIL_ATIVO'), false),
       NOTIFICACOES_RESUMO_AUTOMATICO_ATIVO: boolNotificacao_(obterConfig('NOTIFICACOES_RESUMO_AUTOMATICO_ATIVO'), false),
@@ -65,6 +69,7 @@ function obterCentralNotificacoes_(email) {
       gatilhoFilaInstalado: typeof possuiGatilhoNotificacao_ === 'function' &&
         (possuiGatilhoNotificacao_('processarCicloNotificacoes') || possuiGatilhoNotificacao_('processarFilaNotificacoes')),
       solicitante: String(email || ''),
+      manutencaoDispositivos: manutencao,
       historico: historico
     },
     regras: regras,
@@ -174,7 +179,9 @@ function atualizarConfigNotificacoes_(email, params) {
     if (!valor) throw new Error('NOTIFICACAO_HORA_INVALIDA');
   }
   if (chave === 'NOTIFICACOES_TIMEZONE' && valor !== 'America/Fortaleza') throw new Error('NOTIFICACAO_TIMEZONE_INVALIDA');
-  if (['NOTIFICACOES_ANTECEDENCIA_EVENTO_MIN', 'NOTIFICACOES_ANTECEDENCIA_PREPARACAO_HORAS', 'NOTIFICACOES_DIAS_RETER_HISTORICO', 'NOTIFICACOES_MAX_TENTATIVAS'].indexOf(chave) !== -1) {
+  if (['NOTIFICACOES_ANTECEDENCIA_EVENTO_MIN', 'NOTIFICACOES_ANTECEDENCIA_PREPARACAO_HORAS',
+      'NOTIFICACOES_DIAS_RETER_HISTORICO', 'NOTIFICACOES_MAX_TENTATIVAS',
+      'NOTIFICACOES_DISPOSITIVO_INATIVO_DIAS', 'NOTIFICACOES_DISPOSITIVO_REMOVER_DIAS'].indexOf(chave) !== -1) {
     const numero = Number(valor);
     if (!isFinite(numero) || numero < 0) throw new Error('NOTIFICACAO_NUMERO_INVALIDO');
     valor = String(Math.floor(numero));
@@ -208,6 +215,14 @@ function salvarConfiguracaoGlobalNotificacoes_(email, params) {
     const desejaFCM = boolNotificacao_(recebida.FCM_ATIVO, false);
     const desejaModoTeste = boolNotificacao_(recebida.NOTIFICACOES_MODO_TESTE, true);
     const desejaEmail = boolNotificacao_(recebida.NOTIFICACOES_EMAIL_ATIVO, false);
+    const diasInatividade = Number(recebida.NOTIFICACOES_DISPOSITIVO_INATIVO_DIAS || 90);
+    const diasRemocao = Number(recebida.NOTIFICACOES_DISPOSITIVO_REMOVER_DIAS || 180);
+    if (!isFinite(diasInatividade) || diasInatividade < 30) {
+      throw new Error('FCM_INATIVIDADE_MINIMA_30_DIAS');
+    }
+    if (!isFinite(diasRemocao) || diasRemocao < diasInatividade + 30) {
+      throw new Error('FCM_REMOCAO_EXIGE_30_DIAS_APOS_INATIVACAO');
+    }
     const fcmAtual = boolNotificacao_(obterConfig('FCM_ATIVO'), false);
     if (desejaFCM && !fcmAtual && !boolNotificacao_(params.confirmarAtivacaoReal, false)) {
       throw new Error('FCM_ATIVACAO_CONFIRMACAO_OBRIGATORIA');
@@ -265,8 +280,10 @@ function listarTodosDispositivosNotificacao_() {
       navegador: String(valorPorHeaderNotificacao_(r, idx, 'NAVEGADOR') || ''),
       nomeDispositivo: String(valorPorHeaderNotificacao_(r, idx, 'NOME_DISPOSITIVO') || ''),
       identificadorTipo: normalizarTipoIdentificadorNotificacao_(valorPorHeaderNotificacao_(r, idx, 'TIPO_IDENTIFICADOR')),
+      idGerenciamento: hashIdentificadorNotificacao_(token),
       tokenFinal: token.slice(-10),
       ativo: boolNotificacao_(valorPorHeaderNotificacao_(r, idx, 'ATIVO'), true),
+      criadoEm: valorPorHeaderNotificacao_(r, idx, 'CRIADO_EM'),
       atualizadoEm: valorPorHeaderNotificacao_(r, idx, 'ATUALIZADO_EM'),
       ultimoAcesso: valorPorHeaderNotificacao_(r, idx, 'ULTIMO_ACESSO'),
       ultimoErro: String(valorPorHeaderNotificacao_(r, idx, 'ULTIMO_ERRO') || '')
@@ -322,8 +339,9 @@ function formatarHoraValorNotificacao_(valor) {
 
 function obterStatusNotificacoes_(email, params) {
   const cfg = carregarConfigNotificacoes_();
-  const registros = listarDispositivosNotificacaoPorEmail_(email);
   const identificadorAtual = String((params && params.token) || '').trim();
+  if (identificadorAtual) registrarAcessoDispositivoNotificacao_(email, identificadorAtual);
+  const registros = listarDispositivosNotificacaoPorEmail_(email);
   const registroAtual = identificadorAtual ? registros.filter(function (r) {
     return String(r.TOKEN || '') === identificadorAtual;
   })[0] : null;
@@ -361,6 +379,128 @@ function obterStatusNotificacoes_(email, params) {
       };
     })
   };
+}
+
+function registrarAcessoDispositivoNotificacao_(email, token) {
+  const identificador = String(token || '').trim();
+  const alvo = String(email || '').trim().toLowerCase();
+  if (!identificador || !alvo) return false;
+  const sheet = obterOuCriarAbaDispositivosNotificacao_();
+  const dados = sheet.getDataRange().getValues();
+  const agora = new Date();
+  const intervaloMinimo = 6 * 3600000;
+  for (let i = 1; i < dados.length; i++) {
+    if (String(dados[i][0] || '') !== identificador ||
+        String(dados[i][1] || '').trim().toLowerCase() !== alvo) continue;
+    const ultimo = dados[i][13] instanceof Date ? dados[i][13].getTime() : new Date(dados[i][13]).getTime();
+    if (!ultimo || isNaN(ultimo) || agora.getTime() - ultimo >= intervaloMinimo) {
+      sheet.getRange(i + 1, 14).setValue(agora);
+    }
+    return true;
+  }
+  return false;
+}
+
+function gerenciarDispositivoNotificacao_(email, params) {
+  const id = String(params && params.idGerenciamento || '').trim();
+  const operacao = String(params && params.operacao || '').trim().toUpperCase();
+  if (!id || ['DESATIVAR', 'EXCLUIR'].indexOf(operacao) === -1) {
+    throw new Error('FCM_GERENCIAMENTO_INVALIDO');
+  }
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(5000)) throw new Error('FCM_GERENCIAMENTO_EM_ANDAMENTO');
+  try {
+    const sheet = obterOuCriarAbaDispositivosNotificacao_();
+    const dados = sheet.getDataRange().getValues();
+    for (let i = 1; i < dados.length; i++) {
+      const token = String(dados[i][0] || '').trim();
+      if (!token || hashIdentificadorNotificacao_(token) !== id) continue;
+      const emailDispositivo = String(dados[i][1] || '').trim().toLowerCase();
+      const finalToken = token.slice(-10);
+      if (operacao === 'DESATIVAR') {
+        sheet.getRange(i + 1, 6).setValue(false);
+        sheet.getRange(i + 1, 11).setValue(new Date());
+        registrarLog('DESATIVAR', NOTIFICACOES_ABA_DISPOSITIVOS_, finalToken,
+          'Aparelho de ' + emailDispositivo + ' desativado manualmente por ' + String(email || ''));
+        return { ok: true, operacao: operacao, tokenFinal: finalToken };
+      }
+      if (boolNotificacao_(dados[i][5], false)) throw new Error('FCM_EXCLUSAO_EXIGE_INATIVO');
+      sheet.deleteRow(i + 1);
+      registrarLog('EXCLUIR', NOTIFICACOES_ABA_DISPOSITIVOS_, finalToken,
+        'Registro inativo de ' + emailDispositivo + ' excluído manualmente por ' + String(email || ''));
+      return { ok: true, operacao: operacao, tokenFinal: finalToken };
+    }
+    throw new Error('FCM_DISPOSITIVO_NAO_ENCONTRADO');
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function executarManutencaoDispositivosSeNecessario_(opcoes) {
+  const opts = opcoes || {};
+  const timezone = String(obterConfig('NOTIFICACOES_TIMEZONE') || 'America/Fortaleza');
+  const hoje = Utilities.formatDate(new Date(), timezone, 'yyyy-MM-dd');
+  const properties = PropertiesService.getScriptProperties();
+  const chave = 'NOTIFICACOES_ULTIMA_MANUTENCAO_DISPOSITIVOS';
+  if (!opts.forcar && properties.getProperty(chave) === hoje) {
+    return { ok: true, executada: false, motivo: 'JA_EXECUTADA_HOJE' };
+  }
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(3000)) return { ok: true, executada: false, motivo: 'MANUTENCAO_EM_ANDAMENTO' };
+  try {
+    const sheet = obterOuCriarAbaDispositivosNotificacao_();
+    if (sheet.getLastRow() < 2) {
+      properties.setProperty(chave, hoje);
+      return { ok: true, executada: true, desativados: 0, removidos: 0 };
+    }
+    const dados = sheet.getRange(2, 1, sheet.getLastRow() - 1, NOTIFICACOES_HEADERS_.length).getValues();
+    const agora = Date.now();
+    const diasInatividade = Math.max(30, Number(obterConfig('NOTIFICACOES_DISPOSITIVO_INATIVO_DIAS') || 90));
+    const diasRemocao = Math.max(diasInatividade + 30,
+      Number(obterConfig('NOTIFICACOES_DISPOSITIVO_REMOVER_DIAS') || 180));
+    const limiteAtivo = agora - diasInatividade * 86400000;
+    const limiteInativo = agora - diasRemocao * 86400000;
+    const desativar = [];
+    const remover = [];
+    dados.forEach(function (r, i) {
+      const token = String(r[0] || '').trim();
+      if (!token) return;
+      const ativo = boolNotificacao_(r[5], false);
+      const referencia = dataMaisRecenteDispositivoNotificacao_(r);
+      if (!referencia) return;
+      if (ativo && referencia.getTime() < limiteAtivo) {
+        desativar.push(i + 2);
+      } else if (!ativo && referencia.getTime() < limiteInativo) {
+        remover.push(i + 2);
+      }
+    });
+    desativar.forEach(function (linha) {
+      sheet.getRange(linha, 6).setValue(false);
+      sheet.getRange(linha, 11).setValue(new Date());
+    });
+    for (let i = remover.length - 1; i >= 0; i--) sheet.deleteRow(remover[i]);
+    properties.setProperty(chave, hoje);
+    if (desativar.length || remover.length) {
+      registrarLog('MANUTENCAO', NOTIFICACOES_ABA_DISPOSITIVOS_, hoje,
+        desativar.length + ' aparelho(s) desativado(s); ' + remover.length + ' registro(s) removido(s)');
+    }
+    return {
+      ok: true, executada: true, desativados: desativar.length, removidos: remover.length,
+      diasInatividade: diasInatividade, diasRemocao: diasRemocao
+    };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function dataMaisRecenteDispositivoNotificacao_(linha) {
+  let maisRecente = null;
+  [linha[9], linha[10], linha[13]].forEach(function (valor) {
+    const data = valor instanceof Date ? valor : new Date(valor);
+    if (!data || isNaN(data.getTime())) return;
+    if (!maisRecente || data > maisRecente) maisRecente = data;
+  });
+  return maisRecente;
 }
 
 function registrarDispositivoNotificacao_(email, params) {

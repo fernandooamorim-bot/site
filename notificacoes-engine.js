@@ -39,6 +39,43 @@ function enfileirarNotificacaoRegra_(codigo, contexto) {
   return { ok: true, enfileirada: true };
 }
 
+function enfileirarAlteracaoEventoConsolidada_(contexto) {
+  const codigo = 'EVENTO_ALTERADO_IMPORTANTE';
+  const sheet = obterOuCriarFilaNotificacoes_();
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(2000)) return enfileirarNotificacaoRegra_(codigo, contexto);
+  try {
+    if (sheet.getLastRow() >= 2) {
+      const dados = sheet.getRange(2, 1, sheet.getLastRow() - 1, 8).getValues();
+      for (let i = dados.length - 1; i >= 0; i--) {
+        if (String(dados[i][1] || '').toUpperCase() !== codigo ||
+            String(dados[i][3] || '').toUpperCase() !== 'PENDENTE') continue;
+        let anterior;
+        try { anterior = JSON.parse(String(dados[i][2] || '{}')); } catch (_) { continue; }
+        if (String(anterior.idEvento || '') !== String(contexto.idEvento || '')) continue;
+
+        const alteracoes = mesclarAlteracoesNotificacao_(
+          anterior.alteracoes || [],
+          contexto.alteracoes || []
+        );
+        const atualizado = Object.assign({}, contexto, {
+          alteracoes: alteracoes,
+          valores: montarValoresAlteracaoNotificacao_(contexto.valores || {}, alteracoes)
+        });
+        sheet.getRange(i + 2, 3).setValue(JSON.stringify(atualizado));
+        return { ok: true, enfileirada: true, consolidada: true };
+      }
+    }
+    sheet.appendRow([
+      Utilities.getUuid(), codigo, JSON.stringify(contexto || {}),
+      'PENDENTE', 0, new Date(), '', ''
+    ]);
+    return { ok: true, enfileirada: true, consolidada: false };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
 function processarFilaNotificacoes() {
   const lock = LockService.getScriptLock();
   if (!lock.tryLock(1000)) return { ok: true, ignorado: true, motivo: 'FILA_EM_PROCESSAMENTO' };
@@ -89,7 +126,10 @@ function processarCicloNotificacoes() {
       return processarLembretesEventoProximo();
     });
   }
-  return { ok: true, fila: fila, lembretes: lembretes };
+  const manutencaoDispositivos = executarNotificacaoSemBloquear_('MANUTENCAO_DISPOSITIVOS', function () {
+    return executarManutencaoDispositivosSeNecessario_();
+  });
+  return { ok: true, fila: fila, lembretes: lembretes, manutencaoDispositivos: manutencaoDispositivos };
 }
 
 function obterRegraNotificacaoPorCodigo_(codigo) {
@@ -355,19 +395,101 @@ function notificarEventoCriado_(idEvento) {
   });
 }
 
-function notificarEventoAlterado_(idEvento, params) {
-  const importantes = ['dataEvento','dataFim','horaInicio','duracao','tipoEvento','projeto',
-    'idEndereco','nomeLocalEditado','look','somResponsavel','observacoes'];
-  const alterados = importantes.filter(function (k) {
-    return Object.prototype.hasOwnProperty.call(params || {}, k);
+function notificarEventoAlterado_(idEvento, alteracoesRecebidas) {
+  const importantes = {
+    dataEvento: true, dataFim: true, horaInicio: true, duracao: true,
+    tipoEvento: true, projeto: true, idEndereco: true, local: true,
+    look: true, somResponsavel: true, observacoes: true
+  };
+  const alteracoes = (Array.isArray(alteracoesRecebidas) ? alteracoesRecebidas : []).filter(function (a) {
+    return a && importantes[String(a.campo || '')] === true &&
+      String(a.de == null ? '' : a.de) !== String(a.para == null ? '' : a.para);
   });
-  if (!alterados.length) return { ok: true, ignorado: true, motivo: 'SEM_CAMPO_IMPORTANTE' };
+  if (!alteracoes.length) return { ok: true, ignorado: true, motivo: 'SEM_CAMPO_IMPORTANTE' };
   const linha = buscarLinhaEventoNotificacao_(idEvento);
   if (!linha || String(linha[COL.TIPO_REGISTRO]) !== 'Evento') return;
   const versao = linha[COL.ULTIMA_EDICAO] instanceof Date ? linha[COL.ULTIMA_EDICAO].getTime() : String(linha[COL.ULTIMA_EDICAO] || '');
-  return enfileirarNotificacaoRegra_('EVENTO_ALTERADO_IMPORTANTE', {
+  const valoresEvento = montarValoresEventoNotificacao_(linha);
+  return enfileirarAlteracaoEventoConsolidada_({
     idEvento: idEvento, referencia: idEvento + '|ALTERADO|' + versao,
-    valores: montarValoresEventoNotificacao_(linha, { CAMPOS_ALTERADOS: alterados.join(', ') })
+    alteracoes: alteracoes,
+    valores: montarValoresAlteracaoNotificacao_(valoresEvento, alteracoes)
+  });
+}
+
+function mesclarAlteracoesNotificacao_(anteriores, novas) {
+  const ordem = [];
+  const mapa = {};
+  (anteriores || []).concat(novas || []).forEach(function (a) {
+    const campo = String(a && a.campo || '');
+    if (!campo) return;
+    if (!mapa[campo]) {
+      mapa[campo] = { campo: campo, de: a.de, para: a.para };
+      ordem.push(campo);
+    } else {
+      mapa[campo].para = a.para;
+    }
+  });
+  return ordem.map(function (campo) { return mapa[campo]; }).filter(function (a) {
+    return String(a.de == null ? '' : a.de) !== String(a.para == null ? '' : a.para);
+  });
+}
+
+function rotuloCampoAlteracaoNotificacao_(campo) {
+  const rotulos = {
+    dataEvento: 'Data', dataFim: 'Data final', horaInicio: 'Horário',
+    duracao: 'Duração', tipoEvento: 'Tipo do evento', projeto: 'Formação',
+    idEndereco: 'Local', local: 'Local', look: 'Look',
+    somResponsavel: 'Responsável pelo som', observacoes: 'Observações'
+  };
+  return rotulos[String(campo || '')] || 'Informação';
+}
+
+function formatarValorAlteracaoNotificacao_(campo, valor) {
+  const texto = String(valor == null ? '' : valor).trim();
+  if (!texto) return 'não informado';
+  if (campo === 'horaInicio') {
+    const hora = texto.match(/T(\d{2}):(\d{2})/) || texto.match(/^(\d{1,2}):(\d{2})/);
+    if (hora) return hora[1].padStart(2, '0') + ':' + hora[2];
+  }
+  if (campo === 'dataEvento' || campo === 'dataFim') {
+    const data = texto.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (data) return data[3] + '/' + data[2] + '/' + data[1];
+  }
+  return limitarTextoNotificacao_(texto, 48);
+}
+
+function montarValoresAlteracaoNotificacao_(valoresEvento, alteracoes) {
+  const unicas = [];
+  const rotulosVistos = {};
+  (alteracoes || []).forEach(function (a) {
+    const rotulo = rotuloCampoAlteracaoNotificacao_(a.campo);
+    if (rotulosVistos[rotulo]) return;
+    rotulosVistos[rotulo] = true;
+    unicas.push(a);
+  });
+  let titulo = 'Evento atualizado';
+  let resumo = '';
+  if (unicas.length === 1) {
+    const a = unicas[0];
+    const rotulo = rotuloCampoAlteracaoNotificacao_(a.campo);
+    titulo = rotulo + ' do evento alterado';
+    resumo = rotulo + ': de ' +
+      formatarValorAlteracaoNotificacao_(a.campo, a.de) + ' para ' +
+      formatarValorAlteracaoNotificacao_(a.campo, a.para) + '.';
+  } else {
+    const nomes = unicas.map(function (a) {
+      return rotuloCampoAlteracaoNotificacao_(a.campo).toLowerCase();
+    });
+    resumo = 'Alterações: ' + nomes.slice(0, 3).join(', ') +
+      (nomes.length > 3 ? ' e mais ' + (nomes.length - 3) : '') + '.';
+  }
+  return Object.assign({}, valoresEvento || {}, {
+    TITULO_ALTERACAO: titulo,
+    RESUMO_ALTERACOES: resumo,
+    CAMPOS_ALTERADOS: unicas.map(function (a) {
+      return rotuloCampoAlteracaoNotificacao_(a.campo);
+    }).join(', ')
   });
 }
 
@@ -459,23 +581,24 @@ function processarPendenciasMatinaisNotificacoes() {
     const instante = instanteRealEventoNotificacao_(linha);
     if (!instante || instante >= agora) return;
     const horasDesdeEvento = (agora.getTime() - instante.getTime()) / 3600000;
-    // Fase inicial segura: não transformar pendências históricas em uma
-    // enxurrada no primeiro processamento. O painel financeiro continua sendo
-    // a fonte para passivos antigos; a notificação cobre apenas o pós-evento.
-    if (horasDesdeEvento > 48) return;
+    const diasDesdeEvento = diasDesdeDataComercialNotificacao_(linha, agora);
+    const marcoPagamento = obterMarcoPendenciaPosEventoNotificacao_(diasDesdeEvento);
     const id = String(linha[COL.ID_EVENTO] || '');
     const valores = montarValoresEventoNotificacao_(linha);
     const recebido = Number(linha[COL.VALOR_RECEBIDO] || 0);
     const pendente = Number(linha[COL.VALOR_PENDENTE] || 0);
-    if (recebido <= 0 && Number(linha[COL.VALOR_TOTAL] || 0) > 0) {
+    if (marcoPagamento && recebido <= 0 && Number(linha[COL.VALOR_TOTAL] || 0) > 0) {
       despacharRegraNotificacao_('EVENTO_REALIZADO_SEM_RECEBIMENTO', {
-        idEvento: id, referencia: id + '|SEM_RECEBIMENTO|' + dataHojeNotificacao_(), valores: valores
+        idEvento: id, referencia: id + '|SEM_RECEBIMENTO|' + marcoPagamento, valores: valores
       }); processados++;
-    } else if (pendente > 0) {
+    } else if (marcoPagamento && pendente > 0) {
       despacharRegraNotificacao_('EVENTO_REALIZADO_PARCIAL', {
-        idEvento: id, referencia: id + '|PARCIAL|' + dataHojeNotificacao_(), valores: valores
+        idEvento: id, referencia: id + '|PARCIAL|' + marcoPagamento, valores: valores
       }); processados++;
     }
+    // As demais pendências mantêm a janela inicial já aprovada. Assim, ampliar
+    // a cadência de recebimentos não gera avisos retroativos de folha, BV ou NF.
+    if (horasDesdeEvento > 48) return;
     if (Number(linha[COL.FOLHA_CUSTO_VALOR] || 0) <= 0) {
       despacharRegraNotificacao_('FOLHA_CUSTOS_PENDENTE', {
         idEvento: id, referencia: id + '|FOLHA_PENDENTE|' + dataHojeNotificacao_(), valores: valores
@@ -496,6 +619,26 @@ function processarPendenciasMatinaisNotificacoes() {
   });
   limparHistoricoNotificacoesExpirado_();
   return { ok: true, processados: processados };
+}
+
+function diasDesdeDataComercialNotificacao_(linha, agora) {
+  const timezone = String(obterConfig('NOTIFICACOES_TIMEZONE') || 'America/Fortaleza');
+  const dataEvento = formatarDataComercialNotificacao_(linha[COL.DATA_EVENTO], timezone);
+  const partesEvento = dataEvento.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  const hojeIso = Utilities.formatDate(agora || new Date(), timezone, 'yyyy-MM-dd');
+  const partesHoje = hojeIso.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!partesEvento || !partesHoje) return -1;
+  const eventoUtc = Date.UTC(Number(partesEvento[3]), Number(partesEvento[2]) - 1, Number(partesEvento[1]));
+  const hojeUtc = Date.UTC(Number(partesHoje[1]), Number(partesHoje[2]) - 1, Number(partesHoje[3]));
+  return Math.floor((hojeUtc - eventoUtc) / 86400000);
+}
+
+function obterMarcoPendenciaPosEventoNotificacao_(diasDesdeEvento) {
+  const dias = Number(diasDesdeEvento);
+  if (dias === 1) return 'DIA_1';
+  if (dias === 3) return 'DIA_3';
+  if (dias > 3 && (dias - 3) % 7 === 0) return 'DIA_' + dias;
+  return '';
 }
 
 function dataHojeNotificacao_() {
