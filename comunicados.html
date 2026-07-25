@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#0f1a2e">
+  <title>Enviar comunicado</title>
+  <script src="auth.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root{--navy:#0f1a2e;--blue:#1e3a5f;--gold:#e0bc6a;--bg:#f5f7fb;--card:#fff;--line:#dbe2ef;--text:#0f172a;--muted:#64748b;--danger:#991b1b}
+    *{box-sizing:border-box}body{margin:0;font-family:Inter,sans-serif;background:var(--bg);color:var(--text)}
+    header{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;background:var(--navy);color:#fff}
+    header a{color:#fff;text-decoration:none;font-weight:800}.page{max-width:900px;margin:auto;padding:20px}
+    .hero,.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px;box-shadow:0 8px 24px rgba(15,23,42,.06)}
+    .hero{margin-bottom:16px}.hero h1{font-size:22px;margin:0 0 7px}.hero p,.muted{color:var(--muted);font-size:13px;margin:0}
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:13px}.field{display:grid;gap:6px}.field.full{grid-column:1/-1}
+    label,.label{font-size:12px;font-weight:700;color:#475569}input,textarea{width:100%;border:1px solid #cbd5e1;border-radius:10px;padding:11px;font:inherit;background:#fff}
+    textarea{min-height:120px;resize:vertical}.choices{display:flex;flex-wrap:wrap;gap:8px}.choice{display:flex;align-items:center;gap:7px;padding:8px 10px;border:1px solid var(--line);border-radius:999px;background:#f8fafc;font-size:12px}
+    .choice input{width:16px;height:16px}.section{padding-top:14px;margin-top:14px;border-top:1px solid var(--line)}.section h2{font-size:14px;margin:0 0 10px}
+    .actions{display:flex;gap:10px;align-items:center;margin-top:17px}.btn{border:1px solid #cbd5e1;background:#fff;padding:10px 14px;border-radius:10px;font-weight:800;cursor:pointer}.btn.primary{background:var(--blue);border-color:var(--blue);color:#fff}.btn:disabled{opacity:.55;cursor:wait}
+    .notice{padding:10px 12px;border:1px solid #fed7aa;background:#fff7ed;color:#9a3412;border-radius:10px;font-size:12px;margin-bottom:14px}.hidden{display:none}
+    #status{position:fixed;right:16px;bottom:16px;max-width:390px;padding:12px 14px;border-radius:10px;background:var(--navy);color:#fff;display:none;font-size:12px}
+    .skeleton{height:42px;border-radius:10px;background:linear-gradient(90deg,#eef2f7,#fff,#eef2f7);background-size:200% 100%;animation:pulse 1.2s infinite}@keyframes pulse{to{background-position:-200% 0}}
+    @media(max-width:650px){.grid{grid-template-columns:1fr}.page{padding:12px}.field.full{grid-column:auto}.actions .btn{width:100%}}
+  </style>
+</head>
+<body>
+  <header><a href="configuracoes.html">← Enviar comunicado</a><button class="btn" onclick="Auth.logout()">Sair</button></header>
+  <main class="page">
+    <section class="hero">
+      <h1>Comunicado manual</h1>
+      <p>Envie um aviso pontual para perfis ou pessoas específicas. O envio fica registrado com seu usuário.</p>
+    </section>
+    <section class="card">
+      <div id="modoTeste" class="notice hidden">Modo de teste ativo: somente o destinatário de teste receberá.</div>
+      <div class="grid">
+        <div class="field"><label for="titulo">Título</label><input id="titulo" maxlength="100" placeholder="Ex.: Ensaio confirmado"></div>
+        <div class="field"><label for="link">Destino ao tocar — opcional</label><input id="link" maxlength="200" placeholder="agenda.html"></div>
+        <div class="field full"><label for="mensagem">Mensagem</label><textarea id="mensagem" maxlength="400" placeholder="Escreva uma mensagem curta e objetiva."></textarea></div>
+      </div>
+      <div class="section">
+        <h2>Canais</h2>
+        <div class="choices">
+          <label class="choice"><input id="push" type="checkbox" checked> Push no celular</label>
+          <label class="choice"><input id="email" type="checkbox"> E-mail</label>
+        </div>
+      </div>
+      <div class="section">
+        <h2>Enviar por grupo</h2>
+        <div class="choices" id="perfis"><div class="skeleton" style="width:100%"></div></div>
+      </div>
+      <div class="section">
+        <h2>Ou selecionar pessoas</h2>
+        <div class="choices" id="usuarios"><div class="skeleton" style="width:100%"></div></div>
+      </div>
+      <div class="actions"><button class="btn primary" id="enviar">Revisar e enviar</button></div>
+    </section>
+  </main>
+  <div id="status"></div>
+  <script>
+    let painel=null;
+    const esc=v=>String(v??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+    function aviso(msg,erro){const el=document.getElementById('status');el.textContent=msg;el.style.background=erro?'#991b1b':'#0f1a2e';el.style.display='block';setTimeout(()=>el.style.display='none',4200)}
+    function rotuloPerfil(p){return p==='Administrador'?'Administrador (inclui Sócio)':p}
+    function busy(on){const b=document.getElementById('enviar');b.disabled=on;b.textContent=on?'Enviando...':'Revisar e enviar'}
+    async function carregar(){painel=await Auth.apiCall('obterPainelComunicadosNotificacao');document.getElementById('modoTeste').classList.toggle('hidden',!painel.modoTeste);document.getElementById('email').disabled=!painel.emailAtivo;document.getElementById('perfis').innerHTML=(painel.perfis||[]).map(p=>`<label class="choice"><input type="checkbox" value="${esc(p)}"> ${esc(rotuloPerfil(p))}</label>`).join('');document.getElementById('usuarios').innerHTML=(painel.usuarios||[]).map(u=>`<label class="choice"><input type="checkbox" value="${esc(u.email)}"> ${esc(u.nome||u.email)} <span class="muted">(${Number(u.aparelhosAtivos)||0})</span></label>`).join('')||'<span class="muted">Nenhum usuário disponível.</span>'}
+    async function enviar(){const titulo=document.getElementById('titulo').value.trim();const mensagem=document.getElementById('mensagem').value.trim();const perfis=[...document.querySelectorAll('#perfis input:checked')].map(x=>x.value);const emails=[...document.querySelectorAll('#usuarios input:checked')].map(x=>x.value);const push=document.getElementById('push').checked;const email=document.getElementById('email').checked;if(titulo.length<3||mensagem.length<3)return aviso('Preencha título e mensagem.',true);if(!perfis.length&&!emails.length)return aviso('Selecione ao menos um grupo ou uma pessoa.',true);if(!push&&!email)return aviso('Selecione ao menos um canal.',true);const nomes=[...perfis.map(rotuloPerfil),...emails];if(!confirm(`Enviar “${titulo}” para ${nomes.length} seleção(ões)?`))return;busy(true);try{const r=await Auth.apiCall('enviarComunicadoManual',{titulo,mensagem,link:document.getElementById('link').value.trim(),push,email,perfis:JSON.stringify(perfis),emails:JSON.stringify(emails)});aviso(`Comunicado processado: ${r.pushEnviados||0} push, ${r.emailEnviados||0} e-mail e ${r.erros||0} erro(s).`)}catch(e){aviso(e.message||e,true)}finally{busy(false)}}
+    document.getElementById('enviar').addEventListener('click',enviar);
+    document.addEventListener('DOMContentLoaded',()=>carregar().catch(e=>{aviso('Você não tem acesso a esta função: '+(e.message||e),true);setTimeout(()=>location.href='configuracoes.html',2200)}));
+  </script>
+</body>
+</html>

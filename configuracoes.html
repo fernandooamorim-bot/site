@@ -724,7 +724,7 @@
         <div class="notification-actions">
           <button class="btn primary" id="btnAtivarNotificacoes">Ativar neste aparelho</button>
           <button class="btn hidden" id="btnDesativarNotificacoes">Desativar</button>
-          <button class="btn" id="btnGerenciarNotificacoes">Gerenciar regras</button>
+          <button class="btn" id="btnGerenciarNotificacoes">Notificações e comunicados</button>
         </div>
         <div class="notification-preferences">
           <div class="notification-preferences-head">
@@ -1559,7 +1559,9 @@
       document.getElementById('btnAtivarNotificacoes')?.addEventListener('click', ativarNotificacoesNesteAparelho_);
       document.getElementById('btnDesativarNotificacoes')?.addEventListener('click', desativarNotificacoesNesteAparelho_);
       document.getElementById('btnSalvarPreferenciasNotificacao')?.addEventListener('click', salvarPreferenciasNotificacao_);
-      document.getElementById('btnGerenciarNotificacoes')?.addEventListener('click', () => safeNavigate_('config-notificacoes.html'));
+      document.getElementById('btnGerenciarNotificacoes')?.addEventListener('click', (event) => {
+        safeNavigate_(event.currentTarget.dataset.destino || 'comunicados.html');
+      });
       document.getElementById('btnVoltarModulos')?.addEventListener('click', voltarParaModulos);
 
       document.querySelectorAll('.tab').forEach((tab) => {
@@ -1745,6 +1747,17 @@
           alert('Você não tem permissão para acessar esta área.');
           safeNavigate_('index.html?menu=1');
           return;
+        }
+        const perfilAtual = normalizarPerfil(auth.user.perfil);
+        const btnNotificacoes = document.getElementById('btnGerenciarNotificacoes');
+        if (btnNotificacoes) {
+          const proprietario = perfilAtual === 'proprietario';
+          btnNotificacoes.dataset.destino = proprietario
+            ? 'config-notificacoes.html'
+            : 'comunicados.html';
+          btnNotificacoes.textContent = proprietario
+            ? 'Gerenciar regras e comunicados'
+            : 'Enviar comunicado manual';
         }
         const nome = String(auth.user.nome || auth.user.email || '').trim();
         if (nome) {
