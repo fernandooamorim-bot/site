@@ -1,6 +1,6 @@
 {
-  "name": "Sistema Super Agenda",
-  "short_name": "Super Agenda",
+  "name": "Sistema FA Produções",
+  "short_name": "FA Produções",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",

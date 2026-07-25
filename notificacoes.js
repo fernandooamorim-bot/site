@@ -146,7 +146,7 @@
     if (ctx.messaging.__superAgendaForegroundConfigurado) return;
     ctx.sdk.messagingSdk.onMessage(ctx.messaging, (payload) => {
       const n = payload.notification || {};
-      ctx.reg.showNotification(n.title || 'Super Agenda', {
+      ctx.reg.showNotification(n.title || 'FA Produções', {
         body: n.body || '',
         icon: './img/android-192.png',
         data: { url: payload.data?.url || './index.html?menu=1' }

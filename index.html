@@ -4,8 +4,8 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
   <meta name="theme-color" content="#0f1a2e"/>
-  <meta name="application-name" content="Sistema Super Agenda"/>
-  <meta name="apple-mobile-web-app-title" content="Super Agenda"/>
+  <meta name="application-name" content="Sistema FA Produções"/>
+  <meta name="apple-mobile-web-app-title" content="FA Produções"/>
   <meta name="apple-mobile-web-app-capable" content="yes"/>
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
   <meta name="mobile-web-app-capable" content="yes"/>
@@ -21,7 +21,7 @@
   <script src="https://accounts.google.com/gsi/client" async defer></script>
   <script src="auth.js" defer></script>
   <script src="notificacoes.js" defer></script>
-  <title>FA Produções • Sistema</title>
+  <title>Sistema FA Produções</title>
 
   <!-- Lucide Icons -->
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js" defer></script>
@@ -2021,7 +2021,7 @@
       estadoVisualNotificacoes_(local);
       const desc = document.getElementById('notificationInviteDesc');
       const btn = document.getElementById('notificationInviteActivate');
-      if (desc) desc.textContent = 'Para receber avisos no iPhone, adicione a Super Agenda à Tela de Início pelo botão Compartilhar do Safari.';
+      if (desc) desc.textContent = 'Para receber avisos no iPhone, adicione o Sistema FA Produções à Tela de Início pelo botão Compartilhar do Safari.';
       if (btn) { btn.textContent = 'Como instalar'; btn.dataset.modo = 'instalar'; }
       box.classList.add('show');
       if (window.lucide) lucide.createIcons();
@@ -2058,7 +2058,7 @@
     const btn = document.getElementById('notificationInviteActivate');
     const box = document.getElementById('notificationInvite');
     if (btn.dataset.modo === 'instalar') {
-      alert('No Safari, toque no botão Compartilhar e escolha “Adicionar à Tela de Início”. Depois abra a Super Agenda pelo novo ícone e toque em Ativar notificações.');
+      alert('No Safari, toque no botão Compartilhar e escolha “Adicionar à Tela de Início”. Depois abra FA Produções pelo novo ícone e toque em Ativar notificações.');
       return;
     }
     if (Notification.permission === 'denied') {
@@ -2093,7 +2093,7 @@
       return;
     }
     if (ios && !instalado) {
-      alert('No Safari, toque no botão Compartilhar e escolha “Adicionar à Tela de Início”. Depois abra a Super Agenda pelo novo ícone e toque no sino para ativar.');
+      alert('No Safari, toque no botão Compartilhar e escolha “Adicionar à Tela de Início”. Depois abra FA Produções pelo novo ícone e toque no sino para ativar.');
       return;
     }
     if (!('Notification' in window) || Notification.permission === 'denied') {
