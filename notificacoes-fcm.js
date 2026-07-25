@@ -53,6 +53,10 @@ function obterCentralNotificacoes_(email) {
       NOTIFICACOES_PENDENCIAS_MATINAIS_ATIVO: boolNotificacao_(obterConfig('NOTIFICACOES_PENDENCIAS_MATINAIS_ATIVO'), false),
       AGENDA_HORA_VIRADA_MADRUGADA: Number(obterConfig('AGENDA_HORA_VIRADA_MADRUGADA') || 6)
     },
+    motivosReuniao: listaConfigNotificacao_(
+      obterConfig('REUNIAO_MOTIVOS_PADRAO'),
+      ['Reunião Geral', 'Reunião de Repertório', 'Reunião Suê', 'Reunião Fernando']
+    ),
     diagnostico: {
       firebaseConfigurado: cfg.configurada,
       credencialInstalada: cfg.credencialInstalada,
@@ -68,6 +72,15 @@ function obterCentralNotificacoes_(email) {
       gatilhoPendenciasInstalado: typeof possuiGatilhoNotificacao_ === 'function' && possuiGatilhoNotificacao_('processarPendenciasMatinaisNotificacoes'),
       gatilhoFilaInstalado: typeof possuiGatilhoNotificacao_ === 'function' &&
         (possuiGatilhoNotificacao_('processarCicloNotificacoes') || possuiGatilhoNotificacao_('processarFilaNotificacoes')),
+      ultimaExecucaoCiclo: String(
+        PropertiesService.getScriptProperties().getProperty('NOTIFICACOES_ULTIMO_CICLO_EM') || ''
+      ),
+      ultimaExecucaoPendencias: String(
+        PropertiesService.getScriptProperties().getProperty('NOTIFICACOES_ULTIMA_PENDENCIA_EM') || ''
+      ),
+      fila: typeof obterDiagnosticoFilaNotificacoes_ === 'function'
+        ? obterDiagnosticoFilaNotificacoes_()
+        : { pendentes: 0, erros: 0 },
       solicitante: String(email || ''),
       manutencaoDispositivos: manutencao,
       historico: historico
@@ -115,7 +128,17 @@ function listarRegrasNotificacoes_() {
       titulo: String(valorPorHeaderNotificacao_(r, idx, 'TEMPLATE_TITULO') || '').trim(),
       mensagem: String(valorPorHeaderNotificacao_(r, idx, 'TEMPLATE_MENSAGEM') || '').trim(),
       linkDestino: String(valorPorHeaderNotificacao_(r, idx, 'LINK_DESTINO') || '').trim(),
-      observacoes: String(valorPorHeaderNotificacao_(r, idx, 'OBSERVACOES') || '').trim()
+      observacoes: String(valorPorHeaderNotificacao_(r, idx, 'OBSERVACOES') || '').trim(),
+      filtroReuniao: parseFiltroReuniaoNotificacao_(
+        valorPorHeaderNotificacao_(r, idx, 'FILTRO_REUNIAO_JSON')
+      ),
+      intervalosDias: parseIntervalosDiasNotificacao_(
+        valorPorHeaderNotificacao_(r, idx, 'INTERVALOS_DIAS')
+      ),
+      repetirSemanal: boolNotificacao_(
+        valorPorHeaderNotificacao_(r, idx, 'REPETIR_SEMANAL'),
+        false
+      )
     };
   });
 }
@@ -150,6 +173,15 @@ function atualizarRegraNotificacao_(email, params) {
       ATUALIZADO_EM: new Date(),
       ATUALIZADO_POR: String(email || '').trim().toLowerCase()
     };
+    if (params.filtroReuniaoJson !== undefined) {
+      atualizacoes.FILTRO_REUNIAO_JSON = validarFiltroReuniaoNotificacao_(params.filtroReuniaoJson);
+    }
+    if (params.intervalosDias !== undefined) {
+      atualizacoes.INTERVALOS_DIAS = parseIntervalosDiasNotificacao_(params.intervalosDias).join(';');
+    }
+    if (params.repetirSemanal !== undefined) {
+      atualizacoes.REPETIR_SEMANAL = boolNotificacao_(params.repetirSemanal, false);
+    }
     Object.keys(atualizacoes).forEach(function (header) {
       if (idx[header] !== undefined) sheet.getRange(i + 1, idx[header] + 1).setValue(atualizacoes[header]);
     });
@@ -157,6 +189,46 @@ function atualizarRegraNotificacao_(email, params) {
     return { ok: true, codigo: codigo };
   }
   throw new Error('NOTIFICACAO_REGRA_NAO_ENCONTRADA');
+}
+
+function listaConfigNotificacao_(valor, fallback) {
+  const lista = String(valor || '')
+    .split(/[\n,;|]/)
+    .map(function (item) { return String(item || '').trim(); })
+    .filter(Boolean);
+  return lista.length ? Array.from(new Set(lista)) : (fallback || []).slice();
+}
+
+function parseIntervalosDiasNotificacao_(valor) {
+  const entrada = Array.isArray(valor) ? valor : String(valor || '').split(/[;,|\s]+/);
+  return Array.from(new Set(entrada.map(function (item) {
+    return Math.floor(Number(item));
+  }).filter(function (n) {
+    return isFinite(n) && n >= 0 && n <= 3650;
+  }))).sort(function (a, b) { return a - b; });
+}
+
+function parseFiltroReuniaoNotificacao_(valor) {
+  if (!valor) return {};
+  if (typeof valor === 'object' && !Array.isArray(valor)) return valor;
+  try {
+    const obj = JSON.parse(String(valor));
+    return obj && typeof obj === 'object' && !Array.isArray(obj) ? obj : {};
+  } catch (_) {
+    return {};
+  }
+}
+
+function validarFiltroReuniaoNotificacao_(valor) {
+  const recebido = parseFiltroReuniaoNotificacao_(valor);
+  const permitido = {};
+  NOTIFICACOES_PERFIS_PERMITIDOS_.forEach(function (perfil) {
+    const itens = Array.isArray(recebido[perfil]) ? recebido[perfil] : [];
+    permitido[perfil] = Array.from(new Set(itens.map(function (item) {
+      return String(item || '').trim().slice(0, 100);
+    }).filter(Boolean)));
+  });
+  return JSON.stringify(permitido);
 }
 
 function atualizarConfigNotificacoes_(email, params) {
@@ -301,9 +373,11 @@ function obterResumoHistoricoNotificacoes_() {
     if (!String(valorPorHeaderNotificacao_(r, idx, 'ID_ENVIO') || '').trim()) return;
     total++;
     const status = String(valorPorHeaderNotificacao_(r, idx, 'STATUS') || '').toUpperCase();
-    if (status === 'ENVIADO') enviados++;
+    if (status === 'ENVIADO' || status === 'ACEITO_FCM') enviados++;
     if (status === 'ERRO') erros++;
-    const data = valorPorHeaderNotificacao_(r, idx, 'ENVIADO_EM');
+    const data = valorPorHeaderNotificacao_(
+      r, idx, status === 'ACEITO_FCM' ? 'AGENDADO_PARA' : 'ENVIADO_EM'
+    );
     if (data instanceof Date && (!ultimoEnvio || data > ultimoEnvio)) ultimoEnvio = data;
   });
   return { total: total, enviados: enviados, erros: erros, ultimoEnvio: ultimoEnvio || '' };

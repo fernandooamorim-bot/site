@@ -98,26 +98,34 @@ function processarResumoEventosHoje_(opcoes) {
 
   const eventos = listarEventosDataComercialNotificacao_(hoje, timezone);
   if (!eventos.length) return { ok: true, dataComercial: hoje, eventos: 0, enviados: 0, motivo: 'SEM_EVENTOS' };
-
-  const titulo = aplicarTemplateNotificacao_(regra.titulo || 'Eventos de hoje', { QTD_EVENTOS: eventos.length });
-  const mensagem = aplicarTemplateNotificacao_(regra.mensagem, { QTD_EVENTOS: eventos.length });
   const modoTeste = boolNotificacao_(obterConfig('NOTIFICACOES_MODO_TESTE'), true);
   if (!modoTeste && !boolNotificacao_(obterConfig('FCM_ATIVO'), false)) {
     return { ok: true, ignorado: true, motivo: 'ENVIO_GLOBAL_DESLIGADO' };
   }
   const emailRestrito = String(opts.emailRestrito || (modoTeste ? obterConfig('NOTIFICACOES_DESTINATARIO_TESTE') : '') || '').trim().toLowerCase();
-  const resultado = despacharRegraNotificacao_('EVENTO_HOJE', {
-    referencia: hoje,
-    valores: { QTD_EVENTOS: eventos.length },
-    link: './agenda.html'
-  }, { emailRestrito: emailRestrito });
+  const totais = { enviadosPush: 0, enviadosEmail: 0, duplicados: 0, erros: 0 };
+  regra.perfis.forEach(function (perfil) {
+    const visiveis = eventos.filter(function (linha) {
+      return perfilPodeVisualizarTipoAgendaNotificacao_(perfil, linha[COL.TIPO_REGISTRO]);
+    });
+    if (!visiveis.length) return;
+    const resultado = despacharRegraNotificacao_('EVENTO_HOJE', {
+      referencia: hoje + '|' + normalizarPerfilNotificacao_(perfil),
+      valores: { QTD_EVENTOS: visiveis.length },
+      link: './agenda.html'
+    }, { emailRestrito: emailRestrito, perfilRestrito: perfil });
+    totais.enviadosPush += Number(resultado.enviadosPush || 0);
+    totais.enviadosEmail += Number(resultado.enviadosEmail || 0);
+    totais.duplicados += Number(resultado.duplicados || 0);
+    totais.erros += Number(resultado.erros || 0);
+  });
   return {
     ok: true, dataComercial: hoje, eventos: eventos.length,
-    enviados: Number(resultado.enviadosPush || 0) + Number(resultado.enviadosEmail || 0),
-    enviadosPush: resultado.enviadosPush || 0,
-    enviadosEmail: resultado.enviadosEmail || 0,
-    duplicados: resultado.duplicados || 0,
-    erros: resultado.erros || 0
+    enviados: totais.enviadosPush + totais.enviadosEmail,
+    enviadosPush: totais.enviadosPush,
+    enviadosEmail: totais.enviadosEmail,
+    duplicados: totais.duplicados,
+    erros: totais.erros
   };
 }
 
@@ -131,7 +139,9 @@ function listarEventosDataComercialNotificacao_(dataAlvo, timezone) {
   if (!sheet || sheet.getLastRow() < 2) return [];
   return sheet.getDataRange().getValues().slice(1).filter(function (r) {
     if (!r[COL.ID_EVENTO]) return false;
-    if (String(r[COL.STATUS_GERAL] || 'ATIVO').trim().toUpperCase() === 'CANCELADO') return false;
+    if (['CANCELADO', 'ARQUIVADO'].indexOf(
+      String(r[COL.STATUS_GERAL] || 'ATIVO').trim().toUpperCase()
+    ) !== -1) return false;
     return formatarDataComercialNotificacao_(r[COL.DATA_EVENTO], timezone) === dataAlvo;
   });
 }
@@ -180,10 +190,16 @@ function listarTodosDispositivosNotificacao_Interno_() {
 }
 
 function obterAbaHistoricoNotificacoes_() {
-  const headers = ['ID_ENVIO','CODIGO_REGRA','ID_EVENTO','EMAIL_DESTINATARIO','PERFIL','TOKEN_FINAL','CANAL','TITULO','MENSAGEM_RESUMO','STATUS','TENTATIVA','AGENDADO_PARA','ENVIADO_EM','CODIGO_ERRO','DETALHE_ERRO','CHAVE_DEDUPLICACAO','CRIADO_EM'];
+  const headers = ['ID_ENVIO','CODIGO_REGRA','ID_EVENTO','EMAIL_DESTINATARIO','PERFIL','TOKEN_FINAL','CANAL','TITULO','MENSAGEM_RESUMO','STATUS','TENTATIVA','AGENDADO_PARA','ENVIADO_EM','CODIGO_ERRO','DETALHE_ERRO','CHAVE_DEDUPLICACAO','CRIADO_EM','ID_PROVEDOR'];
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   let sheet = ss.getSheetByName(NOTIFICACOES_ABA_HISTORICO_);
-  if (!sheet) { sheet = ss.insertSheet(NOTIFICACOES_ABA_HISTORICO_); sheet.getRange(1,1,1,headers.length).setValues([headers]); sheet.setFrozenRows(1); }
+  if (!sheet) {
+    sheet = ss.insertSheet(NOTIFICACOES_ABA_HISTORICO_);
+    sheet.getRange(1,1,1,headers.length).setValues([headers]);
+    sheet.setFrozenRows(1);
+  } else if (String(sheet.getRange(1, 18).getValue() || '').trim() !== 'ID_PROVEDOR') {
+    sheet.getRange(1, 18).setValue('ID_PROVEDOR');
+  }
   return sheet;
 }
 
@@ -191,7 +207,10 @@ function historicoNotificacaoPossuiChave_(chave) {
   const sheet = obterAbaHistoricoNotificacoes_();
   if (sheet.getLastRow() < 2) return false;
   const dados = sheet.getRange(2, 10, sheet.getLastRow() - 1, 7).getDisplayValues();
-  return dados.some(function (r) { return String(r[0]).toUpperCase() === 'ENVIADO' && r[6] === chave; });
+  return dados.some(function (r) {
+    const status = String(r[0]).toUpperCase();
+    return (status === 'ENVIADO' || status === 'ACEITO_FCM') && r[6] === chave;
+  });
 }
 
 function registrarHistoricoNotificacao_(base, status, codigoErro, detalheErro) {
@@ -200,6 +219,7 @@ function registrarHistoricoNotificacao_(base, status, codigoErro, detalheErro) {
     Utilities.getUuid(), base.codigoRegra, base.idEvento || '', base.email, base.perfil,
     base.identificadorFinal, base.canal || 'PUSH', base.titulo, String(base.mensagem || '').slice(0, 240),
     status, 1, agora, status === 'ENVIADO' ? agora : '', codigoErro || '',
-    String(detalheErro || '').slice(0, 500), base.dedupe, agora
+    String(detalheErro || '').slice(0, 500), base.dedupe, agora,
+    String(base.idProvedor || '').slice(0, 250)
   ]);
 }
