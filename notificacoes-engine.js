@@ -197,13 +197,18 @@ function motivoReuniaoLinhaNotificacao_(linha) {
 
 function filtroReuniaoPermiteNotificacao_(regra, perfil, motivo) {
   const filtro = regra && regra.filtroReuniao ? regra.filtroReuniao : {};
+  const termos = regra && regra.termosReuniao ? regra.termosReuniao : {};
   const p = normalizarPerfilNotificacao_(perfil);
   const itens = Array.isArray(filtro[p]) ? filtro[p] : [];
-  if (!itens.length) return false;
   if (itens.indexOf('*') !== -1) return true;
   const alvo = normalizarTextoFiltroNotificacao_(motivo);
-  return itens.some(function (item) {
+  if (itens.some(function (item) {
     return normalizarTextoFiltroNotificacao_(item) === alvo;
+  })) return true;
+  const palavras = Array.isArray(termos[p]) ? termos[p] : [];
+  return palavras.some(function (termo) {
+    const normalizado = normalizarTextoFiltroNotificacao_(termo);
+    return normalizado && alvo.indexOf(normalizado) !== -1;
   });
 }
 
@@ -264,9 +269,11 @@ function despacharRegraNotificacao_(codigo, contexto, opcoes) {
   const modoTeste = boolNotificacao_(obterConfig('NOTIFICACOES_MODO_TESTE'), true);
   const emailTeste = String(obterConfig('NOTIFICACOES_DESTINATARIO_TESTE') || '').trim().toLowerCase();
   const emailRestrito = String(opts.emailRestrito || (modoTeste ? emailTeste : '')).trim().toLowerCase();
+  const autorEmail = String(ctx.autorEmail || '').trim().toLowerCase();
   const dispositivos = listarTodosDispositivosNotificacao_Interno_().filter(function (d) {
     if (!d.ativo || !preferenciasDispositivoPermitemRegra_(d, codigo)) return false;
     if (emailRestrito && d.email !== emailRestrito) return false;
+    if (autorEmail && !regra.notificarAutor && d.email === autorEmail) return false;
     const perfil = normalizarPerfilNotificacao_(d.perfil);
     if (opts.perfilRestrito &&
         perfil !== normalizarPerfilNotificacao_(opts.perfilRestrito)) return false;
@@ -304,6 +311,7 @@ function despacharRegraNotificacao_(codigo, contexto, opcoes) {
     const destinatarios = {};
     listarUsuariosAtivosNotificacao_().forEach(function (u) {
       if (emailRestrito && u.email !== emailRestrito) return;
+      if (autorEmail && !regra.notificarAutor && u.email === autorEmail) return;
       const perfil = normalizarPerfilNotificacao_(u.perfil);
       if (opts.perfilRestrito &&
           perfil !== normalizarPerfilNotificacao_(opts.perfilRestrito)) return;
@@ -397,6 +405,22 @@ function obterCoberturaNotificacoes_() {
   });
 }
 
+function obterPainelComunicadosNotificacao_(email) {
+  return {
+    ok: true,
+    solicitante: String(email || '').trim().toLowerCase(),
+    modoTeste: boolNotificacao_(obterConfig('NOTIFICACOES_MODO_TESTE'), true),
+    emailAtivo: boolNotificacao_(obterConfig('NOTIFICACOES_EMAIL_ATIVO'), false),
+    perfis: NOTIFICACOES_PERFIS_PERMITIDOS_.slice(),
+    usuarios: obterCoberturaNotificacoes_().map(function (u) {
+      return {
+        email: u.email, nome: u.nome, perfil: u.perfil,
+        aparelhosAtivos: u.aparelhosAtivos, status: u.status
+      };
+    })
+  };
+}
+
 function enviarComunicadoManual_(emailAutor, params) {
   const titulo = limitarTextoNotificacao_(params.titulo, 100);
   const mensagem = limitarTextoNotificacao_(params.mensagem, 400);
@@ -486,7 +510,7 @@ function enfileirarNotificacaoImediata_(codigo, contexto, consolidar) {
   };
 }
 
-function notificarEventoCriado_(idEvento) {
+function notificarEventoCriado_(idEvento, autorEmail) {
   const linha = buscarLinhaEventoNotificacao_(idEvento);
   if (!linha) return { ok: true, ignorado: true, motivo: 'EVENTO_NAO_ENCONTRADO' };
   const tipo = tipoRegistroEventoNotificacao_(linha);
@@ -503,11 +527,12 @@ function notificarEventoCriado_(idEvento) {
     referencia: idEvento + '|CRIADO',
     tipoRegistro: String(linha[COL.TIPO_REGISTRO] || ''),
     motivoReuniao: motivoReuniaoLinhaNotificacao_(linha),
+    autorEmail: String(autorEmail || '').trim().toLowerCase(),
     valores: valores
   }, false);
 }
 
-function notificarEventoAlterado_(idEvento, alteracoesRecebidas) {
+function notificarEventoAlterado_(idEvento, alteracoesRecebidas, autorEmail) {
   const importantes = {
     dataEvento: true, dataFim: true, horaInicio: true, duracao: true,
     tipoEvento: true, projeto: true, idEndereco: true, local: true,
@@ -538,6 +563,7 @@ function notificarEventoAlterado_(idEvento, alteracoesRecebidas) {
     idEvento: idEvento, referencia: idEvento + '|ALTERADO|' + versao,
     tipoRegistro: String(linha[COL.TIPO_REGISTRO] || ''),
     motivoReuniao: motivoReuniaoLinhaNotificacao_(linha),
+    autorEmail: String(autorEmail || '').trim().toLowerCase(),
     alteracoes: alteracoes,
     valores: valores
   }, tipo === 'evento');
@@ -620,7 +646,7 @@ function montarValoresAlteracaoNotificacao_(valoresEvento, alteracoes) {
   });
 }
 
-function notificarEventoCancelado_(idEvento) {
+function notificarEventoCancelado_(idEvento, autorEmail) {
   const linha = buscarLinhaEventoNotificacao_(idEvento);
   if (!linha) return { ok: true, ignorado: true, motivo: 'EVENTO_NAO_ENCONTRADO' };
   const tipo = tipoRegistroEventoNotificacao_(linha);
@@ -633,6 +659,7 @@ function notificarEventoCancelado_(idEvento) {
     referencia: idEvento + '|CANCELADO',
     tipoRegistro: String(linha[COL.TIPO_REGISTRO] || ''),
     motivoReuniao: motivoReuniaoLinhaNotificacao_(linha),
+    autorEmail: String(autorEmail || '').trim().toLowerCase(),
     valores: montarValoresEventoNotificacao_(linha, {
       ACAO_REUNIAO: 'cancelada',
       RESUMO_ALTERACOES: 'Confira os detalhes na agenda.'
@@ -640,21 +667,23 @@ function notificarEventoCancelado_(idEvento) {
   }, false);
 }
 
-function notificarFolhaEnviada_(payload) {
+function notificarFolhaEnviada_(payload, autorEmail) {
   const p = payload || {};
   const agenda = (p.Folhas_Custo && p.Folhas_Custo.agenda) || {};
   const idEvento = String(p.idEvento || p.idEventoAgenda || agenda.idEvento || '');
   return enfileirarNotificacaoImediata_('FOLHA_CUSTOS_ENVIADA', {
     idEvento: idEvento, referencia: String(p.id || p.idFolha || idEvento || Utilities.getUuid()),
+    autorEmail: String(autorEmail || '').trim().toLowerCase(),
     valores: { EVENTO: String(p.nomeEvento || p.eventoNome || p.evento || idEvento || 'Evento'),
       VALOR: formatarMoedaNotificacao_(p.valorTotal || p.totalGeral || p.valor || 0) }
   }, false);
 }
 
-function notificarFolhaAprovada_(resultado) {
+function notificarFolhaAprovada_(resultado, autorEmail) {
   const r = resultado || {};
   return enfileirarNotificacaoImediata_('FOLHA_CUSTOS_DECISAO', {
     idEvento: r.idEvento, referencia: String(r.idFolha || r.idEvento) + '|APROVADO',
+    autorEmail: String(autorEmail || '').trim().toLowerCase(),
     valores: { EVENTO: String(r.idEvento || 'Evento'), STATUS: 'aprovada', MOTIVO: '' }
   }, false);
 }
@@ -752,8 +781,9 @@ function processarPendenciasMatinaisNotificacoes() {
     const recebido = Number(linha[COL.VALOR_RECEBIDO] || 0);
     const pendente = Number(linha[COL.VALOR_PENDENTE] || 0);
     const total = Number(linha[COL.VALOR_TOTAL] || 0);
+    const statusRecebimento = String(linha[COL.STATUS_RECEBIMENTO] || '').trim().toUpperCase();
 
-    if (instante > agora && pendente > 0) {
+    if (instante > agora && statusRecebimento !== 'QUITADO' && pendente > 0) {
       const regraAntes = obterRegraNotificacaoPorCodigo_('EVENTO_SALDO_PENDENTE_ANTES');
       const diasAntes = Math.max(0, -diasDesdeEvento);
       const marcoAntes = marcoCadenciaRegraNotificacao_(regraAntes, diasAntes, [3, 1, 0], false);
@@ -771,11 +801,11 @@ function processarPendenciasMatinaisNotificacoes() {
     const regraParcial = obterRegraNotificacaoPorCodigo_('EVENTO_REALIZADO_PARCIAL');
     const marcoSem = marcoCadenciaRegraNotificacao_(regraSem, diasDesdeEvento, [1, 3], true);
     const marcoParcial = marcoCadenciaRegraNotificacao_(regraParcial, diasDesdeEvento, [1, 3], true);
-    if (marcoSem && recebido <= 0 && total > 0) {
+    if (statusRecebimento !== 'QUITADO' && marcoSem && recebido <= 0 && total > 0) {
       despacharRegraNotificacao_('EVENTO_REALIZADO_SEM_RECEBIMENTO', {
         idEvento: id, referencia: id + '|SEM_RECEBIMENTO|' + marcoSem, valores: valores
       }); processados++;
-    } else if (marcoParcial && pendente > 0) {
+    } else if (statusRecebimento !== 'QUITADO' && marcoParcial && recebido > 0 && pendente > 0) {
       despacharRegraNotificacao_('EVENTO_REALIZADO_PARCIAL', {
         idEvento: id, referencia: id + '|PARCIAL|' + marcoParcial, valores: valores
       }); processados++;

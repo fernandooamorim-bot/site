@@ -198,8 +198,12 @@ if (raw && raw.startsWith('{')) {
       return json(atualizarAutomacoesNotificacoes_(emailAutenticado, params));
     }
     if (action === 'enviarComunicadoManual') {
-      exigirPerfilProprietario_();
+      exigirAcao('notificacoes:comunicar');
       return json(enviarComunicadoManual_(emailAutenticado, params));
+    }
+    if (action === 'obterPainelComunicadosNotificacao') {
+      exigirAcao('notificacoes:comunicar');
+      return json(obterPainelComunicadosNotificacao_(emailAutenticado));
     }
     if (action === 'obterCentralNotificacoes') {
       exigirPerfilProprietario_();
@@ -334,7 +338,7 @@ if (raw && raw.startsWith('{')) {
       const resultadoCriacao = criarEvento(params, emailAutenticado);
       if (resultadoCriacao && resultadoCriacao.sucesso && resultadoCriacao.idEvento) {
         executarNotificacaoSemBloquear_('EVENTO_CRIADO', function () {
-          return notificarEventoCriado_(resultadoCriacao.idEvento);
+          return notificarEventoCriado_(resultadoCriacao.idEvento, emailAutenticado);
         });
       }
       return json(resultadoCriacao);
@@ -392,7 +396,8 @@ function paramBool_(v) {
         executarNotificacaoSemBloquear_('EVENTO_ALTERADO_IMPORTANTE', function () {
           return notificarEventoAlterado_(
             params.idEvento,
-            resultadoEdicao.alteracoes || []
+            resultadoEdicao.alteracoes || [],
+            emailAutenticado
           );
         });
       }
@@ -404,7 +409,7 @@ function paramBool_(v) {
       const resultadoCancelamento = cancelarEvento(params.idEvento, params.motivo || '');
       if (resultadoCancelamento && resultadoCancelamento.sucesso && !resultadoCancelamento.jaCancelado) {
         executarNotificacaoSemBloquear_('EVENTO_CANCELADO', function () {
-          return notificarEventoCancelado_(params.idEvento);
+          return notificarEventoCancelado_(params.idEvento, emailAutenticado);
         });
       }
       return json(resultadoCancelamento);
@@ -833,7 +838,7 @@ if (action === 'folhaCustosProxy') {
     executarNotificacaoSemBloquear_('FOLHA_CUSTOS_ENVIADA', function () {
       const folhaEnviada = dadosFolhaSalva;
       if (String(folhaEnviada.statusAprovacao || '').toUpperCase().indexOf('PENDENTE') !== -1) {
-        return notificarFolhaEnviada_(folhaEnviada);
+        return notificarFolhaEnviada_(folhaEnviada, emailAutenticado);
       }
       return { ok: true, ignorado: true };
     });
@@ -871,7 +876,7 @@ if (action === 'aprovarPendenciaFolhaCusto') {
         const resultadoAprovacaoFolha = aprovarPendenciaFolhaCusto(params, emailAutenticado);
         if (resultadoAprovacaoFolha && resultadoAprovacaoFolha.sucesso) {
           executarNotificacaoSemBloquear_('FOLHA_CUSTOS_DECISAO', function () {
-            return notificarFolhaAprovada_(resultadoAprovacaoFolha);
+            return notificarFolhaAprovada_(resultadoAprovacaoFolha, emailAutenticado);
           });
         }
         return resultadoAprovacaoFolha;
@@ -1497,7 +1502,8 @@ const SOCIO_RULES = [
   'eventos:visualizarFinanceiro',
   'eventos:registrarSaidaBV',
   'agenda:gerarSemanal',
-  'orcamento:gerar'
+  'orcamento:gerar',
+  'notificacoes:comunicar'
 ];
 
 const ACL = {

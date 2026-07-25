@@ -104,9 +104,17 @@ function processarResumoEventosHoje_(opcoes) {
   }
   const emailRestrito = String(opts.emailRestrito || (modoTeste ? obterConfig('NOTIFICACOES_DESTINATARIO_TESTE') : '') || '').trim().toLowerCase();
   const totais = { enviadosPush: 0, enviadosEmail: 0, duplicados: 0, erros: 0 };
+  const regraReuniao = obterRegraNotificacaoPorCodigo_('REUNIAO_CRIADA_EDITADA');
   regra.perfis.forEach(function (perfil) {
     const visiveis = eventos.filter(function (linha) {
-      return perfilPodeVisualizarTipoAgendaNotificacao_(perfil, linha[COL.TIPO_REGISTRO]);
+      if (!perfilPodeVisualizarTipoAgendaNotificacao_(perfil, linha[COL.TIPO_REGISTRO])) return false;
+      if (tipoRegistroEventoNotificacao_(linha) !== 'reuniao') return true;
+      return !!regraReuniao &&
+        filtroReuniaoPermiteNotificacao_(
+          regraReuniao,
+          perfil,
+          motivoReuniaoLinhaNotificacao_(linha)
+        );
     });
     if (!visiveis.length) return;
     const resultado = despacharRegraNotificacao_('EVENTO_HOJE', {

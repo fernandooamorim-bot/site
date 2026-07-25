@@ -132,6 +132,13 @@ function listarRegrasNotificacoes_() {
       filtroReuniao: parseFiltroReuniaoNotificacao_(
         valorPorHeaderNotificacao_(r, idx, 'FILTRO_REUNIAO_JSON')
       ),
+      termosReuniao: parseFiltroReuniaoNotificacao_(
+        valorPorHeaderNotificacao_(r, idx, 'TERMOS_REUNIAO_JSON')
+      ),
+      notificarAutor: boolNotificacao_(
+        valorPorHeaderNotificacao_(r, idx, 'NOTIFICAR_AUTOR'),
+        false
+      ),
       intervalosDias: parseIntervalosDiasNotificacao_(
         valorPorHeaderNotificacao_(r, idx, 'INTERVALOS_DIAS')
       ),
@@ -175,6 +182,12 @@ function atualizarRegraNotificacao_(email, params) {
     };
     if (params.filtroReuniaoJson !== undefined) {
       atualizacoes.FILTRO_REUNIAO_JSON = validarFiltroReuniaoNotificacao_(params.filtroReuniaoJson);
+    }
+    if (params.termosReuniaoJson !== undefined) {
+      atualizacoes.TERMOS_REUNIAO_JSON = validarFiltroReuniaoNotificacao_(params.termosReuniaoJson);
+    }
+    if (params.notificarAutor !== undefined) {
+      atualizacoes.NOTIFICAR_AUTOR = boolNotificacao_(params.notificarAutor, false);
     }
     if (params.intervalosDias !== undefined) {
       atualizacoes.INTERVALOS_DIAS = parseIntervalosDiasNotificacao_(params.intervalosDias).join(';');
