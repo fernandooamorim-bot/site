@@ -1214,7 +1214,7 @@
           obterAlertasFinanceiros(e).includes('DUPLICIDADE_BV_PROCESSADO') ||
           obterAlertasFinanceiros(e).includes('DUPLICIDADE_NF_PROCESSADO') ||
           obterAlertasFinanceiros(e).includes('DUPLICIDADE_FOLHA_PROCESSADA')
-        )) ||
+        ) ||
         (Array.isArray(e.divergencias) && e.divergencias.length > 0)
       );
     }
