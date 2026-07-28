@@ -3,7 +3,10 @@
   position: relative;
   z-index: 110 !important;
   min-height: 72px !important;
+  box-sizing: border-box;
+  background: #0f1a2e !important;
   border-bottom: 1px solid rgba(255,255,255,.06) !important;
+  font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
 }
 
 .global-header.fa-system-header {
@@ -23,6 +26,35 @@
 .fa-header-actions {
   position: relative;
   gap: 8px !important;
+  flex: 0 0 auto;
+}
+
+.fa-system-header .global-header-brand,
+.fa-system-header .header-left,
+.fa-system-header .brand {
+  min-width: 0;
+}
+
+.fa-system-header .global-header-title,
+.fa-system-header .header-title,
+.fa-system-header .title,
+.fa-system-header .header-left h1 {
+  color: #fff !important;
+  font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+  font-size: 15px !important;
+  font-weight: 700 !important;
+  line-height: 1.2 !important;
+  letter-spacing: -.3px !important;
+}
+
+.fa-system-header .global-header-title span,
+.fa-system-header .header-title,
+.fa-system-header .title span,
+.fa-system-header .header-left h1 span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .fa-profile-trigger {
@@ -37,6 +69,7 @@
   cursor: pointer;
   user-select: none;
   -webkit-tap-highlight-color: transparent;
+  font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
   transition: background .18s ease, border-color .18s ease;
 }
 
@@ -44,6 +77,46 @@
 .fa-profile-trigger[aria-expanded="true"] {
   background: rgba(255,255,255,.11) !important;
   border-color: rgba(255,255,255,.18) !important;
+}
+
+.fa-profile-trigger .global-header-avatar,
+.fa-profile-trigger .header-user-avatar,
+.fa-profile-trigger .user-avatar,
+.fa-profile-trigger .av {
+  width: 30px !important;
+  height: 30px !important;
+  min-width: 30px;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border-radius: 50% !important;
+  background: linear-gradient(135deg, #1e3a5f, #264a7a) !important;
+  color: #e0bc6a !important;
+  font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  line-height: 1 !important;
+  text-transform: uppercase;
+}
+
+.fa-profile-trigger .global-header-name,
+.fa-profile-trigger .header-user-name,
+.fa-profile-trigger .user-name,
+.fa-profile-trigger .nm {
+  max-width: 110px !important;
+  overflow: hidden;
+  color: rgba(255,255,255,.92) !important;
+  font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  line-height: 1.2 !important;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fa-profile-trigger .header-user-meta,
+.fa-profile-trigger .user-meta {
+  min-width: 0;
 }
 
 .fa-profile-chevron {
@@ -159,13 +232,6 @@
     gap: 8px !important;
   }
 
-  .fa-profile-trigger .global-header-name,
-  .fa-profile-trigger .header-user-meta,
-  .fa-profile-trigger .user-meta,
-  .fa-profile-trigger .nm {
-    display: none !important;
-  }
-
   .fa-profile-menu {
     position: absolute;
     top: calc(100% + 8px);
@@ -179,6 +245,15 @@
 
   .fa-profile-menu.open {
     transform: translateY(0);
+  }
+}
+
+@media (max-width: 430px) {
+  .fa-profile-trigger .global-header-name,
+  .fa-profile-trigger .header-user-meta,
+  .fa-profile-trigger .user-meta,
+  .fa-profile-trigger .nm {
+    display: none !important;
   }
 }
 
