@@ -248,7 +248,7 @@
   }
 }
 
-@media (max-width: 430px) {
+@media (max-width: 360px) {
   .fa-profile-trigger .global-header-name,
   .fa-profile-trigger .header-user-meta,
   .fa-profile-trigger .user-meta,

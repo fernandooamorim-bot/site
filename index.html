@@ -1236,16 +1236,8 @@
         display: none;
       }
 
-      .user-details {
-        display: none;
-      }
-
       .header-user {
         padding-right: 7px;
-      }
-
-      .user-chevron {
-        display: none;
       }
 
       .home-preference-card {
@@ -1258,6 +1250,12 @@
 
       .home-preference-options {
         grid-template-columns: repeat(2, minmax(62px, 1fr));
+      }
+    }
+
+    @media (max-width: 360px) {
+      .user-details {
+        display: none;
       }
     }
   </style>

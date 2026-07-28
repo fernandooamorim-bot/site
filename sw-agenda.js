@@ -1,4 +1,4 @@
-const AGENDA_OFFLINE_CACHE = 'agenda-offline-v19';
+const AGENDA_OFFLINE_CACHE = 'agenda-offline-v20';
 
 // Firebase Messaging usa o mesmo service worker já existente, evitando dois
 // controladores concorrentes para o PWA.
@@ -24,6 +24,8 @@ const SHELL_FILES = [
   './agenda.html',
   './auth.js',
   './status-formatters.js',
+  './header-profile.css?v=20260728c',
+  './header-profile.js?v=20260728c',
   './site.webmanifest',
   './img/favicon.ico',
   './img/favicon-16.png',
