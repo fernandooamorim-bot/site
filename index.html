@@ -102,7 +102,7 @@
       --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 
       /* Layout */
-      --header-height: 68px;
+      --header-height: 72px;
       --bottom-nav-height: 68px;
     }
 
@@ -364,14 +364,21 @@
        ============================================ */
     .app-header {
       background: var(--bg-header);
-      height: var(--header-height);
-      display: flex;
-      align-items: center;
-      padding: 0 var(--space-lg);
+      min-height: calc(var(--header-height) + env(safe-area-inset-top));
+      padding: env(safe-area-inset-top) clamp(16px, 3vw, 32px) 0;
       position: sticky;
       top: 0;
       z-index: 100;
       border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+
+    .header-inner {
+      width: 100%;
+      max-width: 1200px;
+      min-height: var(--header-height);
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
     }
 
     .header-brand {
@@ -478,16 +485,19 @@
       display: flex;
       align-items: center;
       gap: 10px;
-      padding: 5px 14px 5px 5px;
+      padding: 5px 10px 5px 5px;
       background: rgba(255,255,255,0.06);
       border-radius: var(--radius-full);
       border: 1px solid rgba(255,255,255,0.08);
       cursor: pointer;
-      transition: background 0.2s;
+      transition: background 0.2s, border-color 0.2s;
+      font-family: var(--font);
     }
 
-    .header-user:hover {
+    .header-user:hover,
+    .header-user[aria-expanded="true"] {
       background: rgba(255,255,255,0.1);
+      border-color: rgba(255,255,255,0.16);
     }
 
     .user-avatar {
@@ -507,6 +517,7 @@
     .user-details {
       display: flex;
       flex-direction: column;
+      text-align: left;
     }
 
     .user-name-text {
@@ -520,39 +531,98 @@
       white-space: nowrap;
     }
 
-    .user-role-text {
-      color: var(--gold-400);
-      font-size: 10px;
-      font-weight: 600;
+    .user-chevron {
+      width: 15px;
+      height: 15px;
+      color: rgba(255,255,255,0.62);
+      transition: transform 0.2s ease;
     }
 
-    .header-logout {
-      background: none;
-      border: none;
-      cursor: pointer;
-      padding: 6px;
-      border-radius: var(--radius-sm);
-      transition: background 0.2s;
+    .header-user[aria-expanded="true"] .user-chevron {
+      transform: rotate(180deg);
+    }
+
+    .profile-menu-wrap {
+      position: relative;
+      margin-left: 2px;
+    }
+
+    .profile-menu {
+      position: absolute;
+      top: calc(100% + 10px);
+      right: 0;
+      width: 248px;
+      padding: 8px;
+      border: 1px solid var(--gray-200);
+      border-radius: var(--radius-lg);
+      background: #ffffff;
+      box-shadow: var(--shadow-lg);
+      opacity: 0;
+      visibility: hidden;
+      transform: translateY(-6px);
+      transition: opacity 0.18s ease, transform 0.18s ease, visibility 0.18s;
+      z-index: 120;
+    }
+
+    .profile-menu.open {
+      opacity: 1;
+      visibility: visible;
+      transform: translateY(0);
+    }
+
+    .profile-menu-head {
+      padding: 10px 11px 12px;
+      border-bottom: 1px solid var(--gray-100);
+      margin-bottom: 6px;
+    }
+
+    .profile-menu-name {
+      color: var(--gray-800);
+      font-size: 13px;
+      font-weight: 800;
+      line-height: 1.3;
+    }
+
+    .profile-menu-role {
+      color: var(--gold-600);
+      font-size: 11px;
+      font-weight: 700;
+      margin-top: 2px;
+    }
+
+    .profile-menu-action {
+      width: 100%;
+      min-height: 40px;
+      padding: 0 11px;
       display: flex;
       align-items: center;
-      justify-content: center;
-      margin-left: 4px;
+      gap: 10px;
+      border: 0;
+      border-radius: 10px;
+      background: transparent;
+      color: var(--gray-600);
+      font-family: var(--font);
+      font-size: 12px;
+      font-weight: 700;
+      text-align: left;
+      cursor: pointer;
+      transition: background 0.18s, color 0.18s;
     }
 
-    .header-logout:hover {
-      background: rgba(239,68,68,0.15);
+    .profile-menu-action:hover {
+      background: var(--gray-100);
+      color: var(--navy-700);
     }
 
-    .header-logout i,
-    .header-logout svg {
-      width: 18px;
-      height: 18px;
-      color: rgba(255,255,255,0.75);
-      transition: color 0.2s;
+    .profile-menu-action.danger:hover {
+      background: rgba(239,68,68,0.08);
+      color: var(--danger);
     }
 
-    .header-logout:hover i {
-      color: #ffffff;
+    .profile-menu-action i,
+    .profile-menu-action svg {
+      width: 16px;
+      height: 16px;
     }
 
     /* ============================================
@@ -568,7 +638,11 @@
     }
 
     /* Page Header */
-    .page-header {
+    .page-hero {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: var(--space-lg);
       margin-bottom: var(--space-lg);
     }
 
@@ -599,19 +673,16 @@
     }
 
     .home-preference-card {
-      display: flex;
+      display: inline-flex;
       align-items: center;
-      justify-content: space-between;
-      gap: 8px;
-      background: rgba(255,255,255,0.74);
+      gap: 12px;
+      background: rgba(255,255,255,0.88);
       border: 1px solid var(--gray-200);
-      border-radius: var(--radius-md);
-      padding: 10px 12px;
-      margin-bottom: var(--space-lg);
+      border-radius: var(--radius-lg);
+      padding: 8px;
       box-shadow: var(--shadow-sm);
-      color: var(--gray-500);
-      font-size: 12px;
-      font-weight: 600;
+      flex: 0 0 auto;
+      max-width: 100%;
     }
 
     .home-preference-copy {
@@ -619,6 +690,7 @@
       align-items: center;
       gap: 8px;
       min-width: 0;
+      padding-left: 2px;
     }
 
     .home-preference-icon {
@@ -644,69 +716,49 @@
       font-size: 12px;
       font-weight: 800;
       line-height: 1.2;
+      white-space: nowrap;
     }
 
     .home-preference-desc {
       color: var(--gray-400);
-      font-size: 11px;
+      font-size: 10px;
       line-height: 1.25;
       margin-top: 1px;
+      white-space: nowrap;
     }
 
-    .home-preference-toggle {
-      position: relative;
-      display: inline-flex;
-      align-items: center;
-      gap: 7px;
-      flex-shrink: 0;
-      cursor: pointer;
-      user-select: none;
-      -webkit-tap-highlight-color: transparent;
-    }
-
-    .home-preference-toggle input {
-      position: absolute;
-      opacity: 0;
-      pointer-events: none;
-    }
-
-    .home-preference-track {
-      width: 36px;
-      height: 20px;
-      border-radius: var(--radius-full);
-      background: var(--gray-200);
+    .home-preference-options {
+      display: inline-grid;
+      grid-template-columns: repeat(2, minmax(70px, 1fr));
+      padding: 3px;
+      border-radius: 12px;
+      background: var(--gray-100);
       border: 1px solid var(--gray-300);
-      transition: background 0.2s ease, border-color 0.2s ease;
-      position: relative;
+      flex-shrink: 0;
     }
 
-    .home-preference-track::after {
-      content: '';
-      position: absolute;
-      width: 16px;
-      height: 16px;
-      left: 1px;
-      top: 1px;
-      border-radius: 50%;
-      background: #ffffff;
-      box-shadow: 0 1px 4px rgba(10,22,40,0.18);
-      transition: transform 0.2s ease;
-    }
-
-    .home-preference-toggle input:checked + .home-preference-track {
-      background: var(--gold-500);
-      border-color: var(--gold-500);
-    }
-
-    .home-preference-toggle input:checked + .home-preference-track::after {
-      transform: translateX(16px);
-    }
-
-    .home-preference-label {
+    .home-preference-option {
+      min-height: 34px;
+      padding: 0 10px;
+      border: 0;
+      border-radius: 9px;
+      background: transparent;
       color: var(--gray-500);
+      font-family: var(--font);
       font-size: 12px;
       font-weight: 700;
-      white-space: nowrap;
+      cursor: pointer;
+      transition: background 0.18s, color 0.18s, box-shadow 0.18s;
+    }
+
+    .home-preference-option:hover {
+      color: var(--gray-700);
+    }
+
+    .home-preference-option.active {
+      background: #ffffff;
+      color: var(--gold-600);
+      box-shadow: 0 1px 4px rgba(10,22,40,0.12);
     }
 
     .offline-banner {
@@ -1087,9 +1139,14 @@
         gap: 8px;
       }
 
-      .home-preference-card {
+      .page-hero {
         align-items: flex-start;
         flex-direction: column;
+        gap: 16px;
+      }
+
+      .home-preference-card {
+        width: auto;
       }
 
       .nav-card-icon {
@@ -1182,6 +1239,26 @@
       .user-details {
         display: none;
       }
+
+      .header-user {
+        padding-right: 7px;
+      }
+
+      .user-chevron {
+        display: none;
+      }
+
+      .home-preference-card {
+        gap: 8px;
+      }
+
+      .home-preference-desc {
+        white-space: normal;
+      }
+
+      .home-preference-options {
+        grid-template-columns: repeat(2, minmax(62px, 1fr));
+      }
     }
   </style>
 </head>
@@ -1239,45 +1316,79 @@
 
     <!-- HEADER -->
     <header class="app-header">
-      <div class="header-brand">
-        <div class="brand-icon">
-          <i data-lucide="music"></i>
+      <div class="header-inner">
+        <div class="header-brand">
+          <div class="brand-icon">
+            <i data-lucide="music"></i>
+          </div>
+          <div class="brand-text">
+            <div class="brand-name">FA Produções</div>
+            <div class="brand-sub">Gestão & Shows</div>
+          </div>
         </div>
-        <div class="brand-text">
-          <div class="brand-name">FA Produções</div>
-          <div class="brand-sub">Gestão & Shows</div>
+
+        <div class="header-spacer"></div>
+
+        <button class="header-notifications" id="headerNotifications" type="button"
+                data-state="checking" title="Verificando notificações" aria-label="Verificando notificações">
+          <i data-lucide="bell"></i>
+          <span class="header-notifications-label" id="headerNotificationsLabel">Verificando</span>
+          <span class="header-notifications-dot" aria-hidden="true"></span>
+        </button>
+
+        <div class="profile-menu-wrap">
+          <button class="header-user" id="userBox" type="button" aria-haspopup="menu"
+                  aria-expanded="false" aria-controls="profileMenu" onclick="alternarMenuPerfil(event)">
+            <span class="user-avatar" id="userAvatar">...</span>
+            <span class="user-details">
+              <span class="user-name-text" id="userNameText">Carregando...</span>
+            </span>
+            <i class="user-chevron" data-lucide="chevron-down" aria-hidden="true"></i>
+          </button>
+
+          <div class="profile-menu" id="profileMenu" role="menu" aria-hidden="true">
+            <div class="profile-menu-head">
+              <div class="profile-menu-name" id="profileMenuName">Carregando...</div>
+              <div class="profile-menu-role" id="userRoleText">--</div>
+            </div>
+            <button class="profile-menu-action" type="button" role="menuitem" onclick="abrir('configuracoes')">
+              <i data-lucide="settings"></i>
+              <span>Configurações</span>
+            </button>
+            <button class="profile-menu-action danger" type="button" role="menuitem" onclick="Auth.logout()">
+              <i data-lucide="log-out"></i>
+              <span>Sair do sistema</span>
+            </button>
+          </div>
         </div>
       </div>
-
-      <div class="header-spacer"></div>
-
-      <button class="header-notifications" id="headerNotifications" type="button"
-              data-state="checking" title="Verificando notificações" aria-label="Verificando notificações">
-        <i data-lucide="bell"></i>
-        <span class="header-notifications-label" id="headerNotificationsLabel">Verificando</span>
-        <span class="header-notifications-dot" aria-hidden="true"></span>
-      </button>
-
-      <div class="header-user" id="userBox">
-        <div class="user-avatar" id="userAvatar">...</div>
-        <div class="user-details">
-          <span class="user-name-text" id="userNameText">Carregando...</span>
-          <span class="user-role-text" id="userRoleText">--</span>
-        </div>
-      </div>
-
-      <button class="header-logout" onclick="Auth.logout()" title="Sair">
-        <i data-lucide="log-out"></i>
-      </button>
     </header>
 
     <!-- MAIN CONTENT -->
     <main class="app-content">
 
-      <!-- Page Header -->
-      <div class="page-header anim-in">
-        <div class="page-greeting" id="pageGreeting">Bem-vindo</div>
-        <h1 class="page-title">Painel Principal</h1>
+      <!-- Page Header + preferência de tela inicial -->
+      <div class="page-hero anim-in">
+        <div class="page-header">
+          <div class="page-greeting" id="pageGreeting">Bem-vindo</div>
+          <h1 class="page-title">Painel Principal</h1>
+        </div>
+
+        <div class="home-preference-card" aria-label="Preferência de tela inicial">
+          <div class="home-preference-copy">
+            <span class="home-preference-icon" aria-hidden="true"><i data-lucide="panel-top"></i></span>
+            <div>
+              <div class="home-preference-title">Tela inicial</div>
+              <div class="home-preference-desc">Ao entrar, mostrar</div>
+            </div>
+          </div>
+          <div class="home-preference-options" role="group" aria-label="Ao entrar no sistema, mostrar">
+            <button class="home-preference-option" id="homePreferenceMenu" type="button"
+                    aria-pressed="true" onclick="alterarPreferenciaPaginaInicial(false)">Menu</button>
+            <button class="home-preference-option" id="homePreferenceAgenda" type="button"
+                    aria-pressed="false" onclick="alterarPreferenciaPaginaInicial(true)">Agenda</button>
+          </div>
+        </div>
       </div>
 
       <div class="offline-banner anim-in" id="offlineBanner" aria-live="polite">
@@ -1295,21 +1406,6 @@
           <button class="notification-invite-primary" id="notificationInviteActivate" type="button">Ativar notificações</button>
           <button class="notification-invite-later" id="notificationInviteLater" type="button">Agora não</button>
         </div>
-      </div>
-
-      <div class="home-preference-card anim-in anim-d1">
-        <div class="home-preference-copy">
-          <span class="home-preference-icon" aria-hidden="true"><i data-lucide="panel-top"></i></span>
-          <div>
-            <div class="home-preference-title">Abertura do sistema</div>
-            <div class="home-preference-desc">Escolha se este perfil começa pelo menu ou pela agenda.</div>
-          </div>
-        </div>
-        <label class="home-preference-toggle" for="homePreferenceToggle">
-          <input id="homePreferenceToggle" type="checkbox" onchange="alterarPreferenciaPaginaInicial(this.checked)">
-          <span class="home-preference-track" aria-hidden="true"></span>
-          <span class="home-preference-label" id="homePreferenceLabel">Menu</span>
-        </label>
       </div>
 
       <!-- Section Label -->
@@ -1710,11 +1806,17 @@
   }
 
   function atualizarControlePreferenciaPaginaInicial_() {
-    var toggle = document.getElementById('homePreferenceToggle');
-    var label = document.getElementById('homePreferenceLabel');
+    var menu = document.getElementById('homePreferenceMenu');
+    var agenda = document.getElementById('homePreferenceAgenda');
     var prefereAgenda = lerPreferenciaPaginaInicial_() === 'agenda';
-    if (toggle) toggle.checked = prefereAgenda;
-    if (label) label.textContent = prefereAgenda ? 'Agenda' : 'Menu';
+    if (menu) {
+      menu.classList.toggle('active', !prefereAgenda);
+      menu.setAttribute('aria-pressed', String(!prefereAgenda));
+    }
+    if (agenda) {
+      agenda.classList.toggle('active', prefereAgenda);
+      agenda.setAttribute('aria-pressed', String(prefereAgenda));
+    }
   }
 
   async function alterarPreferenciaPaginaInicial(prefereAgenda) {
@@ -1730,6 +1832,35 @@
       console.warn('Preferência salva localmente, mas ainda não sincronizada na planilha:', err);
     }
   }
+
+  function definirMenuPerfilAberto_(aberto) {
+    var trigger = document.getElementById('userBox');
+    var menu = document.getElementById('profileMenu');
+    if (!trigger || !menu) return;
+    trigger.setAttribute('aria-expanded', String(!!aberto));
+    menu.setAttribute('aria-hidden', String(!aberto));
+    menu.classList.toggle('open', !!aberto);
+  }
+
+  function alternarMenuPerfil(event) {
+    if (event) event.stopPropagation();
+    var trigger = document.getElementById('userBox');
+    var estaAberto = trigger && trigger.getAttribute('aria-expanded') === 'true';
+    definirMenuPerfilAberto_(!estaAberto);
+  }
+
+  document.addEventListener('click', function(event) {
+    var wrap = document.querySelector('.profile-menu-wrap');
+    if (wrap && !wrap.contains(event.target)) definirMenuPerfilAberto_(false);
+  });
+
+  document.addEventListener('keydown', function(event) {
+    if (event.key === 'Escape') {
+      definirMenuPerfilAberto_(false);
+      var trigger = document.getElementById('userBox');
+      if (trigger) trigger.focus();
+    }
+  });
 
   function boolConfig_(v, fallback) {
     if (v === undefined || v === null || String(v).trim() === '') return !!fallback;
@@ -1932,6 +2063,7 @@
       var avatarEl = document.getElementById('userAvatar');
       var nameEl = document.getElementById('userNameText');
       var roleEl = document.getElementById('userRoleText');
+      var menuNameEl = document.getElementById('profileMenuName');
 
       var nome = user.nome || localStorage.getItem('auth_nome') || user.email;
       var perfil = user.perfil || localStorage.getItem('auth_perfil') || '';
@@ -1944,7 +2076,8 @@
         avatarEl.textContent = initials.toUpperCase();
       }
 
-      if (nameEl) nameEl.textContent = nome;
+      if (nameEl) nameEl.textContent = nome.split(' ')[0] || nome;
+      if (menuNameEl) menuNameEl.textContent = nome;
       if (roleEl) roleEl.textContent = mapPerfilDisplay(perfil);
     }
 
