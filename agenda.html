@@ -131,7 +131,7 @@
     .header {
       background: var(--bg-header);
       color: white;
-      padding: 16px 20px;
+      padding: 0;
       position: sticky;
       top: 0;
       z-index: 100;
@@ -142,7 +142,7 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 8px;
+      margin-bottom: 0;
     }
 
     .header-left {
@@ -229,15 +229,6 @@
       letter-spacing: -0.3px;
     }
 
-    .header-stats {
-      font-size: 12px;
-      opacity: 0.9;
-      display: flex;
-      flex-direction: column;
-      align-items: flex-end;
-      gap: 4px;
-    }
-
     .header-logout {
       width: 32px;
       height: 32px;
@@ -264,14 +255,67 @@
       border-color: rgba(239,68,68,0.35);
     }
 
-    .header-info {
-      font-size: 12px;
-      opacity: 0.5;
-      margin-top: 4px;
+    .agenda-status-bar {
+      min-height: 44px;
+      padding: 8px clamp(16px, 3vw, 32px);
       display: flex;
       align-items: center;
-      gap: 12px;
-      flex-wrap: wrap;
+      justify-content: space-between;
+      gap: 16px;
+      background: rgba(255,255,255,.96);
+      border-bottom: 1px solid var(--gray-200);
+      color: var(--gray-500);
+      box-shadow: 0 1px 3px rgba(10,22,40,.035);
+    }
+
+    .agenda-status-main {
+      min-width: 0;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 11px;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    .agenda-status-dot {
+      width: 7px;
+      height: 7px;
+      flex: 0 0 auto;
+      border-radius: 50%;
+      background: var(--success);
+      box-shadow: 0 0 0 3px rgba(16,185,129,.11);
+    }
+
+    .agenda-status-meta {
+      display: inline-flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 6px;
+    }
+
+    .agenda-status-chip,
+    .agenda-status-count {
+      min-height: 26px;
+      padding: 0 9px;
+      display: inline-flex;
+      align-items: center;
+      border: 1px solid var(--gray-200);
+      border-radius: var(--radius-full);
+      background: var(--gray-50);
+      color: var(--gray-600);
+      font-size: 10px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .agenda-status-count {
+      color: var(--navy-600);
+      background: #fff;
+    }
+
+    .agenda-title-short {
+      display: none;
     }
 
     .user-badge {
@@ -1562,12 +1606,20 @@
         gap: 8px;
       }
 
-      .header-stats {
-        font-size: 11px;
-      }
-
       .header-user-name {
         max-width: 74px;
+      }
+
+      .agenda-title-full {
+        display: none;
+      }
+
+      .agenda-title-short {
+        display: inline;
+      }
+
+      .agenda-status-chip {
+        display: none;
       }
 
       .filters-grid {
@@ -1601,7 +1653,7 @@
       }
 
       .header {
-        padding: 18px 24px;
+        padding: 0;
       }
     }
 
@@ -1667,13 +1719,11 @@
         </button>
         <h1>
           <i data-lucide="calendar-days" style="width:22px;height:22px;color:var(--gold-400)"></i>
-          <span>Agenda de Eventos</span>
+          <span class="agenda-title-full">Agenda de Eventos</span>
+          <span class="agenda-title-short">Agenda</span>
         </h1>
       </div>
       <div class="header-right">
-        <div class="header-stats">
-          <div id="eventoCount">-</div>
-        </div>
         <div class="header-user">
           <div class="header-user-avatar" id="headerUserAvatar">--</div>
           <div class="header-user-meta">
@@ -1685,7 +1735,18 @@
         </button>
       </div>
     </div>
-    <div class="header-info" id="headerInfo"></div>
+  </div>
+
+  <div class="agenda-status-bar" aria-live="polite">
+    <div class="agenda-status-main">
+      <span class="agenda-status-dot" aria-hidden="true"></span>
+      <span id="headerInfo">Carregando agenda...</span>
+    </div>
+    <div class="agenda-status-meta">
+      <span class="agenda-status-chip" id="agendaFilterSummary">Próximos</span>
+      <span class="agenda-status-chip" id="agendaViewSummary">Cards</span>
+      <span class="agenda-status-count" id="eventoCount">-</span>
+    </div>
   </div>
 
   <div class="agenda-offline-status" id="agendaOfflineStatus" aria-live="polite">
@@ -2544,28 +2605,29 @@ calcularDiasIntervalo(dataInicio, dataFim) {
           }
         }
 
-        // Informações adicionais
-        const info = [];
+        let statusAtualizacao = 'Agenda pronta';
 
         if (AppState.ultimaAtualizacao) {
           const tempo = new Date(AppState.ultimaAtualizacao).toLocaleTimeString('pt-BR', {
             hour: '2-digit',
             minute: '2-digit'
           });
-          info.push(`Atualizado às ${tempo}`);
-        }
-
-        if (AppState.filtroAtivo !== 'todos') {
-          info.push(`Filtro: ${AppState.filtroAtivo}`);
-        }
-
-        if (isGestorAgenda()) {
-          info.push(`Modo: ${AppState.modoVisualizacao === 'planilha' ? 'Planilha' : 'Cards'}`);
+          statusAtualizacao = `Atualizado às ${tempo}`;
         }
 
         const infoEl = document.getElementById('headerInfo');
-        if (infoEl) {
-          infoEl.innerHTML = info.join(' • ');
+        if (infoEl) infoEl.textContent = statusAtualizacao;
+
+        const filtroResumoEl = document.getElementById('agendaFilterSummary');
+        if (filtroResumoEl) {
+          const filtro = String(AppState.filtroAtivo || 'todos');
+          filtroResumoEl.textContent = filtro.charAt(0).toUpperCase() + filtro.slice(1);
+        }
+
+        const modoResumoEl = document.getElementById('agendaViewSummary');
+        if (modoResumoEl) {
+          modoResumoEl.textContent = AppState.modoVisualizacao === 'planilha' ? 'Planilha' : 'Cards';
+          modoResumoEl.style.display = isGestorAgenda() ? '' : 'none';
         }
       },
 
