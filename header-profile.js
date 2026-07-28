@@ -171,9 +171,8 @@
     trigger.setAttribute('aria-expanded', 'false');
     trigger.setAttribute('aria-label', 'Abrir opções do perfil');
 
-    var chevron = document.createElement('i');
+    var chevron = document.createElement('span');
     chevron.className = 'fa-profile-chevron';
-    chevron.setAttribute('data-lucide', 'chevron-down');
     chevron.setAttribute('aria-hidden', 'true');
     trigger.appendChild(chevron);
 

@@ -47,15 +47,20 @@
 }
 
 .fa-profile-chevron {
-  width: 15px;
-  height: 15px;
+  display: block;
+  width: 8px;
+  height: 8px;
   flex: 0 0 auto;
-  color: rgba(255,255,255,.62);
+  margin: -3px 2px 0 0;
+  border-right: 2px solid rgba(255,255,255,.68);
+  border-bottom: 2px solid rgba(255,255,255,.68);
+  transform: rotate(45deg);
   transition: transform .18s ease;
 }
 
 .fa-profile-trigger[aria-expanded="true"] .fa-profile-chevron {
-  transform: rotate(180deg);
+  margin-top: 3px;
+  transform: rotate(225deg);
 }
 
 .fa-legacy-logout {
@@ -150,7 +155,8 @@
 
   .fa-profile-trigger {
     min-height: 40px;
-    padding-right: 7px !important;
+    padding-right: 10px !important;
+    gap: 8px !important;
   }
 
   .fa-profile-trigger .global-header-name,
@@ -160,19 +166,15 @@
     display: none !important;
   }
 
-  .fa-profile-chevron {
-    display: none;
-  }
-
   .fa-profile-menu {
-    position: fixed;
-    top: auto;
-    right: 16px;
-    bottom: calc(16px + env(safe-area-inset-bottom));
-    left: 16px;
-    width: auto;
-    border-radius: 20px;
-    transform: translateY(10px);
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    bottom: auto;
+    left: auto;
+    width: min(248px, calc(100vw - 24px));
+    border-radius: 16px;
+    transform: translateY(-6px);
   }
 
   .fa-profile-menu.open {
