@@ -292,6 +292,7 @@
       align-items: center;
       justify-content: flex-end;
       gap: 6px;
+      position: relative;
     }
 
     .agenda-status-chip,
@@ -312,6 +313,93 @@
     .agenda-status-count {
       color: var(--navy-600);
       background: #fff;
+      cursor: pointer;
+      user-select: none;
+      list-style: none;
+      transition: border-color .18s ease, background .18s ease, box-shadow .18s ease;
+    }
+
+    .agenda-status-count::-webkit-details-marker {
+      display: none;
+    }
+
+    .agenda-status-count:hover,
+    .agenda-count-details[open] .agenda-status-count {
+      border-color: var(--gray-300);
+      background: var(--gray-50);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .agenda-count-chevron {
+      width: 7px;
+      height: 7px;
+      margin: -3px 1px 0 3px;
+      border-right: 1.5px solid currentColor;
+      border-bottom: 1.5px solid currentColor;
+      transform: rotate(45deg);
+      transition: transform .18s ease, margin .18s ease;
+    }
+
+    .agenda-count-details[open] .agenda-count-chevron {
+      margin-top: 3px;
+      transform: rotate(225deg);
+    }
+
+    .agenda-count-details {
+      position: relative;
+    }
+
+    .agenda-count-popover {
+      position: absolute;
+      top: calc(100% + 8px);
+      right: 0;
+      z-index: 180;
+      width: min(250px, calc(100vw - 24px));
+      padding: 8px;
+      border: 1px solid var(--gray-200);
+      border-radius: var(--radius-lg);
+      background: #fff;
+      box-shadow: var(--shadow-lg);
+      color: var(--gray-700);
+    }
+
+    .agenda-count-popover-title {
+      padding: 7px 8px 9px;
+      border-bottom: 1px solid var(--gray-100);
+      color: var(--gray-500);
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: .6px;
+      text-transform: uppercase;
+    }
+
+    .agenda-count-breakdown {
+      padding-top: 5px;
+      display: grid;
+      gap: 2px;
+    }
+
+    .agenda-count-row {
+      min-height: 34px;
+      padding: 0 8px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      border-radius: 9px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .agenda-count-row:hover {
+      background: var(--gray-50);
+    }
+
+    .agenda-count-value {
+      min-width: 26px;
+      color: var(--navy-600);
+      font-weight: 800;
+      text-align: right;
     }
 
     .agenda-title-short {
@@ -1745,7 +1833,16 @@
     <div class="agenda-status-meta">
       <span class="agenda-status-chip" id="agendaFilterSummary">Próximos</span>
       <span class="agenda-status-chip" id="agendaViewSummary">Cards</span>
-      <span class="agenda-status-count" id="eventoCount">-</span>
+      <details class="agenda-count-details" id="agendaCountDetails">
+        <summary class="agenda-status-count" aria-label="Ver composição dos registros">
+          <span id="eventoCount">-</span>
+          <span class="agenda-count-chevron" aria-hidden="true"></span>
+        </summary>
+        <div class="agenda-count-popover">
+          <div class="agenda-count-popover-title">Composição exibida</div>
+          <div class="agenda-count-breakdown" id="agendaCountBreakdown"></div>
+        </div>
+      </details>
     </div>
   </div>
 
@@ -2583,7 +2680,52 @@ calcularDiasIntervalo(dataInicio, dataFim) {
         const count = AppState.eventosFiltrados.length;
         const countEl = document.getElementById('eventoCount');
         if (countEl) {
-          countEl.textContent = `${count} evento${count !== 1 ? 's' : ''}`;
+          countEl.textContent = `${count} registro${count !== 1 ? 's' : ''}`;
+        }
+
+        const composicaoEl = document.getElementById('agendaCountBreakdown');
+        if (composicaoEl) {
+          const composicao = {
+            Evento: 0,
+            Reunião: 0,
+            Reserva: 0,
+            Bloqueio: 0,
+            Outros: 0
+          };
+
+          AppState.eventosFiltrados.forEach((registro) => {
+            const tipo = String(registro?.tipo || 'Evento')
+              .normalize('NFD')
+              .replace(/[\u0300-\u036f]/g, '')
+              .trim()
+              .toLowerCase();
+
+            if (tipo === 'evento') composicao.Evento++;
+            else if (tipo === 'reuniao') composicao.Reunião++;
+            else if (tipo === 'reserva' || tipo.includes('reserva')) composicao.Reserva++;
+            else if (tipo === 'bloqueio') composicao.Bloqueio++;
+            else composicao.Outros++;
+          });
+
+          const rotulos = {
+            Evento: ['evento', 'eventos'],
+            Reunião: ['reunião', 'reuniões'],
+            Reserva: ['reserva', 'reservas'],
+            Bloqueio: ['bloqueio', 'bloqueios'],
+            Outros: ['outro registro', 'outros registros']
+          };
+
+          const linhasComposicao = Object.entries(composicao)
+            .filter(([, quantidade]) => quantidade > 0);
+
+          composicaoEl.innerHTML = linhasComposicao.length
+            ? linhasComposicao.map(([tipo, quantidade]) => `
+              <div class="agenda-count-row">
+                <span>${quantidade === 1 ? rotulos[tipo][0] : rotulos[tipo][1]}</span>
+                <span class="agenda-count-value">${quantidade}</span>
+              </div>
+            `).join('')
+            : '<div class="agenda-count-row"><span>Nenhum registro exibido</span><span class="agenda-count-value">0</span></div>';
         }
 
         if (AppState.usuario) {
@@ -2649,7 +2791,7 @@ calcularDiasIntervalo(dataInicio, dataFim) {
 
     if (AppState.modoVisualizacao === 'planilha' && isGestorAgenda()) {
       this.renderizarEventosPlanilha(eventos);
-      document.getElementById('eventoCount').textContent = `${eventos.length} eventos`;
+      document.getElementById('eventoCount').textContent = `${eventos.length} registro${eventos.length !== 1 ? 's' : ''}`;
       return;
     }
 
@@ -2661,7 +2803,7 @@ calcularDiasIntervalo(dataInicio, dataFim) {
 	    }
 
     // Atualiza contador
-    document.getElementById('eventoCount').textContent = `${eventos.length} eventos`;
+    document.getElementById('eventoCount').textContent = `${eventos.length} registro${eventos.length !== 1 ? 's' : ''}`;
   },
 
       obterChaveMesAno(dataEvento) {
