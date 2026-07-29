@@ -583,6 +583,10 @@
             <label for="dataEvento">Data do evento</label>
             <input id="dataEvento" type="date">
           </div>
+          <div class="field">
+            <label for="local">Local</label>
+            <input id="local" type="text" autocomplete="organization" placeholder="Ex.: Espaço Jardins">
+          </div>
           <div class="field span-2">
             <label>Propostas e valores</label>
             <div class="options">
@@ -794,6 +798,7 @@
         nome: document.getElementById('nome').value.trim(),
         telefone: document.getElementById('telefone').value.trim(),
         dataEvento: document.getElementById('dataEvento').value,
+        local: document.getElementById('local').value.trim(),
         propostas: propostas.join(','),
         valorPocket: normalizarNumero_(document.getElementById('valorPocket').value),
         valorGold: normalizarNumero_(document.getElementById('valorGold').value),
@@ -918,7 +923,7 @@
     }
 
     function limparFormulario_() {
-      ['nome', 'telefone', 'dataEvento', 'valorPocket', 'valorGold', 'valorPremium', 'valorDebut', 'observacoes']
+      ['nome', 'telefone', 'dataEvento', 'local', 'valorPocket', 'valorGold', 'valorPremium', 'valorDebut', 'observacoes']
         .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
       ['propPocket', 'propGold', 'propPremium', 'propDebut']
         .forEach(id => { const el = document.getElementById(id); if (el) el.checked = false; });
