@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Configurações • ACL</title>
+  <title>Usuários e Permissões</title>
   <script src="auth.js"></script>
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js" defer></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -35,17 +35,33 @@
     .page { max-width: 1240px; margin: 0 auto; padding: 14px; display: grid; gap: 12px; }
     .card { border: 1px solid var(--line); border-radius: 14px; background: var(--card); box-shadow: var(--shadow); padding: 14px; }
     .muted { color: var(--muted); font-size: 13px; }
-    .kpis { display: grid; gap: 10px; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .kpis { display: grid; gap: 10px; grid-template-columns: repeat(4, minmax(0, 1fr)); }
     .kpi { border: 1px solid var(--line); border-radius: 12px; background: #fff; padding: 12px; }
     .kpi .label { font-size: 12px; color: var(--muted); }
     .kpi .value { font-size: 20px; font-weight: 800; margin-top: 6px; }
-    .list { display: grid; gap: 8px; max-height: 220px; overflow: auto; margin-top: 10px; }
-    .item { border: 1px solid var(--line); border-radius: 10px; padding: 10px; background: #fff; display: grid; gap: 4px; }
+    .list { display: grid; gap: 10px; margin-top: 10px; }
+    .item { border: 1px solid var(--line); border-radius: 12px; padding: 12px; background: #fff; display: grid; gap: 7px; }
     .row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
     .name { font-size: 13px; font-weight: 700; }
     .pill { font-size: 11px; font-weight: 700; border-radius: 999px; padding: 3px 8px; border: 1px solid var(--line); }
     .pill.ok { color: #166534; background: #ecfdf3; border-color: #bbf7d0; }
     .pill.off { color: #9a3412; background: #fff7ed; border-color: #fed7aa; }
+    .pill.self { color: #1e40af; background: #eff6ff; border-color: #bfdbfe; }
+    .actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 3px; }
+    .btn {
+      appearance: none; border: 1px solid var(--line); border-radius: 9px; background: #fff;
+      color: #334155; padding: 8px 10px; font: inherit; font-size: 12px; font-weight: 700;
+      cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+    }
+    .btn:hover { border-color: #94a3b8; background: #f8fafc; }
+    .btn:disabled { opacity: .55; cursor: wait; }
+    .btn.warn { color: #92400e; border-color: #fcd34d; background: #fffbeb; }
+    .btn.danger { color: #b91c1c; border-color: #fecaca; background: #fff7f7; }
+    .btn.success { color: #166534; border-color: #bbf7d0; background: #f0fdf4; }
+    .security-note {
+      border-left: 3px solid var(--gold); padding: 10px 12px; background: #fffbeb;
+      border-radius: 8px; color: #713f12; font-size: 12px; line-height: 1.5;
+    }
     .table-wrap { overflow: auto; border: 1px solid var(--line); border-radius: 12px; margin-top: 10px; }
     table { width: 100%; border-collapse: collapse; font-size: 12px; min-width: 780px; }
     th, td { border-bottom: 1px solid #eef2f8; text-align: left; padding: 10px; vertical-align: top; }
@@ -61,20 +77,28 @@
   <header class="topbar">
     <div class="brand" onclick="window.location.href='configuracoes.html'">
       <div class="back"><i data-lucide="arrow-left"></i></div>
-      <div class="title"><i data-lucide="shield-check"></i><span>Permissões (ACL) • Somente Leitura</span></div>
+      <div class="title"><i data-lucide="users"></i><span>Usuários e Permissões</span></div>
     </div>
   </header>
 
   <main class="page">
     <section class="card">
-      <div class="muted">Visão de auditoria de perfis, regras efetivas e usuários ativos/inativos. Não há edição nesta fase.</div>
+      <div class="muted">Acompanhe utilização, encerre sessões e controle quem pode entrar no sistema.</div>
       <div id="status" class="muted" style="margin-top:8px">Carregando...</div>
+      <div class="security-note" style="margin-top:10px">
+        <strong>Proteção de acesso:</strong> desconectar invalida as sessões atuais sem desativar o cadastro.
+        Inativar bloqueia novos acessos e também encerra todas as sessões do usuário.
+      </div>
     </section>
 
     <section class="kpis">
       <article class="kpi">
         <div class="label">Usuários mapeados</div>
         <div class="value" id="kpiUsuarios">-</div>
+      </article>
+      <article class="kpi">
+        <div class="label">Usuários ativos</div>
+        <div class="value" id="kpiAtivos">-</div>
       </article>
       <article class="kpi">
         <div class="label">Perfis com ACL</div>
@@ -88,7 +112,7 @@
 
     <section class="card">
       <div class="row">
-        <h3 style="margin:0;font-size:15px">Usuários e Permissões Efetivas</h3>
+        <h3 style="margin:0;font-size:15px">Usuários cadastrados</h3>
       </div>
       <div id="usuariosList" class="list"></div>
     </section>
@@ -100,6 +124,9 @@
   </main>
 
   <script>
+    let usuarioAtualEmail = '';
+    let operacaoEmAndamento = false;
+
     function normalizarPerfil(perfil) {
       return String(perfil || '')
         .normalize('NFD')
@@ -133,6 +160,7 @@
       }
       box.innerHTML = usuarios.map(u => {
         const ativo = String(u.status || '').trim().toUpperCase() === 'ATIVO';
+        const ehProprio = String(u.email || '').trim().toLowerCase() === usuarioAtualEmail;
         const ultimoAcesso = formatarUltimoAcesso(u.ultimoAcesso);
         const regras = Array.isArray(u.regras) ? u.regras : [];
         const regrasHtml = regras.length
@@ -142,14 +170,83 @@
           <article class="item">
             <div class="row">
               <div class="name">${escapeHtml(u.nome || u.email || '(Sem nome)')}</div>
-              <span class="pill ${ativo ? 'ok' : 'off'}">${ativo ? 'ATIVO' : 'INATIVO'}</span>
+              <div>
+                ${ehProprio ? '<span class="pill self">SUA CONTA</span>' : ''}
+                <span class="pill ${ativo ? 'ok' : 'off'}">${ativo ? 'ATIVO' : 'INATIVO'}</span>
+              </div>
             </div>
             <div class="muted">${escapeHtml(u.email || '-')} • Perfil: ${escapeHtml(u.perfil || '-')}</div>
             <div class="muted">Último acesso: ${escapeHtml(ultimoAcesso)}</div>
             <div>${regrasHtml}</div>
+            ${ehProprio ? `
+              <div class="muted">Sua própria conta é protegida contra desconexão e inativação nesta tela.</div>
+            ` : `
+              <div class="actions">
+                ${ativo ? `
+                  <button class="btn warn" data-action="desconectar" data-email="${escapeHtml(u.email)}" data-nome="${escapeHtml(u.nome || u.email)}">
+                    Encerrar sessões
+                  </button>
+                  <button class="btn danger" data-action="inativar" data-email="${escapeHtml(u.email)}" data-nome="${escapeHtml(u.nome || u.email)}">
+                    Inativar acesso
+                  </button>
+                ` : `
+                  <button class="btn success" data-action="reativar" data-email="${escapeHtml(u.email)}" data-nome="${escapeHtml(u.nome || u.email)}">
+                    Reativar acesso
+                  </button>
+                `}
+              </div>
+            `}
           </article>
         `;
       }).join('');
+
+      box.querySelectorAll('[data-action]').forEach(btn => {
+        btn.addEventListener('click', () => executarAcaoUsuario(btn));
+      });
+    }
+
+    async function executarAcaoUsuario(botao) {
+      if (operacaoEmAndamento || !botao) return;
+      const acao = String(botao.dataset.action || '');
+      const email = String(botao.dataset.email || '').trim();
+      const nome = String(botao.dataset.nome || email).trim();
+      if (!email || email.toLowerCase() === usuarioAtualEmail) return;
+
+      const mensagens = {
+        desconectar: `Encerrar todas as sessões atuais de ${nome}?\\n\\nO cadastro continuará ativo e a pessoa poderá entrar novamente.`,
+        inativar: `Inativar o acesso de ${nome}?\\n\\nA pessoa será desconectada e não conseguirá entrar novamente até ser reativada.`,
+        reativar: `Reativar o acesso de ${nome}?`
+      };
+      if (!window.confirm(mensagens[acao] || 'Confirmar esta ação?')) return;
+
+      const apiActions = {
+        desconectar: 'desconectarUsuario',
+        inativar: 'inativarUsuario',
+        reativar: 'reativarUsuario'
+      };
+
+      operacaoEmAndamento = true;
+      document.querySelectorAll('[data-action]').forEach(el => { el.disabled = true; });
+      setStatus('Aplicando alteração de acesso...');
+      try {
+        const resp = await Auth.apiCall(apiActions[acao], { emailAlvo: email });
+        if (!resp || resp.ok === false) {
+          throw new Error(resp?.mensagem || 'Não foi possível concluir a operação.');
+        }
+        await carregarDados();
+        const rotulos = {
+          desconectar: 'Sessões encerradas com sucesso.',
+          inativar: 'Acesso inativado e sessões encerradas.',
+          reativar: 'Acesso reativado com sucesso.'
+        };
+        setStatus(rotulos[acao] || 'Alteração concluída.');
+      } catch (err) {
+        console.error('Erro ao gerenciar usuário:', err);
+        setStatus('Erro ao gerenciar usuário: ' + String(err?.message || err), true);
+      } finally {
+        operacaoEmAndamento = false;
+        document.querySelectorAll('[data-action]').forEach(el => { el.disabled = false; });
+      }
     }
 
     function formatarUltimoAcesso(valor) {
@@ -195,16 +292,7 @@
       `;
     }
 
-    async function init() {
-      try {
-        const auth = await Auth.apiCall('verificarUsuario');
-        if (!auth || !auth.ok || !auth.user) throw new Error('NOT_AUTH');
-        if (normalizarPerfil(auth.user.perfil) !== 'proprietario') {
-          alert('Apenas o proprietário pode acessar esta tela.');
-          window.location.href = 'configuracoes.html';
-          return;
-        }
-
+    async function carregarDados() {
         const resp = await Auth.apiCall('listarAclReadOnly');
         if (!resp || resp.ok === false) {
           throw new Error(resp?.mensagem || 'Falha ao carregar ACL');
@@ -214,12 +302,28 @@
         const acoesCatalogo = Array.isArray(resp.acoesCatalogo) ? resp.acoesCatalogo : [];
 
         document.getElementById('kpiUsuarios').textContent = String(usuarios.length);
+        document.getElementById('kpiAtivos').textContent = String(
+          usuarios.filter(u => String(u.status || '').trim().toUpperCase() === 'ATIVO').length
+        );
         document.getElementById('kpiPerfis').textContent = String(Object.keys(perfisAcl).length);
         document.getElementById('kpiAcoes').textContent = String(acoesCatalogo.length);
 
         renderUsuarios(usuarios);
         renderPerfis(perfisAcl);
-        setStatus('Leitura carregada com sucesso.');
+    }
+
+    async function init() {
+      try {
+        const auth = await Auth.apiCall('verificarUsuario');
+        if (!auth || !auth.ok || !auth.user) throw new Error('NOT_AUTH');
+        if (normalizarPerfil(auth.user.perfil) !== 'proprietario') {
+          alert('Apenas o proprietário pode acessar esta tela.');
+          window.location.href = 'configuracoes.html';
+          return;
+        }
+        usuarioAtualEmail = String(auth.user.email || '').trim().toLowerCase();
+        await carregarDados();
+        setStatus('Usuários e permissões carregados com sucesso.');
       } catch (err) {
         console.error('Erro ACL read-only:', err);
         setStatus('Erro ao carregar ACL: ' + String(err && err.message ? err.message : err), true);

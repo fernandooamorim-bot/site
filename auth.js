@@ -16,11 +16,34 @@
     localStorage.removeItem('auth_perfil');
     localStorage.removeItem('auth_pagina_inicial');
     localStorage.removeItem('auth_session');
+
+    // Remove dados funcionais que poderiam permanecer visíveis após revogação.
+    try {
+      Object.keys(localStorage).forEach(key => {
+        if (
+          key.indexOf('agenda_cache_') === 0 ||
+          key.indexOf('agenda_novidades_') === 0
+        ) {
+          localStorage.removeItem(key);
+        }
+      });
+    } catch (_) {}
   };
 
   Auth.forceLogout = function (mensagem) {
     try {
       Auth.clearAuthStorage();
+    } catch (_) {}
+
+    // Limpeza adicional best-effort do cache offline da aplicação.
+    try {
+      if ('caches' in window) {
+        caches.keys().then(keys => Promise.all(
+          keys
+            .filter(key => /agenda|sistema-fa/i.test(String(key || '')))
+            .map(key => caches.delete(key))
+        )).catch(() => {});
+      }
     } catch (_) {}
 
     if (mensagem) {
@@ -168,6 +191,7 @@
         (
           data.codigo === 'SESSAO_INVALIDA' ||
           data.codigo === 'SESSAO_EXPIRADA' ||
+          data.codigo === 'SESSAO_REVOGADA' ||
           data.codigo === 'USUARIO_NAO_ENCONTRADO' ||
           data.codigo === 'USUARIO_INATIVO'
         )
