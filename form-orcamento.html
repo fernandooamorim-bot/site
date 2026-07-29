@@ -245,6 +245,13 @@
       box-shadow: 0 0 0 3px rgba(30,58,95,0.12);
     }
 
+    .field input:disabled,
+    .opt-line input[type="text"]:disabled {
+      background: #f1f5f9;
+      color: #94a3b8;
+      cursor: not-allowed;
+    }
+
     .field textarea {
       min-height: 86px;
       resize: vertical;
@@ -448,7 +455,7 @@
 
     .history-toolbar {
       display: grid;
-      grid-template-columns: minmax(0, 1fr) auto;
+      grid-template-columns: minmax(0, 1fr) 190px auto;
       gap: 8px;
     }
 
@@ -478,6 +485,23 @@
     }
 
     .history-search:focus {
+      border-color: #1e3a5f;
+      box-shadow: 0 0 0 3px rgba(30,58,95,0.12);
+    }
+
+    .history-sort {
+      width: 100%;
+      border: 1px solid #d6deea;
+      border-radius: 10px;
+      padding: 10px 11px;
+      background: #fff;
+      color: #334155;
+      font: inherit;
+      font-size: 13px;
+      outline: none;
+    }
+
+    .history-sort:focus {
       border-color: #1e3a5f;
       box-shadow: 0 0 0 3px rgba(30,58,95,0.12);
     }
@@ -588,6 +612,23 @@
     .proposal-actions .btn {
       padding: 7px 10px;
       font-size: 11px;
+    }
+
+    .history-pagination {
+      display: none;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding-top: 2px;
+    }
+
+    .history-pagination.show { display: flex; }
+
+    .history-page-info {
+      color: #64748b;
+      font-size: 12px;
+      font-weight: 600;
+      text-align: center;
     }
 
     .mini-toast {
@@ -754,6 +795,13 @@
         grid-template-columns: 1fr 1fr;
       }
       .proposal-actions .btn { justify-content: center; }
+      .history-pagination {
+        display: none;
+        grid-template-columns: 1fr;
+      }
+      .history-pagination.show { display: grid; }
+      .history-page-info { order: -1; }
+      .history-pagination .btn { justify-content: center; }
     }
   </style>
   <link rel="stylesheet" href="header-profile.css?v=20260728c"/>
@@ -816,22 +864,22 @@
               <div class="opt-line">
                 <input id="propPocket" type="checkbox">
                 <span>Pocket</span>
-                <input id="valorPocket" type="text" inputmode="decimal" placeholder="Valor (opcional)">
+                <input id="valorPocket" type="text" inputmode="decimal" disabled placeholder="Selecione a proposta">
               </div>
               <div class="opt-line">
                 <input id="propGold" type="checkbox">
                 <span>Gold</span>
-                <input id="valorGold" type="text" inputmode="decimal" placeholder="Valor (opcional)">
+                <input id="valorGold" type="text" inputmode="decimal" disabled placeholder="Selecione a proposta">
               </div>
               <div class="opt-line">
                 <input id="propPremium" type="checkbox">
                 <span>Premium</span>
-                <input id="valorPremium" type="text" inputmode="decimal" placeholder="Valor (opcional)">
+                <input id="valorPremium" type="text" inputmode="decimal" disabled placeholder="Selecione a proposta">
               </div>
               <div class="opt-line">
                 <input id="propDebut" type="checkbox">
                 <span>Debut</span>
-                <input id="valorDebut" type="text" inputmode="decimal" placeholder="Valor (opcional)">
+                <input id="valorDebut" type="text" inputmode="decimal" disabled placeholder="Selecione a proposta">
               </div>
             </div>
           </div>
@@ -902,6 +950,12 @@
             <input class="history-search" id="historySearch" type="search"
               placeholder="Buscar por cliente, número, telefone, local ou proposta">
           </div>
+          <select class="history-sort" id="historySort" aria-label="Ordenar propostas">
+            <option value="recentes">Mais recentes</option>
+            <option value="antigas">Mais antigas</option>
+            <option value="nome_az">Contratante A–Z</option>
+            <option value="nome_za">Contratante Z–A</option>
+          </select>
           <button class="btn" id="btnHistoryRefresh" type="button">
             <i data-lucide="refresh-cw"></i>
             Atualizar
@@ -909,6 +963,15 @@
         </div>
         <div class="history-state" id="historyState">Abra esta seção para carregar as propostas.</div>
         <div class="history-list" id="historyList"></div>
+        <div class="history-pagination" id="historyPagination">
+          <button class="btn" id="btnHistoryPrev" type="button">
+            <i data-lucide="chevron-left"></i> Anterior
+          </button>
+          <span class="history-page-info" id="historyPageInfo"></span>
+          <button class="btn" id="btnHistoryNext" type="button">
+            Próxima <i data-lucide="chevron-right"></i>
+          </button>
+        </div>
       </div>
     </details>
   </main>
@@ -948,6 +1011,14 @@
   <script>
     let __pageLeaving = false;
     let toastTimer_ = null;
+    let historyPage_ = 1;
+    let historyTotalPages_ = 0;
+    const HISTORY_PAGE_SIZE_ = 20;
+    const HISTORY_BATCH_SIZE_ = 60;
+    let historyBatchStart_ = -1;
+    let historyBatchItems_ = [];
+    let historyBatchKey_ = '';
+    let historyTotal_ = 0;
 
     function marcarSaindo_() {
       __pageLeaving = true;
@@ -1051,10 +1122,10 @@
         dataEvento: document.getElementById('dataEvento').value,
         local: document.getElementById('local').value.trim(),
         propostas: propostas.join(','),
-        valorPocket: normalizarNumero_(document.getElementById('valorPocket').value),
-        valorGold: normalizarNumero_(document.getElementById('valorGold').value),
-        valorPremium: normalizarNumero_(document.getElementById('valorPremium').value),
-        valorDebut: normalizarNumero_(document.getElementById('valorDebut').value),
+        valorPocket: propostas.indexOf('pocket') !== -1 ? normalizarNumero_(document.getElementById('valorPocket').value) : '',
+        valorGold: propostas.indexOf('gold') !== -1 ? normalizarNumero_(document.getElementById('valorGold').value) : '',
+        valorPremium: propostas.indexOf('premium') !== -1 ? normalizarNumero_(document.getElementById('valorPremium').value) : '',
+        valorDebut: propostas.indexOf('debut') !== -1 ? normalizarNumero_(document.getElementById('valorDebut').value) : '',
         observacoes: document.getElementById('observacoes').value.trim()
       };
     }
@@ -1179,6 +1250,12 @@
         .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
       ['propPocket', 'propGold', 'propPremium', 'propDebut']
         .forEach(id => { const el = document.getElementById(id); if (el) el.checked = false; });
+      [
+        ['propPocket', 'valorPocket'],
+        ['propGold', 'valorGold'],
+        ['propPremium', 'valorPremium'],
+        ['propDebut', 'valorDebut']
+      ].forEach(par => sincronizarValorProposta_(par[0], par[1]));
       const result = document.getElementById('resultBox');
       if (result) {
         result.classList.remove('show');
@@ -1233,12 +1310,13 @@
     }
 
     function montarValoresOrcamento_(item) {
+      const selecionadas = String(item.propostas || '').toLowerCase();
       const valores = [
-        ['Pocket', item.valorPocket],
-        ['Gold', item.valorGold],
-        ['Premium', item.valorPremium],
-        ['Debut', item.valorDebut]
-      ].filter(par => String(par[1] || '').trim());
+        ['Pocket', item.valorPocket, 'pocket'],
+        ['Gold', item.valorGold, 'gold'],
+        ['Premium', item.valorPremium, 'premium'],
+        ['Debut', item.valorDebut, 'debut']
+      ].filter(par => selecionadas.indexOf(par[2]) !== -1 && String(par[1] || '').trim());
       if (!valores.length) return 'Valores não informados';
       return valores.map(par => par[0] + ': R$ ' + par[1]).join(' · ');
     }
@@ -1276,6 +1354,7 @@
               <div class="proposal-field wide"><span>Local</span><strong>${escapeHtml_(item.local || 'Não registrado')}</strong></div>
               <div class="proposal-field wide"><span>Propostas</span><strong>${escapeHtml_(item.propostas || '—')}</strong></div>
               <div class="proposal-field wide"><span>Observações internas</span><strong>${escapeHtml_(obs || 'Sem observações')}</strong></div>
+              <div class="proposal-field wide"><span>Criado por</span><strong>${escapeHtml_(item.criadoPor || 'Não registrado')}</strong></div>
             </div>
             <div class="proposal-values">${escapeHtml_(montarValoresOrcamento_(item))}</div>
             <div class="proposal-actions">
@@ -1292,29 +1371,87 @@
       if (window.lucide) window.lucide.createIcons();
     }
 
-    async function carregarHistorico_() {
+    function atualizarPaginacaoHistorico_(total) {
+      const pagination = document.getElementById('historyPagination');
+      const info = document.getElementById('historyPageInfo');
+      const prev = document.getElementById('btnHistoryPrev');
+      const next = document.getElementById('btnHistoryNext');
+      const totalRegistros = Number(total || 0);
+      historyTotalPages_ = totalRegistros ? Math.ceil(totalRegistros / HISTORY_PAGE_SIZE_) : 0;
+      if (!pagination || !info || !prev || !next) return;
+      pagination.classList.toggle('show', totalRegistros > 0);
+      info.textContent = totalRegistros
+        ? `Página ${historyPage_} de ${historyTotalPages_} · ${totalRegistros} proposta${totalRegistros === 1 ? '' : 's'}`
+        : '';
+      prev.disabled = historyPage_ <= 1;
+      next.disabled = !historyTotalPages_ || historyPage_ >= historyTotalPages_;
+    }
+
+    function sincronizarValorProposta_(checkboxId, valorId) {
+      const checkbox = document.getElementById(checkboxId);
+      const valor = document.getElementById(valorId);
+      if (!checkbox || !valor) return;
+      valor.disabled = !checkbox.checked;
+      valor.placeholder = checkbox.checked ? 'Valor (opcional)' : 'Selecione a proposta';
+      if (!checkbox.checked) valor.value = '';
+    }
+
+    async function carregarHistorico_(pagina, forcarConsulta) {
       const state = document.getElementById('historyState');
       const list = document.getElementById('historyList');
       const refresh = document.getElementById('btnHistoryRefresh');
       const busca = document.getElementById('historySearch');
+      const sort = document.getElementById('historySort');
       if (!state || !list) return;
+      const paginaSolicitada = Math.max(1, Number(pagina || historyPage_ || 1));
+      const buscaAtual = busca ? busca.value.trim() : '';
+      const ordenacaoAtual = sort ? sort.value : 'recentes';
+      const chaveAtual = buscaAtual + '|' + ordenacaoAtual;
+      const indiceInicial = (paginaSolicitada - 1) * HISTORY_PAGE_SIZE_;
+      const inicioLote = Math.floor(indiceInicial / HISTORY_BATCH_SIZE_) * HISTORY_BATCH_SIZE_;
+      const podeUsarMemoria = !forcarConsulta &&
+        historyBatchKey_ === chaveAtual &&
+        historyBatchStart_ === inicioLote &&
+        historyBatchItems_.length > 0;
+
+      if (podeUsarMemoria) {
+        historyPage_ = paginaSolicitada;
+        const inicioLocal = indiceInicial - historyBatchStart_;
+        renderHistorico_(historyBatchItems_.slice(inicioLocal, inicioLocal + HISTORY_PAGE_SIZE_));
+        atualizarPaginacaoHistorico_(historyTotal_);
+        return;
+      }
+
       state.style.display = 'block';
       state.textContent = 'Carregando propostas enviadas...';
       list.innerHTML = '';
       if (refresh) refresh.disabled = true;
       try {
         const resp = await Auth.apiCall('listarOrcamentosInternos', {
-          busca: busca ? busca.value.trim() : '',
-          limite: 100
+          busca: buscaAtual,
+          offset: inicioLote,
+          limite: HISTORY_BATCH_SIZE_,
+          ordenacao: ordenacaoAtual
         });
         if (!resp || resp.sucesso !== true) {
           throw new Error(resp && (resp.mensagem || resp.error) ? (resp.mensagem || resp.error) : 'Falha ao consultar propostas');
         }
-        renderHistorico_(resp.orcamentos);
+        historyBatchKey_ = chaveAtual;
+        historyBatchStart_ = Number(
+          resp.offset === 0 || resp.offset ? resp.offset : inicioLote
+        );
+        historyBatchItems_ = Array.isArray(resp.orcamentos) ? resp.orcamentos : [];
+        historyTotal_ = Number(resp.total || 0);
+        historyTotalPages_ = historyTotal_ ? Math.ceil(historyTotal_ / HISTORY_PAGE_SIZE_) : 0;
+        historyPage_ = historyTotalPages_ ? Math.min(paginaSolicitada, historyTotalPages_) : 1;
+        const inicioLocal = (historyPage_ - 1) * HISTORY_PAGE_SIZE_ - historyBatchStart_;
+        renderHistorico_(historyBatchItems_.slice(inicioLocal, inicioLocal + HISTORY_PAGE_SIZE_));
+        atualizarPaginacaoHistorico_(historyTotal_);
       } catch (err) {
         console.error(err);
         state.style.display = 'block';
         state.textContent = 'Não foi possível carregar as propostas agora.';
+        atualizarPaginacaoHistorico_(0);
       } finally {
         if (refresh) refresh.disabled = false;
       }
@@ -1339,7 +1476,10 @@
         }
         renderResultado_(resp);
         const historyCard = document.getElementById('historyCard');
-        if (historyCard && historyCard.open) carregarHistorico_();
+        if (historyCard && historyCard.open) {
+          historyPage_ = 1;
+          carregarHistorico_(1, true);
+        }
         scrollParaResultadoOrcamento_();
         setStatus_(resp.mensagem || 'Orçamento gerado com sucesso.', 'ok');
       } catch (err) {
@@ -1365,7 +1505,10 @@
       const resultBox = document.getElementById('resultBox');
       const historyCard = document.getElementById('historyCard');
       const historySearch = document.getElementById('historySearch');
+      const historySort = document.getElementById('historySort');
       const btnHistoryRefresh = document.getElementById('btnHistoryRefresh');
+      const btnHistoryPrev = document.getElementById('btnHistoryPrev');
+      const btnHistoryNext = document.getElementById('btnHistoryNext');
       const historyList = document.getElementById('historyList');
 
       if (resultBox) {
@@ -1393,6 +1536,21 @@
         el.addEventListener('blur', function(e) {
           e.target.value = formatarValorVisual_(e.target.value);
         });
+      });
+
+      [
+        ['propPocket', 'valorPocket'],
+        ['propGold', 'valorGold'],
+        ['propPremium', 'valorPremium'],
+        ['propDebut', 'valorDebut']
+      ].forEach(function(par) {
+        const checkbox = document.getElementById(par[0]);
+        sincronizarValorProposta_(par[0], par[1]);
+        if (checkbox) {
+          checkbox.addEventListener('change', function() {
+            sincronizarValorProposta_(par[0], par[1]);
+          });
+        }
       });
 
       if (btnGerar) btnGerar.addEventListener('click', enviarOrcamento_);
@@ -1425,13 +1583,32 @@
           }
         });
       }
-      if (btnHistoryRefresh) btnHistoryRefresh.addEventListener('click', carregarHistorico_);
+      if (btnHistoryRefresh) btnHistoryRefresh.addEventListener('click', function() {
+        carregarHistorico_(historyPage_, true);
+      });
       if (historySearch) {
         historySearch.addEventListener('keydown', function(ev) {
           if (ev.key === 'Enter') {
             ev.preventDefault();
-            carregarHistorico_();
+            historyPage_ = 1;
+            carregarHistorico_(1);
           }
+        });
+      }
+      if (historySort) {
+        historySort.addEventListener('change', function() {
+          historyPage_ = 1;
+          carregarHistorico_(1);
+        });
+      }
+      if (btnHistoryPrev) {
+        btnHistoryPrev.addEventListener('click', function() {
+          if (historyPage_ > 1) carregarHistorico_(historyPage_ - 1);
+        });
+      }
+      if (btnHistoryNext) {
+        btnHistoryNext.addEventListener('click', function() {
+          if (historyPage_ < historyTotalPages_) carregarHistorico_(historyPage_ + 1);
         });
       }
       if (historyList) {
