@@ -376,6 +376,220 @@
       stroke: currentColor;
     }
 
+    .history-card {
+      margin-top: 14px;
+    }
+
+    .history-card > summary {
+      list-style: none;
+      cursor: pointer;
+      padding: 15px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      user-select: none;
+    }
+
+    .history-card > summary::-webkit-details-marker { display: none; }
+
+    .history-summary-main {
+      display: flex;
+      align-items: center;
+      gap: 11px;
+      min-width: 0;
+    }
+
+    .history-summary-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      background: #eef4fb;
+      color: var(--navy-600);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex: 0 0 auto;
+    }
+
+    .history-summary-icon i { width: 18px; height: 18px; }
+
+    .history-summary-copy {
+      display: grid;
+      gap: 2px;
+    }
+
+    .history-summary-copy strong {
+      color: #0f172a;
+      font-size: 14px;
+    }
+
+    .history-summary-copy span {
+      color: #64748b;
+      font-size: 12px;
+      font-weight: 500;
+    }
+
+    .history-chevron {
+      color: #64748b;
+      transition: transform 0.2s ease;
+      flex: 0 0 auto;
+    }
+
+    .history-chevron i { width: 18px; height: 18px; }
+    .history-card[open] .history-chevron { transform: rotate(180deg); }
+
+    .history-body {
+      border-top: 1px solid var(--gray-100);
+      padding: 14px;
+      display: grid;
+      gap: 12px;
+    }
+
+    .history-toolbar {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 8px;
+    }
+
+    .history-search-wrap {
+      position: relative;
+    }
+
+    .history-search-wrap i {
+      position: absolute;
+      left: 11px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 16px;
+      height: 16px;
+      color: #64748b;
+      pointer-events: none;
+    }
+
+    .history-search {
+      width: 100%;
+      border: 1px solid #d6deea;
+      border-radius: 10px;
+      padding: 10px 11px 10px 36px;
+      font: inherit;
+      font-size: 13px;
+      outline: none;
+    }
+
+    .history-search:focus {
+      border-color: #1e3a5f;
+      box-shadow: 0 0 0 3px rgba(30,58,95,0.12);
+    }
+
+    .history-state {
+      border: 1px dashed #cbd5e1;
+      border-radius: 12px;
+      padding: 24px 16px;
+      text-align: center;
+      color: #64748b;
+      font-size: 13px;
+      background: #f8fafc;
+    }
+
+    .history-list {
+      display: grid;
+      gap: 10px;
+    }
+
+    .proposal-item {
+      border: 1px solid #dbe3ef;
+      border-radius: 12px;
+      padding: 13px;
+      display: grid;
+      gap: 11px;
+      background: #fff;
+    }
+
+    .proposal-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .proposal-title {
+      display: grid;
+      gap: 3px;
+      min-width: 0;
+    }
+
+    .proposal-title strong {
+      color: #0f172a;
+      font-size: 14px;
+      overflow-wrap: anywhere;
+    }
+
+    .proposal-title span {
+      color: #64748b;
+      font-size: 12px;
+    }
+
+    .proposal-number {
+      border-radius: 999px;
+      padding: 5px 9px;
+      background: #eef4fb;
+      color: #1e3a5f;
+      font-size: 11px;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
+    .proposal-data {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 9px;
+    }
+
+    .proposal-field {
+      display: grid;
+      gap: 3px;
+      min-width: 0;
+    }
+
+    .proposal-field span {
+      color: #64748b;
+      font-size: 10px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .proposal-field strong {
+      color: #1e293b;
+      font-size: 12px;
+      font-weight: 600;
+      overflow-wrap: anywhere;
+    }
+
+    .proposal-field.wide { grid-column: span 2; }
+
+    .proposal-values {
+      padding: 9px 10px;
+      background: #f8fafc;
+      border-radius: 9px;
+      color: #334155;
+      font-size: 12px;
+      line-height: 1.55;
+    }
+
+    .proposal-actions {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      flex-wrap: wrap;
+    }
+
+    .proposal-actions .btn {
+      padding: 7px 10px;
+      font-size: 11px;
+    }
+
     .mini-toast {
       position: fixed;
       right: 16px;
@@ -531,6 +745,15 @@
         text-align: center;
       }
       .opt-line input[type="text"] { width: 100%; }
+      .history-toolbar { grid-template-columns: 1fr; }
+      .history-toolbar .btn { justify-content: center; }
+      .proposal-data { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .proposal-field.wide { grid-column: span 2; }
+      .proposal-actions {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+      }
+      .proposal-actions .btn { justify-content: center; }
     }
   </style>
   <link rel="stylesheet" href="header-profile.css?v=20260728c"/>
@@ -584,8 +807,8 @@
             <input id="dataEvento" type="date">
           </div>
           <div class="field">
-            <label for="local">Local</label>
-            <input id="local" type="text" autocomplete="organization" placeholder="Ex.: Espaço Jardins">
+            <label for="local">Local *</label>
+            <input id="local" type="text" autocomplete="organization" required placeholder="Ex.: Espaço Jardins">
           </div>
           <div class="field span-2">
             <label>Propostas e valores</label>
@@ -660,6 +883,34 @@
         </div>
       </div>
     </section>
+
+    <details class="card history-card" id="historyCard">
+      <summary>
+        <span class="history-summary-main">
+          <span class="history-summary-icon"><i data-lucide="history"></i></span>
+          <span class="history-summary-copy">
+            <strong>Propostas enviadas</strong>
+            <span>Consulte e recupere dados de orçamentos anteriores</span>
+          </span>
+        </span>
+        <span class="history-chevron"><i data-lucide="chevron-down"></i></span>
+      </summary>
+      <div class="history-body">
+        <div class="history-toolbar">
+          <div class="history-search-wrap">
+            <i data-lucide="search"></i>
+            <input class="history-search" id="historySearch" type="search"
+              placeholder="Buscar por cliente, número, telefone, local ou proposta">
+          </div>
+          <button class="btn" id="btnHistoryRefresh" type="button">
+            <i data-lucide="refresh-cw"></i>
+            Atualizar
+          </button>
+        </div>
+        <div class="history-state" id="historyState">Abra esta seção para carregar as propostas.</div>
+        <div class="history-list" id="historyList"></div>
+      </div>
+    </details>
   </main>
 
   <nav class="bottom-nav">
@@ -813,6 +1064,7 @@
       if (!p.telefone) return 'Informe o telefone.';
       if (apenasDigitos_(p.telefone).length < 10) return 'Telefone inválido.';
       if (!p.dataEvento) return 'Informe a data do evento.';
+      if (!p.local) return 'Informe o local do evento.';
       if (!p.propostas) return 'Selecione ao menos uma proposta.';
       return '';
     }
@@ -971,6 +1223,103 @@
       box.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
 
+    function escapeHtml_(valor) {
+      return String(valor == null ? '' : valor)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    function montarValoresOrcamento_(item) {
+      const valores = [
+        ['Pocket', item.valorPocket],
+        ['Gold', item.valorGold],
+        ['Premium', item.valorPremium],
+        ['Debut', item.valorDebut]
+      ].filter(par => String(par[1] || '').trim());
+      if (!valores.length) return 'Valores não informados';
+      return valores.map(par => par[0] + ': R$ ' + par[1]).join(' · ');
+    }
+
+    function renderHistorico_(itens) {
+      const list = document.getElementById('historyList');
+      const state = document.getElementById('historyState');
+      if (!list || !state) return;
+      const dados = Array.isArray(itens) ? itens : [];
+      if (!dados.length) {
+        list.innerHTML = '';
+        state.textContent = 'Nenhuma proposta encontrada.';
+        state.style.display = 'block';
+        return;
+      }
+
+      state.style.display = 'none';
+      list.innerHTML = dados.map(function(item) {
+        const numero = escapeHtml_(item.numeroOrcamento || 'Sem número');
+        const pdf = escapeHtml_(item.linkPdf || '');
+        const whats = escapeHtml_(item.linkWhats || '');
+        const obs = String(item.observacoes || '').trim();
+        return `
+          <article class="proposal-item">
+            <div class="proposal-head">
+              <div class="proposal-title">
+                <strong>${escapeHtml_(item.nome || 'Contratante não informado')}</strong>
+                <span>Registrado em ${escapeHtml_(item.timestamp || '—')}</span>
+              </div>
+              <span class="proposal-number">${numero}</span>
+            </div>
+            <div class="proposal-data">
+              <div class="proposal-field"><span>Data do evento</span><strong>${escapeHtml_(item.dataEvento || '—')}</strong></div>
+              <div class="proposal-field"><span>Telefone</span><strong>${escapeHtml_(item.telefone || '—')}</strong></div>
+              <div class="proposal-field wide"><span>Local</span><strong>${escapeHtml_(item.local || 'Não registrado')}</strong></div>
+              <div class="proposal-field wide"><span>Propostas</span><strong>${escapeHtml_(item.propostas || '—')}</strong></div>
+              <div class="proposal-field wide"><span>Observações internas</span><strong>${escapeHtml_(obs || 'Sem observações')}</strong></div>
+            </div>
+            <div class="proposal-values">${escapeHtml_(montarValoresOrcamento_(item))}</div>
+            <div class="proposal-actions">
+              <button class="btn history-open-link" type="button" data-url="${pdf}" ${pdf ? '' : 'disabled'}>
+                <i data-lucide="file-text"></i> Abrir PDF
+              </button>
+              <button class="btn primary history-open-link" type="button" data-url="${whats}" ${whats ? '' : 'disabled'}>
+                <i data-lucide="message-circle"></i> WhatsApp
+              </button>
+            </div>
+          </article>
+        `;
+      }).join('');
+      if (window.lucide) window.lucide.createIcons();
+    }
+
+    async function carregarHistorico_() {
+      const state = document.getElementById('historyState');
+      const list = document.getElementById('historyList');
+      const refresh = document.getElementById('btnHistoryRefresh');
+      const busca = document.getElementById('historySearch');
+      if (!state || !list) return;
+      state.style.display = 'block';
+      state.textContent = 'Carregando propostas enviadas...';
+      list.innerHTML = '';
+      if (refresh) refresh.disabled = true;
+      try {
+        const resp = await Auth.apiCall('listarOrcamentosInternos', {
+          busca: busca ? busca.value.trim() : '',
+          limite: 100
+        });
+        if (!resp || resp.sucesso !== true) {
+          throw new Error(resp && (resp.mensagem || resp.error) ? (resp.mensagem || resp.error) : 'Falha ao consultar propostas');
+        }
+        renderHistorico_(resp.orcamentos);
+      } catch (err) {
+        console.error(err);
+        state.style.display = 'block';
+        state.textContent = 'Não foi possível carregar as propostas agora.';
+      } finally {
+        if (refresh) refresh.disabled = false;
+      }
+    }
+
     async function enviarOrcamento_() {
       const btn = document.getElementById('btnGerar');
       const payload = coletarPayload_();
@@ -989,6 +1338,8 @@
           throw new Error(resp && (resp.mensagem || resp.error) ? (resp.mensagem || resp.error) : 'Falha ao gerar orçamento');
         }
         renderResultado_(resp);
+        const historyCard = document.getElementById('historyCard');
+        if (historyCard && historyCard.open) carregarHistorico_();
         scrollParaResultadoOrcamento_();
         setStatus_(resp.mensagem || 'Orçamento gerado com sucesso.', 'ok');
       } catch (err) {
@@ -1012,6 +1363,10 @@
         .map(id => document.getElementById(id))
         .filter(Boolean);
       const resultBox = document.getElementById('resultBox');
+      const historyCard = document.getElementById('historyCard');
+      const historySearch = document.getElementById('historySearch');
+      const btnHistoryRefresh = document.getElementById('btnHistoryRefresh');
+      const historyList = document.getElementById('historyList');
 
       if (resultBox) {
         resultBox.dataset.pdfUrl = '';
@@ -1062,6 +1417,30 @@
         const url = box ? String(box.dataset.whatsUrl || '') : '';
         copiarTexto_(url, 'Link do WhatsApp copiado.', btnCopyWhats, 'Copiar link WhatsApp', 'WhatsApp copiado');
       });
+      if (historyCard) {
+        historyCard.addEventListener('toggle', function() {
+          if (historyCard.open && !historyCard.dataset.loaded) {
+            historyCard.dataset.loaded = '1';
+            carregarHistorico_();
+          }
+        });
+      }
+      if (btnHistoryRefresh) btnHistoryRefresh.addEventListener('click', carregarHistorico_);
+      if (historySearch) {
+        historySearch.addEventListener('keydown', function(ev) {
+          if (ev.key === 'Enter') {
+            ev.preventDefault();
+            carregarHistorico_();
+          }
+        });
+      }
+      if (historyList) {
+        historyList.addEventListener('click', function(ev) {
+          const btnLink = ev.target && ev.target.closest ? ev.target.closest('.history-open-link') : null;
+          if (!btnLink || btnLink.disabled) return;
+          abrirLinkExterno_(btnLink.dataset.url || '');
+        });
+      }
       if (window.lucide) window.lucide.createIcons();
     });
 
