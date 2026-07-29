@@ -17,10 +17,15 @@
  */
 const AUTH_CONFIG = {
   GOOGLE_CLIENT_ID: '179346910046-ph0lma4i52sc9prtlkfdd63d82m350qj.apps.googleusercontent.com',
-  SESSION_TTL_DIAS_PADRAO: 30
+  SESSION_TTL_DIAS_PADRAO: 30,
+  USER_CACHE_TTL_SEGUNDOS: 30
 };
 
 function doPost(e) {
+  // O contexto em memória vale somente para esta requisição.
+  globalThis.REQUEST_EMAIL = '';
+  globalThis.REQUEST_USER = null;
+
   let action = '';
   let email = '';
   let emailAutenticado = '';
@@ -1523,7 +1528,26 @@ function getSessionTtlSeconds_() {
  * ======================================================
  */
 function requireUserByEmail(email) {
-  const usuario = buscarUsuarioPorEmail(email);
+  const emailNormalizado = String(email || '').trim().toLowerCase();
+  if (!emailNormalizado) throw new Error('USER_NOT_FOUND');
+
+  // Reutiliza o usuário já validado dentro da mesma requisição.
+  const usuarioRequest = globalThis.REQUEST_USER;
+  if (
+    usuarioRequest &&
+    String(usuarioRequest.EMAIL || '').trim().toLowerCase() === emailNormalizado
+  ) {
+    if (String(usuarioRequest.STATUS || '').trim().toLowerCase() !== 'ativo') {
+      throw new Error('USER_INACTIVE');
+    }
+    return usuarioRequest;
+  }
+
+  let usuario = obterUsuarioCacheAuth_(emailNormalizado);
+  if (!usuario) {
+    usuario = buscarUsuarioPorEmail(emailNormalizado);
+    if (usuario) salvarUsuarioCacheAuth_(emailNormalizado, usuario);
+  }
 
   if (!usuario) {
     throw new Error('USER_NOT_FOUND');
@@ -1534,6 +1558,44 @@ function requireUserByEmail(email) {
   }
 
   return usuario;
+}
+
+function chaveCacheUsuarioAuth_(email) {
+  const normalizado = String(email || '').trim().toLowerCase();
+  return 'AUTH_USER_V1_' + Utilities.base64EncodeWebSafe(normalizado).slice(0, 180);
+}
+
+function obterUsuarioCacheAuth_(email) {
+  try {
+    const raw = CacheService.getScriptCache().get(chaveCacheUsuarioAuth_(email));
+    if (!raw) return null;
+    const usuario = JSON.parse(raw);
+    return usuario && usuario.EMAIL ? usuario : null;
+  } catch (_) {
+    return null;
+  }
+}
+
+function salvarUsuarioCacheAuth_(email, usuario) {
+  try {
+    CacheService.getScriptCache().put(
+      chaveCacheUsuarioAuth_(email),
+      JSON.stringify(usuario),
+      AUTH_CONFIG.USER_CACHE_TTL_SEGUNDOS
+    );
+    return true;
+  } catch (_) {
+    return false;
+  }
+}
+
+function invalidarCacheUsuarioAuth_(email) {
+  try {
+    CacheService.getScriptCache().remove(chaveCacheUsuarioAuth_(email));
+    return true;
+  } catch (_) {
+    return false;
+  }
 }
 
 /**
@@ -1763,6 +1825,7 @@ function atualizarPreferenciaPaginaInicial_(email, paginaInicial) {
     const emailLinha = String(data[i][iEmail]).toLowerCase().trim();
     if (emailLinha === emailBusca) {
       sheet.getRange(i + 1, iPaginaInicial + 1).setValue(preferencia);
+      invalidarCacheUsuarioAuth_(emailBusca);
       return { ok: true, paginaInicial: preferencia };
     }
   }
@@ -1936,6 +1999,9 @@ function alterarAcessoUsuario_(proprietario, emailAlvo, operacao) {
   } finally {
     lock.releaseLock();
   }
+
+  // A próxima chamada do usuário precisa obrigatoriamente reler a planilha.
+  invalidarCacheUsuarioAuth_(alvo);
 
   registrarLog(
     acao,
