@@ -1321,6 +1321,33 @@
       return valores.map(par => par[0] + ': R$ ' + par[1]).join(' · ');
     }
 
+    function criarLinkWhatsHistorico_(item) {
+      let telefone = apenasDigitos_(item && item.telefone);
+      if (!telefone) return '';
+      if (!telefone.startsWith('55')) telefone = '55' + telefone;
+
+      const nome = String(item && item.nome || '').trim();
+      const numero = String(item && item.numeroOrcamento || '').trim();
+      const dataEvento = String(item && item.dataEvento || '').trim();
+      const pdf = String(item && item.linkPdf || '').trim();
+      if (!pdf) return '';
+
+      const mensagem =
+        'Olá, ' + nome + '! Tudo bem?\n\n' +
+        'De acordo com todas as informações que você me passou, criei essa proposta exclusiva para o seu evento.\n' +
+        'Ela considera o tipo de evento, data, local, horário e demais informações repassadas durante nosso contato, por isso é exclusiva e não se aplica a outro evento.\n\n' +
+        'Proposta: ' + numero + '\n' +
+        'Data do evento: ' + dataEvento + '\n' +
+        'Link da proposta: ' + pdf + '\n\n' +
+        'Caso haja qualquer mudança nas informações do evento, me avise para validar esta proposta ou atualizar para uma nova versão.\n\n' +
+        'No link, além de conferir o formato ideal e o orçamento, você também pode conhecer mais sobre a carreira do Fernando Amorim.\n\n' +
+        'Agradeço o contato e fico à disposição para negociação, dúvidas e informações adicionais.\n\n' +
+        'Atte,\n' +
+        'Suê Costa';
+
+      return 'https://wa.me/' + telefone + '?text=' + encodeURIComponent(mensagem);
+    }
+
     function renderHistorico_(itens) {
       const list = document.getElementById('historyList');
       const state = document.getElementById('historyState');
@@ -1337,7 +1364,7 @@
       list.innerHTML = dados.map(function(item) {
         const numero = escapeHtml_(item.numeroOrcamento || 'Sem número');
         const pdf = escapeHtml_(item.linkPdf || '');
-        const whats = escapeHtml_(item.linkWhats || '');
+        const whats = escapeHtml_(criarLinkWhatsHistorico_(item));
         const obs = String(item.observacoes || '').trim();
         return `
           <article class="proposal-item">
@@ -1450,7 +1477,9 @@
       } catch (err) {
         console.error(err);
         state.style.display = 'block';
-        state.textContent = 'Não foi possível carregar as propostas agora.';
+        const motivo = String(err && err.message || '').trim();
+        state.textContent = 'Não foi possível carregar as propostas agora.' +
+          (motivo ? ' Motivo: ' + motivo.slice(0, 180) : '');
         atualizarPaginacaoHistorico_(0);
       } finally {
         if (refresh) refresh.disabled = false;
