@@ -1024,6 +1024,7 @@
     let historyBatchItems_ = [];
     let historyBatchKey_ = '';
     let historyTotal_ = 0;
+    let historyBatchCache_ = Object.create(null);
     let pageAuthenticated_ = false;
 
     function marcarSaindo_() {
@@ -1460,22 +1461,28 @@
       const chaveAtual = buscaAtual + '|' + ordenacaoAtual;
       const indiceInicial = (paginaSolicitada - 1) * HISTORY_PAGE_SIZE_;
       const inicioLote = Math.floor(indiceInicial / HISTORY_BATCH_SIZE_) * HISTORY_BATCH_SIZE_;
+      const chaveLote = chaveAtual + '|' + inicioLote;
+      const loteMemoria = historyBatchCache_[chaveLote];
       const podeUsarMemoria = !forcarConsulta &&
-        historyBatchKey_ === chaveAtual &&
-        historyBatchStart_ === inicioLote &&
-        historyBatchItems_.length > 0;
+        loteMemoria &&
+        Array.isArray(loteMemoria.itens);
 
       if (podeUsarMemoria) {
         historyPage_ = paginaSolicitada;
-        const inicioLocal = indiceInicial - historyBatchStart_;
-        renderHistorico_(historyBatchItems_.slice(inicioLocal, inicioLocal + HISTORY_PAGE_SIZE_));
+        historyBatchKey_ = chaveAtual;
+        historyBatchStart_ = loteMemoria.offset;
+        historyBatchItems_ = loteMemoria.itens;
+        historyTotal_ = loteMemoria.total;
+        const inicioLocal = indiceInicial - loteMemoria.offset;
+        renderHistorico_(loteMemoria.itens.slice(inicioLocal, inicioLocal + HISTORY_PAGE_SIZE_));
         atualizarPaginacaoHistorico_(historyTotal_);
         return;
       }
 
       state.style.display = 'block';
-      state.textContent = 'Carregando propostas enviadas...';
-      list.innerHTML = '';
+      state.textContent = list.children.length
+        ? 'Carregando a próxima página... A página atual será mantida.'
+        : 'Carregando propostas enviadas...';
       if (refresh) refresh.disabled = true;
       try {
         const resp = await Auth.apiCall('listarOrcamentosInternos', {
@@ -1493,6 +1500,11 @@
         );
         historyBatchItems_ = Array.isArray(resp.orcamentos) ? resp.orcamentos : [];
         historyTotal_ = Number(resp.total || 0);
+        historyBatchCache_[chaveLote] = {
+          offset: historyBatchStart_,
+          itens: historyBatchItems_,
+          total: historyTotal_
+        };
         historyTotalPages_ = historyTotal_ ? Math.ceil(historyTotal_ / HISTORY_PAGE_SIZE_) : 0;
         historyPage_ = historyTotalPages_ ? Math.min(paginaSolicitada, historyTotalPages_) : 1;
         const inicioLocal = (historyPage_ - 1) * HISTORY_PAGE_SIZE_ - historyBatchStart_;
@@ -1503,8 +1515,11 @@
         state.style.display = 'block';
         const motivo = String(err && err.message || '').trim();
         state.textContent = 'Não foi possível carregar as propostas agora.' +
-          (motivo ? ' Motivo: ' + motivo.slice(0, 180) : '');
-        atualizarPaginacaoHistorico_(0);
+          (motivo ? ' Motivo: ' + motivo.slice(0, 140) + '.' : '') +
+          (list.children.length
+            ? ' A página anterior foi mantida. Toque em Próxima ou Atualizar para tentar novamente.'
+            : ' Toque em Atualizar para tentar novamente.');
+        atualizarPaginacaoHistorico_(historyTotal_);
       } finally {
         if (refresh) refresh.disabled = false;
       }
@@ -1530,6 +1545,7 @@
         renderResultado_(resp);
         const historyCard = document.getElementById('historyCard');
         if (historyCard && historyCard.open) {
+          historyBatchCache_ = Object.create(null);
           historyPage_ = 1;
           carregarHistorico_(1, true);
         }
