@@ -1071,6 +1071,24 @@
       if (ghName) ghName.textContent = first;
     }
 
+    function inicializarAcessoOrcamento_() {
+      const session = String(localStorage.getItem('auth_session') || '').trim();
+      const perfil = String(localStorage.getItem('auth_perfil') || '').trim();
+      if (!session || !perfil) {
+        Auth.forceLogout('Sessão inválida. Faça login novamente.');
+        return false;
+      }
+      if (!isPerfilLiberado(perfil)) {
+        alert('Você não tem permissão para acessar esta área.');
+        window.location.href = 'index.html?menu=1';
+        return false;
+      }
+      pageAuthenticated_ = true;
+      const historyCard = document.getElementById('historyCard');
+      if (historyCard) historyCard.classList.remove('auth-pending');
+      return true;
+    }
+
     function setStatus_(msg, tipo) {
       const el = document.getElementById('statusMsg');
       if (!el) return;
@@ -1662,41 +1680,8 @@
           abrirLinkExterno_(btnLink.dataset.url || '');
         });
       }
+      inicializarAcessoOrcamento_();
       if (window.lucide) window.lucide.createIcons();
-    });
-
-    window.addEventListener('load', async () => {
-      try {
-        if (!window.Auth) throw new Error('AUTH_NOT_LOADED');
-        const auth = await Auth.apiCall('verificarUsuario');
-        if (!auth || !auth.ok || !auth.user) throw new Error('NOT_AUTH');
-        if (!isPerfilLiberado(auth.user.perfil)) {
-          alert('Você não tem permissão para acessar esta área.');
-          window.location.href = 'index.html?menu=1';
-          return;
-        }
-        const nome = String(auth.user.nome || auth.user.email || '').trim();
-        if (nome) {
-          localStorage.setItem('auth_nome', nome);
-          preencherHeaderLocal_();
-        }
-        pageAuthenticated_ = true;
-        const historyCard = document.getElementById('historyCard');
-        if (historyCard) historyCard.classList.remove('auth-pending');
-      } catch (err) {
-        console.error('Falha de autenticação:', err);
-        const msg = String((err && err.message) || err || '');
-        if (__pageLeaving || /abort|aborted|canceled|cancelled/i.test(msg)) return;
-        if (err && err.name === 'AuthSessionError') return;
-        if (/não autenticado|not_auth|auth_required|session/i.test(msg)) {
-          Auth.forceLogout('Sessão inválida. Faça login novamente.');
-          return;
-        }
-        alert('Não foi possível validar seu acesso agora. Tente entrar novamente.');
-        window.location.href = 'index.html';
-      } finally {
-        if (window.lucide) window.lucide.createIcons();
-      }
     });
   </script>
 </body>
