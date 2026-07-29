@@ -161,6 +161,18 @@ if (raw && raw.startsWith('{')) {
       exigirPerfilProprietario_();
       return json(listarAclReadOnly_());
     }
+    if (action === 'desconectarUsuario') {
+      const proprietario = exigirPerfilProprietario_();
+      return json(alterarAcessoUsuario_(proprietario, params.emailAlvo, 'DESCONECTAR'));
+    }
+    if (action === 'inativarUsuario') {
+      const proprietario = exigirPerfilProprietario_();
+      return json(alterarAcessoUsuario_(proprietario, params.emailAlvo, 'INATIVAR'));
+    }
+    if (action === 'reativarUsuario') {
+      const proprietario = exigirPerfilProprietario_();
+      return json(alterarAcessoUsuario_(proprietario, params.emailAlvo, 'REATIVAR'));
+    }
     if (action === 'listarConfigCatalogReadOnly') {
       exigirPerfilProprietario_();
       return json(listarConfigCatalogReadOnly_());
@@ -954,6 +966,11 @@ if (action === 'precificadorShowProxy') {
     mensagem = 'Sessão expirada. Faça login novamente.';
   }
 
+  if (msg === 'SESSION_REVOKED' || msg === 'SESSION_PROFILE_CHANGED') {
+    codigo = 'SESSAO_REVOGADA';
+    mensagem = 'Sua sessão foi encerrada por uma alteração administrativa.';
+  }
+
   if (msg.indexOf('ORCAMENTO_') === 0) {
     codigo = 'ORCAMENTO_ERRO';
     mensagem = msg;
@@ -1277,6 +1294,7 @@ function verificarUsuario(params) {
   if (sessionToken && !idToken) {
     const sessao = validarSessionToken_(sessionToken);
     const userSessao = requireUserByEmail(sessao.e);
+    validarVinculoSessaoUsuario_(sessao, userSessao);
     registrarUltimoAcessoBestEffort_(userSessao);
     return json({
       ok: true,
@@ -1295,7 +1313,8 @@ function verificarUsuario(params) {
   const novoSessionToken = criarSessionToken_({
     email: String(user.EMAIL || '').trim().toLowerCase(),
     nome: String(user.NOME || '').trim(),
-    perfil: String(user.PERFIL || '').trim()
+    perfil: String(user.PERFIL || '').trim(),
+    versaoSessao: normalizarVersaoSessao_(user.VERSAO_SESSAO)
   });
 
   return json({
@@ -1322,7 +1341,11 @@ function autenticarRequisicaoComSessao_(params) {
     throw new Error('SESSION_TOKEN_INVALID');
   }
 
-  return String(payload.e).trim().toLowerCase();
+  const emailSessao = String(payload.e).trim().toLowerCase();
+  const usuario = requireUserByEmail(emailSessao);
+  validarVinculoSessaoUsuario_(payload, usuario);
+  globalThis.REQUEST_USER = usuario;
+  return emailSessao;
 }
 
 function validarIdTokenGoogle_(idToken) {
@@ -1382,6 +1405,7 @@ function criarSessionToken_(user) {
     e: String(user.email || '').trim().toLowerCase(),
     n: String(user.nome || ''),
     p: String(user.perfil || ''),
+    v: normalizarVersaoSessao_(user.versaoSessao),
     iat: now,
     exp: now + ttlSeconds,
     jti: Utilities.getUuid().replace(/-/g, '')
@@ -1422,6 +1446,27 @@ function validarSessionToken_(token) {
   }
 
   return payload;
+}
+
+function normalizarVersaoSessao_(valor) {
+  const n = Number(valor);
+  return isFinite(n) && n >= 1 ? Math.floor(n) : 1;
+}
+
+function validarVinculoSessaoUsuario_(sessao, usuario) {
+  const versaoToken = normalizarVersaoSessao_(sessao && sessao.v);
+  const versaoAtual = normalizarVersaoSessao_(usuario && usuario.VERSAO_SESSAO);
+  if (versaoToken !== versaoAtual) {
+    throw new Error('SESSION_REVOKED');
+  }
+
+  const perfilToken = String(sessao && sessao.p || '').trim();
+  const perfilAtual = String(usuario && usuario.PERFIL || '').trim();
+  if (perfilToken && perfilAtual && perfilToken !== perfilAtual) {
+    throw new Error('SESSION_PROFILE_CHANGED');
+  }
+
+  return true;
 }
 
 function assinarTextoHex_(texto) {
@@ -1546,6 +1591,14 @@ function getUsuarioAtual() {
   if (!globalThis.REQUEST_EMAIL) {
     throw new Error('EMAIL_NOT_IN_REQUEST');
   }
+  const usuarioRequest = globalThis.REQUEST_USER;
+  if (
+    usuarioRequest &&
+    String(usuarioRequest.EMAIL || '').trim().toLowerCase() ===
+      String(globalThis.REQUEST_EMAIL || '').trim().toLowerCase()
+  ) {
+    return usuarioRequest;
+  }
   return requireUserByEmail(globalThis.REQUEST_EMAIL);
 }
 
@@ -1581,6 +1634,7 @@ function buscarUsuarioPorEmail(email) {
   const iPerfil = headers.indexOf('PERFIL');
   const iStatus = headers.indexOf('STATUS');
   const iPaginaInicial = headers.indexOf('PAGINA_INICIAL');
+  const iVersaoSessao = headers.indexOf('VERSAO_SESSAO');
 
   if (iEmail === -1 || iPerfil === -1 || iStatus === -1) {
     throw new Error('COLUNAS_USUARIOS_INVALIDAS');
@@ -1597,6 +1651,7 @@ function buscarUsuarioPorEmail(email) {
         PERFIL: data[i][iPerfil],
         STATUS: data[i][iStatus],
         PAGINA_INICIAL: iPaginaInicial >= 0 ? data[i][iPaginaInicial] : '',
+        VERSAO_SESSAO: iVersaoSessao >= 0 ? normalizarVersaoSessao_(data[i][iVersaoSessao]) : 1,
         _LINHA_USUARIO: i + 1
       };
     }
@@ -1764,6 +1819,7 @@ function listarAclReadOnly_() {
   const iPerfil = headers.indexOf('PERFIL');
   const iStatus = headers.indexOf('STATUS');
   const iUltimoAcesso = headers.indexOf('ULTIMO_ACESSO');
+  const iVersaoSessao = headers.indexOf('VERSAO_SESSAO');
   if (iEmail < 0 || iPerfil < 0 || iStatus < 0) {
     throw new Error('COLUNAS_USUARIOS_INVALIDAS');
   }
@@ -1779,6 +1835,7 @@ function listarAclReadOnly_() {
       perfil: perfilRaw,
       status: String(row[iStatus] || '').trim(),
       ultimoAcesso: iUltimoAcesso >= 0 ? row[iUltimoAcesso] : '',
+      versaoSessao: iVersaoSessao >= 0 ? normalizarVersaoSessao_(row[iVersaoSessao]) : 1,
       regras: regras.slice(),
       acessoTotal: regras.indexOf('*') >= 0
     });
@@ -1800,6 +1857,99 @@ function listarAclReadOnly_() {
     perfisAcl: ACL,
     acoesCatalogo: Object.keys(catalogSet).sort()
   };
+}
+
+function alterarAcessoUsuario_(proprietario, emailAlvo, operacao) {
+  const emailAtor = String(proprietario && proprietario.EMAIL || '').trim().toLowerCase();
+  const alvo = String(emailAlvo || '').trim().toLowerCase();
+  const acao = String(operacao || '').trim().toUpperCase();
+
+  if (!alvo) throw new Error('USER_TARGET_REQUIRED');
+  if (alvo === emailAtor) throw new Error('FORBIDDEN_ACTION: usuarios:self-management');
+  if (['DESCONECTAR', 'INATIVAR', 'REATIVAR'].indexOf(acao) < 0) {
+    throw new Error('INVALID_USER_ACCESS_ACTION');
+  }
+
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(5000)) throw new Error('USER_ACCESS_LOCK_TIMEOUT');
+
+  let resultado = null;
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const sh = ss.getSheetByName('USUARIOS');
+    if (!sh) throw new Error('ABA_USUARIOS_NAO_ENCONTRADA');
+
+    const data = sh.getDataRange().getValues();
+    if (!data || data.length < 2) throw new Error('USER_NOT_FOUND');
+
+    const headers = data[0].map(function (h) {
+      return String(h || '')
+        .toUpperCase()
+        .replace(/\s+/g, '_')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '');
+    });
+
+    const iEmail = headers.indexOf('EMAIL');
+    const iNome = headers.indexOf('NOME');
+    const iPerfil = headers.indexOf('PERFIL');
+    const iStatus = headers.indexOf('STATUS');
+    if (iEmail < 0 || iStatus < 0) throw new Error('COLUNAS_USUARIOS_INVALIDAS');
+
+    let iVersao = headers.indexOf('VERSAO_SESSAO');
+    if (iVersao < 0) {
+      iVersao = headers.length;
+      sh.getRange(1, iVersao + 1).setValue('VERSAO_SESSAO');
+    }
+
+    let linha = -1;
+    for (var i = 1; i < data.length; i++) {
+      if (String(data[i][iEmail] || '').trim().toLowerCase() === alvo) {
+        linha = i;
+        break;
+      }
+    }
+    if (linha < 1) throw new Error('USER_NOT_FOUND');
+
+    const versaoAtual = normalizarVersaoSessao_(data[linha][iVersao]);
+    const novaVersao = versaoAtual + 1;
+    sh.getRange(linha + 1, iVersao + 1).setValue(novaVersao);
+
+    let novoStatus = String(data[linha][iStatus] || '').trim();
+    if (acao === 'INATIVAR') {
+      novoStatus = 'INATIVO';
+      sh.getRange(linha + 1, iStatus + 1).setValue(novoStatus);
+    } else if (acao === 'REATIVAR') {
+      novoStatus = 'ATIVO';
+      sh.getRange(linha + 1, iStatus + 1).setValue(novoStatus);
+    }
+
+    resultado = {
+      ok: true,
+      email: String(data[linha][iEmail] || '').trim(),
+      nome: iNome >= 0 ? String(data[linha][iNome] || '').trim() : '',
+      perfil: iPerfil >= 0 ? String(data[linha][iPerfil] || '').trim() : '',
+      status: novoStatus,
+      versaoSessao: novaVersao,
+      acao: acao
+    };
+  } finally {
+    lock.releaseLock();
+  }
+
+  registrarLog(
+    acao,
+    'USUARIOS',
+    alvo,
+    JSON.stringify({
+      tipo: 'GESTAO_ACESSO_USUARIO',
+      executadoPor: emailAtor,
+      novoStatus: resultado && resultado.status,
+      versaoSessao: resultado && resultado.versaoSessao
+    })
+  );
+
+  return resultado;
 }
 
 function listarConfigCatalogReadOnly_() {
