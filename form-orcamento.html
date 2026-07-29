@@ -387,6 +387,11 @@
       margin-top: 14px;
     }
 
+    .history-card.auth-pending > summary {
+      opacity: 0.65;
+      cursor: wait;
+    }
+
     .history-card > summary {
       list-style: none;
       cursor: pointer;
@@ -932,7 +937,7 @@
       </div>
     </section>
 
-    <details class="card history-card" id="historyCard">
+    <details class="card history-card auth-pending" id="historyCard">
       <summary>
         <span class="history-summary-main">
           <span class="history-summary-icon"><i data-lucide="history"></i></span>
@@ -1019,6 +1024,7 @@
     let historyBatchItems_ = [];
     let historyBatchKey_ = '';
     let historyTotal_ = 0;
+    let pageAuthenticated_ = false;
 
     function marcarSaindo_() {
       __pageLeaving = true;
@@ -1606,6 +1612,15 @@
       });
       if (historyCard) {
         historyCard.addEventListener('toggle', function() {
+          if (historyCard.open && !pageAuthenticated_) {
+            historyCard.open = false;
+            const state = document.getElementById('historyState');
+            if (state) {
+              state.style.display = 'block';
+              state.textContent = 'Validando acesso. Aguarde um instante...';
+            }
+            return;
+          }
           if (historyCard.open && !historyCard.dataset.loaded) {
             historyCard.dataset.loaded = '1';
             carregarHistorico_();
@@ -1665,12 +1680,20 @@
           localStorage.setItem('auth_nome', nome);
           preencherHeaderLocal_();
         }
+        pageAuthenticated_ = true;
+        const historyCard = document.getElementById('historyCard');
+        if (historyCard) historyCard.classList.remove('auth-pending');
       } catch (err) {
         console.error('Falha de autenticação:', err);
         const msg = String((err && err.message) || err || '');
         if (__pageLeaving || /abort|aborted|canceled|cancelled/i.test(msg)) return;
-        alert('Sessão inválida. Faça login novamente.');
-        window.location.href = 'index.html?menu=1';
+        if (err && err.name === 'AuthSessionError') return;
+        if (/não autenticado|not_auth|auth_required|session/i.test(msg)) {
+          Auth.forceLogout('Sessão inválida. Faça login novamente.');
+          return;
+        }
+        alert('Não foi possível validar seu acesso agora. Tente entrar novamente.');
+        window.location.href = 'index.html';
       } finally {
         if (window.lucide) window.lucide.createIcons();
       }
