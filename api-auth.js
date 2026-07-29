@@ -1277,6 +1277,7 @@ function verificarUsuario(params) {
   if (sessionToken && !idToken) {
     const sessao = validarSessionToken_(sessionToken);
     const userSessao = requireUserByEmail(sessao.e);
+    registrarUltimoAcessoBestEffort_(userSessao);
     return json({
       ok: true,
       user: {
@@ -1290,6 +1291,7 @@ function verificarUsuario(params) {
 
   const identidade = validarIdTokenGoogle_(idToken);
   const user = requireUserByEmail(identidade.email);
+  registrarUltimoAcessoBestEffort_(user);
   const novoSessionToken = criarSessionToken_({
     email: String(user.EMAIL || '').trim().toLowerCase(),
     nome: String(user.NOME || '').trim(),
@@ -1594,12 +1596,67 @@ function buscarUsuarioPorEmail(email) {
         NOME: data[i][iNome],
         PERFIL: data[i][iPerfil],
         STATUS: data[i][iStatus],
-        PAGINA_INICIAL: iPaginaInicial >= 0 ? data[i][iPaginaInicial] : ''
+        PAGINA_INICIAL: iPaginaInicial >= 0 ? data[i][iPaginaInicial] : '',
+        _LINHA_USUARIO: i + 1
       };
     }
   }
 
   return null;
+}
+
+/**
+ * Atualiza o resumo de utilização sem interferir no fluxo de autenticação.
+ * Cada usuário gera no máximo uma gravação por hora.
+ */
+function registrarUltimoAcessoBestEffort_(usuario) {
+  try {
+    const email = String(usuario && usuario.EMAIL || '').trim().toLowerCase();
+    const linhaUsuario = Number(usuario && usuario._LINHA_USUARIO || 0);
+    if (!email || linhaUsuario < 2) return false;
+
+    const cache = CacheService.getScriptCache();
+    const chaveCache = 'ULTIMO_ACESSO_V1_' + Utilities.base64EncodeWebSafe(email).slice(0, 180);
+    if (cache.get(chaveCache)) return false;
+
+    const lock = LockService.getScriptLock();
+    if (!lock.tryLock(100)) return false;
+
+    try {
+      // Outro acesso pode ter concluído enquanto este aguardava o lock.
+      if (cache.get(chaveCache)) return false;
+
+      const ss = SpreadsheetApp.getActiveSpreadsheet();
+      const sh = ss.getSheetByName('USUARIOS');
+      if (!sh) return false;
+
+      const lastColumn = Math.max(sh.getLastColumn(), 1);
+      const headers = sh.getRange(1, 1, 1, lastColumn).getValues()[0].map(function (h) {
+        return String(h || '')
+          .toUpperCase()
+          .replace(/\s+/g, '_')
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '');
+      });
+
+      let indiceUltimoAcesso = headers.indexOf('ULTIMO_ACESSO');
+      if (indiceUltimoAcesso < 0) {
+        indiceUltimoAcesso = lastColumn;
+        sh.getRange(1, indiceUltimoAcesso + 1).setValue('ULTIMO_ACESSO');
+      }
+
+      sh.getRange(linhaUsuario, indiceUltimoAcesso + 1).setValue(new Date());
+      cache.put(chaveCache, '1', 60 * 60);
+      return true;
+    } finally {
+      lock.releaseLock();
+    }
+  } catch (err) {
+    try {
+      Logger.log('[ULTIMO_ACESSO] falha ignorada: ' + String(err));
+    } catch (_) {}
+    return false;
+  }
 }
 
 function normalizarPaginaInicialUsuario_(valor) {
@@ -1706,6 +1763,7 @@ function listarAclReadOnly_() {
   const iNome = headers.indexOf('NOME');
   const iPerfil = headers.indexOf('PERFIL');
   const iStatus = headers.indexOf('STATUS');
+  const iUltimoAcesso = headers.indexOf('ULTIMO_ACESSO');
   if (iEmail < 0 || iPerfil < 0 || iStatus < 0) {
     throw new Error('COLUNAS_USUARIOS_INVALIDAS');
   }
@@ -1720,6 +1778,7 @@ function listarAclReadOnly_() {
       nome: String(row[iNome] || '').trim(),
       perfil: perfilRaw,
       status: String(row[iStatus] || '').trim(),
+      ultimoAcesso: iUltimoAcesso >= 0 ? row[iUltimoAcesso] : '',
       regras: regras.slice(),
       acessoTotal: regras.indexOf('*') >= 0
     });
