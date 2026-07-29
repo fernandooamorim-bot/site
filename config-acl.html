@@ -133,6 +133,7 @@
       }
       box.innerHTML = usuarios.map(u => {
         const ativo = String(u.status || '').trim().toUpperCase() === 'ATIVO';
+        const ultimoAcesso = formatarUltimoAcesso(u.ultimoAcesso);
         const regras = Array.isArray(u.regras) ? u.regras : [];
         const regrasHtml = regras.length
           ? regras.map(r => `<span class="tag">${escapeHtml(r)}</span>`).join('')
@@ -144,10 +145,21 @@
               <span class="pill ${ativo ? 'ok' : 'off'}">${ativo ? 'ATIVO' : 'INATIVO'}</span>
             </div>
             <div class="muted">${escapeHtml(u.email || '-')} • Perfil: ${escapeHtml(u.perfil || '-')}</div>
+            <div class="muted">Último acesso: ${escapeHtml(ultimoAcesso)}</div>
             <div>${regrasHtml}</div>
           </article>
         `;
       }).join('');
+    }
+
+    function formatarUltimoAcesso(valor) {
+      if (!valor) return 'Nunca registrado';
+      const data = new Date(valor);
+      if (Number.isNaN(data.getTime())) return 'Nunca registrado';
+      return new Intl.DateTimeFormat('pt-BR', {
+        dateStyle: 'short',
+        timeStyle: 'short'
+      }).format(data);
     }
 
     function renderPerfis(perfisAcl) {
