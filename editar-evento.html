@@ -3865,6 +3865,7 @@ function aplicarObservacaoConversaoReserva_() {
 function ativarConversaoReserva() {
   if (!eventoOriginal || String(eventoOriginal.tipoRegistro || '').trim() !== 'Reserva') return;
   modoConversaoReserva = true;
+  atualizarPainelVinculoPropostaEdicao_();
   renderizarStatusTipoRegistro(eventoOriginal);
   aplicarObservacaoConversaoReserva_();
   const sectionFinanceiro = document.getElementById('sectionFinanceiro');
@@ -5633,14 +5634,35 @@ let propostaVinculoAtivoEdicao_ = false;
 let timerConsultaPropostaEdicao_ = null;
 let seqConsultaPropostaEdicao_ = 0;
 
+function edicaoPermiteVinculoProposta_() {
+  return !!eventoOriginal &&
+    String(eventoOriginal.tipoRegistro || '').trim() === 'Evento' &&
+    !modoConversaoReserva;
+}
+
+function ocultarPainelVinculoPropostaEdicao_() {
+  clearTimeout(timerConsultaPropostaEdicao_);
+  timerConsultaPropostaEdicao_ = null;
+  seqConsultaPropostaEdicao_++;
+  const box = document.getElementById('propostaVinculoEdicao');
+  const estado = document.getElementById('propostaVinculoEdicaoEstado');
+  const lista = document.getElementById('propostaVinculoEdicaoLista');
+  if (box) box.hidden = true;
+  if (estado) estado.textContent = '';
+  if (lista) lista.innerHTML = '';
+}
+
 async function inicializarVinculoPropostaEdicao_() {
   const box = document.getElementById('propostaVinculoEdicao');
   if (!box) return;
+  box.hidden = true;
   try {
     const status = await Auth.apiCall('obterStatusVinculoPropostaEvento');
     propostaVinculoAtivoEdicao_ = !!(status && status.ativo);
-    box.hidden = !propostaVinculoAtivoEdicao_;
-    if (!propostaVinculoAtivoEdicao_) return;
+    if (!propostaVinculoAtivoEdicao_) {
+      ocultarPainelVinculoPropostaEdicao_();
+      return;
+    }
     ['dataEvento', 'nomeContratante', 'nomeLocal', 'idContratante'].forEach(id => {
       const el = document.getElementById(id);
       if (!el) return;
@@ -5649,12 +5671,16 @@ async function inicializarVinculoPropostaEdicao_() {
     });
   } catch (err) {
     propostaVinculoAtivoEdicao_ = false;
-    box.hidden = true;
+    ocultarPainelVinculoPropostaEdicao_();
     console.warn('Vínculo opcional de proposta indisponível.', err);
   }
 }
 
 function agendarPainelVinculoPropostaEdicao_() {
+  if (!propostaVinculoAtivoEdicao_ || !edicaoPermiteVinculoProposta_()) {
+    ocultarPainelVinculoPropostaEdicao_();
+    return;
+  }
   clearTimeout(timerConsultaPropostaEdicao_);
   timerConsultaPropostaEdicao_ = setTimeout(atualizarPainelVinculoPropostaEdicao_, 700);
 }
@@ -5665,9 +5691,11 @@ async function atualizarPainelVinculoPropostaEdicao_() {
   const lista = document.getElementById('propostaVinculoEdicaoLista');
   const manual = document.getElementById('propostaVinculoManualEdicao');
   if (!box || !estado || !lista || !propostaVinculoAtivoEdicao_ || !eventoOriginal) return;
-  const ehEvento = String(eventoOriginal.tipoRegistro || '').trim() === 'Evento' || modoConversaoReserva;
-  box.hidden = !ehEvento;
-  if (!ehEvento) return;
+  if (!edicaoPermiteVinculoProposta_()) {
+    ocultarPainelVinculoPropostaEdicao_();
+    return;
+  }
+  box.hidden = false;
 
   const vinculada = String(eventoOriginal.numeroOrcamentoOrigem || '').trim();
   const eventoCancelado = String(eventoOriginal.statusGeral || '').trim().toUpperCase() === 'CANCELADO';

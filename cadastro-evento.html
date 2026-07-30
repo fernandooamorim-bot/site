@@ -2046,6 +2046,7 @@ window.onload = function () {
       const isReuniao = tipo === 'Reunião';
       const isReserva = tipo === 'Reserva';
       const isCompromisso = tipo === 'Compromisso';
+      atualizarVisibilidadeVinculoPropostaCadastro_(true);
       popularTiposDoRegistroCadastro_(tipo, '');
       const labelTipoEventoCadastro = document.getElementById('labelTipoEventoCadastro');
       if (labelTipoEventoCadastro) {
@@ -3357,7 +3358,11 @@ if ((tipoRegistro === 'Evento' || tipoRegistro === 'Reunião' || tipoRegistro ==
         .then(async resultado => {
           if (resultado && resultado.sucesso) {
             let mensagemFinal = resultado.mensagem || 'Cadastro salvo com sucesso.';
-            if (propostaSelecionadaCadastro_ && resultado.idEvento) {
+            if (
+              propostaSelecionadaCadastro_ &&
+              resultado.idEvento &&
+              String(dados && dados.tipoRegistro || '').trim() === 'Evento'
+            ) {
               try {
                 loading('Evento salvo. Concluindo vínculo da proposta...');
                 const promessaVinculo = Auth.apiCall('vincularPropostaAoEvento', {
@@ -3462,30 +3467,68 @@ if ((tipoRegistro === 'Evento' || tipoRegistro === 'Reunião' || tipoRegistro ==
     let sequenciaConsultaPropostaCadastro_ = 0;
     let ultimasPropostasCadastro_ = [];
 
+    function cadastroPermiteVinculoProposta_() {
+      return String(document.getElementById('tipoRegistro')?.value || '').trim() === 'Evento';
+    }
+
+    function limparEstadoVinculoPropostaCadastro_() {
+      clearTimeout(timerConsultaPropostaCadastro_);
+      timerConsultaPropostaCadastro_ = null;
+      sequenciaConsultaPropostaCadastro_++;
+      assinaturaConsultaPropostaCadastro_ = '';
+      propostaSelecionadaCadastro_ = '';
+      ultimasPropostasCadastro_ = [];
+      const box = document.getElementById('propostaVinculoCadastro');
+      const estado = document.getElementById('propostaVinculoCadastroEstado');
+      const lista = document.getElementById('propostaVinculoCadastroLista');
+      if (box) box.hidden = true;
+      if (estado) {
+        estado.textContent = 'Preencha data, contratante ou local para localizar uma proposta aberta.';
+      }
+      if (lista) lista.innerHTML = '';
+    }
+
+    function atualizarVisibilidadeVinculoPropostaCadastro_(agendarConsulta) {
+      const box = document.getElementById('propostaVinculoCadastro');
+      if (!box) return false;
+      if (!propostaVinculoAtivoCadastro_ || !cadastroPermiteVinculoProposta_()) {
+        limparEstadoVinculoPropostaCadastro_();
+        return false;
+      }
+      box.hidden = false;
+      if (agendarConsulta) agendarConsultaPropostaCadastro_();
+      return true;
+    }
+
     async function inicializarVinculoPropostaCadastro_() {
       const box = document.getElementById('propostaVinculoCadastro');
       if (!box) return;
+      box.hidden = true;
       try {
         const status = await Auth.apiCall('obterStatusVinculoPropostaEvento');
         propostaVinculoAtivoCadastro_ = !!(status && status.ativo);
-        box.hidden = !propostaVinculoAtivoCadastro_;
-        if (!propostaVinculoAtivoCadastro_) return;
+        if (!atualizarVisibilidadeVinculoPropostaCadastro_(false)) return;
         ['dataEvento', 'contratanteNome', 'localNome', 'idContratante'].forEach(id => {
           const el = document.getElementById(id);
           if (!el) return;
           el.addEventListener(id === 'idContratante' ? 'change' : 'input', agendarConsultaPropostaCadastro_);
           el.addEventListener('change', agendarConsultaPropostaCadastro_);
         });
-        document.getElementById('tipoRegistro')?.addEventListener('change', agendarConsultaPropostaCadastro_);
+        atualizarVisibilidadeVinculoPropostaCadastro_(true);
       } catch (err) {
         propostaVinculoAtivoCadastro_ = false;
-        box.hidden = true;
+        limparEstadoVinculoPropostaCadastro_();
         console.warn('Consulta opcional de propostas indisponível.', err);
       }
     }
 
     function agendarConsultaPropostaCadastro_() {
-      if (!propostaVinculoAtivoCadastro_) return;
+      if (!propostaVinculoAtivoCadastro_ || !cadastroPermiteVinculoProposta_()) {
+        limparEstadoVinculoPropostaCadastro_();
+        return;
+      }
+      const box = document.getElementById('propostaVinculoCadastro');
+      if (box) box.hidden = false;
       clearTimeout(timerConsultaPropostaCadastro_);
       timerConsultaPropostaCadastro_ = setTimeout(consultarPropostasCadastro_, 700);
     }
@@ -3495,9 +3538,8 @@ if ((tipoRegistro === 'Evento' || tipoRegistro === 'Reunião' || tipoRegistro ==
       const estado = document.getElementById('propostaVinculoCadastroEstado');
       const lista = document.getElementById('propostaVinculoCadastroLista');
       if (!box || !estado || !lista || !propostaVinculoAtivoCadastro_) return;
-      if (document.getElementById('tipoRegistro')?.value !== 'Evento') {
-        box.hidden = true;
-        propostaSelecionadaCadastro_ = '';
+      if (!cadastroPermiteVinculoProposta_()) {
+        limparEstadoVinculoPropostaCadastro_();
         return;
       }
       box.hidden = false;
