@@ -19,7 +19,7 @@
   <link rel="icon" type="image/png" sizes="48x48" href="img/favicon-48.png"/>
   <link rel="icon" type="image/png" sizes="96x96" href="img/favicon-96x96.png"/>
   <link rel="apple-touch-icon" sizes="180x180" href="img/apple-touch-icon.png"/>
-  <title>Editar Evento • FA Produções</title>
+  <title>Editar Registro • FA Produções</title>
 
   <!-- Lucide Icons -->
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js" defer></script>
@@ -1733,7 +1733,7 @@
       </div>
       <div class="global-header-title">
         <i data-lucide="pencil-line"></i>
-        <span>Editar Evento</span>
+        <span>Editar Registro</span>
       </div>
     </a>
     <div class="global-header-actions">
@@ -1748,8 +1748,8 @@
   </div>
 
   <div class="container">
-    <h2>✏️ Editar Evento</h2>
-    <p class="subtitle">Busque e edite eventos com validações automáticas de segurança</p>
+    <h2>✏️ Editar Registro</h2>
+    <p class="subtitle">Busque e edite eventos, reservas, reuniões, bloqueios e compromissos com segurança</p>
     
     <div id="globalLoading" class="modal-overlay">
       <div class="modal">
@@ -1893,9 +1893,9 @@
       
       <!-- DADOS DO EVENTO -->
       <div class="section">
-        <div class="section-title">
+        <div class="section-title" id="tituloDadosRegistroEdicao">
           <i data-lucide="calendar-days"></i>
-          Dados do Evento
+          <span>Dados do Evento</span>
         </div>
         
         <!-- STATUS -->
@@ -1904,7 +1904,7 @@
         <div class="form-row">
           <div class="form-group">
             <label class="label-indicator">
-              <span>Data do Evento</span>
+              <span id="labelDataRegistroEdicao">Data do Evento</span>
               <span class="indicator indicator-warning">⚠️ Verifica conflitos</span>
             </label>
             <input type="date" id="dataEvento">
@@ -1913,7 +1913,7 @@
         </div>
         <div class="form-group form-toggle" id="campoEventoMultiDiasEdicao">
   <div class="toggle-row">
-    <label for="eventoMultiDias" class="toggle-label">
+    <label for="eventoMultiDias" class="toggle-label" id="labelMultiDiasEdicao">
       Evento com mais de um dia
     </label>
 
@@ -1959,7 +1959,7 @@
         <div class="form-row">
           <div class="form-group" id="campoTipoEventoEdicao">
             <label class="label-indicator">
-              <span>Tipo de Evento</span>
+              <span id="labelTipoRegistroDetalheEdicao">Tipo de Evento</span>
               <span class="indicator indicator-free">🟢 Livre</span>
             </label>
             <select id="tipoEvento">
@@ -3169,20 +3169,23 @@ function mostrarAvisoReferencia(idContainer, html) {
 
 function aplicarFallbackReferenciasMestre(evento) {
   if (!evento) return;
+  const ehCompromisso = String(evento.tipoRegistro || '').trim() === 'Compromisso';
 
-  document.getElementById('idContratante').value = String(evento.idContratante || '').trim();
+  document.getElementById('idContratante').value = ehCompromisso
+    ? ''
+    : String(evento.idContratante || '').trim();
   document.getElementById('nomeContratante').value = evento.nomeContratanteAtual || '';
   document.getElementById('idEndereco').value = String(evento.idEndereco || '').trim();
   document.getElementById('nomeLocal').value = evento.nomeLocalAtual || '';
 
   // Contratante
-  if (evento.idContratante && evento.referenciaContratanteOk === false) {
+  if (!ehCompromisso && evento.idContratante && evento.referenciaContratanteOk === false) {
     mostrarAvisoReferencia(
       'avisoRefContratante',
       `⚠️ Referência de contratante ausente no cadastro mestre. ` +
       `Valor do evento preservado: <strong>${escapeHtml(evento.nomeContratanteAtual || '-')}</strong>.`
     );
-  } else if (evento.idContratante && evento.referenciaContratanteDivergente === true) {
+  } else if (!ehCompromisso && evento.idContratante && evento.referenciaContratanteDivergente === true) {
     mostrarAvisoReferencia(
       'avisoRefContratante',
       `⚠️ Divergência entre EVENTOS e cadastro mestre. ` +
@@ -3217,6 +3220,7 @@ function aplicarFallbackReferenciasMestre(evento) {
 }
 
 function atualizarAcoesContextuaisCadastro() {
+  const ehCompromisso = String(eventoOriginal?.tipoRegistro || '').trim() === 'Compromisso';
   const idContratante = String(document.getElementById('idContratante')?.value || '').trim();
   const nomeContratante = String(document.getElementById('nomeContratante')?.value || '').trim();
   const wrapContr = document.getElementById('acoesContratanteContexto');
@@ -3225,11 +3229,15 @@ function atualizarAcoesContextuaisCadastro() {
   const btnTrocaContr = document.getElementById('btnTrocarContratanteVinculo');
 
   if (wrapContr && btnRegContr && btnEditContr && btnTrocaContr) {
+    if (ehCompromisso) {
+      wrapContr.classList.add('hidden');
+    } else {
     const temAcaoContratante = !!(idContratante || nomeContratante);
     wrapContr.classList.toggle('hidden', !temAcaoContratante);
     btnRegContr.classList.toggle('hidden', !!idContratante || !nomeContratante);
     btnEditContr.classList.toggle('hidden', !idContratante);
     btnTrocaContr.classList.toggle('hidden', !idContratante);
+    }
   }
 
   const idEndereco = String(document.getElementById('idEndereco')?.value || '').trim();
@@ -3257,7 +3265,8 @@ function aplicarBloqueioCamposVinculados_() {
   const idContr = String(document.getElementById('idContratante')?.value || '').trim();
   const idLocal = String(document.getElementById('idEndereco')?.value || '').trim();
 
-  const bloquearContr = !!idContr;
+  const bloquearContr = !!idContr &&
+    String(eventoOriginal?.tipoRegistro || '').trim() !== 'Compromisso';
   const bloquearLocal = !!idLocal;
 
   if (inputContr) {
@@ -3915,6 +3924,10 @@ function configurarVisibilidadeCamposPorTipoEdicao_(tipoOriginal) {
   const labelLocal = document.getElementById('labelLocalEdicao');
   const labelDuracao = document.getElementById('labelDuracaoEdicao');
   const labelMotivo = document.getElementById('labelMotivoEdicao');
+  const tituloDadosRegistro = document.querySelector('#tituloDadosRegistroEdicao span');
+  const labelDataRegistro = document.getElementById('labelDataRegistroEdicao');
+  const labelMultiDias = document.getElementById('labelMultiDiasEdicao');
+  const labelTipoRegistroDetalhe = document.getElementById('labelTipoRegistroDetalheEdicao');
 
   const exibeTipoEvento = isEvento || isReserva || isCompromisso;
   const exibeProjeto = isEvento || isReserva;
@@ -4004,6 +4017,37 @@ function configurarVisibilidadeCamposPorTipoEdicao_(tipoOriginal) {
   if (labelDuracao) {
     labelDuracao.textContent = (isEvento || isCompromisso) ? 'Duração' : 'Duração (opcional)';
   }
+  if (tituloDadosRegistro) {
+    tituloDadosRegistro.textContent = isCompromisso ? 'Dados do Compromisso' : 'Dados do Evento';
+  }
+  if (labelDataRegistro) {
+    labelDataRegistro.textContent = isCompromisso ? 'Data do Compromisso' : 'Data do Evento';
+  }
+  if (labelMultiDias) {
+    labelMultiDias.textContent = isCompromisso
+      ? 'Compromisso com mais de um dia'
+      : 'Evento com mais de um dia';
+  }
+  if (labelTipoRegistroDetalhe) {
+    labelTipoRegistroDetalhe.textContent = isCompromisso
+      ? 'Tipo de Compromisso'
+      : 'Tipo de Evento';
+  }
+  if (inputContratante) {
+    inputContratante.placeholder = isCompromisso
+      ? 'Nome ou título do compromisso'
+      : 'Nome do contratante';
+  }
+  if (inputLocal) {
+    inputLocal.placeholder = isCompromisso
+      ? 'Local do compromisso (opcional)'
+      : 'Local do evento';
+  }
+  if (inputObservacoes) {
+    inputObservacoes.placeholder = isCompromisso
+      ? 'Lembretes e informações úteis sobre o compromisso...'
+      : 'Anotações gerais sobre o evento...';
+  }
 
   if (isBloqueio) {
     if (chkMultiDias) chkMultiDias.checked = false;
@@ -4083,13 +4127,16 @@ function renderizarStatusTipoRegistro(evento) {
     return;
   }
 
-  if (tipo === 'Reunião' || tipo === 'Bloqueio') {
+  if (tipo === 'Reunião' || tipo === 'Bloqueio' || tipo === 'Compromisso') {
+    const descricao = tipo === 'Compromisso'
+      ? 'Atividade profissional confirmada, sem cobrança, comissão ou folha de custos.'
+      : 'Este tipo não utiliza dados financeiros no sistema.';
     box.innerHTML = `
       <div class="status-box safe">
-        <span class="status-icon"><i data-lucide="file-check"></i></span>
+        <span class="status-icon"><i data-lucide="${tipo === 'Compromisso' ? 'calendar-check' : 'file-check'}"></i></span>
         <div>
           <strong>Registro atual: ${tipo.toUpperCase()}</strong><br>
-          Este tipo não utiliza dados financeiros no sistema.
+          ${descricao}
         </div>
       </div>
     `;
@@ -4144,7 +4191,7 @@ async function iniciarEditarEvento() {
 
       aplicarSkeletonFormulario(false);
       travarAcoes(false);
-      mostrarAlerta('Evento carregado pela URL.', 'success');
+      mostrarAlerta('Registro carregado para edição.', 'success');
       return;
     }
 
@@ -4850,6 +4897,7 @@ function preencherFormulario(evento) {
 
   const tipoRegistroAtual = String(evento?.tipoRegistro || 'Evento').trim();
   const ehEventoVisual = tipoRegistroAtual === 'Evento' || modoConversaoReserva;
+  const ehCompromissoVisual = tipoRegistroAtual === 'Compromisso';
 
   // Campos de data e hora
   document.getElementById('dataEvento').value = evento.dataEvento || '';
@@ -4885,8 +4933,12 @@ function preencherFormulario(evento) {
     : '';
   document.getElementById('look').value = evento.look || '';
   document.getElementById('somResponsavel').value = evento.somResponsavel || '';
-  document.getElementById('observacoes').value = ehEventoVisual ? (evento.observacoes || '') : '';
-  document.getElementById('motivoRegistro').value = !ehEventoVisual ? (evento.observacoes || '') : '';
+  document.getElementById('observacoes').value = (ehEventoVisual || ehCompromissoVisual)
+    ? (evento.observacoes || '')
+    : '';
+  document.getElementById('motivoRegistro').value = (!ehEventoVisual && !ehCompromissoVisual)
+    ? (evento.observacoes || '')
+    : '';
   if (modoConversaoReserva) {
     aplicarObservacaoConversaoReserva_();
   }
@@ -4993,10 +5045,23 @@ function formatarValorResumoAlteracao_(campo, valor, origem) {
     
     async function validarEMostrarResumo() {
       if (!eventoOriginal || !eventoAtual) {
-        mostrarAlerta('❌ Nenhum evento selecionado!', 'error');
+        mostrarAlerta('❌ Nenhum registro selecionado!', 'error');
         return;
       }
       const dadosAtual = coletarDadosFormulario();
+      const tipoAtual = String(eventoOriginal?.tipoRegistro || '').trim();
+      if (tipoAtual === 'Compromisso') {
+        const faltantes = [];
+        if (!String(dadosAtual.tipoEvento || '').trim()) faltantes.push('tipo do compromisso');
+        if (!String(dadosAtual.nomeContratanteEditado || '').trim()) faltantes.push('nome do compromisso');
+        if (!String(dadosAtual.dataEvento || '').trim()) faltantes.push('data');
+        if (!String(dadosAtual.horaInicio || '').trim()) faltantes.push('horário');
+        if (!(Number(dadosAtual.duracao) > 0)) faltantes.push('duração');
+        if (faltantes.length) {
+          mostrarAlerta('Preencha: ' + faltantes.join(', ') + '.', 'error');
+          return;
+        }
+      }
       if (
         registroEhEvento() &&
         (dadosAtual.comissaoTipo === 'Percentual' || dadosAtual.comissaoTipo === 'Fixo') &&
@@ -5069,10 +5134,15 @@ function formatarValorResumoAlteracao_(campo, valor, origem) {
       const alteracoes = [];
       const dados = coletarDadosFormulario();
       const contextoEvento = registroEhEvento();
+      const contextoCompromisso = String(eventoOriginal?.tipoRegistro || '').trim() === 'Compromisso';
       const campos = {
-        dataEvento: 'Data do Evento', horaInicio: 'Hora de Início',
-        duracao: 'Duração', tipoEvento: 'Tipo de Evento', projeto: 'Formato/Projeto',
-        idContratante: 'Contratante (vínculo)', nomeContratante: 'Contratante',
+        dataEvento: contextoCompromisso ? 'Data do Compromisso' : 'Data do Evento',
+        horaInicio: 'Hora de Início',
+        duracao: 'Duração',
+        tipoEvento: contextoCompromisso ? 'Tipo de Compromisso' : 'Tipo de Evento',
+        projeto: 'Formato/Projeto',
+        idContratante: 'Contratante (vínculo)',
+        nomeContratante: contextoCompromisso ? 'Nome do Compromisso' : 'Contratante',
         idCerimonialista: 'Cerimonialista',
         idEndereco: 'Local (vínculo)', nomeLocal: 'Local',
         valorTotal: 'Valor Total', idVendedor: 'Vendedor', comissaoTipo: 'Tipo de Comissão',
@@ -5285,7 +5355,7 @@ function formatarValorResumoAlteracao_(campo, valor, origem) {
         duracao: document.getElementById('duracao').value,
         tipoEvento: (ehEventoVisual || ehReservaVisual || ehCompromissoVisual) ? document.getElementById('tipoEvento').value : '',
         projeto: (ehEventoVisual || ehReservaVisual) ? document.getElementById('projeto').value : '',
-        idContratante: document.getElementById('idContratante').value,
+        idContratante: ehCompromissoVisual ? '' : document.getElementById('idContratante').value,
         nomeContratante: document.getElementById('nomeContratante').value,
         nomeContratanteEditado: document.getElementById('nomeContratante').value,
         idCerimonialista: document.getElementById('idCerimonialista').value,
