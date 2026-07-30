@@ -3105,9 +3105,21 @@ criarCardEvento(evento) {
         : (contratante ? `${tipoEvento} - ${contratante}` : tipoEvento);
     }
   } else if (isCompromisso) {
-    tituloEventoRaw = tipoEvento
-      ? `${tipoEvento} - ${contratante || 'Compromisso'}`
-      : (contratante || 'Compromisso');
+    const nomeCompromisso = contratante || 'Compromisso';
+    const nomeSemTipoInicial = tipoEvento
+      ? limparDuplicacaoPrefixo(nomeCompromisso, tipoEvento)
+      : nomeCompromisso;
+    if (!tipoEvento) {
+      tituloEventoRaw = nomeCompromisso;
+    } else if (!nomeSemTipoInicial) {
+      tituloEventoRaw = tipoEvento;
+    } else if (nomeSemTipoInicial !== nomeCompromisso) {
+      // O nome já começa com a categoria: preserva a frase natural sem
+      // repetir "Entrevista - Entrevista...", "Ensaio - Ensaio..." etc.
+      tituloEventoRaw = nomeCompromisso;
+    } else {
+      tituloEventoRaw = `${tipoEvento} - ${nomeCompromisso}`;
+    }
   } else {
     const baseTitulo = observacaoParaTitulo || contratante || tipoEvento || '';
     tituloEventoRaw = `${tipoRegistro || 'Registro'}${baseTitulo ? ' - ' + baseTitulo : ''}`;
