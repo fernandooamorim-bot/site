@@ -307,6 +307,31 @@
       margin-right: auto;
     }
 
+    #directEditLoading {
+      display: none;
+      max-width: 920px;
+      margin: 0 auto;
+      padding: 28px 22px;
+      border: 1px solid var(--gray-200);
+      border-radius: var(--radius-lg);
+      background: var(--surface-0);
+      box-shadow: var(--shadow-sm);
+      text-align: center;
+      color: var(--gray-600);
+    }
+
+    #directEditLoading .spinner {
+      margin: 0 auto 14px;
+    }
+
+    html.edicao-direta-pendente .search-section {
+      display: none !important;
+    }
+
+    html.edicao-direta-pendente #directEditLoading {
+      display: block;
+    }
+
     /* ============================================
        SEARCH SECTION
        ============================================ */
@@ -1723,6 +1748,12 @@
   </style>
   <link rel="stylesheet" href="header-profile.css?v=20260728c"/>
   <script src="header-profile.js?v=20260728c" defer></script>
+  <script>
+    // Evita exibir a busca antes de o JavaScript principal reconhecer o link direto.
+    if (new URLSearchParams(window.location.search).get('id')) {
+      document.documentElement.classList.add('edicao-direta-pendente');
+    }
+  </script>
 </head>
 <body>
   <!-- Global Header -->
@@ -1760,6 +1791,11 @@
       </div>
     </div>
     <div id="alertContainer"></div>
+    <div id="directEditLoading" role="status" aria-live="polite">
+      <div class="spinner"></div>
+      <strong>Carregando registro para edição...</strong>
+      <p style="margin-top:8px;font-size:13px;">Buscando os dados e preparando o formulário.</p>
+    </div>
 <div id="successCard" class="hidden success-overlay">
   <div class="success-card">
     <div style="display:flex;justify-content:center;margin-bottom:8px;">
@@ -4170,6 +4206,7 @@ async function iniciarEditarEvento() {
       const search = document.querySelector('.search-section');
       if (search) search.style.display = 'none';
       document.getElementById('formEdicao').classList.remove('hidden');
+      document.documentElement.classList.remove('edicao-direta-pendente');
 
       const promessaEvento = carregarEventoPorId(EVENTO_ID_URL);
       const promessaReferencias = Promise.allSettled([
@@ -4204,6 +4241,7 @@ async function iniciarEditarEvento() {
     });
   } catch (err) {
     console.error('AUTH ERROR:', err);
+    document.documentElement.classList.remove('edicao-direta-pendente');
     esconderLoadingGlobal();
     aplicarSkeletonFormulario(false);
     travarAcoes(false);
@@ -5865,10 +5903,13 @@ window.addEventListener('load', async () => {
     const email = localStorage.getItem('auth_email');
     const session = localStorage.getItem('auth_session');
     if (!email || !session) throw new Error('NOT_AUTH');
-    await inicializarVinculoPropostaEdicao_();
+    const promessaVinculoProposta = inicializarVinculoPropostaEdicao_();
     await iniciarEditarEvento();
+    await promessaVinculoProposta;
+    atualizarPainelVinculoPropostaEdicao_();
   } catch (err) {
     console.error('Erro de autenticação:', err);
+    document.documentElement.classList.remove('edicao-direta-pendente');
     mostrarAlerta('Sessão expirada. Volte ao menu.', 'error');
     setTimeout(() => { window.location.href = 'index.html?menu=1'; }, 900);
   }
