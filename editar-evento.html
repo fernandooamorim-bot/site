@@ -5572,18 +5572,23 @@ async function atualizarPainelVinculoPropostaEdicao_() {
   if (!ehEvento) return;
 
   const vinculada = String(eventoOriginal.numeroOrcamentoOrigem || '').trim();
+  const eventoCancelado = String(eventoOriginal.statusGeral || '').trim().toUpperCase() === 'CANCELADO';
   if (manual) manual.hidden = !!vinculada;
   if (vinculada) {
-    estado.textContent = 'Este evento já está associado a uma proposta fechada.';
+    estado.textContent = eventoCancelado
+      ? 'Este evento foi cancelado. A proposta vinculada não deve receber automações.'
+      : 'Este evento já está associado a uma proposta fechada.';
     lista.innerHTML = `
       <div class="proposta-vinculo-item vinculada">
         <div class="proposta-vinculo-topo">
           <strong>Proposta ${escapeHtml(vinculada)}</strong>
-          <span class="proposta-vinculo-selo">FECHADA</span>
+          <span class="proposta-vinculo-selo">${eventoCancelado ? 'EVENTO CANCELADO' : 'FECHADA'}</span>
         </div>
-        <div class="proposta-vinculo-meta">O vínculo foi confirmado e está registrado nos dois cadastros.</div>
+        <div class="proposta-vinculo-meta">${eventoCancelado
+          ? 'Reabra a negociação somente se deseja voltar a tratar esta proposta como aberta.'
+          : 'O vínculo foi confirmado e está registrado nos dois cadastros.'}</div>
         <div class="proposta-vinculo-acoes">
-          <button type="button" onclick="desvincularPropostaEdicao_()">Remover vínculo</button>
+          <button type="button" onclick="desvincularPropostaEdicao_()">${eventoCancelado ? 'Reabrir negociação' : 'Remover vínculo'}</button>
         </div>
       </div>`;
     return;
@@ -5596,8 +5601,8 @@ async function atualizarPainelVinculoPropostaEdicao_() {
     local: document.getElementById('nomeLocal')?.value || '',
     idContratante: document.getElementById('idContratante')?.value || ''
   };
-  if (!params.dataEvento || (!params.nome && !params.idContratante)) {
-    estado.textContent = 'Informe data e contratante para verificar propostas relacionadas.';
+  if (!params.dataEvento || (!params.nome && !params.idContratante && !params.local)) {
+    estado.textContent = 'Informe a data e ao menos contratante ou local para verificar propostas relacionadas.';
     lista.innerHTML = '';
     return;
   }
@@ -5689,7 +5694,12 @@ async function vincularPropostaEdicao_(numero) {
     if (!resp || !resp.sucesso) throw new Error(resp?.mensagem || 'Não foi possível vincular.');
     eventoOriginal.numeroOrcamentoOrigem = numero;
     if (eventoAtual) eventoAtual.numeroOrcamentoOrigem = numero;
-    mostrarAlerta(`Proposta ${numero} vinculada com sucesso.`, 'success');
+    mostrarAlerta(
+      resp.confirmacaoPendente
+        ? `Proposta ${numero} vinculada localmente; confirmação externa marcada para revisão.`
+        : `Proposta ${numero} vinculada com sucesso.`,
+      resp.confirmacaoPendente ? 'info' : 'success'
+    );
     atualizarPainelVinculoPropostaEdicao_();
   } catch (err) {
     mostrarAlerta('Não foi possível vincular: ' + (err?.message || err), 'error');
@@ -5699,14 +5709,23 @@ async function vincularPropostaEdicao_(numero) {
 
 async function desvincularPropostaEdicao_() {
   if (!eventoOriginal || !eventoOriginal.numeroOrcamentoOrigem) return;
-  if (!confirm('Remover o vínculo desta proposta? O evento não será excluído nem alterado.')) return;
+  const eventoCancelado = String(eventoOriginal.statusGeral || '').trim().toUpperCase() === 'CANCELADO';
+  const pergunta = eventoCancelado
+    ? 'Reabrir esta proposta para negociação? O evento cancelado continuará preservado.'
+    : 'Remover o vínculo desta proposta? O evento não será excluído nem alterado.';
+  if (!confirm(pergunta)) return;
   const numero = eventoOriginal.numeroOrcamentoOrigem;
   try {
     const resp = await Auth.apiCall('desvincularPropostaDoEvento', { eventoId: eventoOriginal.id });
     if (!resp || !resp.sucesso) throw new Error(resp?.mensagem || 'Não foi possível remover o vínculo.');
     eventoOriginal.numeroOrcamentoOrigem = '';
     if (eventoAtual) eventoAtual.numeroOrcamentoOrigem = '';
-    mostrarAlerta(`Vínculo da proposta ${numero} removido.`, 'success');
+    mostrarAlerta(
+      eventoCancelado
+        ? `Proposta ${numero} reaberta para negociação.`
+        : `Vínculo da proposta ${numero} removido.`,
+      'success'
+    );
     atualizarPainelVinculoPropostaEdicao_();
   } catch (err) {
     mostrarAlerta('Não foi possível remover o vínculo: ' + (err?.message || err), 'error');

@@ -3296,15 +3296,33 @@ if ((tipoRegistro === 'Evento' || tipoRegistro === 'Reunião' || tipoRegistro ==
             if (propostaSelecionadaCadastro_ && resultado.idEvento) {
               try {
                 loading('Evento salvo. Concluindo vínculo da proposta...');
-                const vinculo = await Promise.race([
-                  Auth.apiCall('vincularPropostaAoEvento', {
-                    eventoId: resultado.idEvento,
-                    numeroOrcamento: propostaSelecionadaCadastro_
-                  }),
-                  new Promise((_, reject) => setTimeout(() => reject(new Error('VINCULO_TIMEOUT')), 8000))
+                const promessaVinculo = Auth.apiCall('vincularPropostaAoEvento', {
+                  eventoId: resultado.idEvento,
+                  numeroOrcamento: propostaSelecionadaCadastro_
+                });
+                const retornoVinculo = await Promise.race([
+                  promessaVinculo.then(v => ({ concluido: true, valor: v })),
+                  new Promise(resolve => setTimeout(() => resolve({ concluido: false }), 8000))
                 ]);
-                if (vinculo && vinculo.sucesso) {
+                if (!retornoVinculo.concluido) {
+                  mensagemFinal += ' A confirmação do vínculo continua em segundo plano; o evento já está salvo.';
+                  promessaVinculo.then(v => {
+                    if (v && v.sucesso) {
+                      mostrarAlertaGlobal(
+                        v.confirmacaoPendente
+                          ? 'Evento salvo. O vínculo ficou marcado para revisão de consistência.'
+                          : `Proposta ${propostaSelecionadaCadastro_} vinculada com sucesso.`,
+                        v.confirmacaoPendente ? 'info' : 'success',
+                        { scroll: false, tempo: 7000 }
+                      );
+                    }
+                  }).catch(err => console.warn('Vínculo pendente após salvamento.', err));
+                } else if (retornoVinculo.valor && retornoVinculo.valor.sucesso) {
+                  const vinculo = retornoVinculo.valor;
                   mensagemFinal += ` Proposta ${propostaSelecionadaCadastro_} vinculada.`;
+                  if (vinculo.confirmacaoPendente) {
+                    mensagemFinal += ' A confirmação externa ficou marcada para revisão.';
+                  }
                 }
               } catch (erroVinculo) {
                 console.warn('Evento salvo; vínculo poderá ser feito depois.', erroVinculo);
@@ -3425,8 +3443,8 @@ if ((tipoRegistro === 'Evento' || tipoRegistro === 'Reunião' || tipoRegistro ==
         local: document.getElementById('localNome')?.value || '',
         idContratante: document.getElementById('idContratante')?.value || ''
       };
-      if (!params.dataEvento || (!params.nome && !params.idContratante)) {
-        estado.textContent = 'Informe data e contratante para verificar propostas relacionadas.';
+      if (!params.dataEvento || (!params.nome && !params.idContratante && !params.local)) {
+        estado.textContent = 'Informe a data e ao menos contratante ou local para verificar propostas relacionadas.';
         lista.innerHTML = '';
         return;
       }

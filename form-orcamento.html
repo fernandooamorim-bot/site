@@ -628,6 +628,8 @@
     }
     .proposal-status.open { background:#fff7ed;color:#9a3412; }
     .proposal-status.closed { background:#ecfdf5;color:#047857; }
+    .proposal-status.cancelled { background:#fef2f2;color:#b91c1c; }
+    .proposal-status.review { background:#fffbeb;color:#b45309; }
     .link-event-modal {
       position: fixed; inset: 0; z-index: 10020; display: none;
       align-items: center; justify-content: center; padding: 18px;
@@ -991,6 +993,10 @@
             <i data-lucide="refresh-cw"></i>
             Atualizar
           </button>
+          <button class="btn" id="btnHistoryReconcile" type="button" hidden>
+            <i data-lucide="shield-check"></i>
+            Verificar vínculos
+          </button>
         </div>
         <div class="history-state" id="historyState">Abra esta seção para carregar as propostas.</div>
         <div class="history-list" id="historyList"></div>
@@ -1049,6 +1055,19 @@
       </div>
       <div class="history-state" id="linkEventState">Buscando eventos compatíveis...</div>
       <div class="link-event-list" id="linkEventList"></div>
+    </div>
+  </div>
+  <div class="link-event-modal" id="reconcileModal" aria-hidden="true">
+    <div class="link-event-dialog">
+      <div class="link-event-head">
+        <div>
+          <h3>Integridade dos vínculos</h3>
+          <div class="link-event-meta">Diagnóstico somente leitura. Nenhum evento ou proposta será alterado.</div>
+        </div>
+        <button class="btn" id="btnCloseReconcile" type="button">Fechar</button>
+      </div>
+      <div class="history-state" id="reconcileState">Preparando verificação...</div>
+      <div class="link-event-list" id="reconcileList"></div>
     </div>
   </div>
 
@@ -1434,6 +1453,11 @@
         const obs = String(item.observacoes || '').trim();
         const statusComercial = String(item.statusComercial || 'ABERTA').trim().toUpperCase();
         const fechada = statusComercial === 'FECHADA';
+        const cancelada = statusComercial === 'EVENTO_CANCELADO';
+        const revisar = statusComercial === 'REVISAR';
+        const vinculada = fechada || cancelada || revisar;
+        const statusLabel = cancelada ? 'EVENTO CANCELADO' : (revisar ? 'REVISAR' : (fechada ? 'FECHADA' : 'ABERTA'));
+        const statusClasse = cancelada ? 'cancelled' : (revisar ? 'review' : (fechada ? 'closed' : 'open'));
         return `
           <article class="proposal-item">
             <div class="proposal-head">
@@ -1442,7 +1466,7 @@
                 <span>Registrado em ${escapeHtml_(item.timestamp || '—')}</span>
               </div>
               <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:flex-end">
-                <span class="proposal-status ${fechada ? 'closed' : 'open'}">${fechada ? 'FECHADA' : 'ABERTA'}</span>
+                <span class="proposal-status ${statusClasse}">${statusLabel}</span>
                 <span class="proposal-number">${numero}</span>
               </div>
             </div>
@@ -1463,7 +1487,7 @@
                 <i data-lucide="message-circle"></i> WhatsApp
               </button>
               ${propostaEventoVinculoAtivoHistorico_ ? (
-                fechada
+                vinculada
                   ? `<button class="btn" type="button" onclick="window.location.href='editar-evento.html?id=${encodeURIComponent(String(item.eventoVinculadoId || ''))}'"><i data-lucide="calendar-check"></i> Ver evento</button>`
                   : `<button class="btn history-link-event" type="button" data-numero="${numero}"><i data-lucide="link-2"></i> Vincular a evento</button>`
               ) : ''}
@@ -1553,6 +1577,44 @@
         carregarHistorico_(historyPage_, true);
       } catch (err) {
         if (state) state.textContent = 'Não foi possível concluir o vínculo: ' + (err?.message || err);
+      }
+    }
+
+    function fecharReconciliacaoHistorico_() {
+      const modal = document.getElementById('reconcileModal');
+      if (!modal) return;
+      modal.classList.remove('show');
+      modal.setAttribute('aria-hidden', 'true');
+    }
+
+    async function abrirReconciliacaoHistorico_() {
+      const modal = document.getElementById('reconcileModal');
+      const state = document.getElementById('reconcileState');
+      const list = document.getElementById('reconcileList');
+      if (!modal || !state || !list) return;
+      modal.classList.add('show');
+      modal.setAttribute('aria-hidden', 'false');
+      state.style.display = 'block';
+      state.textContent = 'Analisando propostas e eventos...';
+      list.innerHTML = '';
+      try {
+        const resp = await Auth.apiCall('reconciliarVinculosPropostasEventos');
+        if (!resp || !resp.sucesso) throw new Error(resp?.mensagem || 'Falha na verificação');
+        const r = resp.resumo || {};
+        state.textContent = `${Number(r.propostasAnalisadas || 0)} propostas · ${Number(r.eventosAnalisados || 0)} eventos · ${Number(r.inconsistencias || 0)} inconsistência(s).`;
+        const itens = Array.isArray(resp.inconsistencias) ? resp.inconsistencias : [];
+        list.innerHTML = itens.length ? itens.map(item => `
+          <div class="link-event-item">
+            <strong>${escapeHtml_(String(item.tipo || '').replace(/_/g, ' '))}</strong>
+            <div class="link-event-meta">
+              Proposta: ${escapeHtml_(item.numeroOrcamento || '—')}
+              ${item.eventoId ? `<br>Evento: ${escapeHtml_(item.eventoId)}` : ''}
+              ${Array.isArray(item.eventos) ? `<br>Eventos: ${escapeHtml_(item.eventos.join(', '))}` : ''}
+            </div>
+          </div>
+        `).join('') : '<div class="link-event-item"><strong>✓ Nenhuma divergência encontrada</strong><div class="link-event-meta">Os vínculos estão consistentes nos dois cadastros.</div></div>';
+      } catch (err) {
+        state.textContent = 'Não foi possível concluir a verificação: ' + (err?.message || err);
       }
     }
 
@@ -1715,6 +1777,9 @@
       const btnCloseLinkEvent = document.getElementById('btnCloseLinkEvent');
       const linkEventModal = document.getElementById('linkEventModal');
       const linkEventList = document.getElementById('linkEventList');
+      const btnHistoryReconcile = document.getElementById('btnHistoryReconcile');
+      const reconcileModal = document.getElementById('reconcileModal');
+      const btnCloseReconcile = document.getElementById('btnCloseReconcile');
 
       if (resultBox) {
         resultBox.dataset.pdfUrl = '';
@@ -1845,8 +1910,15 @@
         const btn = ev.target && ev.target.closest ? ev.target.closest('.confirm-history-link-event') : null;
         if (btn) confirmarVinculoEventoHistorico_(btn.dataset.evento || '');
       });
+      if (btnCloseReconcile) btnCloseReconcile.addEventListener('click', fecharReconciliacaoHistorico_);
+      if (reconcileModal) reconcileModal.addEventListener('click', function(ev) {
+        if (ev.target === reconcileModal) fecharReconciliacaoHistorico_();
+      });
+      if (btnHistoryReconcile) btnHistoryReconcile.addEventListener('click', abrirReconciliacaoHistorico_);
       const acessoOk = inicializarAcessoOrcamento_();
       if (acessoOk) {
+        const perfilAtual = normalizarPerfil(localStorage.getItem('auth_perfil') || '');
+        if (btnHistoryReconcile) btnHistoryReconcile.hidden = perfilAtual !== 'proprietario';
         try {
           const statusVinculo = await Auth.apiCall('obterStatusVinculoPropostaEvento');
           propostaEventoVinculoAtivoHistorico_ = !!(statusVinculo && statusVinculo.ativo);
