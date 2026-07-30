@@ -2097,6 +2097,7 @@ if (!AUTH.email || !AUTH.session) {
       filtrosAvancadosPopulados: false,
       eventos: [],
       eventosFiltrados: [],
+      todosLimiteAtual: 0,
       usuario: null,
       modoVisualizacao: 'cards',
       filtroAtivo: 'todos',
@@ -2316,7 +2317,7 @@ if (!AUTH.email || !AUTH.session) {
             const str = String(dataStr).trim();
 
             if (str.includes('/')) {
-              const regex = /^(\d{2})\/(\d{2})\/(\d{4})$/;
+              const regex = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/;
               const match = str.match(regex);
               if (!match) {
                 cache[cacheKey] = 0;
@@ -2545,15 +2546,11 @@ calcularDiasIntervalo(dataInicio, dataFim) {
     // ========================================
     const UI = {
       deveUsarVirtualizacao_(eventos) {
-        const lista = Array.isArray(eventos) ? eventos : [];
-        const thresholdVirtual = Number(AppState.virtualizacao.threshold) || 100;
-        const todosLimite = Number(AppState.config?.AGENDA_LIMITE_TODOS) || 200;
-        const evitarVirtualizacaoNoTodos = AppState.filtroAtivo === 'todos' && lista.length <= Math.max(todosLimite, 200);
-        return !!(
-          AppState.virtualizacao.enabled &&
-          lista.length >= thresholdVirtual &&
-          !evitarVirtualizacaoNoTodos
-        );
+        // Os cards possuem alturas variáveis conforme tipo, título, etiquetas e
+        // detalhes. A virtualização antiga pressupunha altura fixa e produzia
+        // lacunas durante a rolagem. Mantemos o método por compatibilidade, mas
+        // cards passam a usar renderização normal/progressiva.
+        return false;
       },
 
       showLoading() {
@@ -2713,7 +2710,16 @@ calcularDiasIntervalo(dataInicio, dataFim) {
         const count = AppState.eventosFiltrados.length;
         const countEl = document.getElementById('eventoCount');
         if (countEl) {
-          countEl.textContent = `${count} registro${count !== 1 ? 's' : ''}`;
+          const limiteTodos = Math.max(
+            1,
+            Number(AppState.config?.AGENDA_LIMITE_TODOS) || 200
+          );
+          const exibidosTodos = AppState.filtroAtivo === 'todos'
+            ? Math.min(count, Math.max(AppState.todosLimiteAtual || limiteTodos, limiteTodos))
+            : count;
+          countEl.textContent = AppState.filtroAtivo === 'todos' && exibidosTodos < count
+            ? `${exibidosTodos} de ${count} registros`
+            : `${count} registro${count !== 1 ? 's' : ''}`;
         }
 
         const composicaoEl = document.getElementById('agendaCountBreakdown');
@@ -2831,15 +2837,85 @@ calcularDiasIntervalo(dataInicio, dataFim) {
       return;
     }
 
-	      // NOVA LÓGICA: Usa virtualização ou renderização normal
-	    if (this.deveUsarVirtualizacao_(eventos)) {
-	      this.renderizarEventosVirtualizados(eventos);
-	    } else {
-	      this.renderizarEventosNormal(eventos);
-	    }
+    let eventosParaRenderizar = eventos;
+    let totalCompleto = eventos.length;
+    let exibicaoProgressiva = false;
+
+    if (AppState.filtroAtivo === 'todos') {
+      const tamanhoLote = Math.max(1, Number(AppState.config?.AGENDA_LIMITE_TODOS) || 200);
+      if (AppState.todosLimiteAtual <= 0) {
+        AppState.todosLimiteAtual = tamanhoLote;
+      }
+
+      if (eventos.length > AppState.todosLimiteAtual) {
+        exibicaoProgressiva = true;
+        eventosParaRenderizar = eventos.slice(
+          Math.max(0, eventos.length - AppState.todosLimiteAtual)
+        );
+      }
+    }
+
+    this.renderizarEventosNormal(eventosParaRenderizar);
+
+    if (exibicaoProgressiva) {
+      this.renderizarControleTodosProgressivo_(
+        eventosParaRenderizar.length,
+        totalCompleto
+      );
+    }
 
     // Atualiza contador
-    document.getElementById('eventoCount').textContent = `${eventos.length} registro${eventos.length !== 1 ? 's' : ''}`;
+    const countEl = document.getElementById('eventoCount');
+    if (countEl) {
+      countEl.textContent = exibicaoProgressiva
+        ? `${eventosParaRenderizar.length} de ${totalCompleto} registros`
+        : `${totalCompleto} registro${totalCompleto !== 1 ? 's' : ''}`;
+    }
+  },
+
+  renderizarControleTodosProgressivo_(quantidadeExibida, total) {
+    const container = document.getElementById('eventosContainer');
+    if (!container || quantidadeExibida >= total) return;
+
+    const tamanhoLote = Math.max(1, Number(AppState.config?.AGENDA_LIMITE_TODOS) || 200);
+    const restantes = total - quantidadeExibida;
+    const proximoLote = Math.min(tamanhoLote, restantes);
+
+    const controle = document.createElement('div');
+    controle.className = 'todos-progressivo-controle';
+    controle.style.cssText = `
+      margin: 0 0 14px;
+      padding: 14px 16px;
+      border: 1px solid #d8e1ef;
+      border-radius: 14px;
+      background: #f8fafc;
+      color: #42526b;
+      text-align: center;
+      font-size: 13px;
+      line-height: 1.45;
+    `;
+
+    const texto = document.createElement('div');
+    texto.textContent = `Mostrando os ${quantidadeExibida} registros mais recentes de ${total}.`;
+    controle.appendChild(texto);
+
+    const botao = document.createElement('button');
+    botao.type = 'button';
+    botao.className = 'btn-secondary';
+    botao.style.cssText = 'margin-top:10px; min-height:40px;';
+    botao.textContent = `Carregar ${proximoLote} registro${proximoLote !== 1 ? 's' : ''} anterior${proximoLote !== 1 ? 'es' : ''}`;
+    botao.addEventListener('click', () => this.carregarMaisTodos_());
+    controle.appendChild(botao);
+
+    container.insertBefore(controle, container.firstChild);
+  },
+
+  carregarMaisTodos_() {
+    if (AppState.filtroAtivo !== 'todos') return;
+    const tamanhoLote = Math.max(1, Number(AppState.config?.AGENDA_LIMITE_TODOS) || 200);
+    AppState.todosLimiteAtual += tamanhoLote;
+    this.renderizarEventos(AppState.eventosFiltrados || []);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   },
 
       obterChaveMesAno(dataEvento) {
@@ -3587,6 +3663,7 @@ renderizarEventosDentro(evento) {
         }
 
         AppState.filtroAtivo = tipo;
+        AppState.todosLimiteAtual = 0;
 
         const hoje = new Date();
         hoje.setHours(0, 0, 0, 0);
@@ -3599,48 +3676,8 @@ renderizarEventosDentro(evento) {
 
         switch (tipo) {
           case 'todos':
-            // LIMITE PARA FILTRO "TODOS"
-            const LIMITE_TODOS = Number(AppState.config.AGENDA_LIMITE_TODOS) || 200;
-
-            if (eventosFiltrados.length > LIMITE_TODOS) {
-              Utils.log(`⚠️ Muitos eventos (${eventosFiltrados.length}), limitando a ${LIMITE_TODOS}`);
-
-              // Mostra alerta
-              const alertDiv = document.createElement('div');
-              alertDiv.style.cssText = `
-                position: fixed;
-                top: 80px;
-                left: 50%;
-                transform: translateX(-50%);
-                background: #f6ad55;
-                color: #744210;
-                padding: 12px 24px;
-                border-radius: 8px;
-                font-size: 14px;
-                font-weight: 600;
-                box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-                z-index: 999;
-                max-width: 90%;
-                text-align: center;
-              `;
-              alertDiv.innerHTML = `
-                ⚠️ Muitos eventos! Mostrando os ${LIMITE_TODOS} mais recentes.
-                <br>
-                💡 Use filtros para uma experiência melhor.
-              `;
-
-              document.body.appendChild(alertDiv);
-
-              setTimeout(() => {
-                alertDiv.style.transition = 'opacity 0.3s ease-out';
-                alertDiv.style.opacity = '0';
-                setTimeout(() => alertDiv.remove(), 300);
-              }, 5000);
-
-              // Limita eventos
-              eventosFiltrados = eventosFiltrados.slice(0, LIMITE_TODOS);
-            }
-            // Não filtra nada
+            // "Todos" mantém o conjunto completo. O frontend exibe os registros
+            // em lotes, começando pelos mais recentes, sem descartar resultados.
             break;
 
           case 'hoje':
@@ -4825,31 +4862,6 @@ renderizarEventosDentro(evento) {
               UI.alternarControlesMobile_();
             });
           }
-
-          // Scroll listener para virtualização
-          let scrollTimeout;
-          let ultimoScroll = 0;
-
-          window.addEventListener('scroll', () => {
-            clearTimeout(scrollTimeout);
-
-            const agora = Date.now();
-
-            // Throttle: só atualiza a cada 100ms
-            if (agora - ultimoScroll < 100) return;
-
-            scrollTimeout = setTimeout(() => {
-              const modoCardsAtivo = AppState.modoVisualizacao !== 'planilha';
-
-              if (modoCardsAtivo &&
-                  AppState.eventosFiltrados &&
-                  UI.deveUsarVirtualizacao_(AppState.eventosFiltrados)) {
-
-                UI.renderizarEventosVirtualizados(AppState.eventosFiltrados);
-                ultimoScroll = Date.now();
-              }
-            }, 50);
-          });
 
           window.addEventListener('resize', () => {
             UI.atualizarEstadoControlesMobile_();
