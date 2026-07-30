@@ -1472,6 +1472,17 @@
             <textarea id="observacoes" placeholder="Informações adicionais..."></textarea>
           </div>
         </div>
+
+        <div id="propostaVinculoCadastro" class="form-section proposta-vinculo-box" hidden>
+          <div class="section-title">
+            <i data-lucide="link-2"></i>
+            Proposta relacionada
+          </div>
+          <div id="propostaVinculoCadastroEstado" class="proposta-vinculo-estado">
+            A verificação acontece em segundo plano e não interfere no cadastro.
+          </div>
+          <div id="propostaVinculoCadastroLista" class="proposta-vinculo-lista"></div>
+        </div>
         
         <!-- AÇÕES -->
         <div class="actions">
@@ -1486,6 +1497,21 @@
       
     </div>
   </div>
+
+  <style>
+    .proposta-vinculo-box{border:1px solid #dbe5f2;background:linear-gradient(180deg,#fff,#f8fbff)}
+    .proposta-vinculo-estado{font-size:13px;color:#64748b;line-height:1.45}
+    .proposta-vinculo-lista{display:grid;gap:10px;margin-top:12px}
+    .proposta-vinculo-item{border:1px solid #dbe5f2;border-radius:14px;padding:12px;background:#fff;display:grid;gap:9px}
+    .proposta-vinculo-item.selecionada{border-color:#0f766e;box-shadow:0 0 0 2px rgba(15,118,110,.12)}
+    .proposta-vinculo-topo{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+    .proposta-vinculo-topo strong{color:#172033}
+    .proposta-vinculo-numero,.proposta-vinculo-confianca{font-size:11px;font-weight:800;border-radius:999px;padding:5px 8px;background:#eef4ff;color:#1d4f91;white-space:nowrap}
+    .proposta-vinculo-meta{font-size:12px;color:#64748b;line-height:1.5}
+    .proposta-vinculo-acoes{display:flex;gap:8px;flex-wrap:wrap}
+    .proposta-vinculo-acoes button{border:1px solid #cbd5e1;background:#fff;color:#1e293b;border-radius:10px;padding:8px 11px;font-weight:700;cursor:pointer}
+    .proposta-vinculo-acoes button.primary{background:#0f2a57;color:#fff;border-color:#0f2a57}
+  </style>
   
   <!-- MODAIS (mantidos do código anterior) -->
   <div id="modalContratante" class="modal">
@@ -3256,9 +3282,28 @@ if ((tipoRegistro === 'Evento' || tipoRegistro === 'Reunião' || tipoRegistro ==
       loading('Salvando registro...');
 
       Auth.apiCall('criarEvento', dados)
-        .then(resultado => {
+        .then(async resultado => {
           if (resultado && resultado.sucesso) {
-            sucesso('Registro criado!', resultado.mensagem || 'Cadastro salvo com sucesso.');
+            let mensagemFinal = resultado.mensagem || 'Cadastro salvo com sucesso.';
+            if (propostaSelecionadaCadastro_ && resultado.idEvento) {
+              try {
+                loading('Evento salvo. Concluindo vínculo da proposta...');
+                const vinculo = await Promise.race([
+                  Auth.apiCall('vincularPropostaAoEvento', {
+                    eventoId: resultado.idEvento,
+                    numeroOrcamento: propostaSelecionadaCadastro_
+                  }),
+                  new Promise((_, reject) => setTimeout(() => reject(new Error('VINCULO_TIMEOUT')), 8000))
+                ]);
+                if (vinculo && vinculo.sucesso) {
+                  mensagemFinal += ` Proposta ${propostaSelecionadaCadastro_} vinculada.`;
+                }
+              } catch (erroVinculo) {
+                console.warn('Evento salvo; vínculo poderá ser feito depois.', erroVinculo);
+                mensagemFinal += ' O evento foi salvo; o vínculo da proposta poderá ser feito depois pela edição.';
+              }
+            }
+            sucesso('Registro criado!', mensagemFinal);
           } else {
             fecharLoading();
             mostrarAlertaGlobal(resultado.mensagem || 'Erro ao salvar o registro.', 'error');
@@ -3319,6 +3364,119 @@ if ((tipoRegistro === 'Evento' || tipoRegistro === 'Reunião' || tipoRegistro ==
 
       verificarConflitos();
     }
+
+    let propostaVinculoAtivoCadastro_ = false;
+    let propostaSelecionadaCadastro_ = '';
+    let timerConsultaPropostaCadastro_ = null;
+    let assinaturaConsultaPropostaCadastro_ = '';
+    let sequenciaConsultaPropostaCadastro_ = 0;
+
+    async function inicializarVinculoPropostaCadastro_() {
+      const box = document.getElementById('propostaVinculoCadastro');
+      if (!box) return;
+      try {
+        const status = await Auth.apiCall('obterStatusVinculoPropostaEvento');
+        propostaVinculoAtivoCadastro_ = !!(status && status.ativo);
+        box.hidden = !propostaVinculoAtivoCadastro_;
+        if (!propostaVinculoAtivoCadastro_) return;
+        ['dataEvento', 'contratanteNome', 'localNome', 'idContratante'].forEach(id => {
+          const el = document.getElementById(id);
+          if (!el) return;
+          el.addEventListener(id === 'idContratante' ? 'change' : 'input', agendarConsultaPropostaCadastro_);
+          el.addEventListener('change', agendarConsultaPropostaCadastro_);
+        });
+        document.getElementById('tipoRegistro')?.addEventListener('change', agendarConsultaPropostaCadastro_);
+      } catch (err) {
+        propostaVinculoAtivoCadastro_ = false;
+        box.hidden = true;
+        console.warn('Consulta opcional de propostas indisponível.', err);
+      }
+    }
+
+    function agendarConsultaPropostaCadastro_() {
+      if (!propostaVinculoAtivoCadastro_) return;
+      clearTimeout(timerConsultaPropostaCadastro_);
+      timerConsultaPropostaCadastro_ = setTimeout(consultarPropostasCadastro_, 700);
+    }
+
+    async function consultarPropostasCadastro_() {
+      const box = document.getElementById('propostaVinculoCadastro');
+      const estado = document.getElementById('propostaVinculoCadastroEstado');
+      const lista = document.getElementById('propostaVinculoCadastroLista');
+      if (!box || !estado || !lista || !propostaVinculoAtivoCadastro_) return;
+      if (document.getElementById('tipoRegistro')?.value !== 'Evento') {
+        box.hidden = true;
+        propostaSelecionadaCadastro_ = '';
+        return;
+      }
+      box.hidden = false;
+      const params = {
+        dataEvento: document.getElementById('dataEvento')?.value || '',
+        nome: document.getElementById('contratanteNome')?.value || '',
+        local: document.getElementById('localNome')?.value || '',
+        idContratante: document.getElementById('idContratante')?.value || ''
+      };
+      if (!params.dataEvento || (!params.nome && !params.idContratante)) {
+        estado.textContent = 'Informe data e contratante para verificar propostas relacionadas.';
+        lista.innerHTML = '';
+        return;
+      }
+      const assinatura = JSON.stringify(params);
+      if (assinatura === assinaturaConsultaPropostaCadastro_) return;
+      assinaturaConsultaPropostaCadastro_ = assinatura;
+      const seq = ++sequenciaConsultaPropostaCadastro_;
+      estado.textContent = 'Verificando propostas relacionadas em segundo plano...';
+      try {
+        const resp = await Auth.apiCall('consultarPropostasCompativeisEvento', params);
+        if (seq !== sequenciaConsultaPropostaCadastro_) return;
+        const itens = Array.isArray(resp && resp.correspondencias) ? resp.correspondencias : [];
+        renderizarPropostasCadastro_(itens);
+      } catch (err) {
+        if (seq !== sequenciaConsultaPropostaCadastro_) return;
+        estado.textContent = 'Não foi possível consultar propostas agora. O cadastro continua funcionando normalmente.';
+        lista.innerHTML = '';
+        console.warn('Falha não bloqueante ao consultar propostas.', err);
+      }
+    }
+
+    function renderizarPropostasCadastro_(itens) {
+      const estado = document.getElementById('propostaVinculoCadastroEstado');
+      const lista = document.getElementById('propostaVinculoCadastroLista');
+      if (!estado || !lista) return;
+      if (!itens.length) {
+        estado.textContent = 'Nenhuma proposta aberta com correspondência segura foi encontrada.';
+        lista.innerHTML = '';
+        propostaSelecionadaCadastro_ = '';
+        return;
+      }
+      estado.textContent = 'Confira os dados antes de vincular. O vínculo só será concluído depois que o evento for salvo.';
+      lista.innerHTML = itens.map(item => {
+        const numero = escapeHtmlSimples_(item.numeroOrcamento || '');
+        const selecionada = String(item.numeroOrcamento || '') === propostaSelecionadaCadastro_;
+        const confianca = item.confianca === 'muito_alta' ? 'Correspondência muito alta' :
+          (item.confianca === 'alta' ? 'Correspondência alta' : 'Possível correspondência');
+        return `
+          <div class="proposta-vinculo-item ${selecionada ? 'selecionada' : ''}">
+            <div class="proposta-vinculo-topo">
+              <div><strong>${escapeHtmlSimples_(item.nome || 'Sem nome')}</strong><div class="proposta-vinculo-meta">${escapeHtmlSimples_(item.dataEvento || '—')} · ${escapeHtmlSimples_(item.local || 'Local não informado')}</div></div>
+              <span class="proposta-vinculo-numero">${numero}</span>
+            </div>
+            <div class="proposta-vinculo-meta">${escapeHtmlSimples_((item.motivos || []).join(', '))}</div>
+            <div class="proposta-vinculo-acoes">
+              <span class="proposta-vinculo-confianca">${escapeHtmlSimples_(confianca)}</span>
+              <button type="button" class="${selecionada ? '' : 'primary'}" onclick="selecionarPropostaCadastro_('${numero}')">${selecionada ? 'Remover seleção' : 'Vincular ao salvar'}</button>
+            </div>
+          </div>`;
+      }).join('');
+    }
+
+    function selecionarPropostaCadastro_(numero) {
+      propostaSelecionadaCadastro_ = propostaSelecionadaCadastro_ === numero ? '' : numero;
+      assinaturaConsultaPropostaCadastro_ = '';
+      consultarPropostasCadastro_();
+    }
+
+    document.addEventListener('DOMContentLoaded', inicializarVinculoPropostaCadastro_);
 
 </script>
   <!-- MODAL CONFIRMAÇÃO DE CRIAÇÃO RÁPIDA -->

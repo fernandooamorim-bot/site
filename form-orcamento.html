@@ -619,6 +619,32 @@
       font-size: 11px;
     }
 
+    .proposal-status {
+      border-radius: 999px;
+      padding: 5px 9px;
+      font-size: 10px;
+      font-weight: 900;
+      letter-spacing: .04em;
+    }
+    .proposal-status.open { background:#fff7ed;color:#9a3412; }
+    .proposal-status.closed { background:#ecfdf5;color:#047857; }
+    .link-event-modal {
+      position: fixed; inset: 0; z-index: 10020; display: none;
+      align-items: center; justify-content: center; padding: 18px;
+      background: rgba(15,23,42,.58); backdrop-filter: blur(3px);
+    }
+    .link-event-modal.show { display: flex; }
+    .link-event-dialog {
+      width: min(560px,100%); max-height: 82vh; overflow: auto;
+      background:#fff;border-radius:18px;padding:18px;border:1px solid #dbe5f2;
+      box-shadow:0 24px 70px rgba(15,23,42,.35);display:grid;gap:13px;
+    }
+    .link-event-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}
+    .link-event-head h3{margin:0;color:#172033}
+    .link-event-list{display:grid;gap:10px}
+    .link-event-item{border:1px solid #dbe5f2;border-radius:13px;padding:12px;display:grid;gap:8px}
+    .link-event-meta{font-size:12px;color:#64748b;line-height:1.5}
+
     .history-pagination {
       display: none;
       align-items: center;
@@ -1012,6 +1038,19 @@
     </div>
   </div>
   <div class="mini-toast" id="miniToast" aria-live="polite"></div>
+  <div class="link-event-modal" id="linkEventModal" aria-hidden="true">
+    <div class="link-event-dialog">
+      <div class="link-event-head">
+        <div>
+          <h3>Vincular proposta a evento</h3>
+          <div class="link-event-meta" id="linkEventSubtitle">Confira os dados antes de confirmar.</div>
+        </div>
+        <button class="btn" id="btnCloseLinkEvent" type="button">Fechar</button>
+      </div>
+      <div class="history-state" id="linkEventState">Buscando eventos compatíveis...</div>
+      <div class="link-event-list" id="linkEventList"></div>
+    </div>
+  </div>
 
   <script>
     let __pageLeaving = false;
@@ -1026,6 +1065,8 @@
     let historyTotal_ = 0;
     let historyBatchCache_ = Object.create(null);
     let pageAuthenticated_ = false;
+    let propostaEventoVinculoAtivoHistorico_ = false;
+    let propostaVinculoModalAtual_ = '';
 
     function marcarSaindo_() {
       __pageLeaving = true;
@@ -1391,6 +1432,8 @@
         const pdf = escapeHtml_(item.linkPdf || '');
         const whats = escapeHtml_(criarLinkWhatsHistorico_(item));
         const obs = String(item.observacoes || '').trim();
+        const statusComercial = String(item.statusComercial || 'ABERTA').trim().toUpperCase();
+        const fechada = statusComercial === 'FECHADA';
         return `
           <article class="proposal-item">
             <div class="proposal-head">
@@ -1398,7 +1441,10 @@
                 <strong>${escapeHtml_(item.nome || 'Contratante não informado')}</strong>
                 <span>Registrado em ${escapeHtml_(item.timestamp || '—')}</span>
               </div>
-              <span class="proposal-number">${numero}</span>
+              <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:flex-end">
+                <span class="proposal-status ${fechada ? 'closed' : 'open'}">${fechada ? 'FECHADA' : 'ABERTA'}</span>
+                <span class="proposal-number">${numero}</span>
+              </div>
             </div>
             <div class="proposal-data">
               <div class="proposal-field"><span>Data do evento</span><strong>${escapeHtml_(item.dataEvento || '—')}</strong></div>
@@ -1416,11 +1462,98 @@
               <button class="btn primary history-open-link" type="button" data-url="${whats}" ${whats ? '' : 'disabled'}>
                 <i data-lucide="message-circle"></i> WhatsApp
               </button>
+              ${propostaEventoVinculoAtivoHistorico_ ? (
+                fechada
+                  ? `<button class="btn" type="button" onclick="window.location.href='editar-evento.html?id=${encodeURIComponent(String(item.eventoVinculadoId || ''))}'"><i data-lucide="calendar-check"></i> Ver evento</button>`
+                  : `<button class="btn history-link-event" type="button" data-numero="${numero}"><i data-lucide="link-2"></i> Vincular a evento</button>`
+              ) : ''}
             </div>
           </article>
         `;
       }).join('');
       if (window.lucide) window.lucide.createIcons();
+    }
+
+    async function abrirVinculoEventoHistorico_(numero) {
+      const modal = document.getElementById('linkEventModal');
+      const state = document.getElementById('linkEventState');
+      const list = document.getElementById('linkEventList');
+      const subtitle = document.getElementById('linkEventSubtitle');
+      if (!modal || !state || !list) return;
+      propostaVinculoModalAtual_ = String(numero || '').trim();
+      modal.classList.add('show');
+      modal.setAttribute('aria-hidden', 'false');
+      state.style.display = 'block';
+      state.textContent = 'Buscando eventos compatíveis...';
+      list.innerHTML = '';
+      if (subtitle) subtitle.textContent = `Proposta ${propostaVinculoModalAtual_} · confira antes de confirmar.`;
+      try {
+        const resp = await Auth.apiCall('buscarEventosCompativeisParaProposta', {
+          numeroOrcamento: propostaVinculoModalAtual_
+        });
+        if (resp && resp.eventoVinculadoId) {
+          state.textContent = `Esta proposta já está vinculada ao evento ${resp.eventoVinculadoId}.`;
+          return;
+        }
+        const eventos = Array.isArray(resp && resp.eventos) ? resp.eventos : [];
+        if (!eventos.length) {
+          state.textContent = 'Nenhum evento sem vínculo apresentou correspondência segura. Você ainda pode vincular pela edição do evento.';
+          return;
+        }
+        state.style.display = 'none';
+        list.innerHTML = eventos.map(ev => `
+          <div class="link-event-item">
+            <div style="display:flex;justify-content:space-between;gap:10px">
+              <strong>${escapeHtml_(ev.nome || 'Evento')}</strong>
+              <span class="proposal-number">${escapeHtml_(ev.id || '')}</span>
+            </div>
+            <div class="link-event-meta">${escapeHtml_(ev.dataEvento || '—')} · ${escapeHtml_(ev.local || 'Local não informado')}<br>${escapeHtml_((ev.motivos || []).join(', '))}</div>
+            <div class="proposal-actions">
+              <button class="btn primary confirm-history-link-event" type="button" data-evento="${escapeHtml_(ev.id || '')}">
+                <i data-lucide="link-2"></i> Confirmar vínculo
+              </button>
+            </div>
+          </div>
+        `).join('');
+        if (window.lucide) window.lucide.createIcons();
+      } catch (err) {
+        state.textContent = 'Não foi possível buscar eventos agora. A proposta e os eventos não foram alterados.';
+        console.error(err);
+      }
+    }
+
+    function fecharVinculoEventoHistorico_() {
+      const modal = document.getElementById('linkEventModal');
+      if (!modal) return;
+      modal.classList.remove('show');
+      modal.setAttribute('aria-hidden', 'true');
+      propostaVinculoModalAtual_ = '';
+    }
+
+    async function confirmarVinculoEventoHistorico_(eventoId) {
+      const numero = propostaVinculoModalAtual_;
+      if (!numero || !eventoId) return;
+      if (!confirm(`Vincular a proposta ${numero} ao evento ${eventoId}?`)) return;
+      const state = document.getElementById('linkEventState');
+      const list = document.getElementById('linkEventList');
+      if (state) {
+        state.style.display = 'block';
+        state.textContent = 'Registrando vínculo...';
+      }
+      if (list) list.innerHTML = '';
+      try {
+        const resp = await Auth.apiCall('vincularPropostaAoEvento', {
+          numeroOrcamento: numero,
+          eventoId: eventoId
+        });
+        if (!resp || !resp.sucesso) throw new Error(resp?.mensagem || 'Não foi possível vincular.');
+        exibirToast_(`Proposta ${numero} vinculada ao evento ${eventoId}.`);
+        fecharVinculoEventoHistorico_();
+        historyBatchCache_ = Object.create(null);
+        carregarHistorico_(historyPage_, true);
+      } catch (err) {
+        if (state) state.textContent = 'Não foi possível concluir o vínculo: ' + (err?.message || err);
+      }
     }
 
     function atualizarPaginacaoHistorico_(total) {
@@ -1559,7 +1692,7 @@
       }
     }
 
-    document.addEventListener('DOMContentLoaded', () => {
+    document.addEventListener('DOMContentLoaded', async () => {
       preencherHeaderLocal_();
       const btnGerar = document.getElementById('btnGerar');
       const btnLimpar = document.getElementById('btnLimpar');
@@ -1579,6 +1712,9 @@
       const btnHistoryPrev = document.getElementById('btnHistoryPrev');
       const btnHistoryNext = document.getElementById('btnHistoryNext');
       const historyList = document.getElementById('historyList');
+      const btnCloseLinkEvent = document.getElementById('btnCloseLinkEvent');
+      const linkEventModal = document.getElementById('linkEventModal');
+      const linkEventList = document.getElementById('linkEventList');
 
       if (resultBox) {
         resultBox.dataset.pdfUrl = '';
@@ -1691,12 +1827,34 @@
       }
       if (historyList) {
         historyList.addEventListener('click', function(ev) {
+          const btnVincular = ev.target && ev.target.closest ? ev.target.closest('.history-link-event') : null;
+          if (btnVincular) {
+            abrirVinculoEventoHistorico_(btnVincular.dataset.numero || '');
+            return;
+          }
           const btnLink = ev.target && ev.target.closest ? ev.target.closest('.history-open-link') : null;
           if (!btnLink || btnLink.disabled) return;
           abrirLinkExterno_(btnLink.dataset.url || '');
         });
       }
-      inicializarAcessoOrcamento_();
+      if (btnCloseLinkEvent) btnCloseLinkEvent.addEventListener('click', fecharVinculoEventoHistorico_);
+      if (linkEventModal) linkEventModal.addEventListener('click', function(ev) {
+        if (ev.target === linkEventModal) fecharVinculoEventoHistorico_();
+      });
+      if (linkEventList) linkEventList.addEventListener('click', function(ev) {
+        const btn = ev.target && ev.target.closest ? ev.target.closest('.confirm-history-link-event') : null;
+        if (btn) confirmarVinculoEventoHistorico_(btn.dataset.evento || '');
+      });
+      const acessoOk = inicializarAcessoOrcamento_();
+      if (acessoOk) {
+        try {
+          const statusVinculo = await Auth.apiCall('obterStatusVinculoPropostaEvento');
+          propostaEventoVinculoAtivoHistorico_ = !!(statusVinculo && statusVinculo.ativo);
+        } catch (err) {
+          propostaEventoVinculoAtivoHistorico_ = false;
+          console.warn('Vínculo opcional de proposta indisponível.', err);
+        }
+      }
       if (window.lucide) window.lucide.createIcons();
     });
   </script>
