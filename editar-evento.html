@@ -2180,6 +2180,10 @@
         </div>
         <div id="propostaVinculoEdicaoEstado" class="proposta-vinculo-estado"></div>
         <div id="propostaVinculoEdicaoLista" class="proposta-vinculo-lista"></div>
+        <div class="proposta-vinculo-manual" id="propostaVinculoManualEdicao">
+          <input id="buscaManualPropostaEdicao" type="search" placeholder="Buscar por número, parte do nome ou telefone">
+          <button type="button" onclick="buscarPropostaManualEdicao_()">Buscar proposta</button>
+        </div>
       </div>
       
       <!-- AÇÕES -->
@@ -2206,6 +2210,10 @@
     .proposta-vinculo-acoes{display:flex;gap:8px;flex-wrap:wrap}
     .proposta-vinculo-acoes button{border:1px solid #cbd5e1;background:#fff;color:#1e293b;border-radius:10px;padding:8px 11px;font-weight:700;cursor:pointer}
     .proposta-vinculo-acoes button.primary{background:#0f2a57;color:#fff;border-color:#0f2a57}
+    .proposta-vinculo-manual{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;margin-top:13px;padding-top:13px;border-top:1px solid #e2e8f0}
+    .proposta-vinculo-manual input{margin:0}
+    .proposta-vinculo-manual button{border:1px solid #cbd5e1;background:#fff;color:#1e293b;border-radius:10px;padding:9px 12px;font-weight:800;cursor:pointer}
+    @media(max-width:640px){.proposta-vinculo-manual{grid-template-columns:1fr}.proposta-vinculo-manual button{width:100%}}
   </style>
   
   <!-- MODAL DE CONFIRMAÇÃO -->
@@ -5557,12 +5565,14 @@ async function atualizarPainelVinculoPropostaEdicao_() {
   const box = document.getElementById('propostaVinculoEdicao');
   const estado = document.getElementById('propostaVinculoEdicaoEstado');
   const lista = document.getElementById('propostaVinculoEdicaoLista');
+  const manual = document.getElementById('propostaVinculoManualEdicao');
   if (!box || !estado || !lista || !propostaVinculoAtivoEdicao_ || !eventoOriginal) return;
   const ehEvento = String(eventoOriginal.tipoRegistro || '').trim() === 'Evento' || modoConversaoReserva;
   box.hidden = !ehEvento;
   if (!ehEvento) return;
 
   const vinculada = String(eventoOriginal.numeroOrcamentoOrigem || '').trim();
+  if (manual) manual.hidden = !!vinculada;
   if (vinculada) {
     estado.textContent = 'Este evento já está associado a uma proposta fechada.';
     lista.innerHTML = `
@@ -5603,10 +5613,26 @@ async function atualizarPainelVinculoPropostaEdicao_() {
       return;
     }
     estado.textContent = 'Confira os dados antes de confirmar o vínculo.';
-    lista.innerHTML = itens.map(item => {
+    renderizarResultadosVinculoEdicao_(itens);
+  } catch (err) {
+    if (seq !== seqConsultaPropostaEdicao_) return;
+    estado.textContent = 'Não foi possível consultar propostas agora. A edição continua funcionando normalmente.';
+    console.warn('Falha não bloqueante na consulta de propostas.', err);
+  }
+}
+
+function renderizarResultadosVinculoEdicao_(itens) {
+  const estado = document.getElementById('propostaVinculoEdicaoEstado');
+  const lista = document.getElementById('propostaVinculoEdicaoLista');
+  if (!estado || !lista) return;
+  lista.innerHTML = itens.map(item => {
       const numero = escapeHtml(item.numeroOrcamento || '');
-      const confianca = item.confianca === 'muito_alta' ? 'Correspondência muito alta' :
-        (item.confianca === 'alta' ? 'Correspondência alta' : 'Possível correspondência');
+      const confianca = item.confianca === 'busca_manual' ? 'Resultado da busca manual' :
+        (item.confianca === 'muito_alta' ? 'Correspondência muito alta' :
+        (item.confianca === 'alta' ? 'Correspondência alta' : 'Possível correspondência'));
+      const alertas = Array.isArray(item.alertas) && item.alertas.length
+        ? `<div class="proposta-vinculo-meta" style="color:#b45309;font-weight:700">⚠ ${escapeHtml(item.alertas.join(', '))}</div>`
+        : '';
       return `
         <div class="proposta-vinculo-item">
           <div class="proposta-vinculo-topo">
@@ -5614,15 +5640,39 @@ async function atualizarPainelVinculoPropostaEdicao_() {
             <span class="proposta-vinculo-numero">${numero}</span>
           </div>
           <div class="proposta-vinculo-meta">${escapeHtml(confianca)} · ${escapeHtml((item.motivos || []).join(', '))}</div>
+          ${alertas}
           <div class="proposta-vinculo-acoes">
             <button type="button" class="primary" onclick="vincularPropostaEdicao_('${numero}')">Vincular proposta</button>
           </div>
-        </div>`;
-    }).join('');
+      </div>`;
+  }).join('');
+}
+
+async function buscarPropostaManualEdicao_() {
+  const input = document.getElementById('buscaManualPropostaEdicao');
+  const estado = document.getElementById('propostaVinculoEdicaoEstado');
+  const lista = document.getElementById('propostaVinculoEdicaoLista');
+  const busca = String(input?.value || '').trim();
+  if (busca.length < 3) {
+    if (estado) estado.textContent = 'Digite pelo menos 3 caracteres para buscar.';
+    return;
+  }
+  if (estado) estado.textContent = 'Buscando propostas abertas...';
+  if (lista) lista.innerHTML = '';
+  try {
+    const resp = await Auth.apiCall('consultarPropostasCompativeisEvento', {
+      idEvento: eventoOriginal?.id || '',
+      buscaManual: busca
+    });
+    const itens = Array.isArray(resp && resp.correspondencias) ? resp.correspondencias : [];
+    if (!itens.length) {
+      if (estado) estado.textContent = 'Nenhuma proposta aberta foi encontrada para essa busca.';
+      return;
+    }
+    if (estado) estado.textContent = 'Resultados da busca manual. Confira os dados antes de vincular.';
+    renderizarResultadosVinculoEdicao_(itens);
   } catch (err) {
-    if (seq !== seqConsultaPropostaEdicao_) return;
-    estado.textContent = 'Não foi possível consultar propostas agora. A edição continua funcionando normalmente.';
-    console.warn('Falha não bloqueante na consulta de propostas.', err);
+    if (estado) estado.textContent = 'Não foi possível pesquisar agora. A edição continua funcionando normalmente.';
   }
 }
 

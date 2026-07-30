@@ -1482,6 +1482,10 @@
             A verificação acontece em segundo plano e não interfere no cadastro.
           </div>
           <div id="propostaVinculoCadastroLista" class="proposta-vinculo-lista"></div>
+          <div class="proposta-vinculo-manual">
+            <input id="buscaManualPropostaCadastro" type="search" placeholder="Buscar por número, parte do nome ou telefone">
+            <button type="button" onclick="buscarPropostaManualCadastro_()">Buscar proposta</button>
+          </div>
         </div>
         
         <!-- AÇÕES -->
@@ -1511,6 +1515,10 @@
     .proposta-vinculo-acoes{display:flex;gap:8px;flex-wrap:wrap}
     .proposta-vinculo-acoes button{border:1px solid #cbd5e1;background:#fff;color:#1e293b;border-radius:10px;padding:8px 11px;font-weight:700;cursor:pointer}
     .proposta-vinculo-acoes button.primary{background:#0f2a57;color:#fff;border-color:#0f2a57}
+    .proposta-vinculo-manual{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;margin-top:13px;padding-top:13px;border-top:1px solid #e2e8f0}
+    .proposta-vinculo-manual input{margin:0}
+    .proposta-vinculo-manual button{border:1px solid #cbd5e1;background:#fff;color:#1e293b;border-radius:10px;padding:9px 12px;font-weight:800;cursor:pointer}
+    @media(max-width:640px){.proposta-vinculo-manual{grid-template-columns:1fr}.proposta-vinculo-manual button{width:100%}}
   </style>
   
   <!-- MODAIS (mantidos do código anterior) -->
@@ -3370,6 +3378,7 @@ if ((tipoRegistro === 'Evento' || tipoRegistro === 'Reunião' || tipoRegistro ==
     let timerConsultaPropostaCadastro_ = null;
     let assinaturaConsultaPropostaCadastro_ = '';
     let sequenciaConsultaPropostaCadastro_ = 0;
+    let ultimasPropostasCadastro_ = [];
 
     async function inicializarVinculoPropostaCadastro_() {
       const box = document.getElementById('propostaVinculoCadastro');
@@ -3443,6 +3452,7 @@ if ((tipoRegistro === 'Evento' || tipoRegistro === 'Reunião' || tipoRegistro ==
       const estado = document.getElementById('propostaVinculoCadastroEstado');
       const lista = document.getElementById('propostaVinculoCadastroLista');
       if (!estado || !lista) return;
+      ultimasPropostasCadastro_ = Array.isArray(itens) ? itens.slice() : [];
       if (!itens.length) {
         estado.textContent = 'Nenhuma proposta aberta com correspondência segura foi encontrada.';
         lista.innerHTML = '';
@@ -3453,8 +3463,12 @@ if ((tipoRegistro === 'Evento' || tipoRegistro === 'Reunião' || tipoRegistro ==
       lista.innerHTML = itens.map(item => {
         const numero = escapeHtmlSimples_(item.numeroOrcamento || '');
         const selecionada = String(item.numeroOrcamento || '') === propostaSelecionadaCadastro_;
-        const confianca = item.confianca === 'muito_alta' ? 'Correspondência muito alta' :
-          (item.confianca === 'alta' ? 'Correspondência alta' : 'Possível correspondência');
+        const confianca = item.confianca === 'busca_manual' ? 'Resultado da busca manual' :
+          (item.confianca === 'muito_alta' ? 'Correspondência muito alta' :
+          (item.confianca === 'alta' ? 'Correspondência alta' : 'Possível correspondência'));
+        const alertas = Array.isArray(item.alertas) && item.alertas.length
+          ? `<div class="proposta-vinculo-meta" style="color:#b45309;font-weight:700">⚠ ${escapeHtmlSimples_(item.alertas.join(', '))}</div>`
+          : '';
         return `
           <div class="proposta-vinculo-item ${selecionada ? 'selecionada' : ''}">
             <div class="proposta-vinculo-topo">
@@ -3462,6 +3476,7 @@ if ((tipoRegistro === 'Evento' || tipoRegistro === 'Reunião' || tipoRegistro ==
               <span class="proposta-vinculo-numero">${numero}</span>
             </div>
             <div class="proposta-vinculo-meta">${escapeHtmlSimples_((item.motivos || []).join(', '))}</div>
+            ${alertas}
             <div class="proposta-vinculo-acoes">
               <span class="proposta-vinculo-confianca">${escapeHtmlSimples_(confianca)}</span>
               <button type="button" class="${selecionada ? '' : 'primary'}" onclick="selecionarPropostaCadastro_('${numero}')">${selecionada ? 'Remover seleção' : 'Vincular ao salvar'}</button>
@@ -3472,8 +3487,28 @@ if ((tipoRegistro === 'Evento' || tipoRegistro === 'Reunião' || tipoRegistro ==
 
     function selecionarPropostaCadastro_(numero) {
       propostaSelecionadaCadastro_ = propostaSelecionadaCadastro_ === numero ? '' : numero;
-      assinaturaConsultaPropostaCadastro_ = '';
-      consultarPropostasCadastro_();
+      renderizarPropostasCadastro_(ultimasPropostasCadastro_);
+    }
+
+    async function buscarPropostaManualCadastro_() {
+      const input = document.getElementById('buscaManualPropostaCadastro');
+      const estado = document.getElementById('propostaVinculoCadastroEstado');
+      const lista = document.getElementById('propostaVinculoCadastroLista');
+      const busca = String(input?.value || '').trim();
+      if (busca.length < 3) {
+        if (estado) estado.textContent = 'Digite pelo menos 3 caracteres para buscar.';
+        return;
+      }
+      if (estado) estado.textContent = 'Buscando propostas abertas...';
+      if (lista) lista.innerHTML = '';
+      try {
+        const resp = await Auth.apiCall('consultarPropostasCompativeisEvento', { buscaManual: busca });
+        const itens = Array.isArray(resp && resp.correspondencias) ? resp.correspondencias : [];
+        renderizarPropostasCadastro_(itens);
+        if (!itens.length && estado) estado.textContent = 'Nenhuma proposta aberta foi encontrada para essa busca.';
+      } catch (err) {
+        if (estado) estado.textContent = 'Não foi possível pesquisar agora. O cadastro continua funcionando normalmente.';
+      }
     }
 
     document.addEventListener('DOMContentLoaded', inicializarVinculoPropostaCadastro_);
