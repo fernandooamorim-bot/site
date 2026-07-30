@@ -28,6 +28,7 @@ const NOTIFICACOES_CONFIG_EDITAVEL_ = [
 function obterCentralNotificacoes_(email) {
   const manutencao = executarManutencaoDispositivosSeNecessario_();
   const cfg = carregarConfigNotificacoes_();
+  garantirRegrasAgendaComplementaresNotificacao_();
   const regras = listarRegrasNotificacoes_();
   const dispositivos = listarTodosDispositivosNotificacao_();
   const historico = obterResumoHistoricoNotificacoes_();
@@ -145,9 +146,122 @@ function listarRegrasNotificacoes_() {
       repetirSemanal: boolNotificacao_(
         valorPorHeaderNotificacao_(r, idx, 'REPETIR_SEMANAL'),
         false
+      ),
+      janelaMaxDias: normalizarJanelaMaximaNotificacao_(
+        valorPorHeaderNotificacao_(r, idx, 'JANELA_MAX_DIAS'),
+        String(valorPorHeaderNotificacao_(r, idx, 'CODIGO') || '').trim()
       )
     };
   });
+}
+
+/**
+ * Mantém as regras de compromisso disponíveis sem sobrescrever qualquer
+ * configuração feita posteriormente pelo proprietário. A inclusão é
+ * idempotente e só acrescenta códigos ainda ausentes na planilha.
+ */
+function garantirRegrasAgendaComplementaresNotificacao_() {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(NOTIFICACOES_ABA_REGRAS_);
+  if (!sheet) throw new Error('NOTIFICACOES_REGRAS_SHEET_NOT_FOUND');
+  const lastColumn = sheet.getLastColumn();
+  if (lastColumn < 1) throw new Error('NOTIFICACOES_REGRAS_HEADERS_NOT_FOUND');
+
+  const headers = sheet.getRange(1, 1, 1, lastColumn).getValues()[0]
+    .map(function (h) { return String(h || '').trim().toUpperCase(); });
+  const idxCodigo = headers.indexOf('CODIGO');
+  if (idxCodigo < 0) throw new Error('NOTIFICACOES_REGRAS_CODIGO_HEADER_NOT_FOUND');
+
+  const existentes = {};
+  if (sheet.getLastRow() >= 2) {
+    sheet.getRange(2, idxCodigo + 1, sheet.getLastRow() - 1, 1).getValues()
+      .forEach(function (r) {
+        const codigo = String(r[0] || '').trim().toUpperCase();
+        if (codigo) existentes[codigo] = true;
+      });
+  }
+
+  const defaults = [
+    {
+      CODIGO: 'COMPROMISSO_CRIADO_EDITADO',
+      NOME: 'Compromisso criado, atualizado ou cancelado',
+      DESCRICAO: 'Aviso imediato sobre mudanças em compromissos profissionais sem fluxo financeiro.',
+      CATEGORIA: 'AGENDA',
+      ATIVO: true,
+      CANAL_PUSH: true,
+      CANAL_EMAIL: false,
+      PRIORIDADE: 'NORMAL',
+      PERFIS_DESTINATARIOS: 'Proprietário;Administrador',
+      ANTECEDENCIA_MIN: 0,
+      HORARIO_ENVIO: '',
+      AGRUPAR: false,
+      OBRIGATORIA: false,
+      TEMPLATE_TITULO: 'Compromisso {ACAO_COMPROMISSO}',
+      TEMPLATE_MENSAGEM: '{TIPO_EVENTO}: {CONTRATANTE} • {DATA_COMERCIAL} às {HORA}. {RESUMO_ALTERACOES}',
+      LINK_DESTINO: 'agenda.html',
+      OBSERVACOES: 'Não notifica o autor por padrão e respeita a visibilidade do compromisso na agenda.',
+      NOTIFICAR_AUTOR: false
+    },
+    {
+      CODIGO: 'COMPROMISSO_ANTECEDENCIA',
+      NOME: 'Compromisso próximo',
+      DESCRICAO: 'Lembrete antes do horário de um compromisso profissional.',
+      CATEGORIA: 'AGENDA',
+      ATIVO: true,
+      CANAL_PUSH: true,
+      CANAL_EMAIL: false,
+      PRIORIDADE: 'ALTA',
+      PERFIS_DESTINATARIOS: 'Proprietário;Administrador',
+      ANTECEDENCIA_MIN: 60,
+      HORARIO_ENVIO: '',
+      AGRUPAR: false,
+      OBRIGATORIA: false,
+      TEMPLATE_TITULO: 'Compromisso próximo',
+      TEMPLATE_MENSAGEM: '{TIPO_EVENTO}: {CONTRATANTE} • {DATA_COMERCIAL} às {HORA}. Confira os detalhes na agenda.',
+      LINK_DESTINO: 'agenda.html',
+      OBSERVACOES: 'Usa o mesmo ciclo dos lembretes de evento e não cria um novo acionador.'
+    },
+    {
+      CODIGO: 'REUNIAO_ANTECEDENCIA',
+      NOME: 'Reunião próxima',
+      DESCRICAO: 'Lembrete antes do horário de uma reunião, respeitando filtros independentes por perfil.',
+      CATEGORIA: 'AGENDA',
+      ATIVO: true,
+      CANAL_PUSH: true,
+      CANAL_EMAIL: false,
+      PRIORIDADE: 'ALTA',
+      PERFIS_DESTINATARIOS: 'Proprietário;Administrador',
+      ANTECEDENCIA_MIN: 60,
+      HORARIO_ENVIO: '',
+      AGRUPAR: false,
+      OBRIGATORIA: false,
+      TEMPLATE_TITULO: 'Reunião próxima',
+      TEMPLATE_MENSAGEM: '{MOTIVO_REUNIAO} • {DATA_COMERCIAL} às {HORA}. Confira os detalhes na agenda.',
+      LINK_DESTINO: 'agenda.html',
+      OBSERVACOES: 'Administrador recebe todas; Proprietário recebe por padrão termos Fernando ou Repertório.',
+      FILTRO_REUNIAO_JSON: JSON.stringify({
+        'Proprietário': [],
+        'Administrador': ['*']
+      }),
+      TERMOS_REUNIAO_JSON: JSON.stringify({
+        'Proprietário': ['Fernando', 'Repertório'],
+        'Administrador': []
+      })
+    }
+  ];
+
+  const novasLinhas = defaults.filter(function (regra) {
+    return !existentes[regra.CODIGO];
+  }).map(function (regra) {
+    return headers.map(function (header) {
+      return Object.prototype.hasOwnProperty.call(regra, header) ? regra[header] : '';
+    });
+  });
+
+  if (novasLinhas.length) {
+    sheet.getRange(sheet.getLastRow() + 1, 1, novasLinhas.length, lastColumn)
+      .setValues(novasLinhas);
+  }
+  return { ok: true, adicionadas: novasLinhas.length };
 }
 
 function atualizarRegraNotificacao_(email, params) {
@@ -157,6 +271,11 @@ function atualizarRegraNotificacao_(email, params) {
   if (!sheet) throw new Error('NOTIFICACOES_REGRAS_SHEET_NOT_FOUND');
   const dados = sheet.getDataRange().getValues();
   const idx = indexarHeadersNotificacao_(dados[0] || []);
+  if (params.janelaMaxDias !== undefined && idx.JANELA_MAX_DIAS === undefined) {
+    const novaColuna = Math.max(1, sheet.getLastColumn() + 1);
+    sheet.getRange(1, novaColuna).setValue('JANELA_MAX_DIAS');
+    idx.JANELA_MAX_DIAS = novaColuna - 1;
+  }
   const perfisRecebidos = Array.from(new Set(
     parseJsonArrayNotificacao_(params.perfis).map(normalizarPerfilNotificacao_).filter(function (p) {
       return NOTIFICACOES_PERFIS_PERMITIDOS_.indexOf(p) !== -1;
@@ -195,6 +314,12 @@ function atualizarRegraNotificacao_(email, params) {
     if (params.repetirSemanal !== undefined) {
       atualizacoes.REPETIR_SEMANAL = boolNotificacao_(params.repetirSemanal, false);
     }
+    if (params.janelaMaxDias !== undefined) {
+      atualizacoes.JANELA_MAX_DIAS = normalizarJanelaMaximaNotificacao_(
+        params.janelaMaxDias,
+        codigo
+      );
+    }
     Object.keys(atualizacoes).forEach(function (header) {
       if (idx[header] !== undefined) sheet.getRange(i + 1, idx[header] + 1).setValue(atualizacoes[header]);
     });
@@ -219,6 +344,16 @@ function parseIntervalosDiasNotificacao_(valor) {
   }).filter(function (n) {
     return isFinite(n) && n >= 0 && n <= 3650;
   }))).sort(function (a, b) { return a - b; });
+}
+
+function normalizarJanelaMaximaNotificacao_(valor, codigo) {
+  const numero = Math.floor(Number(valor));
+  if (isFinite(numero) && numero >= 1 && numero <= 3650) return numero;
+  const regra = String(codigo || '').trim().toUpperCase();
+  if (regra === 'FOLHA_CUSTOS_PENDENTE') return 2;
+  if (regra === 'EVENTO_REALIZADO_SEM_RECEBIMENTO' ||
+      regra === 'EVENTO_REALIZADO_PARCIAL') return 10;
+  return 3650;
 }
 
 function parseFiltroReuniaoNotificacao_(valor) {

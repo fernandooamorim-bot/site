@@ -13,7 +13,17 @@ function processarNotificacoesAgendadas() {
   const lock = LockService.getScriptLock();
   if (!lock.tryLock(1000)) return { ok: true, ignorado: true, motivo: 'PROCESSAMENTO_EM_ANDAMENTO' };
   try {
-    return processarResumoEventosHoje_({});
+    const inicio = Date.now();
+    const resultado = processarResumoEventosHoje_({});
+    PropertiesService.getScriptProperties().setProperty(
+      'NOTIFICACOES_ULTIMO_RESUMO_RESULTADO',
+      JSON.stringify({
+        executadoEm: new Date().toISOString(),
+        duracaoMs: Date.now() - inicio,
+        resultado: resultado
+      })
+    );
+    return resultado;
   } finally {
     lock.releaseLock();
   }
@@ -63,6 +73,7 @@ function atualizarAutomacoesNotificacoes_(email, params) {
   removerGatilhosNotificacaoPorHandler_('processarPendenciasMatinaisNotificacoes');
   removerGatilhosNotificacaoPorHandler_('processarFilaNotificacoes');
   removerGatilhosNotificacaoPorHandler_('processarCicloNotificacoes');
+  removerGatilhosNotificacaoPorHandler_('onEditValidacao');
   ScriptApp.newTrigger('processarCicloNotificacoes').timeBased().everyMinutes(30).create();
   if (pendencias) {
     ScriptApp.newTrigger('processarPendenciasMatinaisNotificacoes').timeBased()
@@ -77,6 +88,16 @@ function atualizarAutomacoesNotificacoes_(email, params) {
       pendencias: possuiGatilhoNotificacao_('processarPendenciasMatinaisNotificacoes')
     }
   };
+}
+
+function removerGatilhosObsoletosNotificacao_() {
+  const props = PropertiesService.getScriptProperties();
+  if (props.getProperty('NOTIFICACOES_GATILHOS_OBSOLETOS_V1') === 'OK') {
+    return { ok: true, ignorado: true };
+  }
+  removerGatilhosNotificacaoPorHandler_('onEditValidacao');
+  props.setProperty('NOTIFICACOES_GATILHOS_OBSOLETOS_V1', 'OK');
+  return { ok: true, removidos: ['onEditValidacao'] };
 }
 
 function executarResumoEventosHojeTeste_(email) {
@@ -104,24 +125,43 @@ function processarResumoEventosHoje_(opcoes) {
   }
   const emailRestrito = String(opts.emailRestrito || (modoTeste ? obterConfig('NOTIFICACOES_DESTINATARIO_TESTE') : '') || '').trim().toLowerCase();
   const totais = { enviadosPush: 0, enviadosEmail: 0, duplicados: 0, erros: 0 };
-  const regraReuniao = obterRegraNotificacaoPorCodigo_('REUNIAO_CRIADA_EDITADA');
+  const recursos = {
+    regra: regra,
+    dispositivos: listarTodosDispositivosNotificacao_Interno_(),
+    usuarios: listarUsuariosAtivosNotificacao_(),
+    dedupeSet: obterChavesHistoricoNotificacoes_()
+  };
   regra.perfis.forEach(function (perfil) {
     const visiveis = eventos.filter(function (linha) {
       if (!perfilPodeVisualizarTipoAgendaNotificacao_(perfil, linha[COL.TIPO_REGISTRO])) return false;
       if (tipoRegistroEventoNotificacao_(linha) !== 'reuniao') return true;
-      return !!regraReuniao &&
-        filtroReuniaoPermiteNotificacao_(
-          regraReuniao,
-          perfil,
-          motivoReuniaoLinhaNotificacao_(linha)
-        );
+      return filtroReuniaoPermiteNotificacao_(
+        regra,
+        perfil,
+        motivoReuniaoLinhaNotificacao_(linha)
+      );
     });
     if (!visiveis.length) return;
+    const contagem = contarTiposResumoAgendaNotificacao_(visiveis);
+    const textoResumo = montarTextoResumoAgendaNotificacao_(contagem);
     const resultado = despacharRegraNotificacao_('EVENTO_HOJE', {
       referencia: hoje + '|' + normalizarPerfilNotificacao_(perfil),
-      valores: { QTD_EVENTOS: visiveis.length },
+      titulo: tituloResumoAgendaNotificacao_(contagem),
+      mensagem: textoResumo,
+      valores: {
+        QTD_EVENTOS: contagem.eventos,
+        QTD_REUNIOES: contagem.reunioes,
+        QTD_COMPROMISSOS: contagem.compromissos,
+        QTD_RESERVAS: contagem.reservas,
+        QTD_BLOQUEIOS: contagem.bloqueios,
+        QTD_OUTROS: contagem.outros,
+        QTD_TOTAL: visiveis.length
+      },
       link: './agenda.html'
-    }, { emailRestrito: emailRestrito, perfilRestrito: perfil });
+    }, Object.assign({}, recursos, {
+      emailRestrito: emailRestrito,
+      perfilRestrito: perfil
+    }));
     totais.enviadosPush += Number(resultado.enviadosPush || 0);
     totais.enviadosEmail += Number(resultado.enviadosEmail || 0);
     totais.duplicados += Number(resultado.duplicados || 0);
@@ -135,6 +175,59 @@ function processarResumoEventosHoje_(opcoes) {
     duplicados: totais.duplicados,
     erros: totais.erros
   };
+}
+
+function contarTiposResumoAgendaNotificacao_(linhas) {
+  return (linhas || []).reduce(function (acc, linha) {
+    const tipo = tipoRegistroEventoNotificacao_(linha);
+    if (tipo === 'reuniao') acc.reunioes++;
+    else if (tipo === 'evento') acc.eventos++;
+    else if (tipo === 'compromisso') acc.compromissos++;
+    else if (tipo === 'reserva') acc.reservas++;
+    else if (tipo === 'bloqueio') acc.bloqueios++;
+    else acc.outros++;
+    return acc;
+  }, {
+    eventos: 0,
+    reunioes: 0,
+    compromissos: 0,
+    reservas: 0,
+    bloqueios: 0,
+    outros: 0
+  });
+}
+
+function itemContagemResumoAgendaNotificacao_(quantidade, singular, plural) {
+  const n = Number(quantidade || 0);
+  return n ? n + ' ' + (n === 1 ? singular : plural) : '';
+}
+
+function montarTextoResumoAgendaNotificacao_(contagem) {
+  const c = contagem || {};
+  const itens = [
+    itemContagemResumoAgendaNotificacao_(c.eventos, 'evento', 'eventos'),
+    itemContagemResumoAgendaNotificacao_(c.reunioes, 'reunião', 'reuniões'),
+    itemContagemResumoAgendaNotificacao_(c.compromissos, 'compromisso', 'compromissos'),
+    itemContagemResumoAgendaNotificacao_(c.reservas, 'reserva', 'reservas'),
+    itemContagemResumoAgendaNotificacao_(c.bloqueios, 'bloqueio', 'bloqueios'),
+    itemContagemResumoAgendaNotificacao_(c.outros, 'outro registro', 'outros registros')
+  ].filter(Boolean);
+  let lista = itens.join(', ');
+  if (itens.length > 1) {
+    lista = itens.slice(0, -1).join(', ') + ' e ' + itens[itens.length - 1];
+  }
+  return 'Você tem ' + lista + ' hoje. Abra a agenda para conferir horários e locais.';
+}
+
+function tituloResumoAgendaNotificacao_(contagem) {
+  const c = contagem || {};
+  const outrosTipos = Number(c.reservas || 0) + Number(c.bloqueios || 0) + Number(c.outros || 0);
+  if (c.reunioes > 0 && !c.eventos && !c.compromissos && !outrosTipos) return c.reunioes === 1 ? 'Reunião de hoje' : 'Reuniões de hoje';
+  if (c.eventos > 0 && !c.reunioes && !c.compromissos && !outrosTipos) return c.eventos === 1 ? 'Evento de hoje' : 'Eventos de hoje';
+  if (c.compromissos > 0 && !c.eventos && !c.reunioes && !outrosTipos) return c.compromissos === 1 ? 'Compromisso de hoje' : 'Compromissos de hoje';
+  if (c.reservas > 0 && !c.eventos && !c.reunioes && !c.compromissos && !c.bloqueios && !c.outros) return c.reservas === 1 ? 'Reserva de hoje' : 'Reservas de hoje';
+  if (c.bloqueios > 0 && !c.eventos && !c.reunioes && !c.compromissos && !c.reservas && !c.outros) return c.bloqueios === 1 ? 'Bloqueio de hoje' : 'Bloqueios de hoje';
+  return 'Agenda de hoje';
 }
 
 function hashIdentificadorNotificacao_(identificador) {
@@ -211,14 +304,21 @@ function obterAbaHistoricoNotificacoes_() {
   return sheet;
 }
 
-function historicoNotificacaoPossuiChave_(chave) {
+function obterChavesHistoricoNotificacoes_() {
   const sheet = obterAbaHistoricoNotificacoes_();
-  if (sheet.getLastRow() < 2) return false;
+  const chaves = {};
+  if (sheet.getLastRow() < 2) return chaves;
   const dados = sheet.getRange(2, 10, sheet.getLastRow() - 1, 7).getDisplayValues();
-  return dados.some(function (r) {
+  dados.forEach(function (r) {
     const status = String(r[0]).toUpperCase();
-    return (status === 'ENVIADO' || status === 'ACEITO_FCM') && r[6] === chave;
+    if ((status === 'ENVIADO' || status === 'ACEITO_FCM') && r[6]) chaves[r[6]] = true;
   });
+  return chaves;
+}
+
+function historicoNotificacaoPossuiChave_(chave, chavesCarregadas) {
+  if (chavesCarregadas) return !!chavesCarregadas[chave];
+  return !!obterChavesHistoricoNotificacoes_()[chave];
 }
 
 function registrarHistoricoNotificacao_(base, status, codigoErro, detalheErro) {
