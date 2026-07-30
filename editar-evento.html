@@ -2443,6 +2443,7 @@ function getConverterFromURL() {
     vendedores: null,
     parceirosBV: null,
     tiposEvento: null,
+    tiposCompromisso: null,
     duracoes: null,
     projetos: null
   };
@@ -2974,7 +2975,7 @@ function executarVerificacaoConflitosEdicao_() {
   const dataFimValida = /^\d{4}-\d{2}-\d{2}$/.test(String(dataFimCampo?.value || '').trim());
   const tipoRegistro = String(eventoOriginal?.tipoRegistro || 'Evento').trim();
   const usaIntervalo =
-    (tipoRegistro === 'Evento' && multiDias && dataFimValida) ||
+    ((tipoRegistro === 'Evento' || tipoRegistro === 'Compromisso') && multiDias && dataFimValida) ||
     (tipoRegistro === 'Bloqueio' && dataFimValida);
   const dataFim = usaIntervalo ? dataFimCampo.value : dataInicio;
 
@@ -3877,6 +3878,7 @@ function configurarVisibilidadeCamposPorTipoEdicao_(tipoOriginal) {
   const isReserva = tipo === 'Reserva' && !modoConversaoReserva;
   const isReuniao = tipo === 'Reunião';
   const isBloqueio = tipo === 'Bloqueio';
+  const isCompromisso = tipo === 'Compromisso';
 
   const campoTipoEvento = document.getElementById('campoTipoEventoEdicao');
   const campoProjeto = document.getElementById('campoProjetoEdicao');
@@ -3914,20 +3916,20 @@ function configurarVisibilidadeCamposPorTipoEdicao_(tipoOriginal) {
   const labelDuracao = document.getElementById('labelDuracaoEdicao');
   const labelMotivo = document.getElementById('labelMotivoEdicao');
 
-  const exibeTipoEvento = isEvento || isReserva;
+  const exibeTipoEvento = isEvento || isReserva || isCompromisso;
   const exibeProjeto = isEvento || isReserva;
   const exibeMotivo = isReserva || isReuniao || isBloqueio;
   const exibeCerimonialista = isEvento || isReserva;
   const exibePessoasLocal = !isBloqueio;
-  const exibeDetalhes = isEvento;
+  const exibeDetalhes = isEvento || isCompromisso;
   const exibeLookSom = isEvento;
-  const exibeObservacoes = isEvento;
+  const exibeObservacoes = isEvento || isCompromisso;
 
   if (campoTipoEvento) campoTipoEvento.classList.toggle('hidden', !exibeTipoEvento);
   if (campoProjeto) campoProjeto.classList.toggle('hidden', !exibeProjeto);
   if (campoMotivo) campoMotivo.classList.toggle('hidden', !exibeMotivo);
   if (campoCerimonialista) campoCerimonialista.classList.toggle('hidden', !exibeCerimonialista);
-  if (campoEventoMultiDias) campoEventoMultiDias.classList.toggle('hidden', !isEvento);
+  if (campoEventoMultiDias) campoEventoMultiDias.classList.toggle('hidden', !(isEvento || isCompromisso));
   if (secaoPessoasLocal) secaoPessoasLocal.classList.toggle('hidden', !exibePessoasLocal);
   if (secaoDetalhes) secaoDetalhes.classList.toggle('hidden', !exibeDetalhes);
   if (campoLookSom) campoLookSom.classList.toggle('hidden', !exibeLookSom);
@@ -3941,14 +3943,14 @@ function configurarVisibilidadeCamposPorTipoEdicao_(tipoOriginal) {
   if (inputSom) inputSom.disabled = !exibeLookSom;
   if (inputObservacoes) inputObservacoes.disabled = !exibeObservacoes;
 
-  if (inputTipoEvento) inputTipoEvento.required = isEvento;
+  if (inputTipoEvento) inputTipoEvento.required = isEvento || isCompromisso;
   if (inputProjeto) inputProjeto.required = false;
-  if (inputMotivo) inputMotivo.required = !isEvento && !isReuniao && !isReserva;
+  if (inputMotivo) inputMotivo.required = !isEvento && !isReuniao && !isReserva && !isCompromisso;
   if (motivoReservaPreset) motivoReservaPreset.required = isReserva;
-  if (inputContratante) inputContratante.required = isEvento;
+  if (inputContratante) inputContratante.required = isEvento || isCompromisso;
   if (inputLocal) inputLocal.required = isEvento;
-  if (inputHora) inputHora.required = isEvento || isReuniao;
-  if (inputDuracao) inputDuracao.required = isEvento;
+  if (inputHora) inputHora.required = isEvento || isReuniao || isCompromisso;
+  if (inputDuracao) inputDuracao.required = isEvento || isCompromisso;
 
   if (labelMotivo && inputMotivo) {
     if (isReuniao) {
@@ -3991,6 +3993,7 @@ function configurarVisibilidadeCamposPorTipoEdicao_(tipoOriginal) {
     if (isEvento) labelContratante.textContent = 'Contratante';
     else if (isReserva) labelContratante.textContent = 'Contratante (opcional)';
     else if (isReuniao) labelContratante.textContent = 'Cliente/Pessoa (opcional)';
+    else if (isCompromisso) labelContratante.textContent = 'Nome do compromisso';
     else labelContratante.textContent = 'Responsável (opcional)';
   }
 
@@ -3999,7 +4002,7 @@ function configurarVisibilidadeCamposPorTipoEdicao_(tipoOriginal) {
   }
 
   if (labelDuracao) {
-    labelDuracao.textContent = isEvento ? 'Duração' : 'Duração (opcional)';
+    labelDuracao.textContent = (isEvento || isCompromisso) ? 'Duração' : 'Duração (opcional)';
   }
 
   if (isBloqueio) {
@@ -4009,6 +4012,18 @@ function configurarVisibilidadeCamposPorTipoEdicao_(tipoOriginal) {
     const deveExibirDataFim = !!(chkMultiDias && chkMultiDias.checked);
     if (grupoDataFim) grupoDataFim.classList.toggle('hidden', !deveExibirDataFim);
     if (!deveExibirDataFim && dataFimEl) dataFimEl.value = '';
+  }
+
+  if (inputTipoEvento && isCompromisso && Array.isArray(window.__tiposCompromissoEdicao)) {
+    const atual = inputTipoEvento.value || String(eventoOriginal?.tipoEvento || '');
+    inputTipoEvento.innerHTML = '<option value="">Selecione...</option>';
+    window.__tiposCompromissoEdicao.forEach(function (item) {
+      inputTipoEvento.add(new Option(item, item));
+    });
+    if (atual && !Array.from(inputTipoEvento.options).some(function (o) { return o.value === atual; })) {
+      inputTipoEvento.add(new Option(atual, atual));
+    }
+    inputTipoEvento.value = atual;
   }
 
   if ((isReuniao || isBloqueio || isReserva) && inputObservacoes && inputMotivo) {
@@ -4656,6 +4671,7 @@ async function validarImpactoFinanceiroAntesSalvar(callback) {
         resVendedores,
         resParceiros,
         resTipos,
+        resTiposCompromisso,
         resDuracoes,
         resProjetos,
         resMotivosReuniao,
@@ -4678,6 +4694,11 @@ async function validarImpactoFinanceiroAntesSalvar(callback) {
         }),
         carregarComCache('tiposEvento', async () => {
           const resposta = await Auth.apiCall('listarTiposEvento', {});
+          if (resposta && resposta.error) throw new Error(resposta.error);
+          return Array.isArray(resposta) ? resposta : [];
+        }),
+        carregarComCache('tiposCompromisso', async () => {
+          const resposta = await Auth.apiCall('listarTiposCompromisso', {});
           if (resposta && resposta.error) throw new Error(resposta.error);
           return Array.isArray(resposta) ? resposta : [];
         }),
@@ -4715,6 +4736,7 @@ async function validarImpactoFinanceiroAntesSalvar(callback) {
 
       if (resTipos.status === 'fulfilled') {
         const tipos = resTipos.value;
+        window.__tiposEventoEdicao = tipos;
         const sel = document.getElementById('tipoEvento');
         if (sel) {
           sel.innerHTML = '<option value="">Selecione...</option>';
@@ -4726,6 +4748,9 @@ async function validarImpactoFinanceiroAntesSalvar(callback) {
           });
           __dropdownsProntos.tipoEvento = true;
         }
+      }
+      if (resTiposCompromisso.status === 'fulfilled') {
+        window.__tiposCompromissoEdicao = resTiposCompromisso.value;
       }
 
       if (resDuracoes.status === 'fulfilled') {
@@ -5224,6 +5249,7 @@ function formatarValorResumoAlteracao_(campo, valor, origem) {
       const tipoRegistroAtual = String(eventoOriginal?.tipoRegistro || 'Evento').trim();
       const ehEventoVisual = tipoRegistroAtual === 'Evento' || modoConversaoReserva;
       const ehReservaVisual = tipoRegistroAtual === 'Reserva' && !modoConversaoReserva;
+      const ehCompromissoVisual = tipoRegistroAtual === 'Compromisso';
       const observacoesFinal = ehEventoVisual
         ? document.getElementById('observacoes').value
         : document.getElementById('motivoRegistro').value;
@@ -5257,7 +5283,7 @@ function formatarValorResumoAlteracao_(campo, valor, origem) {
         dataFim: dataFim,
         horaInicio: document.getElementById('horaInicio').value,
         duracao: document.getElementById('duracao').value,
-        tipoEvento: (ehEventoVisual || ehReservaVisual) ? document.getElementById('tipoEvento').value : '',
+        tipoEvento: (ehEventoVisual || ehReservaVisual || ehCompromissoVisual) ? document.getElementById('tipoEvento').value : '',
         projeto: (ehEventoVisual || ehReservaVisual) ? document.getElementById('projeto').value : '',
         idContratante: document.getElementById('idContratante').value,
         nomeContratante: document.getElementById('nomeContratante').value,
@@ -5280,7 +5306,9 @@ function formatarValorResumoAlteracao_(campo, valor, origem) {
         look: ehEventoVisual ? document.getElementById('look').value : '',
         somResponsavel: ehEventoVisual ? document.getElementById('somResponsavel').value : '',
         motivoRegistro: document.getElementById('motivoRegistro').value,
-        observacoes: observacoesFinal,
+        observacoes: ehCompromissoVisual
+          ? document.getElementById('observacoes').value
+          : observacoesFinal,
         converterReserva: modoConversaoReserva ? true : false
       };
     }

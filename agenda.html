@@ -980,6 +980,11 @@
       background: linear-gradient(180deg, #fffdf8 0%, #ffffff 100%);
     }
 
+    .evento-card.compromisso {
+      border-color: rgba(124,58,237,0.28);
+      background: linear-gradient(180deg, #fbfaff 0%, #ffffff 100%);
+    }
+
     .evento-card.passado {
       opacity: 0.62;
       background: var(--gray-100);
@@ -1033,6 +1038,11 @@
     .evento-card.reserva .evento-icon {
       background: rgba(245,158,11,0.14);
       color: #b45309;
+    }
+
+    .evento-card.compromisso .evento-icon {
+      background: rgba(124,58,237,0.12);
+      color: #6d28d9;
     }
 
     .evento-main {
@@ -1965,6 +1975,7 @@
             <option value="Reserva">Reservas</option>
             <option value="Bloqueio">Bloqueios</option>
             <option value="Reunião">Reuniões</option>
+            <option value="Compromisso">Compromissos</option>
           </select>
         </div>
         <div class="filter-group" id="filterStatusGeralGroup" style="display: none;">
@@ -2158,6 +2169,7 @@ if (!AUTH.email || !AUTH.session) {
         'ban': '⛔',
         'calendar': '🗓',
         'bookmark': '🔖',
+        'calendar-check': '✓',
         'pencil': '✎',
         'refresh-ccw': '↺'
       };
@@ -2711,6 +2723,7 @@ calcularDiasIntervalo(dataInicio, dataFim) {
             Reunião: 0,
             Reserva: 0,
             Bloqueio: 0,
+            Compromisso: 0,
             Outros: 0
           };
 
@@ -2725,6 +2738,7 @@ calcularDiasIntervalo(dataInicio, dataFim) {
             else if (tipo === 'reuniao') composicao.Reunião++;
             else if (tipo === 'reserva' || tipo.includes('reserva')) composicao.Reserva++;
             else if (tipo === 'bloqueio') composicao.Bloqueio++;
+            else if (tipo === 'compromisso') composicao.Compromisso++;
             else composicao.Outros++;
           });
 
@@ -2733,6 +2747,7 @@ calcularDiasIntervalo(dataInicio, dataFim) {
             Reunião: ['reunião', 'reuniões'],
             Reserva: ['reserva', 'reservas'],
             Bloqueio: ['bloqueio', 'bloqueios'],
+            Compromisso: ['compromisso', 'compromissos'],
             Outros: ['outro registro', 'outros registros']
           };
 
@@ -2969,6 +2984,9 @@ criarCardEvento(evento) {
   } else if (evento.tipo === 'Reserva') {
     classeExtra = 'reserva';
     iconeLucide = 'bookmark';
+  } else if (evento.tipo === 'Compromisso') {
+    classeExtra = 'compromisso';
+    iconeLucide = 'calendar-check';
   }
 
   const dataResumo = evento.dataFim
@@ -2992,6 +3010,7 @@ criarCardEvento(evento) {
   const isBloqueio = tipoRegistro === 'Bloqueio';
   const isReserva = tipoRegistro === 'Reserva';
   const isEvento = tipoRegistro === 'Evento';
+  const isCompromisso = tipoRegistro === 'Compromisso';
   const observacaoRaw = String(evento.observacoes || '').trim();
   const observacaoTecnicaLegado = /^\[LEGADO\]/i.test(observacaoRaw) || /arquivo=|aba=|linha=|conf=|issues=/i.test(observacaoRaw);
   const observacaoParaTitulo = observacaoTecnicaLegado ? '' : observacaoRaw;
@@ -3085,6 +3104,10 @@ criarCardEvento(evento) {
         ? `${tipoEvento} - ${contratanteSemDuplicacao}`
         : (contratante ? `${tipoEvento} - ${contratante}` : tipoEvento);
     }
+  } else if (isCompromisso) {
+    tituloEventoRaw = tipoEvento
+      ? `${tipoEvento} - ${contratante || 'Compromisso'}`
+      : (contratante || 'Compromisso');
   } else {
     const baseTitulo = observacaoParaTitulo || contratante || tipoEvento || '';
     tituloEventoRaw = `${tipoRegistro || 'Registro'}${baseTitulo ? ' - ' + baseTitulo : ''}`;
@@ -3524,13 +3547,14 @@ renderizarEventosDentro(evento) {
     }
 
     if (isProducao()) {
-      Utils.log('Produção: mostrando Evento/Bloqueio/Reserva e ocultando Reunião');
+      Utils.log('Produção: aplicando registros já autorizados pelo backend');
       return eventos.filter(e => {
         const tipo = String(e?.tipo || '').trim().toLowerCase();
         return (
           tipo === 'evento' ||
           tipo === 'bloqueio' ||
           tipo === 'reserva' ||
+          tipo === 'compromisso' ||
           tipo.includes('reserva')
         );
       });
