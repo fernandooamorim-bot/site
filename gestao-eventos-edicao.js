@@ -576,6 +576,10 @@ function salvarEdicaoEvento(idEvento, dadosFormulario, email) {
       dadosFormulario.aplicarNomeLocalNoMestre === true ||
       dadosFormulario.aplicarNomeLocalNoMestre === 'true' ||
       dadosFormulario.aplicarNomeLocalNoMestre === '1',
+    confirmarDataPassada:
+      dadosFormulario.confirmarDataPassada === true ||
+      dadosFormulario.confirmarDataPassada === 'true' ||
+      dadosFormulario.confirmarDataPassada === '1',
 
     valorTotal: (function() {
       const parsed = normalizarValorMonetario_(dadosFormulario.valorTotal ?? arguments[1]?.valorTotal, { allowZero: false });
@@ -638,6 +642,15 @@ function salvarEdicaoEvento(idEvento, dadosFormulario, email) {
     const linhaOriginal = linha.slice();
     const tipoRegistroAtual = String(linha[COL.TIPO_REGISTRO] || 'Evento').trim() || 'Evento';
     const estaConvertendoReserva = converterReserva && tipoRegistroAtual === 'Reserva';
+    const dataEventoAnteriorISO = formatarDataISO(linha[COL.DATA_EVENTO]);
+
+    if (dados.dataEvento && String(dados.dataEvento) !== String(dataEventoAnteriorISO || '')) {
+      validarConfirmacaoDataPassada_(
+        dados.dataEvento,
+        dados.confirmarDataPassada === true,
+        'alterar este registro'
+      );
+    }
 
     if (estaConvertendoReserva) {
       if (!dados.tipoEvento) {

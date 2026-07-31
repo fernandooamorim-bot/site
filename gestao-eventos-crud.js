@@ -137,6 +137,24 @@ function normalizarRegraComissaoCadastro_(dados, user, isEvento) {
   return { tipo: tipo, valor: valor };
 }
 
+function validarConfirmacaoDataPassada_(dataISO, confirmada, contexto) {
+  const valor = String(dataISO || '').trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(valor)) return;
+  const hojeISO = Utilities.formatDate(
+    new Date(),
+    Session.getScriptTimeZone() || 'America/Fortaleza',
+    'yyyy-MM-dd'
+  );
+  if (valor < hojeISO && confirmada !== true) {
+    const partes = valor.split('-');
+    const dataBR = partes[2] + '/' + partes[1] + '/' + partes[0];
+    throw new Error(
+      'A data ' + dataBR + ' já passou. Volte, confira principalmente o ano e confirme novamente para ' +
+      String(contexto || 'salvar o registro') + '.'
+    );
+  }
+}
+
 function criarEvento(dados, email) {
   try {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -158,6 +176,12 @@ function criarEvento(dados, email) {
     const dataEventoTexto = dados.dataEvento
       ? formatarDataTexto(dados.dataEvento)
       : null;
+
+    validarConfirmacaoDataPassada_(
+      dados.dataEvento,
+      dados.confirmarDataPassada === true,
+      'cadastrar este registro'
+    );
 
     const dataFimTexto = dados.dataFim
       ? formatarDataTexto(dados.dataFim)
