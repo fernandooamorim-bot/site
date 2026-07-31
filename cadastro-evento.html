@@ -2136,7 +2136,7 @@ window.onload = function () {
       document.getElementById('campoProjeto').style.display = (isEvento || isReserva) ? 'block' : 'none';
       
       // Cerimonialista
-      document.getElementById('campoCerimonialista').style.display = (isEvento || isReserva) ? 'block' : 'none';
+      document.getElementById('campoCerimonialista').style.display = (isEvento || isReserva || isReuniao) ? 'block' : 'none';
       
       // BLOQUEIO: Esconde TODA seção de Pessoas e Local
       document.getElementById('secaoPessoasLocal').style.display = isBloqueio ? 'none' : 'block';
@@ -3095,8 +3095,8 @@ if ((tipoRegistro === 'Evento' || tipoRegistro === 'Reunião' || tipoRegistro ==
   }
 }
 
-// CERIMONIALISTA (Evento)
-if (tipoRegistro === 'Evento' &&
+// CERIMONIALISTA (Evento ou Reunião)
+if ((tipoRegistro === 'Evento' || tipoRegistro === 'Reunião') &&
     !dados.idCerimonialista &&
     document.getElementById('cerimonialistaNome').value) {
 
@@ -3196,6 +3196,9 @@ if ((tipoRegistro === 'Evento' || tipoRegistro === 'Reunião' || tipoRegistro ==
       else {
         dados.tipoEvento = '';
         dados.projeto = '';
+        dados.idCerimonialista = tipoRegistro === 'Reunião'
+          ? (document.getElementById('idCerimonialista').value || null)
+          : null;
         dados.motivo = document.getElementById('motivo').value;
         dados.observacoes = document.getElementById('observacoes').value;
       }
@@ -3242,7 +3245,8 @@ if ((tipoRegistro === 'Evento' || tipoRegistro === 'Reunião' || tipoRegistro ==
         return;
       }
       // CERIMONIALISTA (opcional) – confirmação, mas fixa o loop setando o hidden antes
-      if (tipoRegistro === 'Evento' && campoDigitadoSemId('cerimonialistaNome', 'idCerimonialista')) {
+      if ((tipoRegistro === 'Evento' || tipoRegistro === 'Reunião') &&
+          campoDigitadoSemId('cerimonialistaNome', 'idCerimonialista')) {
         abrirConfirmacao(
   'Cerimonialista',
   document.getElementById('cerimonialistaNome').value,

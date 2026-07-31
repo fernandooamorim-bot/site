@@ -2060,7 +2060,7 @@
             
             <div class="form-group" id="campoCerimonialistaEdicao">
               <label class="label-indicator">
-                <span>Cerimonialista</span>
+                <span>Cerimonialista (opcional)</span>
                 <span class="indicator indicator-free">🟢 Livre</span>
               </label>
               <select id="idCerimonialista">
@@ -3969,7 +3969,7 @@ function configurarVisibilidadeCamposPorTipoEdicao_(tipoOriginal) {
   const exibeTipoEvento = isEvento || isReserva || isCompromisso;
   const exibeProjeto = isEvento || isReserva;
   const exibeMotivo = isReserva || isReuniao || isBloqueio;
-  const exibeCerimonialista = isEvento || isReserva;
+  const exibeCerimonialista = isEvento || isReserva || isReuniao;
   const exibePessoasLocal = !isBloqueio;
   const exibeDetalhes = isEvento || isCompromisso;
   const exibeLookSom = isEvento;
