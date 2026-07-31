@@ -227,6 +227,14 @@
       font-weight: 700;
     }
 
+    .field-counter {
+      margin-top: -2px;
+      color: #94a3b8;
+      font-size: 10px;
+      line-height: 1;
+      text-align: right;
+    }
+
     .field input,
     .field textarea {
       width: 100%;
@@ -889,7 +897,8 @@
           </div>
           <div class="field">
             <label for="local">Local *</label>
-            <input id="local" type="text" autocomplete="organization" required placeholder="Ex.: Espaço Jardins">
+            <input id="local" type="text" autocomplete="organization" required maxlength="60" aria-describedby="localCounter" placeholder="Ex.: Espaço Jardins">
+            <span class="field-counter" id="localCounter" aria-live="polite">60 caracteres restantes</span>
           </div>
           <div class="field span-2">
             <label>Propostas e valores</label>
@@ -1221,8 +1230,17 @@
       if (apenasDigitos_(p.telefone).length < 10) return 'Telefone inválido.';
       if (!p.dataEvento) return 'Informe a data do evento.';
       if (!p.local) return 'Informe o local do evento.';
+      if (p.local.length > 60) return 'O local deve ter no máximo 60 caracteres.';
       if (!p.propostas) return 'Selecione ao menos uma proposta.';
       return '';
+    }
+
+    function atualizarContadorLocal_() {
+      const campo = document.getElementById('local');
+      const contador = document.getElementById('localCounter');
+      if (!campo || !contador) return;
+      const restantes = Math.max(0, 60 - String(campo.value || '').length);
+      contador.textContent = restantes + (restantes === 1 ? ' caractere restante' : ' caracteres restantes');
     }
 
     function setProcessing_(on, etapa) {
@@ -1333,6 +1351,7 @@
     function limparFormulario_() {
       ['nome', 'telefone', 'dataEvento', 'local', 'valorPocket', 'valorGold', 'valorPremium', 'valorDebut', 'observacoes']
         .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+      atualizarContadorLocal_();
       ['propPocket', 'propGold', 'propPremium', 'propDebut']
         .forEach(id => { const el = document.getElementById(id); if (el) el.checked = false; });
       [
@@ -1763,6 +1782,7 @@
       const btnCopyPdf = document.getElementById('btnCopyPdf');
       const btnCopyWhats = document.getElementById('btnCopyWhats');
       const tel = document.getElementById('telefone');
+      const local = document.getElementById('local');
       const valores = ['valorPocket', 'valorGold', 'valorPremium', 'valorDebut']
         .map(id => document.getElementById(id))
         .filter(Boolean);
@@ -1794,6 +1814,11 @@
         tel.addEventListener('input', function(e) {
           e.target.value = formatarTelefoneMascara_(e.target.value);
         });
+      }
+
+      if (local) {
+        local.addEventListener('input', atualizarContadorLocal_);
+        atualizarContadorLocal_();
       }
 
       valores.forEach(function(el) {
