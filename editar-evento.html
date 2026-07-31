@@ -2269,7 +2269,7 @@
       
       <div class="actions">
         <button class="btn btn-secondary" onclick="fecharModal()">Voltar</button>
-        <button class="btn btn-primary" onclick="confirmarEdicao()">Confirmar Alterações</button>
+        <button class="btn btn-primary" id="btnConfirmarEdicao" onclick="confirmarEdicao()">Confirmar Alterações</button>
       </div>
     </div>
   </div>
@@ -2961,6 +2961,42 @@ let verificadorExecucaoId = 0;
 let verificadorDebounceTimerEdicao = null;
 let ultimaAssinaturaConflitoEdicao = '';
 
+function obterInfoDataPassadaEdicao_(dataISO) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(dataISO || ''))) return null;
+  const data = new Date(dataISO + 'T12:00:00');
+  const hoje = new Date();
+  hoje.setHours(12, 0, 0, 0);
+  if (data.getTime() >= hoje.getTime()) return null;
+  return {
+    iso: dataISO,
+    formatada: formatarDataBRTextoEdicao(dataISO),
+    dias: Math.max(1, Math.round((hoje.getTime() - data.getTime()) / 86400000))
+  };
+}
+
+function dataPassadaAlteradaEdicao_() {
+  const atual = String(document.getElementById('dataEvento')?.value || '').trim();
+  const original = String(eventoOriginal?.dataEvento || '').trim();
+  return atual !== original ? obterInfoDataPassadaEdicao_(atual) : null;
+}
+
+function avisoDataPassadaEdicaoHtml_(dataISO) {
+  const info = obterInfoDataPassadaEdicao_(dataISO);
+  if (!info) return '';
+  return `
+    <div class="conflitos-wrap warn">
+      <div class="conflitos-header">
+        <i data-lucide="calendar-alert"></i>
+        Esta data já passou
+      </div>
+      <div class="conflitos-lista">
+        <div class="conflito-item">
+          Confira a data e principalmente o ano: <strong>${escapeHtml(info.formatada)}</strong> foi há ${info.dias} dia${info.dias === 1 ? '' : 's'}.
+        </div>
+      </div>
+    </div>`;
+}
+
 function formatarDataBRTextoEdicao(dataISO) {
   if (!dataISO) return '';
   if (dataISO.includes('/')) return dataISO;
@@ -3021,7 +3057,7 @@ function executarVerificacaoConflitosEdicao_() {
 
   verificadorExecucaoId++;
   const execucaoAtual = verificadorExecucaoId;
-  container.innerHTML = '<div class="status-box warning"><span class="status-icon"><i data-lucide="loader-circle"></i></span><div><strong>Verificando conflitos de agenda...</strong></div></div>';
+  container.innerHTML = avisoDataPassadaEdicaoHtml_(dataInicio) + '<div class="status-box warning"><span class="status-icon"><i data-lucide="loader-circle"></i></span><div><strong>Verificando conflitos de agenda...</strong></div></div>';
   if (window.lucide) lucide.createIcons();
 
   function gerarIntervaloDatas(inicio, fim) {
@@ -3043,7 +3079,7 @@ function executarVerificacaoConflitosEdicao_() {
   const timeoutId = setTimeout(() => {
     if (execucaoAtual !== verificadorExecucaoId) return;
     timeoutDisparado = true;
-    container.innerHTML = '<div class="status-box warning"><span class="status-icon"><i data-lucide="triangle-alert"></i></span><div><strong>Não foi possível concluir a verificação agora.</strong></div></div>';
+    container.innerHTML = avisoDataPassadaEdicaoHtml_(dataInicio) + '<div class="status-box warning"><span class="status-icon"><i data-lucide="triangle-alert"></i></span><div><strong>Não foi possível concluir a verificação agora.</strong></div></div>';
     if (window.lucide) lucide.createIcons();
   }, 10000);
 
@@ -3082,11 +3118,13 @@ function renderizarConflitosEdicao(eventos) {
   if (!container) return;
 
   if (!eventos || eventos.length === 0) {
-    container.innerHTML = `
+    const dataSelecionada = document.getElementById('dataEvento')?.value;
+    const dataJaPassou = !!obterInfoDataPassadaEdicao_(dataSelecionada);
+    container.innerHTML = avisoDataPassadaEdicaoHtml_(document.getElementById('dataEvento')?.value) + `
       <div class="conflitos-wrap ok">
         <div class="conflitos-header">
           <i data-lucide="circle-check"></i>
-          Data disponível
+          ${dataJaPassou ? 'Nenhum outro registro encontrado nessa data' : 'Data disponível'}
         </div>
       </div>
     `;
@@ -3123,7 +3161,7 @@ function renderizarConflitosEdicao(eventos) {
     `;
   });
   html += '</div></div>';
-  container.innerHTML = html;
+  container.innerHTML = avisoDataPassadaEdicaoHtml_(document.getElementById('dataEvento')?.value) + html;
   if (window.lucide) lucide.createIcons();
 }
 
@@ -5124,7 +5162,7 @@ function formatarValorResumoAlteracao_(campo, valor, origem) {
         const qtd = alteracoes.length;
         const qtdImpacto = alteracoes.filter(a => !!a.impacto).length;
         meta.innerHTML = `
-          <span class="changes-meta-chip">✏️ ${qtd} alteração${qtd !== 1 ? 'ões' : ''}</span>
+          <span class="changes-meta-chip">✏️ ${qtd} ${qtd === 1 ? 'alteração' : 'alterações'}</span>
           ${qtdImpacto ? `<span class="changes-meta-chip alerta">⚠ ${qtdImpacto} ponto${qtdImpacto !== 1 ? 's' : ''} de atenção</span>` : ''}
         `;
       }
@@ -5265,10 +5303,18 @@ function formatarValorResumoAlteracao_(campo, valor, origem) {
     function mostrarResumoValidacoes(resultado) {
       const resumo = document.getElementById('resumoValidacoes');
       let html = '';
+      const infoDataPassada = dataPassadaAlteradaEdicao_();
+      if (infoDataPassada) {
+        html += `<div class="validation-item" style="color:#92400e;">⚠️ A nova data, <strong>${escapeHtml(infoDataPassada.formatada)}</strong>, já passou. Confira principalmente o ano.</div>`;
+      }
       if (resultado.avisos?.length) resultado.avisos.forEach(a => html += `<div class="validation-item">⚠️ ${a}</div>`);
       if (resultado.conflitos?.length) resultado.conflitos.forEach(c => html += `<div class="validation-item" style="color: #dc3545;">🔴 ${c}</div>`);
-      if (!resultado.avisos?.length && !resultado.conflitos?.length) html = '<div class="validation-item">✅ Sem conflitos detectados</div>';
+      if (!resultado.avisos?.length && !resultado.conflitos?.length) html += '<div class="validation-item">✅ Sem conflitos detectados</div>';
       resumo.innerHTML = html;
+      const btnConfirmar = document.getElementById('btnConfirmarEdicao');
+      if (btnConfirmar) {
+        btnConfirmar.textContent = infoDataPassada ? 'Confirmar data e alterações' : 'Confirmar Alterações';
+      }
     }
 
     function parseNumeroFinanceiroEdicao_(raw, opts = {}) {
@@ -5484,6 +5530,7 @@ function formatarValorResumoAlteracao_(campo, valor, origem) {
         // 2) Removido mostrarLoadingGlobal/travarAcoes duplicado aqui
         try {
           const dadosFormulario = coletarDadosFormulario();
+          dadosFormulario.confirmarDataPassada = !!dataPassadaAlteradaEdicao_();
           const idContr = String(dadosFormulario.idContratante || '').trim();
           const idLoc = String(dadosFormulario.idEndereco || '').trim();
           const nomeContrNovo = String(dadosFormulario.nomeContratanteEditado || '').trim();

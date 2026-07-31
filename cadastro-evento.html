@@ -2243,6 +2243,37 @@ window.onload = function () {
     let verificadorExecucaoId = 0;
     let verificadorDebounceTimer = null;
     let ultimaAssinaturaConflito = '';
+    let confirmacaoDataPassadaCadastro = '';
+
+    function obterInfoDataPassadaCadastro_(dataISO) {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(String(dataISO || ''))) return null;
+      const data = new Date(dataISO + 'T12:00:00');
+      const hoje = new Date();
+      hoje.setHours(12, 0, 0, 0);
+      if (data.getTime() >= hoje.getTime()) return null;
+      return {
+        iso: dataISO,
+        formatada: formatarDataBRTexto(dataISO),
+        dias: Math.max(1, Math.round((hoje.getTime() - data.getTime()) / 86400000))
+      };
+    }
+
+    function avisoDataPassadaCadastroHtml_(dataISO) {
+      const info = obterInfoDataPassadaCadastro_(dataISO);
+      if (!info) return '';
+      return `
+        <div class="conflitos-wrap warn">
+          <div class="conflitos-header">
+            <i data-lucide="calendar-alert"></i>
+            <span>Esta data já passou</span>
+          </div>
+          <div class="conflitos-lista">
+            <div class="conflito-item">
+              Confira a data e principalmente o ano: <strong>${escaparHtml(info.formatada)}</strong> foi há ${info.dias} dia${info.dias === 1 ? '' : 's'}.
+            </div>
+          </div>
+        </div>`;
+    }
     
     /**
      * Calcula hora final baseado na hora de início e duração
@@ -2339,7 +2370,9 @@ window.onload = function () {
       const execucaoAtual = verificadorExecucaoId;
 
       // Limpa visual no início
-      alertaConflitos.style.display = 'none';
+      const avisoDataPassada = avisoDataPassadaCadastroHtml_(dataInicio);
+      alertaConflitos.innerHTML = avisoDataPassada;
+      alertaConflitos.style.display = avisoDataPassada ? 'block' : 'none';
 
       function gerarIntervaloDatas(inicio, fim) {
         const datas = [];
@@ -2369,7 +2402,7 @@ window.onload = function () {
       const timeoutId = setTimeout(() => {
         if (execucaoAtual !== verificadorExecucaoId) return;
         finalizar();
-        alertaConflitos.innerHTML = `
+        alertaConflitos.innerHTML = avisoDataPassadaCadastroHtml_(dataInicio) + `
           <div class="conflitos-wrap warn">
             <div class="conflitos-header">
               <i data-lucide="alert-circle"></i>
@@ -2452,11 +2485,13 @@ window.onload = function () {
       const alertaDiv = document.getElementById('alertaConflitos');
 
       if (!eventos || eventos.length === 0) {
-        alertaDiv.innerHTML = `
+        const dataSelecionada = document.getElementById('dataEvento').value;
+        const dataJaPassou = !!obterInfoDataPassadaCadastro_(dataSelecionada);
+        alertaDiv.innerHTML = avisoDataPassadaCadastroHtml_(document.getElementById('dataEvento').value) + `
           <div class="conflitos-wrap ok">
             <div class="conflitos-header">
               <i data-lucide="check-circle"></i>
-              <span>${intervalo ? 'Período disponível' : 'Data disponível'}</span>
+              <span>${dataJaPassou ? 'Nenhum outro registro encontrado nessa data' : (intervalo ? 'Período disponível' : 'Data disponível')}</span>
             </div>
           </div>`;
         alertaDiv.style.display = 'block';
@@ -2499,7 +2534,7 @@ window.onload = function () {
       });
 
       html += '</div></div>';
-      alertaDiv.innerHTML = html;
+      alertaDiv.innerHTML = avisoDataPassadaCadastroHtml_(document.getElementById('dataEvento').value) + html;
       alertaDiv.style.display = 'block';
       if (window.lucide) lucide.createIcons();
     }
@@ -3063,6 +3098,13 @@ window.onload = function () {
         return;
       }
       const tipoRegistro = document.getElementById('tipoRegistro').value;
+      const dataEventoSelecionada = document.getElementById('dataEvento').value;
+      const assinaturaDataPassada = `${tipoRegistro}|${dataEventoSelecionada}`;
+      const infoDataPassada = obterInfoDataPassadaCadastro_(dataEventoSelecionada);
+      if (infoDataPassada && confirmacaoDataPassadaCadastro !== assinaturaDataPassada) {
+        abrirConfirmacaoDataPassadaCadastro_(tipoRegistro, infoDataPassada, assinaturaDataPassada);
+        return;
+      }
       const dados = {
         tipoRegistro: tipoRegistro,
         dataEvento: document.getElementById('dataEvento').value,
@@ -3075,7 +3117,8 @@ window.onload = function () {
         idEndereco: document.getElementById('idEndereco').value || null,
         nomeContratanteDigitado: document.getElementById('contratanteNome').value.trim(),
         nomeLocalDigitado: document.getElementById('localNome').value.trim(),
-        nomeCerimonialistaDigitado: document.getElementById('cerimonialistaNome').value.trim()
+        nomeCerimonialistaDigitado: document.getElementById('cerimonialistaNome').value.trim(),
+        confirmarDataPassada: !!infoDataPassada && confirmacaoDataPassadaCadastro === assinaturaDataPassada
       };
       /* ───── Resolução automática de IDs por nome digitado ───── */
 
@@ -3317,6 +3360,9 @@ if ((tipoRegistro === 'Evento' || tipoRegistro === 'Reunião' || tipoRegistro ==
 
     // Função para abrir modal de confirmação de criação rápida
     function abrirConfirmacao(tipo, nome, onConfirm) {
+      document.getElementById('tituloConfirmacaoCriacao').textContent = '⚠️ Confirmação necessária';
+      document.getElementById('btnCancelarConfirmacaoCriacao').textContent = 'Cancelar';
+      document.getElementById('btnConfirmarCriacao').textContent = '➕ Criar e continuar';
       document.getElementById('textoConfirmacao').innerHTML = `
         Você digitou <strong>${nome}</strong> como <strong>${tipo}</strong>,<br>
         mas ele ainda não existe no sistema.<br><br>
@@ -3326,6 +3372,31 @@ if ((tipoRegistro === 'Evento' || tipoRegistro === 'Reunião' || tipoRegistro ==
       btn.onclick = () => {
         fecharModal('modalConfirmarCriacao');
         onConfirm();
+      };
+      abrirModal('modalConfirmarCriacao');
+    }
+
+    function abrirConfirmacaoDataPassadaCadastro_(tipoRegistro, info, assinatura) {
+      const titulo = document.getElementById('tituloConfirmacaoCriacao');
+      const texto = document.getElementById('textoConfirmacao');
+      const btnVoltar = document.getElementById('btnCancelarConfirmacaoCriacao');
+      const btnConfirmar = document.getElementById('btnConfirmarCriacao');
+      titulo.textContent = '⚠️ Confirmar data passada?';
+      texto.innerHTML = `
+        Você está cadastrando <strong>${escaparHtml(tipoRegistro)}</strong> para
+        <strong>${escaparHtml(info.formatada)}</strong>, uma data que já passou.<br><br>
+        Confira principalmente o <strong>ano</strong> antes de continuar.
+      `;
+      btnVoltar.textContent = 'Voltar e corrigir';
+      btnConfirmar.textContent = 'Confirmar e cadastrar';
+      btnVoltar.onclick = () => {
+        fecharModal('modalConfirmarCriacao');
+        setTimeout(() => document.getElementById('dataEvento')?.focus(), 0);
+      };
+      btnConfirmar.onclick = () => {
+        confirmacaoDataPassadaCadastro = assinatura;
+        fecharModal('modalConfirmarCriacao');
+        salvarEvento();
       };
       abrirModal('modalConfirmarCriacao');
     }
@@ -3646,12 +3717,12 @@ if ((tipoRegistro === 'Evento' || tipoRegistro === 'Reunião' || tipoRegistro ==
   <div id="modalConfirmarCriacao" class="modal">
     <div class="modal-content">
       <div class="modal-header">
-        <h3>⚠️ Confirmação necessária</h3>
+        <h3 id="tituloConfirmacaoCriacao">⚠️ Confirmação necessária</h3>
         <button class="close-modal" onclick="fecharModal('modalConfirmarCriacao')">×</button>
       </div>
       <div id="textoConfirmacao" style="font-size:14px;color:#333;margin-bottom:20px;"></div>
       <div class="actions">
-        <button class="btn btn-secondary" onclick="fecharModal('modalConfirmarCriacao')">
+        <button class="btn btn-secondary" id="btnCancelarConfirmacaoCriacao" onclick="fecharModal('modalConfirmarCriacao')">
           Cancelar
         </button>
         <button class="btn btn-primary" id="btnConfirmarCriacao">
