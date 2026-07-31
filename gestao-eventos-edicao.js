@@ -717,7 +717,7 @@ function salvarEdicaoEvento(idEvento, dadosFormulario, email) {
       }
     }
 
-    const permiteCerimonialista = ehEventoFinal || tipoRegistroFinal === 'Reserva';
+    const permiteCerimonialista = ehEventoFinal || tipoRegistroFinal === 'Reserva' || tipoRegistroFinal === 'Reunião';
     linha[COL.ID_CERIMONIALISTA] = permiteCerimonialista ? (dados.idCerimonialista || '') : '';
     linha[COL.NOME_CERIMONIALISTA] = (permiteCerimonialista && dados.idCerimonialista)
       ? buscarNomePorId('CERIMONIALISTAS', dados.idCerimonialista)

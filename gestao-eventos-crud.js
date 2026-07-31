@@ -190,7 +190,7 @@ const horaInicio = dados.horaInicio
       ? buscarNomePorId('CONTRATANTES', dados.idContratante)
       : String(dados.nomeContratanteDigitado || '').trim();
 
-    const nomeCerimonialista = (isEvento || isReserva)
+    const nomeCerimonialista = (isEvento || isReserva || isReuniao)
       ? (dados.idCerimonialista
         ? buscarNomePorId('CERIMONIALISTAS', dados.idCerimonialista)
         : String(dados.nomeCerimonialistaDigitado || '').trim())
