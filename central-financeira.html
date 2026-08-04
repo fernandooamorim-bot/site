@@ -1000,6 +1000,65 @@
       font-weight: 700;
       color: #9f1f1f;
     }
+    .cs-proof {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 7px;
+      padding: 6px 10px;
+      border: 1px solid #cbd8ee;
+      border-radius: 9px;
+      background: #f5f8fe;
+      color: var(--navy-600);
+      text-decoration: none;
+      font-size: 12px;
+      font-weight: 800;
+    }
+    .cs-proof:hover { background: #eaf0fb; }
+    .ch-wrap {
+      margin-top: 18px;
+      border: 1px solid var(--gray-200);
+      border-radius: 14px;
+      background: #fbfcff;
+      overflow: hidden;
+    }
+    .ch-summary {
+      cursor: pointer;
+      list-style: none;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 14px;
+      color: var(--navy-700);
+      font-weight: 800;
+    }
+    .ch-summary::-webkit-details-marker { display: none; }
+    .ch-summary small {
+      display: block;
+      margin-top: 3px;
+      color: var(--gray-500);
+      font-weight: 600;
+    }
+    .ch-body { padding: 0 14px 14px; }
+    .ch-list { display: grid; gap: 9px; }
+    .ch-item {
+      padding: 11px;
+      border: 1px solid var(--gray-200);
+      border-radius: 11px;
+      background: #fff;
+    }
+    .ch-top { display:flex; justify-content:space-between; gap:10px; align-items:flex-start; }
+    .ch-id { color:var(--navy-700); font-size:12px; font-weight:800; overflow-wrap:anywhere; }
+    .ch-meta { color:var(--gray-500); font-size:11px; margin-top:3px; }
+    .ch-values { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:5px 10px; margin-top:9px; font-size:12px; }
+    .ch-actions { display:flex; gap:7px; flex-wrap:wrap; margin-top:9px; }
+    .ch-btn {
+      display:inline-flex; align-items:center; gap:5px; padding:6px 9px;
+      border:1px solid #cbd8ee; border-radius:8px; background:#f5f8fe;
+      color:var(--navy-600); text-decoration:none; font-size:11px; font-weight:800;
+    }
+    .ch-btn:hover { background:#eaf0fb; }
 
     .fiscal-toolbar {
       display: grid;
@@ -2273,6 +2332,16 @@ function renderComissao(){
     <button class="btn secondary" onclick="executarFechamentoV2()">
       🔒 Executar Fechamento
     </button>
+
+    <details id="historicoFechamentosComissao" class="ch-wrap" ontoggle="aoAlternarHistoricoFechamentos_(this)">
+      <summary class="ch-summary">
+        <span>Fechamentos anteriores<small>PDFs, comprovantes e totais confirmados</small></span>
+        <span aria-hidden="true">⌓</span>
+      </summary>
+      <div id="historicoFechamentosConteudo" class="ch-body">
+        <span class="muted">Abra para carregar o histórico deste vendedor.</span>
+      </div>
+    </details>
   `;
 
   garantirVendedoresCarregados(()=>{
@@ -2287,7 +2356,12 @@ function renderComissao(){
     });
     sel.onchange = ()=>{
       vendedorSelecionado = vendedoresCache.find(v=>v.id==sel.value);
-      if (vendedorSelecionado) carregarResumoVendedor();
+      historicoFechamentosVendedorCarregado_ = '';
+      if (vendedorSelecionado) {
+        carregarResumoVendedor();
+        const historico = document.getElementById('historicoFechamentosComissao');
+        if (historico && historico.open) carregarHistoricoFechamentos_(true);
+      }
     };
   });
 
@@ -4455,6 +4529,7 @@ function carregarResumoVendedor(){
       if (valorNFComissao > 0) partesBaseComissao.push(`- NF R$ ${valorNFComissao.toFixed(2)}`);
       if (valorBVComissao > 0) partesBaseComissao.push(`- BV R$ ${valorBVComissao.toFixed(2)}`);
       const baseComissaoDetalhada = partesBaseComissao.join(' ');
+      const linkComprovanteRecebimento = normalizarLinkHttpSeguro_(ev.linkComprovanteRecebimento);
       html += `
         <article class="${cardClass}">
           <div class="cs-top">
@@ -4468,6 +4543,7 @@ function carregarResumoVendedor(){
             <div>• Recebimento registrado em: <strong>${escaparHtml_(String(ev.dataRecebimento || '—'))}</strong></div>
             <div>• Valor recebido: <strong>R$ ${Number(ev.valorRecebido || 0).toFixed(2)}</strong></div>
             <div class="cs-pending">Comissão pendente: R$ ${valorPendente}</div>
+            ${linkComprovanteRecebimento ? `<div><a class="cs-proof" href="${escaparAttr_(linkComprovanteRecebimento)}" target="_blank" rel="noopener noreferrer">🧾 Abrir comprovante do recebimento</a></div>` : `<div class="muted">Comprovante do recebimento não informado</div>`}
           </div>
           ${ajuste !== 0 ? `<div class="cs-alert">⚠️ Ajuste por estorno aplicado nesta comissão (-R$ ${Math.abs(ajuste).toFixed(2)})</div>` : ``}
           <details class="cs-details">
@@ -4506,6 +4582,73 @@ function carregarResumoVendedor(){
       <div class="muted">Erro ao gerar resumo do fechamento</div>
     `;
   });
+}
+
+let historicoFechamentosVendedorCarregado_ = '';
+
+function normalizarLinkHttpSeguro_(valor) {
+  const raw = String(valor || '').trim();
+  if (!raw) return '';
+  try {
+    const url = new URL(raw, window.location.origin);
+    return (url.protocol === 'https:' || url.protocol === 'http:') ? url.href : '';
+  } catch (_) {
+    return '';
+  }
+}
+
+function aoAlternarHistoricoFechamentos_(details) {
+  if (!details || !details.open || !vendedorSelecionado) return;
+  carregarHistoricoFechamentos_(false);
+}
+
+function carregarHistoricoFechamentos_(forcar) {
+  const box = document.getElementById('historicoFechamentosConteudo');
+  if (!box || !vendedorSelecionado) return;
+  const idVendedor = String(vendedorSelecionado.id || '');
+  if (!forcar && historicoFechamentosVendedorCarregado_ === idVendedor) return;
+
+  box.innerHTML = '<span class="muted">Carregando fechamentos anteriores...</span>';
+  Auth.apiCall('listarFechamentosComissaoVendedor', { idVendedor, limite: 20 })
+    .then(resp => {
+      if (!resp || resp.sucesso !== true) throw new Error(resp?.mensagem || 'Falha ao carregar histórico');
+      historicoFechamentosVendedorCarregado_ = idVendedor;
+      const itens = Array.isArray(resp.fechamentos) ? resp.fechamentos : [];
+      if (!itens.length) {
+        box.innerHTML = '<span class="muted">Nenhum fechamento anterior para este vendedor.</span>';
+        return;
+      }
+
+      box.innerHTML = `<div class="ch-list">${itens.map(item => {
+        const linkPdf = normalizarLinkHttpSeguro_(item.linkPdf);
+        const linkComprovante = normalizarLinkHttpSeguro_(item.linkComprovante);
+        const status = String(item.status || 'CONFIRMADO').toUpperCase();
+        return `
+          <article class="ch-item">
+            <div class="ch-top">
+              <div>
+                <div class="ch-id">${escaparHtml_(String(item.idFechamento || '—'))}</div>
+                <div class="ch-meta">${escaparHtml_(String(item.dataGeracao || '—'))} • ${Number(item.totalEventos || 0)} evento(s)</div>
+              </div>
+              ${montarBadgeResumo_(status, '')}
+            </div>
+            <div class="ch-values">
+              <div>Comissões: <strong>R$ ${Number(item.totalComissao || 0).toFixed(2)}</strong></div>
+              <div>Valor final: <strong>R$ ${Number(item.valorFinal || 0).toFixed(2)}</strong></div>
+              <div>Crédito: <strong>R$ ${Number(item.ajusteCredito || 0).toFixed(2)}</strong></div>
+              <div>Débito: <strong>R$ ${Number(item.ajusteDebito || 0).toFixed(2)}</strong></div>
+            </div>
+            <div class="ch-actions">
+              ${linkPdf ? `<a class="ch-btn" href="${escaparAttr_(linkPdf)}" target="_blank" rel="noopener noreferrer">📄 Abrir PDF</a>` : '<span class="muted">PDF indisponível</span>'}
+              ${linkComprovante ? `<a class="ch-btn" href="${escaparAttr_(linkComprovante)}" target="_blank" rel="noopener noreferrer">🧾 Comprovante do pagamento</a>` : '<span class="muted">Sem comprovante</span>'}
+            </div>
+          </article>`;
+      }).join('')}</div>`;
+    })
+    .catch(err => {
+      console.error('Erro ao carregar histórico de fechamentos:', err);
+      box.innerHTML = '<span class="muted">Não foi possível carregar o histórico agora.</span>';
+    });
 }
 
 /* ================= VALIDACOES & UTIL ================= */
