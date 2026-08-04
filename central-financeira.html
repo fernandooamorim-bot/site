@@ -1114,6 +1114,43 @@
       font-size: 11px;
       font-weight: 600;
     }
+    .local-loading {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 14px;
+      border: 1px solid #d7e2f2;
+      border-radius: 12px;
+      background: #f8fbff;
+      color: var(--navy-700);
+    }
+    .local-loading-spinner {
+      flex: 0 0 auto;
+      width: 21px;
+      height: 21px;
+      border: 3px solid #dbe7f8;
+      border-top-color: var(--navy-600);
+      border-radius: 50%;
+      animation: local-loading-spin .75s linear infinite;
+    }
+    .local-loading-copy { min-width: 0; flex: 1; }
+    .local-loading-title { display: block; font-size: 13px; font-weight: 850; }
+    .local-loading-detail { display: block; margin-top: 3px; color: var(--gray-500); font-size: 11px; }
+    .local-loading-lines { display: grid; gap: 7px; margin-top: 11px; }
+    .local-loading-line {
+      height: 8px;
+      border-radius: 999px;
+      background: linear-gradient(90deg, #e5edf8 25%, #f7faff 50%, #e5edf8 75%);
+      background-size: 200% 100%;
+      animation: local-loading-shimmer 1.2s ease-in-out infinite;
+    }
+    .local-loading-line:nth-child(2) { width: 82%; }
+    .local-loading-line:nth-child(3) { width: 64%; }
+    @keyframes local-loading-spin { to { transform: rotate(360deg); } }
+    @keyframes local-loading-shimmer { to { background-position: -200% 0; } }
+    @media (prefers-reduced-motion: reduce) {
+      .local-loading-spinner, .local-loading-line { animation: none; }
+    }
 
     .fiscal-toolbar {
       display: grid;
@@ -1480,12 +1517,28 @@ const FISCAL_RENDER_STEP = 40;
 const FISCAL_AUDITORIA_CACHE_TTL_MS = 120000;
 let buscaEventoTimer = null;
 let buscaEventoSeq = 0;
+let resumoEventoSeq = 0;
+let resumoComissaoSeq = 0;
 const buscaEventoCache = new Map();
 const BUSCA_EVENTO_DEBOUNCE_MS = 260;
 const BUSCA_EVENTO_CACHE_TTL_MS = 60000;
 const BUSCA_EVENTO_LISTA_TTL_MS = 300000;
 const vinculoContratanteCache = new Map();
 const VINCULO_CONTRATANTE_CACHE_TTL_MS = 120000;
+
+function montarCarregamentoLocal_(titulo, detalhe) {
+  return `
+    <div class="local-loading" role="status" aria-live="polite" aria-busy="true">
+      <span class="local-loading-spinner" aria-hidden="true"></span>
+      <span class="local-loading-copy">
+        <span class="local-loading-title">${escaparHtml_(String(titulo || 'Carregando...'))}</span>
+        <span class="local-loading-detail">${escaparHtml_(String(detalhe || 'Aguarde enquanto os dados são preparados.'))}</span>
+        <span class="local-loading-lines" aria-hidden="true">
+          <span class="local-loading-line"></span><span class="local-loading-line"></span><span class="local-loading-line"></span>
+        </span>
+      </span>
+    </div>`;
+}
 
 const ALERTAS_LABEL = {
   EVENTO_OCORREU_SEM_RECEBIMENTO: 'Evento já ocorreu e não teve recebimento',
@@ -2894,12 +2947,12 @@ function renderFiscalizacao() {
       </div>
     </div>
     <div id="listaFiscalizacao" class="fiscal-lista">
-      <div class="muted">Carregando eventos financeiros...</div>
+      ${montarCarregamentoLocal_('Carregando eventos financeiros', 'Organizando recebimentos, saídas e alertas por evento.')}
     </div>
   `;
 
   restaurarEstadoFiscalizacaoUi_();
-  resumo.innerHTML = '<span class="muted">Carregando auditoria financeira...</span>';
+  resumo.innerHTML = montarCarregamentoLocal_('Preparando resumo da fiscalização', 'A lista será exibida primeiro; a auditoria continuará em seguida.');
   carregarFiscalizacaoInicial_();
 }
 
@@ -2971,7 +3024,10 @@ async function carregarFiscalizacao_(executarAuditoria, opts) {
   try {
     if (usarOverlay) showLoading('Carregando fiscalização financeira...');
     if (listaEl) {
-      listaEl.innerHTML = '<div class="muted">Atualizando eventos financeiros...</div>';
+      listaEl.innerHTML = montarCarregamentoLocal_(
+        forceRefresh ? 'Atualizando eventos financeiros' : 'Carregando eventos financeiros',
+        'Consolidando recebimentos, comissões, BV, NF e folha de custos.'
+      );
     }
     atualizarStatusSincronizacaoFiscal_('Sincronizando eventos financeiros...', 'muted');
     fiscalEventosCache = await obterEventosFinanceiros_({ forceRefresh });
@@ -3532,6 +3588,7 @@ async function executarBuscaEvento_(termo, seq) {
 
 async function selectEvento(ev){
   const t0 = performance.now();
+  const resumoSeqAtual = ++resumoEventoSeq;
   if (buscaEventoTimer) clearTimeout(buscaEventoTimer);
   buscaEventoSeq++;
   const inp = document.getElementById('inputEvento');
@@ -3546,7 +3603,10 @@ async function selectEvento(ev){
   };
   document.getElementById('evSug').innerHTML = '';
 
-  resumo.innerHTML = '<span class="muted">Carregando resumo financeiro...</span>';
+  resumo.innerHTML = montarCarregamentoLocal_(
+    'Carregando resumo financeiro',
+    'Conferindo contrato, recebimentos, pendências e saídas deste evento.'
+  );
 
   try {
   let alertaVinculoHtml = '';
@@ -3589,6 +3649,7 @@ async function selectEvento(ev){
     : Promise.resolve([]);
 
   const [fin, listaRec] = await Promise.all([promessaResumoFinanceiro, promessaUltimosRecebimentos]);
+  if (resumoSeqAtual !== resumoEventoSeq || String(eventoSelecionado || '') !== String(idEventoReal)) return;
 
   ultimoResumoFinanceiro = fin;
   resumoRecebimentosRecentes = Array.isArray(listaRec) ? listaRec.slice(0, 5) : [];
@@ -3773,6 +3834,7 @@ async function selectEvento(ev){
   console.info('[CF][PERF] selectEvento concluído em', Math.round(performance.now() - t0), 'ms', 'modo=', String(mode || ''));
 
 } catch (err) {
+  if (resumoSeqAtual !== resumoEventoSeq) return;
   console.error('Erro ao carregar resumo financeiro:', err);
   resumo.innerHTML = '<span class="muted">Erro ao carregar resumo financeiro</span>';
 }
@@ -4327,13 +4389,22 @@ function buscarVendedor(q){
 }
 
 function carregarResumoVendedor(){
-  resumo.innerHTML = '<span class="muted">Carregando resumo do fechamento...</span>';
+  const resumoSeqAtual = ++resumoComissaoSeq;
+  const idVendedorAtual = String(vendedorSelecionado?.id || '');
+  resumo.innerHTML = montarCarregamentoLocal_(
+    'Calculando comissões pendentes',
+    'Validando recebimentos, estornos, ajustes e o saldo de cada evento.'
+  );
   previewComissaoAtual = null;
 
   Auth.apiCall('visualizarPreviewFechamento', {
     idVendedor: vendedorSelecionado.id
   })
   .then(preview => {
+    if (
+      resumoSeqAtual !== resumoComissaoSeq ||
+      String(vendedorSelecionado?.id || '') !== idVendedorAtual
+    ) return;
     previewComissaoAtual = preview || null;
     ultimoPreview = preview;
 
@@ -4634,6 +4705,7 @@ function carregarResumoVendedor(){
     atualizarResumoLiquidoComissao_();
   })
   .catch(err => {
+    if (resumoSeqAtual !== resumoComissaoSeq) return;
     console.error('Erro ao gerar preview de comissão:', err);
     resumo.innerHTML = `
       <div><strong>Vendedor:</strong> ${vendedorSelecionado?.nome || '—'}</div>
@@ -4666,9 +4738,13 @@ function carregarHistoricoFechamentos_(forcar) {
   const idVendedor = String(vendedorSelecionado.id || '');
   if (!forcar && historicoFechamentosVendedorCarregado_ === idVendedor) return;
 
-  box.innerHTML = '<span class="muted">Carregando fechamentos anteriores...</span>';
+  box.innerHTML = montarCarregamentoLocal_(
+    'Carregando fechamentos anteriores',
+    'Buscando PDFs, comprovantes e totais confirmados deste vendedor.'
+  );
   Auth.apiCall('listarFechamentosComissaoVendedor', { idVendedor, limite: 20 })
     .then(resp => {
+      if (String(vendedorSelecionado?.id || '') !== idVendedor || !document.body.contains(box)) return;
       if (!resp || resp.sucesso !== true) throw new Error(resp?.mensagem || 'Falha ao carregar histórico');
       historicoFechamentosVendedorCarregado_ = idVendedor;
       const itens = Array.isArray(resp.fechamentos) ? resp.fechamentos : [];
@@ -4704,6 +4780,7 @@ function carregarHistoricoFechamentos_(forcar) {
       }).join('')}</div>`;
     })
     .catch(err => {
+      if (String(vendedorSelecionado?.id || '') !== idVendedor || !document.body.contains(box)) return;
       console.error('Erro ao carregar histórico de fechamentos:', err);
       box.innerHTML = '<span class="muted">Não foi possível carregar o histórico agora.</span>';
     });
