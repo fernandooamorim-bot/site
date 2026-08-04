@@ -1149,7 +1149,8 @@
     @keyframes local-loading-spin { to { transform: rotate(360deg); } }
     @keyframes local-loading-shimmer { to { background-position: -200% 0; } }
     @media (prefers-reduced-motion: reduce) {
-      .local-loading-spinner, .local-loading-line { animation: none; }
+      .local-loading-spinner { animation-duration: 1.8s; }
+      .local-loading-line { animation: none; }
     }
 
     .fiscal-toolbar {
