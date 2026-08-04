@@ -1040,6 +1040,30 @@
       color: var(--gray-500);
       font-weight: 600;
     }
+    .ch-chevron {
+      flex: 0 0 auto;
+      width: 30px;
+      height: 30px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid #cbd8ee;
+      border-radius: 9px;
+      background: #fff;
+      transition: transform .18s ease, background .18s ease;
+    }
+    .ch-chevron::before {
+      content: '';
+      width: 7px;
+      height: 7px;
+      border-right: 2px solid var(--navy-600);
+      border-bottom: 2px solid var(--navy-600);
+      transform: translateY(-2px) rotate(45deg);
+    }
+    .ch-wrap[open] .ch-chevron {
+      transform: rotate(180deg);
+      background: #eef4ff;
+    }
     .ch-body { padding: 0 14px 14px; }
     .ch-list { display: grid; gap: 9px; }
     .ch-item {
@@ -1059,6 +1083,37 @@
       color:var(--navy-600); text-decoration:none; font-size:11px; font-weight:800;
     }
     .ch-btn:hover { background:#eaf0fb; }
+    .closure-confirm {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      margin: 18px 0 14px;
+      padding: 14px 15px;
+      border: 1px solid #c8d7ee;
+      border-radius: 13px;
+      background: linear-gradient(135deg, #f8fbff, #eef4ff);
+      color: var(--navy-700);
+      cursor: pointer;
+      box-shadow: 0 5px 16px rgba(24, 61, 110, .07);
+    }
+    .closure-confirm:hover { border-color: #9fb8de; }
+    .closure-confirm input {
+      flex: 0 0 auto;
+      width: 20px;
+      height: 20px;
+      margin: 1px 0 0;
+      accent-color: var(--navy-600);
+      cursor: pointer;
+    }
+    .closure-confirm-copy { display: block; line-height: 1.35; }
+    .closure-confirm-title { display: block; font-size: 13px; font-weight: 850; }
+    .closure-confirm-help {
+      display: block;
+      margin-top: 4px;
+      color: var(--gray-500);
+      font-size: 11px;
+      font-weight: 600;
+    }
 
     .fiscal-toolbar {
       display: grid;
@@ -2324,9 +2379,12 @@ function renderComissao(){
       </button>
     </div>
 
-    <label style="margin-top:16px">
+    <label class="closure-confirm">
       <input type="checkbox" id="confirmarFechamento">
-      Confirmo que revisei os valores e desejo gerar o fechamento.
+      <span class="closure-confirm-copy">
+        <span class="closure-confirm-title">Confirmo que revisei os valores e desejo gerar o fechamento.</span>
+        <span class="closure-confirm-help">Esta confirmação libera o pagamento de todas as comissões pendentes apresentadas acima.</span>
+      </span>
     </label>
 
     <button class="btn secondary" onclick="executarFechamentoV2()">
@@ -2336,7 +2394,7 @@ function renderComissao(){
     <details id="historicoFechamentosComissao" class="ch-wrap" ontoggle="aoAlternarHistoricoFechamentos_(this)">
       <summary class="ch-summary">
         <span>Fechamentos anteriores<small>PDFs, comprovantes e totais confirmados</small></span>
-        <span aria-hidden="true">⌓</span>
+        <span class="ch-chevron" aria-hidden="true"></span>
       </summary>
       <div id="historicoFechamentosConteudo" class="ch-body">
         <span class="muted">Abra para carregar o histórico deste vendedor.</span>
@@ -5207,7 +5265,7 @@ function executarFechamentoV2(){
   };
 
   if(!confirm(
-    'Você está prestes a PAGAR TODAS as comissões pendentes deste vendedor.\\n' +
+    'Você está prestes a PAGAR TODAS as comissões pendentes deste vendedor.\n' +
     'Esta ação não pode ser desfeita.'
   )) {
     lockSubmit = false;
