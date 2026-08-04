@@ -1186,6 +1186,30 @@
       flex-wrap: wrap;
       margin-top: 8px;
     }
+    .event-status-cancelled {
+      display: inline-flex;
+      align-items: center;
+      padding: 3px 7px;
+      border: 1px solid #fecaca;
+      border-radius: 999px;
+      background: #fef2f2;
+      color: #b91c1c;
+      font-size: 9px;
+      font-weight: 900;
+      letter-spacing: .35px;
+      text-transform: uppercase;
+    }
+    .cancelled-audit-banner {
+      margin-bottom: 12px;
+      padding: 12px 13px;
+      border: 1px solid #fca5a5;
+      border-radius: 11px;
+      background: #fff1f2;
+      color: #9f1239;
+      font-size: 12px;
+      line-height: 1.45;
+    }
+    .cancelled-audit-banner strong { display: block; margin-bottom: 3px; color: #9f1239; }
     @media (max-width: 620px) {
       .commission-totals { grid-template-columns: 1fr; }
     }
@@ -1548,6 +1572,7 @@ function updateLoadingSubtext_(subtxt){
 
 let mode = null;
 let eventoSelecionado = null;
+let eventoSelecionadoCancelado = false;
 let vendedorSelecionado = null;
 let vendedoresCache = [];
 let vendedoresWarmPromise = null;
@@ -1927,6 +1952,7 @@ function ativarModoCentral_(novoModo) {
   atualizarIndicadorModoAtivo_();
 
   eventoSelecionado = null;
+  eventoSelecionadoCancelado = false;
   vendedorSelecionado = null;
   comissoesPendentes = [];
 
@@ -1983,7 +2009,8 @@ function normalizarEventoFinanceiroParaAutocomplete_(ev) {
     contratante,
     tipoEvento,
     tipoRegistro,
-    dataFormatada
+    dataFormatada,
+    statusGeral: String(ev?.statusEvento || ev?.statusGeral || 'ATIVO').trim().toUpperCase()
   };
 }
 
@@ -2109,7 +2136,8 @@ async function selecionarEventoPorIdNoModo_(idEvento) {
     await selectEvento({
       id: id,
       contratante: String(alvo.nomeContratante || '').trim() || String(alvo.nomeEvento || ''),
-      tipoEvento: String(alvo.nomeEvento || 'Evento')
+      tipoEvento: String(alvo.nomeEvento || 'Evento'),
+      statusGeral: String(alvo.statusEvento || alvo.statusGeral || 'ATIVO').trim().toUpperCase()
     });
     return true;
   } catch (err) {
@@ -2773,6 +2801,9 @@ function submitSaidaEvento() {
   const btn = event?.target;
   if (lockSubmit) return;
   if (!eventoSelecionado) return alert('Selecione um evento');
+  if (eventoSelecionadoCancelado) {
+    return alert('Evento cancelado: novas saídas não são permitidas. Use Estorno ou Fiscalização para auditoria.');
+  }
 
   const tipo = document.getElementById('tipoSaida').value;
   if (!tipo) return alert('Selecione o tipo de saída');
@@ -3525,8 +3556,12 @@ function renderSugestoesEvento_(list) {
     const contratante = String(ev.contratante || 'Sem contratante');
     const id = String(ev.id || '');
     const tipo = String(ev.tipoEvento || ev.tipoRegistro || 'Evento');
+    const statusGeral = String(ev.statusGeral || ev.statusEvento || 'ATIVO').trim().toUpperCase();
+    const statusHtml = statusGeral === 'CANCELADO'
+      ? '<span class="event-status-cancelled">Cancelado</span>'
+      : '';
     d.innerHTML = `
-      <div class="ac-line-1">${escaparHtml_(data)} • ${escaparHtml_(contratante)}</div>
+      <div class="ac-line-1" style="display:flex;align-items:center;justify-content:space-between;gap:8px"><span>${escaparHtml_(data)} • ${escaparHtml_(contratante)}</span>${statusHtml}</div>
       <div class="ac-line-2">${escaparHtml_(id)} • ${escaparHtml_(tipo)}</div>
     `;
     d.onclick = () => selectEvento(ev);
@@ -3556,7 +3591,8 @@ function filtrarListaLocalBuscaEvento_(list, termo) {
       String(ev.contratante || ''),
       String(ev.tipoEvento || ''),
       String(ev.tipoRegistro || ''),
-      String(ev.dataFormatada || '')
+      String(ev.dataFormatada || ''),
+      String(ev.statusGeral || ev.statusEvento || '')
     ].join(' ').toLowerCase();
     return hay.includes(t);
   });
@@ -3653,8 +3689,8 @@ async function executarBuscaEvento_(termo, seq) {
     }
     const dataISO = parseDataBuscaEvento_(termoKey);
     const list = dataISO
-      ? await Auth.apiCall('buscarEventoPorData', { data: dataISO })
-      : await Auth.apiCall('buscarEventoPorContratante', { nome: termoKey });
+      ? await Auth.apiCall('buscarEventoPorData', { data: dataISO, incluirCancelados: true })
+      : await Auth.apiCall('buscarEventoPorContratante', { nome: termoKey, incluirCancelados: true });
     if (seq !== buscaEventoSeq) return;
     const listFinal = filtrarEventosFinanceirosValidos_(list || []);
     setCacheBuscaEvento_(termoKey, listFinal);
@@ -3663,6 +3699,30 @@ async function executarBuscaEvento_(termo, seq) {
     if (seq !== buscaEventoSeq) return;
     console.error('Erro ao buscar evento:', err);
     box.innerHTML = '<div class="muted" style="padding:8px 10px">Erro ao consultar eventos.</div>';
+  }
+}
+
+function aplicarProtecaoEventoCancelado_() {
+  const bannerAnterior = document.getElementById('eventoCanceladoAuditBanner');
+  if (bannerAnterior) bannerAnterior.remove();
+  if (!eventoSelecionadoCancelado) return;
+
+  const banner = document.createElement('div');
+  banner.id = 'eventoCanceladoAuditBanner';
+  banner.className = 'cancelled-audit-banner';
+  banner.innerHTML = `
+    <strong>Evento cancelado</strong>
+    Informações disponíveis para consulta e auditoria. Novos recebimentos, cobranças e saídas estão bloqueados.
+  `;
+  resumo.prepend(banner);
+
+  if (['recebimento', 'pixautomatico', 'obrigacao'].includes(String(mode || ''))) {
+    form.querySelectorAll(
+      'button[onclick*="submitRecebimento"],button[onclick*="gerarPixAsaasEvento_"],button[onclick*="submitSaidaEvento"]'
+    ).forEach(btn => {
+      btn.disabled = true;
+      btn.title = 'Evento cancelado: ação disponível somente para consulta e auditoria.';
+    });
   }
 }
 
@@ -3675,11 +3735,13 @@ async function selectEvento(ev){
   if (inp) inp.value = ev.id + ' — ' + ev.contratante;
   const idEventoReal = ev.id || ev.ID_EVENTO;
   eventoSelecionado = idEventoReal;
+  eventoSelecionadoCancelado = String(ev.statusGeral || ev.statusEvento || '').trim().toUpperCase() === 'CANCELADO';
   eventoSelecionadoMeta = {
     idEvento: idEventoReal,
     contratante: String(ev.contratante || '').trim(),
     tipoEvento: String(ev.tipoEvento || ev.tipoRegistro || '').trim(),
-    dataEvento: String(ev.dataFormatada || '').trim()
+    dataEvento: String(ev.dataFormatada || '').trim(),
+    statusGeral: String(ev.statusGeral || ev.statusEvento || 'ATIVO').trim().toUpperCase()
   };
   document.getElementById('evSug').innerHTML = '';
 
@@ -3691,7 +3753,7 @@ async function selectEvento(ev){
   try {
   let alertaVinculoHtml = '';
   eventoRequerVinculoContratante = false;
-  if (['recebimento', 'estorno', 'pixautomatico'].includes(String(mode || ''))) {
+  if (!eventoSelecionadoCancelado && ['recebimento', 'estorno', 'pixautomatico'].includes(String(mode || ''))) {
     try {
       let statusVinculo = obterVinculoContratanteCache_(idEventoReal);
       if (!statusVinculo) {
@@ -3732,6 +3794,7 @@ async function selectEvento(ev){
   if (resumoSeqAtual !== resumoEventoSeq || String(eventoSelecionado || '') !== String(idEventoReal)) return;
 
   ultimoResumoFinanceiro = fin;
+  eventoSelecionadoCancelado = String(fin.statusGeral || eventoSelecionadoMeta?.statusGeral || '').trim().toUpperCase() === 'CANCELADO';
   resumoRecebimentosRecentes = Array.isArray(listaRec) ? listaRec.slice(0, 5) : [];
 
   if (!fin) {
@@ -3911,6 +3974,7 @@ async function selectEvento(ev){
     ]);
     limparMensagensAsaas_();
   }
+  aplicarProtecaoEventoCancelado_();
   console.info('[CF][PERF] selectEvento concluído em', Math.round(performance.now() - t0), 'ms', 'modo=', String(mode || ''));
 
 } catch (err) {
@@ -4044,6 +4108,9 @@ function renderBlocoAsaasInfo_() {
 async function gerarPixAsaasEvento_() {
   if (!ehProprietario_()) return alert('Ação restrita ao proprietário.');
   if (!eventoSelecionado) return alert('Selecione um evento primeiro.');
+  if (eventoSelecionadoCancelado) {
+    return alert('Evento cancelado: novas cobranças não são permitidas. As cobranças existentes continuam disponíveis para consulta ou cancelamento.');
+  }
 
   const btn = event?.target;
   if (lockSubmit) return;
@@ -5325,6 +5392,9 @@ async function submitRecebimento(){
   const btn = event?.target;
   if (lockSubmit) return;
   if(!eventoSelecionado) return alert('Selecione um evento');
+  if (eventoSelecionadoCancelado) {
+    return alert('Evento cancelado: novos recebimentos não são permitidos. Use Estorno ou Fiscalização para auditoria.');
+  }
 
   const valorRaw = document.getElementById('valor').value;
   const valor = parseValorSeguro(valorRaw);
