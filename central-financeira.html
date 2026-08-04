@@ -1114,6 +1114,81 @@
       font-size: 11px;
       font-weight: 600;
     }
+    .commission-hero {
+      display: flex;
+      align-items: flex-start;
+      gap: 13px;
+      margin-top: 16px;
+      padding: 16px;
+      border: 1px solid #d5e1f2;
+      border-radius: 14px;
+      background: linear-gradient(135deg, #f8fbff, #eef4ff);
+    }
+    .commission-hero-icon {
+      flex: 0 0 auto;
+      width: 38px;
+      height: 38px;
+      display: grid;
+      place-items: center;
+      border-radius: 11px;
+      background: var(--navy-600);
+      color: #fff;
+      font-size: 17px;
+      font-weight: 900;
+      box-shadow: 0 7px 16px rgba(27, 65, 116, .18);
+    }
+    .commission-hero h4 { margin: 0; color: var(--navy-700); font-size: 15px; }
+    .commission-hero p { margin: 5px 0 0; color: var(--gray-600); font-size: 12px; line-height: 1.45; }
+    .commission-final-note {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 10px;
+      color: #92400e;
+      font-size: 11px;
+      font-weight: 750;
+    }
+    .commission-section {
+      margin-top: 18px;
+      padding-top: 17px;
+      border-top: 1px solid var(--gray-200);
+    }
+    .commission-section-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 5px;
+    }
+    .commission-section-head h4 { margin: 0; color: var(--navy-700); font-size: 14px; }
+    .commission-optional {
+      padding: 4px 8px;
+      border-radius: 999px;
+      background: #eef4ff;
+      color: var(--navy-600);
+      font-size: 10px;
+      font-weight: 850;
+      letter-spacing: .2px;
+      text-transform: uppercase;
+    }
+    .commission-section-copy { margin: 0 0 11px; color: var(--gray-500); font-size: 11px; }
+    .commission-totals {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 12px;
+    }
+    .commission-totals label { margin-top: 0; }
+    .commission-upload {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+      margin-top: 8px;
+    }
+    @media (max-width: 620px) {
+      .commission-totals { grid-template-columns: 1fr; }
+    }
     .local-loading {
       display: flex;
       align-items: flex-start;
@@ -2394,44 +2469,48 @@ function renderComissao(){
     <label>Vendedor</label>
     <select id="selectVendedor"></select>
 
-    <div class="divider"></div>
+    <div class="commission-hero">
+      <div class="commission-hero-icon" aria-hidden="true">%</div>
+      <div>
+        <h4>Fechamento de comissões</h4>
+        <p>Pague todas as comissões pendentes do vendedor selecionado.</p>
+        <div class="commission-final-note"><span aria-hidden="true">⚠️</span><span>O fechamento é definitivo.</span></div>
+      </div>
+    </div>
 
-    <h4>Fechamento de Comissão (V2)</h4>
-    <p class="muted">
-      Este processo paga <strong>100% das comissões pendentes</strong> do vendedor selecionado,
-      independentemente de data ou período.
-    </p>
+    <section class="commission-section">
+      <div class="commission-section-head">
+        <h4>Ajustes</h4>
+        <span class="commission-optional">Opcional</span>
+      </div>
+      <p class="commission-section-copy">Adicione créditos ou débitos somente quando necessário.</p>
+      <div id="ajustesDetalhadosComissao"></div>
+      <button type="button" class="btn secondary" onclick="adicionarAjusteDetalhadoComissao_()">+ Adicionar ajuste</button>
 
-    <div class="divider"></div>
-    <p class="muted">
-      ⚠️ Atenção: esta ação é irreversível. Todas as comissões pendentes serão marcadas como pagas
-      e o valor será acumulado em <strong>VALOR_COMISSAO_PAGO</strong> nos eventos.
-    </p>
+      <div class="commission-totals">
+        <label>Créditos
+          <input type="number" id="ajCredito" value="0" readonly>
+        </label>
+        <label>Débitos
+          <input type="number" id="ajDebito" value="0" readonly>
+        </label>
+      </div>
+    </section>
 
-    <div class="divider"></div>
-    <h4>Ajustes Detalhados (Opcional)</h4>
-    <p class="muted">
-      Adicione quantos itens quiser (crédito/débito) com descrição.
-      O sistema soma automaticamente os totais abaixo.
-    </p>
-    <div id="ajustesDetalhadosComissao"></div>
-    <button type="button" class="btn secondary" onclick="adicionarAjusteDetalhadoComissao_()">+ Adicionar Ajuste</button>
-
-    <label>Total Ajuste Crédito (auto)</label>
-    <input type="number" id="ajCredito" value="0" readonly>
-
-    <label>Total Ajuste Débito (auto)</label>
-    <input type="number" id="ajDebito" value="0" readonly>
-
-    <label>Link Comprovante Pagamento</label>
-    <input id="linkPagamento">
-    <div style="margin-top:8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+    <section class="commission-section">
+      <div class="commission-section-head"><h4>Comprovante de pagamento</h4></div>
+      <p class="commission-section-copy">Informe um link ou carregue o arquivo do pagamento.</p>
+      <label>Link do comprovante
+        <input id="linkPagamento">
+      </label>
+    <div class="commission-upload">
       <input type="file" id="fileComprovanteFechamento" accept="image/png,image/jpeg,application/pdf">
       <button type="button" class="btn secondary"
         onclick="uploadComprovanteParaCampo('fileComprovanteFechamento','linkPagamento','FECHAMENTO_COMISSAO', vendedorSelecionado?.id || '')">
         📎 Carregar Comprovante
       </button>
     </div>
+    </section>
 
     <label class="closure-confirm">
       <input type="checkbox" id="confirmarFechamento">
@@ -2521,7 +2600,7 @@ function renderAjustesDetalhadosComissao_() {
   if (!box) return;
 
   if (!ajustesDetalhadosComissao.length) {
-    box.innerHTML = '<div class="muted" style="margin-bottom:8px">Nenhum ajuste detalhado adicionado.</div>';
+    box.innerHTML = '';
     return;
   }
 
