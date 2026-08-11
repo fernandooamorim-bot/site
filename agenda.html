@@ -2943,6 +2943,7 @@ calcularDiasIntervalo(dataInicio, dataFim) {
           : `${evento.hora || '-'}${evento.duracao ? ` (${evento.duracao})` : ''}`;
         const valor = evento.valor || evento.valor === 0 ? Utils.formatarMoeda(Number(evento.valor) || 0) : '-';
         const status = Utils.getStatusLabel(evento.status || '-');
+        const podeEditarLinha = !evento.compromissoPessoalOcupado;
 
         return `
           <tr class="${classe}">
@@ -2957,8 +2958,8 @@ calcularDiasIntervalo(dataInicio, dataFim) {
             <td>${valor}</td>
             <td>
               <div class="planilha-acoes">
-                <button class="btn-action primary" onclick="editarEvento('${evento.id}');">Editar</button>
-                ${evento.tipo === 'Reserva'
+                ${podeEditarLinha ? `<button class="btn-action primary" onclick="editarEvento('${evento.id}');">Editar</button>` : ''}
+                ${podeEditarLinha && evento.tipo === 'Reserva'
                   ? `<button class="btn-action btn-secondary" onclick="converterReserva('${evento.id}');">Converter</button>`
                   : ''}
               </div>
@@ -3047,7 +3048,7 @@ criarCardEvento(evento) {
   const podeEditar = AppState.usuario && ehPerfilGestorAgenda_(AppState.usuario.perfil);
   const statusGeral = String(evento.statusGeral || 'ATIVO').trim().toUpperCase();
   const ehCancelado = statusGeral === 'CANCELADO';
-  const podeEditarRegistro = !!podeEditar && !ehCancelado;
+  const podeEditarRegistro = !!podeEditar && !ehCancelado && !evento.compromissoPessoalOcupado;
 
   let classeExtra = '';
   let iconeLucide = 'music-2';
