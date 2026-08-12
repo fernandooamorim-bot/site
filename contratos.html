@@ -44,10 +44,10 @@
     </section>
     <div class="notice" id="aviso"></div>
     <section class="stats">
-      <div class="stat"><span>Total</span><strong id="statTotal">0</strong></div>
-      <div class="stat"><span>Pendentes</span><strong id="statPendentes">0</strong></div>
-      <div class="stat"><span>Assinados</span><strong id="statAssinados">0</strong></div>
-      <div class="stat"><span>Modelos disponíveis</span><strong id="statModelos">0</strong></div>
+      <div class="stat"><span>Total</span><strong id="statTotal">—</strong></div>
+      <div class="stat"><span>Pendentes</span><strong id="statPendentes">—</strong></div>
+      <div class="stat"><span>Assinados</span><strong id="statAssinados">—</strong></div>
+      <div class="stat"><span>Modelos disponíveis</span><strong id="statModelos">—</strong></div>
     </section>
     <section class="panel">
       <div class="panel-head"><h2>Documentos</h2><span class="sandbox" id="ambienteBadge">Verificando ambiente</span></div>
@@ -56,7 +56,7 @@
         <select id="filtroStatus" onchange="renderizarContratos()"><option value="">Todos os status</option><option>PENDENTE</option><option>ASSINADO</option><option>RECUSADO</option><option>RASCUNHO</option></select>
         <button class="btn secondary" onclick="carregarContratos()"><i data-lucide="list-restart"></i>Recarregar lista</button>
       </div>
-      <div class="table-wrap"><table><thead><tr><th>Contrato</th><th>Evento / contratante</th><th>Status</th><th>Criado</th><th>Ações</th></tr></thead><tbody id="listaContratos"></tbody></table></div>
+      <div class="table-wrap"><table><thead><tr><th>Contrato</th><th>Evento / contratante</th><th>Status</th><th>Criado</th><th>Ações</th></tr></thead><tbody id="listaContratos"><tr><td colspan="5" class="empty">Carregando contratos...</td></tr></tbody></table></div>
     </section>
   </main>
 
@@ -99,8 +99,10 @@
         $('btnNovo').disabled=!estado.status.permissoes?.criar;$('btnModelos').disabled=!estado.status.permissoes?.sincronizarModelos;
         if(!i.configurada) aviso('Estrutura criada com segurança. Para sincronizar modelos e criar testes, falta configurar o token da conta sandbox da ZapSign.','warn');
         else if(i.producaoBloqueada) aviso('Ambiente de produção detectado e bloqueado preventivamente.','error');
-        await Promise.all([carregarModelos(false),carregarEventos(false)]);
-        await atualizarStatusPendentes(false);
+        // Mostra primeiro os dados locais já registrados. A consulta externa
+        // ocorre depois, em segundo plano, sem deixar a tela parecendo vazia.
+        await Promise.all([carregarContratos(false),carregarModelos(false),carregarEventos(false)]);
+        atualizarStatusPendentes(false);
       }catch(e){aviso('Não foi possível abrir a Central de Contratos: '+e.message,'error');$('btnNovo').disabled=true;$('btnModelos').disabled=true}
       if(window.lucide)lucide.createIcons();
     }
