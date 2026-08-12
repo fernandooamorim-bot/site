@@ -94,15 +94,21 @@
       const session=localStorage.getItem('auth_session'); if(!session){location.href='index.html?menu=1';return}
       $('usuarioTopo').textContent=[localStorage.getItem('auth_nome'),localStorage.getItem('auth_perfil')].filter(Boolean).join(' · ');
       try{
+        $('btnNovo').disabled=true;$('btnModelos').disabled=true;$('btnStatusPendentes').disabled=true;
+        aviso('Preparando a Central de Contratos...','info');
         estado.status=await Auth.apiCall('obterStatusIntegracaoContratos');
         const i=estado.status.integracao||{};$('ambienteBadge').textContent=(i.ambiente||'sandbox').toUpperCase();$('modalAmbiente').textContent=(i.ambiente||'sandbox').toUpperCase();
         $('btnNovo').disabled=!estado.status.permissoes?.criar;$('btnModelos').disabled=!estado.status.permissoes?.sincronizarModelos;
         if(!i.configurada) aviso('Estrutura criada com segurança. Para sincronizar modelos e criar testes, falta configurar o token da conta sandbox da ZapSign.','warn');
         else if(i.producaoBloqueada) aviso('Ambiente de produção detectado e bloqueado preventivamente.','error');
-        // Mostra primeiro os dados locais já registrados. A consulta externa
-        // ocorre depois, em segundo plano, sem deixar a tela parecendo vazia.
-        await Promise.all([carregarContratos(false),carregarModelos(false),carregarEventos(false)]);
-        atualizarStatusPendentes(false);
+        aviso('Carregando contratos salvos no sistema...','info');
+        await carregarContratos(false);
+        aviso('Contratos carregados. Preparando modelos e eventos...','info');
+        await Promise.all([carregarModelos(false),carregarEventos(false)]);
+        aviso('Consultando automaticamente os status pendentes na ZapSign...','info');
+        await atualizarStatusPendentes(false);
+        aviso('Central atualizada.','ok');
+        setTimeout(()=>{if($('aviso').textContent==='Central atualizada.')limparAviso()},2200);
       }catch(e){aviso('Não foi possível abrir a Central de Contratos: '+e.message,'error');$('btnNovo').disabled=true;$('btnModelos').disabled=true}
       if(window.lucide)lucide.createIcons();
     }
