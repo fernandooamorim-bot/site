@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#0f1a2e">
+  <title>Central de Contratos</title>
+  <link rel="icon" href="img/favicon.ico">
+  <script src="auth.js"></script>
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js" defer></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root{--navy:#0f1a2e;--navy2:#1e3a5f;--gold:#e0bc6a;--bg:#f4f6fa;--line:#dce3ed;--muted:#64748b;--green:#15803d;--red:#b91c1c;--purple:#6d4c7d}
+    *{box-sizing:border-box} body{margin:0;background:var(--bg);color:#172033;font-family:Inter,system-ui,sans-serif} button,input,select{font:inherit}
+    header{position:sticky;top:0;z-index:20;display:flex;justify-content:space-between;align-items:center;min-height:68px;padding:12px 20px;background:var(--navy);color:#fff}
+    .brand{display:flex;align-items:center;gap:12px;color:#fff;text-decoration:none;font-weight:800}.brand i{color:var(--gold)}.user{font-size:12px;color:#cbd5e1}
+    main{width:min(1180px,calc(100% - 28px));margin:24px auto 70px}.hero{display:flex;justify-content:space-between;gap:18px;align-items:flex-start;margin-bottom:18px}.hero h1{margin:0 0 6px;font-size:28px}.hero p{margin:0;color:var(--muted);font-size:14px}
+    .actions{display:flex;gap:9px;flex-wrap:wrap}.btn{border:0;border-radius:10px;padding:10px 14px;font-weight:700;cursor:pointer;display:inline-flex;gap:7px;align-items:center}.btn i{width:17px}.primary{background:var(--navy2);color:#fff}.secondary{background:#fff;color:var(--navy2);border:1px solid var(--line)}.purple{background:var(--purple);color:#fff}.btn:disabled{opacity:.5;cursor:not-allowed}
+    .notice{display:none;margin:0 0 18px;padding:13px 15px;border-radius:12px;font-size:13px;border:1px solid}.notice.show{display:block}.notice.info{background:#eff6ff;border-color:#bfdbfe;color:#1e40af}.notice.warn{background:#fffbeb;border-color:#fde68a;color:#92400e}.notice.error{background:#fef2f2;border-color:#fecaca;color:#991b1b}.notice.ok{background:#f0fdf4;border-color:#bbf7d0;color:#166534}
+    .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px}.stat,.panel{background:#fff;border:1px solid var(--line);border-radius:15px;box-shadow:0 4px 18px rgba(15,26,46,.04)}.stat{padding:16px}.stat span{font-size:12px;color:var(--muted)}.stat strong{display:block;font-size:24px;margin-top:5px}
+    .panel{padding:18px;margin-bottom:18px}.panel-head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:15px}.panel-head h2{font-size:17px;margin:0}.toolbar{display:grid;grid-template-columns:1fr 190px auto;gap:9px;margin-bottom:14px}
+    input,select{width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:10px;background:#fff;color:#172033}input:focus,select:focus{outline:3px solid rgba(30,58,95,.1);border-color:var(--navy2)}
+    table{width:100%;border-collapse:collapse;font-size:13px}th{text-align:left;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.04em;padding:10px;border-bottom:1px solid var(--line)}td{padding:12px 10px;border-bottom:1px solid #edf1f6;vertical-align:top}.table-wrap{overflow:auto}.empty{text-align:center;color:var(--muted);padding:35px 10px}.badge{display:inline-flex;padding:5px 8px;border-radius:999px;font-size:11px;font-weight:800;background:#eef2ff;color:#3730a3}.badge.ASSINADO{background:#dcfce7;color:#166534}.badge.PENDENTE{background:#fef3c7;color:#92400e}.badge.RECUSADO{background:#fee2e2;color:#991b1b}.badge.RASCUNHO{background:#e2e8f0;color:#475569}.link{color:var(--navy2);font-weight:700;text-decoration:none}.mini{padding:6px 8px;font-size:11px}
+    dialog{width:min(900px,calc(100% - 24px));max-height:92vh;border:0;border-radius:18px;padding:0;box-shadow:0 25px 80px rgba(15,26,46,.3)}dialog::backdrop{background:rgba(15,26,46,.68)}.modal-head{position:sticky;top:0;background:#fff;z-index:2;display:flex;justify-content:space-between;align-items:center;padding:18px 20px;border-bottom:1px solid var(--line)}.modal-head h2{margin:0;font-size:20px}.close{border:0;background:#eef2f7;border-radius:9px;width:36px;height:36px;cursor:pointer}.modal-body{padding:20px}.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}.field.full{grid-column:1/-1}.field label{display:block;font-size:12px;font-weight:700;margin-bottom:6px}.hint{font-size:11px;color:var(--muted);margin-top:5px}.section-title{grid-column:1/-1;margin:12px 0 0;padding-top:15px;border-top:1px solid var(--line);font-weight:800}.dynamic{grid-column:1/-1;display:grid;grid-template-columns:1fr 1fr;gap:14px}.review{display:none;background:#f8fafc;border:1px solid var(--line);border-radius:12px;padding:15px;margin-top:17px}.review.show{display:block}.review-row{display:grid;grid-template-columns:180px 1fr;gap:12px;padding:7px 0;border-bottom:1px solid #e8edf4;font-size:13px}.review-row:last-child{border:0}.review-row strong{color:var(--muted)}.modal-actions{display:flex;justify-content:flex-end;gap:9px;margin-top:18px}.sandbox{display:inline-flex;align-items:center;gap:6px;background:#ede9fe;color:#5b21b6;padding:5px 9px;border-radius:999px;font-size:11px;font-weight:800}
+    .spinner{width:16px;height:16px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:spin .7s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}
+    @media(max-width:760px){main{width:min(100% - 18px,1180px);margin-top:15px}.hero{display:block}.actions{margin-top:14px}.stats{grid-template-columns:1fr 1fr}.toolbar,.form-grid,.dynamic{grid-template-columns:1fr}.field.full,.section-title,.dynamic{grid-column:auto}.panel{padding:13px}.review-row{grid-template-columns:1fr;gap:3px}header{padding:10px 13px}.user{display:none}}
+  </style>
+</head>
+<body>
+  <header>
+    <a class="brand" href="index.html?menu=1"><i data-lucide="arrow-left"></i><span>Central de Contratos</span></a>
+    <div class="user" id="usuarioTopo"></div>
+  </header>
+  <main>
+    <section class="hero">
+      <div><h1>Contratos</h1><p>Criação e acompanhamento seguro de documentos pela ZapSign.</p></div>
+      <div class="actions">
+        <button class="btn secondary" id="btnModelos" onclick="sincronizarModelos()"><i data-lucide="refresh-cw"></i>Sincronizar modelos</button>
+        <button class="btn primary" id="btnNovo" onclick="abrirNovoContrato()"><i data-lucide="file-plus-2"></i>Novo contrato</button>
+      </div>
+    </section>
+    <div class="notice" id="aviso"></div>
+    <section class="stats">
+      <div class="stat"><span>Total</span><strong id="statTotal">0</strong></div>
+      <div class="stat"><span>Pendentes</span><strong id="statPendentes">0</strong></div>
+      <div class="stat"><span>Assinados</span><strong id="statAssinados">0</strong></div>
+      <div class="stat"><span>Modelos disponíveis</span><strong id="statModelos">0</strong></div>
+    </section>
+    <section class="panel">
+      <div class="panel-head"><h2>Documentos</h2><span class="sandbox" id="ambienteBadge">Verificando ambiente</span></div>
+      <div class="toolbar">
+        <input id="busca" placeholder="Buscar por contrato, evento ou contratante" oninput="renderizarContratos()">
+        <select id="filtroStatus" onchange="renderizarContratos()"><option value="">Todos os status</option><option>PENDENTE</option><option>ASSINADO</option><option>RECUSADO</option><option>RASCUNHO</option></select>
+        <button class="btn secondary" onclick="carregarContratos()"><i data-lucide="refresh-cw"></i>Atualizar</button>
+      </div>
+      <div class="table-wrap"><table><thead><tr><th>Contrato</th><th>Evento / contratante</th><th>Status</th><th>Criado</th><th>Ações</th></tr></thead><tbody id="listaContratos"></tbody></table></div>
+    </section>
+  </main>
+
+  <dialog id="modalContrato">
+    <div class="modal-head"><div><h2>Novo contrato</h2><span class="sandbox" id="modalAmbiente">SANDBOX</span></div><button class="close" onclick="fecharModal()" aria-label="Fechar">×</button></div>
+    <div class="modal-body">
+      <form id="formContrato" onsubmit="event.preventDefault(); revisarContrato();">
+        <div class="form-grid">
+          <div class="field full"><label>Evento relacionado (opcional)</label><select id="evento" onchange="aplicarEventoSelecionado()"><option value="">Contrato sem vínculo com evento</option></select><div class="hint">Ao selecionar, o sistema preenche os campos compatíveis do modelo.</div></div>
+          <div class="field full"><label>Modelo ZapSign</label><select id="modelo" required onchange="renderizarCamposModelo()"><option value="">Selecione um modelo</option></select></div>
+          <div class="field full"><label>Nome do documento</label><input id="nomeDocumento" maxlength="255" required placeholder="Ex: Contrato - Casamento Marina e Lucas"></div>
+          <div class="section-title">Signatário principal</div>
+          <div class="field"><label>Nome completo</label><input id="signatarioNome" required maxlength="180"></div>
+          <div class="field"><label>E-mail</label><input id="signatarioEmail" type="email" maxlength="180"></div>
+          <div class="field"><label>Telefone</label><input id="signatarioTelefone" inputmode="tel" maxlength="20" placeholder="(85) 99999-9999"></div>
+          <div class="section-title">Campos do modelo</div>
+          <div class="dynamic" id="camposDinamicos"><div class="empty">Selecione um modelo para carregar seus campos.</div></div>
+        </div>
+        <div class="review" id="revisao"></div>
+        <div class="modal-actions"><button type="button" class="btn secondary" onclick="fecharModal()">Cancelar</button><button type="submit" class="btn primary" id="btnRevisar">Revisar contrato</button><button type="button" class="btn purple" id="btnConfirmar" style="display:none" onclick="confirmarCriacao()">Confirmar e criar teste</button></div>
+      </form>
+    </div>
+  </dialog>
+
+  <script>
+    const estado = { status:null, contratos:[], modelos:[], eventos:[], payloadRevisado:null };
+    const $ = id => document.getElementById(id);
+    const esc = v => String(v ?? '').replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
+    function aviso(msg,tipo='info'){const el=$('aviso');el.className='notice show '+tipo;el.textContent=msg;}
+    function limparAviso(){const el=$('aviso');el.className='notice';el.textContent='';}
+    function formatarData(v){if(!v)return '—';const d=new Date(v);return isNaN(d)?String(v):d.toLocaleString('pt-BR');}
+    function setBusy(btn,busy,label){if(!btn)return;btn.disabled=busy;if(busy){btn.dataset.label=btn.innerHTML;btn.innerHTML='<span class="spinner"></span>'+label}else if(btn.dataset.label){btn.innerHTML=btn.dataset.label;delete btn.dataset.label;if(window.lucide)lucide.createIcons()}}
+
+    async function iniciar(){
+      const session=localStorage.getItem('auth_session'); if(!session){location.href='index.html?menu=1';return}
+      $('usuarioTopo').textContent=[localStorage.getItem('auth_nome'),localStorage.getItem('auth_perfil')].filter(Boolean).join(' · ');
+      try{
+        estado.status=await Auth.apiCall('obterStatusIntegracaoContratos');
+        const i=estado.status.integracao||{};$('ambienteBadge').textContent=(i.ambiente||'sandbox').toUpperCase();$('modalAmbiente').textContent=(i.ambiente||'sandbox').toUpperCase();
+        $('btnNovo').disabled=!estado.status.permissoes?.criar;$('btnModelos').disabled=!estado.status.permissoes?.sincronizarModelos;
+        if(!i.configurada) aviso('Estrutura criada com segurança. Para sincronizar modelos e criar testes, falta configurar o token da conta sandbox da ZapSign.','warn');
+        else if(i.producaoBloqueada) aviso('Ambiente de produção detectado e bloqueado preventivamente.','error');
+        await Promise.all([carregarContratos(false),carregarModelos(false),carregarEventos(false)]);
+      }catch(e){aviso('Não foi possível abrir a Central de Contratos: '+e.message,'error');$('btnNovo').disabled=true;$('btnModelos').disabled=true}
+      if(window.lucide)lucide.createIcons();
+    }
+
+    async function carregarContratos(mostrar=true){try{if(mostrar)aviso('Atualizando contratos...');const r=await Auth.apiCall('listarContratos');estado.contratos=r.contratos||[];renderizarContratos();if(mostrar)limparAviso()}catch(e){aviso('Erro ao carregar contratos: '+e.message,'error')}}
+    async function carregarModelos(mostrar=true){try{const r=await Auth.apiCall('listarModelosContratos');estado.modelos=r.modelos||[];popularModelos();$('statModelos').textContent=estado.modelos.length;if(mostrar)limparAviso()}catch(e){if(mostrar)aviso('Erro ao carregar modelos: '+e.message,'error')}}
+    async function carregarEventos(mostrar=true){try{const r=await Auth.apiCall('obterEventosParaContrato');estado.eventos=r.eventos||[];popularEventos();if(mostrar)limparAviso()}catch(e){if(mostrar)aviso('Erro ao carregar eventos: '+e.message,'error')}}
+
+    function renderizarContratos(){
+      const busca=$('busca').value.trim().toLowerCase(),status=$('filtroStatus').value;
+      const lista=estado.contratos.filter(c=>(!status||c.status===status)&&(!busca||[c.idContrato,c.idEvento,c.nomeEvento,c.nomeContratante,c.nomeDocumento].join(' ').toLowerCase().includes(busca)));
+      $('listaContratos').innerHTML=lista.length?lista.map(c=>`<tr><td><strong>${esc(c.nomeDocumento||c.idContrato)}</strong><div class="hint">${esc(c.idContrato)} · ${esc(c.ambiente||'')}</div></td><td>${esc(c.nomeEvento||'Sem evento')}<div class="hint">${esc(c.nomeContratante||'—')}</div></td><td><span class="badge ${esc(c.status)}">${esc(c.status||'RASCUNHO')}</span></td><td>${esc(formatarData(c.criadoEm))}</td><td><button class="btn secondary mini" onclick="sincronizarContrato('${esc(c.idContrato)}')">Sincronizar</button>${c.signUrl?` <a class="link" href="${esc(c.signUrl)}" target="_blank" rel="noopener">Assinar</a>`:''}</td></tr>`).join(''):'<tr><td colspan="5" class="empty">Nenhum contrato registrado nesta primeira fase.</td></tr>';
+      $('statTotal').textContent=estado.contratos.length;$('statPendentes').textContent=estado.contratos.filter(c=>c.status==='PENDENTE').length;$('statAssinados').textContent=estado.contratos.filter(c=>c.status==='ASSINADO').length;
+    }
+    function popularModelos(){$('modelo').innerHTML='<option value="">Selecione um modelo</option>'+estado.modelos.filter(m=>m.ativo).map(m=>`<option value="${esc(m.token)}">${esc(m.nome)}</option>`).join('')}
+    function popularEventos(){$('evento').innerHTML='<option value="">Contrato sem vínculo com evento</option>'+estado.eventos.map(e=>`<option value="${esc(e.id)}">${esc(e.nomeEvento)} — ${esc(e.nomeContratante)} — ${esc(e.dataEvento)}</option>`).join('')}
+    function eventoAtual(){return estado.eventos.find(e=>String(e.id)===String($('evento').value))||null}
+    function modeloAtual(){return estado.modelos.find(m=>String(m.token)===String($('modelo').value))||null}
+    function valorMapeado(origem,ev){if(!origem||!ev)return '';const chave=origem.replace(/^evento\./,'');return ev[chave]??''}
+    function aplicarEventoSelecionado(){const ev=eventoAtual();if(!ev)return;if(!$('nomeDocumento').value)$('nomeDocumento').value='Contrato - '+(ev.nomeEvento||ev.nomeContratante);if(!$('signatarioNome').value)$('signatarioNome').value=ev.nomeContratante||'';renderizarCamposModelo()}
+    function renderizarCamposModelo(){
+      const m=modeloAtual(),ev=eventoAtual(),box=$('camposDinamicos');$('revisao').classList.remove('show');$('btnConfirmar').style.display='none';estado.payloadRevisado=null;
+      if(!m){box.innerHTML='<div class="empty">Selecione um modelo para carregar seus campos.</div>';return}
+      const campos=Array.isArray(m.campos)?m.campos:[];box.innerHTML=campos.length?campos.sort((a,b)=>(a.order||0)-(b.order||0)).map((c,i)=>{const key=String(c.variable||c.label||('CAMPO_'+i)),valor=valorMapeado(m.mapeamento?.[key],ev),req=c.required?'required':'';return `<div class="field"><label>${esc(c.label||key)}${c.required?' *':''}</label><input class="campo-modelo" data-variable="${esc(key)}" value="${esc(valor)}" ${req}><div class="hint">${esc(c.help_text||key)}</div></div>`}).join(''):'<div class="empty">Este modelo não retornou campos dinâmicos.</div>';
+    }
+    function abrirNovoContrato(){if(!estado.status?.integracao?.configurada){aviso('Configure primeiro o token da conta sandbox da ZapSign nas propriedades do backend.','warn');return}$('formContrato').reset();popularEventos();popularModelos();renderizarCamposModelo();$('modalContrato').showModal()}
+    function fecharModal(){$('modalContrato').close();estado.payloadRevisado=null}
+    function coletarPayload(){const ev=eventoAtual(),m=modeloAtual();return {templateToken:m?.token||'',nomeDocumento:$('nomeDocumento').value.trim(),signatarioNome:$('signatarioNome').value.trim(),signatarioEmail:$('signatarioEmail').value.trim(),signatarioTelefone:$('signatarioTelefone').value.trim(),idEvento:ev?.id||'',nomeEvento:ev?.nomeEvento||'',idContratante:ev?.idContratante||'',nomeContratante:ev?.nomeContratante||'',campos:[...document.querySelectorAll('.campo-modelo')].map(el=>({de:el.dataset.variable,para:el.value.trim()}))}}
+    function revisarContrato(){
+      if(!$('formContrato').reportValidity())return;const p=coletarPayload();if(!p.signatarioEmail&&!p.signatarioTelefone){alert('Informe o e-mail ou telefone do signatário.');return}if(!p.templateToken){alert('Selecione um modelo.');return}
+      p.requestId='FA-CTR-'+(crypto.randomUUID?crypto.randomUUID():(Date.now()+'-'+Math.random().toString(16).slice(2)));estado.payloadRevisado=p;const m=modeloAtual();$('revisao').innerHTML=`<strong>Revise antes de criar na ZapSign</strong><div class="review-row"><strong>Ambiente</strong><span>${esc((estado.status.integracao.ambiente||'sandbox').toUpperCase())}</span></div><div class="review-row"><strong>Documento</strong><span>${esc(p.nomeDocumento)}</span></div><div class="review-row"><strong>Modelo</strong><span>${esc(m?.nome||'')}</span></div><div class="review-row"><strong>Evento</strong><span>${esc(p.nomeEvento||'Sem vínculo')}</span></div><div class="review-row"><strong>Contratante</strong><span>${esc(p.nomeContratante||'—')}</span></div><div class="review-row"><strong>Signatário</strong><span>${esc(p.signatarioNome)} · ${esc(p.signatarioEmail||p.signatarioTelefone)}</span></div><div class="review-row"><strong>Campos preenchidos</strong><span>${p.campos.length}</span></div><p class="hint">O envio automático por e-mail e WhatsApp permanece desativado nesta fase. O sistema retornará um link de assinatura de teste.</p>`;$('revisao').classList.add('show');$('btnConfirmar').style.display='inline-flex';$('revisao').scrollIntoView({behavior:'smooth',block:'center'})
+    }
+    async function confirmarCriacao(){
+      const p=estado.payloadRevisado;if(!p)return;const ambiente=estado.status.integracao.ambiente;if(ambiente!=='sandbox'){alert('Esta tela inicial está liberada somente para testes em sandbox.');return}if(!confirm('Confirmar a criação deste documento de TESTE na ZapSign sandbox?'))return;
+      const btn=$('btnConfirmar');setBusy(btn,true,'Criando teste...');try{const r=await Auth.apiCall('criarContratoZapSign',{...p,camposJson:JSON.stringify(p.campos),campos:undefined,confirmacao:'CRIAR_TESTE'});fecharModal();aviso('Contrato de teste criado com sucesso. '+(r.signUrl?'O link de assinatura já está disponível.':''),'ok');await carregarContratos(false)}catch(e){alert('Não foi possível criar o contrato: '+e.message)}finally{setBusy(btn,false,'')}
+    }
+    async function sincronizarModelos(){const btn=$('btnModelos');setBusy(btn,true,'Sincronizando...');try{const r=await Auth.apiCall('sincronizarModelosContratos');estado.modelos=r.modelos||[];popularModelos();$('statModelos').textContent=estado.modelos.length;aviso(r.quantidade+' modelo(s) sincronizado(s) da ZapSign.','ok')}catch(e){aviso('Não foi possível sincronizar os modelos: '+e.message,'error')}finally{setBusy(btn,false,'')}}
+    async function sincronizarContrato(id){try{aviso('Consultando status na ZapSign...');await Auth.apiCall('sincronizarContratoZapSign',{idContrato:id});await carregarContratos(false);aviso('Status atualizado.','ok')}catch(e){aviso('Erro ao sincronizar contrato: '+e.message,'error')}}
+    window.addEventListener('load',()=>{if(window.lucide)lucide.createIcons();iniciar()});
+  </script>
+</body>
+</html>

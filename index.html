@@ -1612,6 +1612,28 @@
           </div>
         </div>
 
+        <!-- Card: Contratos -->
+        <div class="nav-card anim-in anim-d5" id="cardContratos" onclick="abrir('contratos')">
+          <div class="nav-card-top">
+            <div class="nav-card-icon purple">
+              <i data-lucide="file-signature"></i>
+            </div>
+            <div class="nav-card-arrow">
+              <i data-lucide="arrow-right"></i>
+            </div>
+          </div>
+          <div class="nav-card-body">
+            <div class="nav-card-title">Contratos</div>
+            <div class="nav-card-desc">Crie e acompanhe contratos vinculados aos eventos pela ZapSign.</div>
+          </div>
+          <div class="nav-card-footer">
+            <span class="access-badge restricted">
+              <i data-lucide="shield"></i>
+              Proprietário e Administrador
+            </span>
+          </div>
+        </div>
+
         <!-- Card: Folha de Custos -->
         <div class="nav-card anim-in anim-d5" id="cardFolhaCustos" onclick="abrir('folhaCustos')">
           <div class="nav-card-top">
@@ -2268,6 +2290,7 @@
     ocultar('cardDashboardGestao');
     ocultar('cardGerarAgenda');
     ocultar('cardOrcamento');
+    ocultar('cardContratos');
     ocultar('cardPrecificadorShow');
     ocultar('cardConfiguracoes');
     
@@ -2392,6 +2415,7 @@
       configuracoes: './configuracoes.html',
       gerarAgenda: './GerarAgenda.html',
       orcamentoForm: './form-orcamento.html',
+      contratos: './contratos.html',
       folhaCustos: './folha-custos.html',
       precificadorShow: './precificador-show.html'
     };
