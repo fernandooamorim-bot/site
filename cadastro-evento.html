@@ -543,6 +543,26 @@
       flex: 0 0 auto;
     }
 
+    .field-help-button {
+      display: none;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      margin-top: 7px;
+      padding: 0;
+      border: 1px solid rgba(30, 58, 95, 0.18);
+      border-radius: 50%;
+      background: rgba(30, 58, 95, 0.045);
+      color: var(--navy-500);
+      cursor: pointer;
+    }
+
+    .field-help-button i {
+      width: 15px;
+      height: 15px;
+    }
+
     .form-row {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -1289,6 +1309,18 @@
             <i data-lucide="calendar-days"></i>
             Informações Básicas
           </div>
+
+          <div id="campoNomeEventoCadastro" class="form-group" style="display:none">
+            <label for="nomeEvento" class="required">Nome do Evento</label>
+            <input type="text" id="nomeEvento" maxlength="180" placeholder="Ex: Casamento de Marina e Lucas">
+            <p class="field-guidance" id="orientacaoNomeEventoCadastro">
+              <i data-lucide="info"></i>
+              <span>Este será o título exibido na Agenda. O contratante continua sendo a pessoa ou empresa responsável. Eventos já cadastrados continuam como antes.</span>
+            </p>
+            <button type="button" class="field-help-button" id="ajudaNomeEventoCadastro" aria-label="Mostrar explicação sobre o Nome do Evento" title="Sobre o Nome do Evento" onclick="alternarOrientacaoNomeEventoCadastro_()">
+              <i data-lucide="circle-help"></i>
+            </button>
+          </div>
           
           <!-- EVENTO: Tipo de evento -->
           <div id="campoTipoEvento" class="form-group">
@@ -1335,15 +1367,6 @@
             </select>
           </div>
 
-          <div id="campoNomeEventoCadastro" class="form-group" style="display:none">
-            <label for="nomeEvento" class="required">Nome do Evento</label>
-            <input type="text" id="nomeEvento" maxlength="180" placeholder="Ex: Casamento de Marina e Lucas">
-            <p class="field-guidance">
-              <i data-lucide="info"></i>
-              <span>Este será o título exibido na Agenda. O contratante continua sendo a pessoa ou empresa responsável. Eventos já cadastrados continuam como antes.</span>
-            </p>
-          </div>
-          
           <div class="form-row-3">
             <div class="form-group">
               <label for="dataEvento" class="required">Data</label>
@@ -2041,6 +2064,37 @@ window.onload = function () {
   }
 };
 
+    const CHAVE_ORIENTACAO_NOME_EVENTO_CADASTRO_ = 'agendaFA:nomeEventoAjuda:cadastro:v1';
+    let orientacaoNomeEventoCadastroContabilizada_ = false;
+
+    function configurarOrientacaoNomeEventoCadastro_(campoVisivel) {
+      const orientacao = document.getElementById('orientacaoNomeEventoCadastro');
+      const ajuda = document.getElementById('ajudaNomeEventoCadastro');
+      if (!orientacao || !ajuda || !campoVisivel) return;
+      let visualizacoes = 0;
+      try {
+        const emailUsuario = String(localStorage.getItem('auth_email') || 'local').trim().toLowerCase();
+        const chaveUsuario = CHAVE_ORIENTACAO_NOME_EVENTO_CADASTRO_ + ':' + emailUsuario;
+        visualizacoes = Math.max(0, Number(localStorage.getItem(chaveUsuario)) || 0);
+        if (!orientacaoNomeEventoCadastroContabilizada_) {
+          visualizacoes += 1;
+          localStorage.setItem(chaveUsuario, String(visualizacoes));
+          orientacaoNomeEventoCadastroContabilizada_ = true;
+        }
+      } catch (e) {
+        visualizacoes = 1;
+      }
+      const exibirOrientacao = visualizacoes <= 3;
+      orientacao.style.display = exibirOrientacao ? 'flex' : 'none';
+      ajuda.style.display = exibirOrientacao ? 'none' : 'inline-flex';
+    }
+
+    function alternarOrientacaoNomeEventoCadastro_() {
+      const orientacao = document.getElementById('orientacaoNomeEventoCadastro');
+      if (!orientacao) return;
+      orientacao.style.display = orientacao.style.display === 'none' ? 'flex' : 'none';
+    }
+
     function sincronizarTipoRegistroChips(tipo) {
       const chips = document.querySelectorAll('#tipoRegistroChips .tipo-chip');
       chips.forEach((chip) => {
@@ -2081,6 +2135,7 @@ window.onload = function () {
       const campoNomeEventoCadastro = document.getElementById('campoNomeEventoCadastro');
       const inputNomeEventoCadastro = document.getElementById('nomeEvento');
       if (campoNomeEventoCadastro) campoNomeEventoCadastro.style.display = isEvento ? 'block' : 'none';
+      configurarOrientacaoNomeEventoCadastro_(isEvento);
       if (inputNomeEventoCadastro) inputNomeEventoCadastro.required = isEvento;
       atualizarVisibilidadeVinculoPropostaCadastro_(true);
       popularTiposDoRegistroCadastro_(tipo, '');

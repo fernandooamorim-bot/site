@@ -522,6 +522,26 @@
       flex: 0 0 auto;
     }
 
+    .field-help-button {
+      display: none;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      margin-top: 7px;
+      padding: 0;
+      border: 1px solid rgba(30, 58, 95, 0.18);
+      border-radius: 50%;
+      background: rgba(30, 58, 95, 0.045);
+      color: var(--navy-500);
+      cursor: pointer;
+    }
+
+    .field-help-button i {
+      width: 15px;
+      height: 15px;
+    }
+
     .input-vinculo-bloqueado {
       background: #f8fafc !important;
       color: #334155 !important;
@@ -1959,6 +1979,21 @@
         
         <!-- STATUS -->
         <div id="statusTipoRegistro"></div>
+
+        <div class="form-group hidden" id="campoNomeEventoEdicao">
+          <label class="label-indicator">
+            <span>Nome do Evento</span>
+            <span class="indicator indicator-free">🟢 Título da Agenda</span>
+          </label>
+          <input type="text" id="nomeEvento" maxlength="180" placeholder="Ex: Casamento de Marina e Lucas">
+          <p class="field-guidance" id="orientacaoNomeEventoEdicao">
+            <i data-lucide="info"></i>
+            <span>Este será o título exibido na Agenda. O contratante continua sendo a pessoa ou empresa responsável. Eventos já cadastrados continuam como antes.</span>
+          </p>
+          <button type="button" class="field-help-button" id="ajudaNomeEventoEdicao" aria-label="Mostrar explicação sobre o Nome do Evento" title="Sobre o Nome do Evento" onclick="alternarOrientacaoNomeEventoEdicao_()">
+            <i data-lucide="circle-help"></i>
+          </button>
+        </div>
         
         <div class="form-row">
           <div class="form-group">
@@ -2015,18 +2050,6 @@
         <!-- CONFLITOS DE AGENDA -->
         <div id="statusAgenda" class="status-agenda-slot"></div>
 
-        <div class="form-group hidden" id="campoNomeEventoEdicao">
-          <label class="label-indicator">
-            <span>Nome do Evento</span>
-            <span class="indicator indicator-free">🟢 Título da Agenda</span>
-          </label>
-          <input type="text" id="nomeEvento" maxlength="180" placeholder="Ex: Casamento de Marina e Lucas">
-          <p class="field-guidance">
-            <i data-lucide="info"></i>
-            <span>Este será o título exibido na Agenda. O contratante continua sendo a pessoa ou empresa responsável. Eventos já cadastrados continuam como antes.</span>
-          </p>
-        </div>
-        
         <div class="form-row">
           <div class="form-group" id="campoTipoEventoEdicao">
             <label class="label-indicator">
@@ -3993,6 +4016,37 @@ function ativarConversaoReserva() {
   atualizarIndicadoresVinculoConversao();
 }
 
+const CHAVE_ORIENTACAO_NOME_EVENTO_EDICAO_ = 'agendaFA:nomeEventoAjuda:edicao:v1';
+let orientacaoNomeEventoEdicaoContabilizada_ = false;
+
+function configurarOrientacaoNomeEventoEdicao_(campoVisivel) {
+  const orientacao = document.getElementById('orientacaoNomeEventoEdicao');
+  const ajuda = document.getElementById('ajudaNomeEventoEdicao');
+  if (!orientacao || !ajuda || !campoVisivel) return;
+  let visualizacoes = 0;
+  try {
+    const emailUsuario = String(localStorage.getItem('auth_email') || 'local').trim().toLowerCase();
+    const chaveUsuario = CHAVE_ORIENTACAO_NOME_EVENTO_EDICAO_ + ':' + emailUsuario;
+    visualizacoes = Math.max(0, Number(localStorage.getItem(chaveUsuario)) || 0);
+    if (!orientacaoNomeEventoEdicaoContabilizada_) {
+      visualizacoes += 1;
+      localStorage.setItem(chaveUsuario, String(visualizacoes));
+      orientacaoNomeEventoEdicaoContabilizada_ = true;
+    }
+  } catch (e) {
+    visualizacoes = 1;
+  }
+  const exibirOrientacao = visualizacoes <= 3;
+  orientacao.style.display = exibirOrientacao ? 'flex' : 'none';
+  ajuda.style.display = exibirOrientacao ? 'none' : 'inline-flex';
+}
+
+function alternarOrientacaoNomeEventoEdicao_() {
+  const orientacao = document.getElementById('orientacaoNomeEventoEdicao');
+  if (!orientacao) return;
+  orientacao.style.display = orientacao.style.display === 'none' ? 'flex' : 'none';
+}
+
 function configurarVisibilidadeCamposPorTipoEdicao_(tipoOriginal) {
   const tipo = String(tipoOriginal || 'Evento').trim();
   const isEvento = tipo === 'Evento' || modoConversaoReserva;
@@ -4057,6 +4111,7 @@ function configurarVisibilidadeCamposPorTipoEdicao_(tipoOriginal) {
   // possuem título e durante conversões que criarão um novo evento.
   const exibeNomeEvento = isEvento && (!!String(eventoOriginal?.nomeEventoProprio || '').trim() || modoConversaoReserva);
   if (campoNomeEvento) campoNomeEvento.classList.toggle('hidden', !exibeNomeEvento);
+  configurarOrientacaoNomeEventoEdicao_(exibeNomeEvento);
   if (campoProjeto) campoProjeto.classList.toggle('hidden', !exibeProjeto);
   if (campoMotivo) campoMotivo.classList.toggle('hidden', !exibeMotivo);
   if (campoCerimonialista) campoCerimonialista.classList.toggle('hidden', !exibeCerimonialista);
