@@ -1313,13 +1313,6 @@
           <div id="campoNomeEventoCadastro" class="form-group" style="display:none">
             <label for="nomeEvento" class="required">Nome do Evento</label>
             <input type="text" id="nomeEvento" maxlength="180" placeholder="Ex: Casamento de Marina e Lucas">
-            <p class="field-guidance" id="orientacaoNomeEventoCadastro">
-              <i data-lucide="info"></i>
-              <span>Este será o título exibido na Agenda. O contratante continua sendo a pessoa ou empresa responsável. Eventos já cadastrados continuam como antes.</span>
-            </p>
-            <button type="button" class="field-help-button" id="ajudaNomeEventoCadastro" aria-label="Mostrar explicação sobre o Nome do Evento" title="Sobre o Nome do Evento" onclick="alternarOrientacaoNomeEventoCadastro_()">
-              <i data-lucide="circle-help"></i>
-            </button>
           </div>
           
           <!-- EVENTO: Tipo de evento -->
@@ -1519,10 +1512,6 @@
           <div class="checkbox-group">
             <input type="checkbox" id="temNF">
             <label for="temNF" style="margin: 0;" id="labelNF">Emitir Nota Fiscal (carregando...)</label>
-          </div>
-          <div class="info-badge" id="infoNF">
-            ℹ️ A Nota Fiscal é considerada <strong>processada automaticamente</strong> ao criar o evento.
-            Este registro é apenas informativo para controle financeiro e estatísticas.
           </div>
         </div>
         
@@ -2098,37 +2087,6 @@ window.onload = function () {
   }
 };
 
-    const CHAVE_ORIENTACAO_NOME_EVENTO_CADASTRO_ = 'agendaFA:nomeEventoAjuda:cadastro:v1';
-    let orientacaoNomeEventoCadastroContabilizada_ = false;
-
-    function configurarOrientacaoNomeEventoCadastro_(campoVisivel) {
-      const orientacao = document.getElementById('orientacaoNomeEventoCadastro');
-      const ajuda = document.getElementById('ajudaNomeEventoCadastro');
-      if (!orientacao || !ajuda || !campoVisivel) return;
-      let visualizacoes = 0;
-      try {
-        const emailUsuario = String(localStorage.getItem('auth_email') || 'local').trim().toLowerCase();
-        const chaveUsuario = CHAVE_ORIENTACAO_NOME_EVENTO_CADASTRO_ + ':' + emailUsuario;
-        visualizacoes = Math.max(0, Number(localStorage.getItem(chaveUsuario)) || 0);
-        if (!orientacaoNomeEventoCadastroContabilizada_) {
-          visualizacoes += 1;
-          localStorage.setItem(chaveUsuario, String(visualizacoes));
-          orientacaoNomeEventoCadastroContabilizada_ = true;
-        }
-      } catch (e) {
-        visualizacoes = 1;
-      }
-      const exibirOrientacao = visualizacoes <= 3;
-      orientacao.style.display = exibirOrientacao ? 'flex' : 'none';
-      ajuda.style.display = exibirOrientacao ? 'none' : 'inline-flex';
-    }
-
-    function alternarOrientacaoNomeEventoCadastro_() {
-      const orientacao = document.getElementById('orientacaoNomeEventoCadastro');
-      if (!orientacao) return;
-      orientacao.style.display = orientacao.style.display === 'none' ? 'flex' : 'none';
-    }
-
     function sincronizarTipoRegistroChips(tipo) {
       const chips = document.querySelectorAll('#tipoRegistroChips .tipo-chip');
       chips.forEach((chip) => {
@@ -2169,7 +2127,6 @@ window.onload = function () {
       const campoNomeEventoCadastro = document.getElementById('campoNomeEventoCadastro');
       const inputNomeEventoCadastro = document.getElementById('nomeEvento');
       if (campoNomeEventoCadastro) campoNomeEventoCadastro.style.display = isEvento ? 'block' : 'none';
-      configurarOrientacaoNomeEventoCadastro_(isEvento);
       if (inputNomeEventoCadastro) inputNomeEventoCadastro.required = isEvento;
       atualizarVisibilidadeVinculoPropostaCadastro_(true);
       popularTiposDoRegistroCadastro_(tipo, '');
