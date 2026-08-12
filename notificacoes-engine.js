@@ -458,6 +458,32 @@ function montarValoresEventoNotificacao_(linha, extras, contextoTempo) {
   }, extras || {});
 }
 
+/**
+ * Mantém as mensagens vinculadas à Agenda mesmo quando a aba de regras ainda
+ * contém templates legados baseados em contratante, tipo ou motivo da reunião.
+ * EVENTO já chega resolvido por obterNomeEventoExibicao_, portanto aplica a
+ * mesma hierarquia, prefixo e remoção de repetições usada na Agenda.
+ */
+function normalizarTemplateIdentidadeAgendaNotificacao_(codigo, template, valores) {
+  const c = String(codigo || '').trim().toUpperCase();
+  const texto = String(template || '');
+  const contextoAgenda = /^(EVENTO|REUNIAO|RESERVA|COMPROMISSO)_/.test(c);
+  if (!contextoAgenda || !String(valores && valores.EVENTO || '').trim()) return texto;
+
+  let normalizado = texto
+    .replace(/\{TIPO_EVENTO\}\s*[:\-\u2013\u2014]\s*\{CONTRATANTE\}/g, '{EVENTO}')
+    .replace(/\{TIPO_REGISTRO\}\s*[:\-\u2013\u2014]\s*\{CONTRATANTE\}/g, '{EVENTO}')
+    .replace(/\{TIPO_EVENTO\}\s*[:\-\u2013\u2014]\s*\{EVENTO\}/g, '{EVENTO}');
+
+  if (/^REUNIAO_/.test(c)) {
+    normalizado = normalizado.replace(/\{MOTIVO_REUNIAO\}/g, '{EVENTO}');
+  }
+  if (normalizado.indexOf('{EVENTO}') === -1) {
+    normalizado = normalizado.replace(/\{CONTRATANTE\}/g, '{EVENTO}');
+  }
+  return normalizado;
+}
+
 function formatarMoedaNotificacao_(valor) {
   const n = Number(valor || 0);
   return 'R$ ' + n.toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
@@ -482,16 +508,14 @@ function despacharRegraNotificacao_(codigo, contexto, opcoes) {
 
   const ctx = contexto || {};
   const valores = ctx.valores || {};
-  let templateMensagem = ctx.mensagem || regra.mensagem || regra.descricao;
-  if ((String(codigo || '').toUpperCase() === 'EVENTO_CRIADO' ||
-       String(codigo || '').toUpperCase() === 'EVENTO_ALTERADO_IMPORTANTE') &&
-      valores.EVENTO) {
-    templateMensagem = String(templateMensagem || '')
-      .replace(/\{TIPO_EVENTO\}\s*:\s*\{CONTRATANTE\}/g, '{EVENTO}')
-      .replace(/\{TIPO_EVENTO\}\s*[-–—]\s*\{CONTRATANTE\}/g, '{EVENTO}');
-  }
+  const templateTitulo = normalizarTemplateIdentidadeAgendaNotificacao_(
+    codigo, ctx.titulo || regra.titulo || regra.nome, valores
+  );
+  const templateMensagem = normalizarTemplateIdentidadeAgendaNotificacao_(
+    codigo, ctx.mensagem || regra.mensagem || regra.descricao, valores
+  );
   const titulo = limitarTextoNotificacao_(
-    aplicarTemplateNotificacao_(ctx.titulo || regra.titulo || regra.nome, valores),
+    aplicarTemplateNotificacao_(templateTitulo, valores),
     120
   );
   const mensagem = limitarTextoNotificacao_(

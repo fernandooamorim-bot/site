@@ -196,7 +196,7 @@ function garantirRegrasAgendaComplementaresNotificacao_() {
       AGRUPAR: false,
       OBRIGATORIA: false,
       TEMPLATE_TITULO: 'Compromisso {ACAO_COMPROMISSO}',
-      TEMPLATE_MENSAGEM: '{TIPO_EVENTO}: {CONTRATANTE} • {DATA_COMERCIAL} às {HORA}. {RESUMO_ALTERACOES}',
+      TEMPLATE_MENSAGEM: '{EVENTO} • {DATA_COMERCIAL} às {HORA}. {RESUMO_ALTERACOES}',
       LINK_DESTINO: 'agenda.html',
       OBSERVACOES: 'Não notifica o autor por padrão e respeita a visibilidade do compromisso na agenda.',
       NOTIFICAR_AUTOR: false
@@ -216,7 +216,7 @@ function garantirRegrasAgendaComplementaresNotificacao_() {
       AGRUPAR: false,
       OBRIGATORIA: false,
       TEMPLATE_TITULO: 'Compromisso próximo',
-      TEMPLATE_MENSAGEM: '{TIPO_EVENTO}: {CONTRATANTE} • {DATA_COMERCIAL} às {HORA}. Confira os detalhes na agenda.',
+      TEMPLATE_MENSAGEM: '{EVENTO} • {DATA_COMERCIAL} às {HORA}. Confira os detalhes na agenda.',
       LINK_DESTINO: 'agenda.html',
       OBSERVACOES: 'Usa o mesmo ciclo dos lembretes de evento e não cria um novo acionador.'
     },
@@ -235,7 +235,7 @@ function garantirRegrasAgendaComplementaresNotificacao_() {
       AGRUPAR: false,
       OBRIGATORIA: false,
       TEMPLATE_TITULO: 'Reunião próxima',
-      TEMPLATE_MENSAGEM: '{MOTIVO_REUNIAO} • {DATA_COMERCIAL} às {HORA}. Confira os detalhes na agenda.',
+      TEMPLATE_MENSAGEM: '{EVENTO} • {DATA_COMERCIAL} às {HORA}. Confira os detalhes na agenda.',
       LINK_DESTINO: 'agenda.html',
       OBSERVACOES: 'Administrador recebe todas; Proprietário recebe por padrão termos Fernando ou Repertório.',
       FILTRO_REUNIAO_JSON: JSON.stringify({
