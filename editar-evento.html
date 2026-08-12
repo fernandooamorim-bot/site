@@ -5194,6 +5194,9 @@ function formatarValorResumoAlteracao_(campo, valor, origem) {
       if (!validarCamposConversaoReserva(dadosAtual)) {
         return;
       }
+      if (!validarNomeEventoEdicao(dadosAtual)) {
+        return;
+      }
       const alteracoes = detectarAlteracoes();
       if (alteracoes.length === 0) {
         mostrarAlerta('ℹ️ Nenhuma alteração detectada', 'info');
@@ -5516,6 +5519,7 @@ function formatarValorResumoAlteracao_(campo, valor, origem) {
     function validarCamposConversaoReserva(dados) {
       if (!modoConversaoReserva) return true;
       const erros = [];
+      if (!String(dados.nomeEvento || '').trim()) erros.push('Informe o Nome do Evento.');
       if (!dados.tipoEvento) erros.push('Selecione o Tipo de Evento.');
       if (!(Number(dados.valorTotal) > 0)) erros.push('Informe um Valor Total maior que zero.');
       if (!dados.idVendedor) erros.push('Selecione o Vendedor responsável.');
@@ -5535,6 +5539,19 @@ function formatarValorResumoAlteracao_(campo, valor, origem) {
         return false;
       }
       return true;
+    }
+
+    function validarNomeEventoEdicao(dados) {
+      const eventoComTituloProprio = !!String(eventoOriginal?.nomeEventoProprio || '').trim();
+      if (!registroEhEvento() || (!eventoComTituloProprio && !modoConversaoReserva)) return true;
+      if (String(dados?.nomeEvento || '').trim()) return true;
+      const campo = document.getElementById('nomeEvento');
+      if (campo) {
+        campo.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        setTimeout(() => campo.focus(), 180);
+      }
+      mostrarAlerta('Informe o Nome do Evento.', 'error');
+      return false;
     }
 
     function validarIntegridadeCarregamentoAntesSalvar(dados) {
@@ -5597,6 +5614,11 @@ function formatarValorResumoAlteracao_(campo, valor, origem) {
           }
 
           if (!validarCamposConversaoReserva(dadosFormulario)) {
+            esconderLoadingGlobal();
+            travarAcoes(false);
+            return;
+          }
+          if (!validarNomeEventoEdicao(dadosFormulario)) {
             esconderLoadingGlobal();
             travarAcoes(false);
             return;
