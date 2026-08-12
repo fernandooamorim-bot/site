@@ -1598,23 +1598,42 @@
       <div id="alertContratante"></div>
       
       <div class="form-group">
-        <label for="nomeContratante" class="required">Nome Completo</label>
+        <label for="nomeContratante" class="required">Nome Completo / Razão Social</label>
         <input type="text" id="nomeContratante" required>
+      </div>
+
+      <div class="form-group">
+        <label for="tipoPessoaContratante">Tipo de Pessoa (opcional)</label>
+        <select id="tipoPessoaContratante">
+          <option value="">Não informado</option>
+          <option value="PF">Pessoa física</option>
+          <option value="PJ">Pessoa jurídica</option>
+        </select>
       </div>
       
       <div class="form-group">
-        <label for="telefoneContratante">Telefone</label>
+        <label for="telefoneContratante">Telefone (opcional)</label>
         <input type="tel" id="telefoneContratante" placeholder="(85) 99999-9999">
       </div>
       
       <div class="form-group">
-        <label for="emailContratante">Email</label>
+        <label for="emailContratante">E-mail (opcional)</label>
         <input type="email" id="emailContratante">
       </div>
       
       <div class="form-group">
-        <label for="cpfCnpjContratante">CPF/CNPJ</label>
-        <input type="text" id="cpfCnpjContratante">
+        <label for="cpfCnpjContratante">CPF/CNPJ (opcional)</label>
+        <input type="text" id="cpfCnpjContratante" placeholder="000.000.000-00 ou 00.000.000/0000-00">
+      </div>
+
+      <div class="form-group">
+        <label for="representanteContratante">Representante Legal (opcional)</label>
+        <input type="text" id="representanteContratante" placeholder="Quando o contratante for empresa">
+      </div>
+
+      <div class="form-group">
+        <label for="enderecoContratante">Endereço Completo (opcional)</label>
+        <input type="text" id="enderecoContratante" placeholder="Rua, número, complemento, bairro, cidade e estado">
       </div>
       
       <div class="actions">
@@ -2997,6 +3016,9 @@ window.onload = function () {
       document.getElementById('telefoneContratante').value = '';
       document.getElementById('emailContratante').value = '';
       document.getElementById('cpfCnpjContratante').value = '';
+      document.getElementById('tipoPessoaContratante').value = '';
+      document.getElementById('representanteContratante').value = '';
+      document.getElementById('enderecoContratante').value = '';
       document.getElementById('alertContratante').innerHTML = '';
       setBotaoSalvamentoModal_('btnSalvarContratante', false);
       abrirModal('modalContratante');
@@ -3053,7 +3075,10 @@ window.onload = function () {
         nome: nome,
         telefone: document.getElementById('telefoneContratante').value,
         email: document.getElementById('emailContratante').value,
-        cpfCnpj: document.getElementById('cpfCnpjContratante').value
+        cpfCnpj: document.getElementById('cpfCnpjContratante').value,
+        tipoPessoa: document.getElementById('tipoPessoaContratante').value,
+        representanteLegal: document.getElementById('representanteContratante').value,
+        enderecoCompleto: document.getElementById('enderecoContratante').value
       };
 
       setBotaoSalvamentoModal_('btnSalvarContratante', true);

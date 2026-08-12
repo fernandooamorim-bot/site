@@ -2337,20 +2337,32 @@
       <div class="modal-title">Editar Contratante</div>
       <div class="cadastro-modal-grid">
         <div class="form-group">
-          <label for="editContratanteNome">Nome</label>
+          <label for="editContratanteNome">Nome Completo / Razão Social</label>
           <input type="text" id="editContratanteNome" placeholder="Nome do contratante">
         </div>
         <div class="form-group">
-          <label for="editContratanteTelefone">WhatsApp/Telefone</label>
+          <label for="editContratanteTipoPessoa">Tipo de Pessoa (opcional)</label>
+          <select id="editContratanteTipoPessoa"><option value="">Não informado</option><option value="PF">Pessoa física</option><option value="PJ">Pessoa jurídica</option></select>
+        </div>
+        <div class="form-group">
+          <label for="editContratanteTelefone">WhatsApp/Telefone (opcional)</label>
           <input type="text" id="editContratanteTelefone" placeholder="(85) 99999-9999">
         </div>
         <div class="form-group">
-          <label for="editContratanteEmail">E-mail</label>
+          <label for="editContratanteEmail">E-mail (opcional)</label>
           <input type="email" id="editContratanteEmail" placeholder="nome@email.com">
         </div>
         <div class="form-group">
-          <label for="editContratanteCpfCnpj">CPF/CNPJ</label>
+          <label for="editContratanteCpfCnpj">CPF/CNPJ (opcional)</label>
           <input type="text" id="editContratanteCpfCnpj" placeholder="000.000.000-00">
+        </div>
+        <div class="form-group">
+          <label for="editContratanteRepresentanteLegal">Representante Legal (opcional)</label>
+          <input type="text" id="editContratanteRepresentanteLegal" placeholder="Quando o contratante for empresa">
+        </div>
+        <div class="form-group">
+          <label for="editContratanteEnderecoCompleto">Endereço Completo (opcional)</label>
+          <input type="text" id="editContratanteEnderecoCompleto" placeholder="Rua, número, complemento, bairro, cidade e estado">
         </div>
       </div>
       <div class="actions">
@@ -2416,20 +2428,32 @@
       <div id="paneTrocaContratanteNovo" class="troca-pane hidden">
         <div class="cadastro-modal-grid">
           <div class="form-group">
-            <label for="novoTrocaContratanteNome">Nome</label>
+            <label for="novoTrocaContratanteNome">Nome Completo / Razão Social</label>
             <input type="text" id="novoTrocaContratanteNome" placeholder="Nome do contratante">
           </div>
           <div class="form-group">
-            <label for="novoTrocaContratanteTelefone">WhatsApp/Telefone</label>
+            <label for="novoTrocaContratanteTipoPessoa">Tipo de Pessoa (opcional)</label>
+            <select id="novoTrocaContratanteTipoPessoa"><option value="">Não informado</option><option value="PF">Pessoa física</option><option value="PJ">Pessoa jurídica</option></select>
+          </div>
+          <div class="form-group">
+            <label for="novoTrocaContratanteTelefone">WhatsApp/Telefone (opcional)</label>
             <input type="text" id="novoTrocaContratanteTelefone" placeholder="(85) 99999-9999">
           </div>
           <div class="form-group">
-            <label for="novoTrocaContratanteEmail">E-mail</label>
+            <label for="novoTrocaContratanteEmail">E-mail (opcional)</label>
             <input type="email" id="novoTrocaContratanteEmail" placeholder="nome@email.com">
           </div>
           <div class="form-group">
-            <label for="novoTrocaContratanteCpfCnpj">CPF/CNPJ</label>
+            <label for="novoTrocaContratanteCpfCnpj">CPF/CNPJ (opcional)</label>
             <input type="text" id="novoTrocaContratanteCpfCnpj" placeholder="000.000.000-00">
+          </div>
+          <div class="form-group">
+            <label for="novoTrocaContratanteRepresentanteLegal">Representante Legal (opcional)</label>
+            <input type="text" id="novoTrocaContratanteRepresentanteLegal" placeholder="Quando o contratante for empresa">
+          </div>
+          <div class="form-group">
+            <label for="novoTrocaContratanteEnderecoCompleto">Endereço Completo (opcional)</label>
+            <input type="text" id="novoTrocaContratanteEnderecoCompleto" placeholder="Rua, número, complemento, bairro, cidade e estado">
           </div>
         </div>
       </div>
@@ -3448,7 +3472,10 @@ function limparCamposTrocaContratanteNovo_() {
     'novoTrocaContratanteNome',
     'novoTrocaContratanteTelefone',
     'novoTrocaContratanteEmail',
-    'novoTrocaContratanteCpfCnpj'
+    'novoTrocaContratanteCpfCnpj',
+    'novoTrocaContratanteTipoPessoa',
+    'novoTrocaContratanteRepresentanteLegal',
+    'novoTrocaContratanteEnderecoCompleto'
   ];
   ids.forEach(id => {
     const el = document.getElementById(id);
@@ -3666,20 +3693,18 @@ async function confirmarTrocaContratante() {
     const telefone = String(document.getElementById('novoTrocaContratanteTelefone')?.value || '').trim();
     const email = String(document.getElementById('novoTrocaContratanteEmail')?.value || '').trim();
     const cpfCnpj = String(document.getElementById('novoTrocaContratanteCpfCnpj')?.value || '').trim();
+    const tipoPessoa = String(document.getElementById('novoTrocaContratanteTipoPessoa')?.value || '').trim();
+    const representanteLegal = String(document.getElementById('novoTrocaContratanteRepresentanteLegal')?.value || '').trim();
+    const enderecoCompleto = String(document.getElementById('novoTrocaContratanteEnderecoCompleto')?.value || '').trim();
     if (!nome) {
       mostrarAlerta('Informe o nome do novo contratante.', 'error');
       return;
     }
 
-    const criado = await Auth.apiCall('cadastrarContratanteRapido', { nome });
+    const criado = await Auth.apiCall('cadastrarContratanteRapido', { nome, telefone, email, cpfCnpj, tipoPessoa, representanteLegal, enderecoCompleto });
     if (!criado?.sucesso) throw new Error(criado?.mensagem || 'Falha ao criar contratante.');
     const idNovo = String(criado.id || '').trim();
     if (!idNovo) throw new Error('ID do contratante não retornado.');
-
-    if (telefone || email || cpfCnpj) {
-      const upd = await Auth.apiCall('atualizarContratante', { id: idNovo, nome, telefone, email, cpfCnpj });
-      if (!upd?.sucesso) throw new Error(upd?.mensagem || 'Contratante criado, mas não foi possível completar os dados.');
-    }
 
     aplicarVinculoContratanteNoFormulario_(idNovo, nome);
     fecharModalTrocaContratante();
@@ -3852,6 +3877,9 @@ async function editarCadastroContratanteEdicao() {
     document.getElementById('editContratanteTelefone').value = String(c.telefone || '');
     document.getElementById('editContratanteEmail').value = String(c.email || '');
     document.getElementById('editContratanteCpfCnpj').value = String(c.cpfCnpj || '');
+    document.getElementById('editContratanteTipoPessoa').value = String(c.tipoPessoa || '');
+    document.getElementById('editContratanteRepresentanteLegal').value = String(c.representanteLegal || '');
+    document.getElementById('editContratanteEnderecoCompleto').value = String(c.enderecoCompleto || '');
     const modal = document.getElementById('modalContratanteEdicao');
     if (modal) modal.classList.add('show');
   } catch (err) {
@@ -3874,6 +3902,9 @@ async function salvarCadastroContratanteEdicao() {
   const telefone = String(document.getElementById('editContratanteTelefone')?.value || '').trim();
   const email = String(document.getElementById('editContratanteEmail')?.value || '').trim();
   const cpfCnpj = String(document.getElementById('editContratanteCpfCnpj')?.value || '').trim();
+  const tipoPessoa = String(document.getElementById('editContratanteTipoPessoa')?.value || '').trim();
+  const representanteLegal = String(document.getElementById('editContratanteRepresentanteLegal')?.value || '').trim();
+  const enderecoCompleto = String(document.getElementById('editContratanteEnderecoCompleto')?.value || '').trim();
   if (!nome) {
     mostrarAlerta('Nome do contratante é obrigatório.', 'error');
     return;
@@ -3881,7 +3912,7 @@ async function salvarCadastroContratanteEdicao() {
 
   try {
     mostrarLoadingGlobal('Atualizando contratante...');
-    const res = await Auth.apiCall('atualizarContratante', { id, nome, telefone, email, cpfCnpj });
+    const res = await Auth.apiCall('atualizarContratante', { id, nome, telefone, email, cpfCnpj, tipoPessoa, representanteLegal, enderecoCompleto });
     if (!res?.sucesso) throw new Error(res?.mensagem || 'Falha ao atualizar contratante.');
     document.getElementById('nomeContratante').value = String(res.nome || nome);
     atualizacaoMestreEmEdicao.contratante = true;

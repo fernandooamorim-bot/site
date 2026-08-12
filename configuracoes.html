@@ -1181,11 +1181,7 @@
       const btn = document.getElementById('btnSalvar');
       try {
         setButtonLoading(btn, true, 'Cadastrando...');
-        const criado = await Auth.apiCall('cadastrarContratanteRapido', { nome: nome });
-        if (!criado?.sucesso || !criado?.id) throw new Error(criado?.mensagem || 'Falha ao cadastrar contratante');
-
-        const atualizado = await Auth.apiCall('atualizarContratante', {
-          id: criado.id,
+        const criado = await Auth.apiCall('cadastrarContratanteRapido', {
           nome,
           telefone,
           email,
@@ -1194,7 +1190,7 @@
           enderecoCompleto,
           representanteLegal
         });
-        if (!atualizado?.sucesso) throw new Error(atualizado?.mensagem || 'Falha ao completar cadastro do contratante');
+        if (!criado?.sucesso || !criado?.id) throw new Error(criado?.mensagem || 'Falha ao cadastrar contratante');
 
         state.selecionado = String(criado.id);
         setStatus('Contratante cadastrado com dados completos.', 'ok');
