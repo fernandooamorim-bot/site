@@ -83,7 +83,7 @@
   </dialog>
 
   <script>
-    const estado = { status:null, contratos:[], modelos:[], eventos:[], payloadRevisado:null };
+    const estado = { status:null, contratos:[], modelos:[], eventos:[], payloadRevisado:null, eventoInicial:'', abrirNovo:false };
     const $ = id => document.getElementById(id);
     const esc = v => String(v ?? '').replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
     function aviso(msg,tipo='info'){const el=$('aviso');el.className='notice show '+tipo;el.textContent=msg;}
@@ -94,6 +94,7 @@
     async function iniciar(){
       const session=localStorage.getItem('auth_session'); if(!session){location.href='index.html?menu=1';return}
       $('usuarioTopo').textContent=[localStorage.getItem('auth_nome'),localStorage.getItem('auth_perfil')].filter(Boolean).join(' · ');
+      const query=new URLSearchParams(location.search);estado.eventoInicial=String(query.get('evento')||'').trim();estado.abrirNovo=query.get('novo')==='1';
       try{
         $('btnNovo').disabled=true;$('btnModelos').disabled=true;$('btnStatusPendentes').disabled=true;
         aviso('Preparando a Central de Contratos...','info');
@@ -106,6 +107,8 @@
         await carregarContratos(false);
         aviso('Contratos carregados. Preparando modelos e eventos...','info');
         await Promise.all([carregarModelos(false),carregarEventos(false)]);
+        if(estado.eventoInicial){$('busca').value=estado.eventoInicial;renderizarContratos()}
+        if(estado.eventoInicial&&estado.abrirNovo){abrirNovoContrato(estado.eventoInicial)}
         aviso('Consultando automaticamente os status pendentes na ZapSign...','info');
         await atualizarStatusPendentes(false);
         aviso('Central atualizada.','ok');
@@ -148,7 +151,7 @@
       if(!m){box.innerHTML='<div class="empty">Selecione um modelo para carregar seus campos.</div>';return}
       const campos=Array.isArray(m.campos)?m.campos:[];box.innerHTML=campos.length?campos.slice().sort((a,b)=>(a.order||0)-(b.order||0)).map((c,i)=>{const key=String(c.variable||c.label||('CAMPO_'+i)),valor=valorMapeadoCampo(c,m.mapeamento?.[key],ev),ajuda=String(c.help_text||'').trim();return `<div class="field"><label>${esc(c.label||key)}${c.required?' *':''}</label>${controleCampo(c,key,valor,i)}${ajuda?`<div class="hint">${esc(ajuda)}</div>`:''}</div>`}).join(''):'<div class="empty">Este modelo não retornou campos dinâmicos.</div>';
     }
-    function abrirNovoContrato(){if(!estado.status?.integracao?.configurada){aviso('Configure primeiro o token da conta sandbox da ZapSign nas propriedades do backend.','warn');return}$('formContrato').reset();popularEventos();popularModelos();renderizarCamposModelo();$('modalContrato').showModal()}
+    function abrirNovoContrato(idEvento){if(!estado.status?.integracao?.configurada){aviso('Configure primeiro o token da conta sandbox da ZapSign nas propriedades do backend.','warn');return}$('formContrato').reset();popularEventos();popularModelos();if(idEvento&&estado.eventos.some(e=>String(e.id)===String(idEvento))){$('evento').value=String(idEvento);aplicarEventoSelecionado()}else{renderizarCamposModelo()}$('modalContrato').showModal()}
     function fecharModal(){$('modalContrato').close();estado.payloadRevisado=null}
     function coletarCamposModelo(){
       const grupos=new Map();document.querySelectorAll('.campo-modelo').forEach(el=>{const key=el.dataset.variable;if(!grupos.has(key))grupos.set(key,[]);grupos.get(key).push(el)});

@@ -1822,7 +1822,13 @@
         .replace(/'/g, '&#39;');
     }
 
+    let ultimoEventoCriadoParaContrato_ = '';
+
     function irPosCadastro_(destino) {
+      if (destino === 'contrato' && ultimoEventoCriadoParaContrato_) {
+        window.location.href = 'contratos.html?evento=' + encodeURIComponent(ultimoEventoCriadoParaContrato_) + '&novo=1';
+        return;
+      }
       if (destino === 'agenda') {
         window.location.href = 'agenda.html';
         return;
@@ -1834,7 +1840,9 @@
       window.location.href = 'index.html?menu=1';
     }
 
-    function sucesso(titulo, msg, callback) {
+    function sucesso(titulo, msg, callback, opcoes) {
+      const permitirContrato = !!(opcoes && opcoes.idEvento && opcoes.tipoRegistro === 'Evento');
+      ultimoEventoCriadoParaContrato_ = permitirContrato ? String(opcoes.idEvento) : '';
       document.getElementById('overlay').classList.remove('overlay-loading');
       document.getElementById('spinner').style.display = 'none';
       document.getElementById('overlayText').innerHTML = `
@@ -1844,6 +1852,9 @@
         <h3 style="color:#10b981;margin:0 0 8px 0;font-size:18px;">${escapeHtmlSimples_(titulo)}</h3>
         <p style="color:#64748b;font-size:14px;margin:0 0 14px 0;">${escapeHtmlSimples_(msg || '')}</p>
         <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;">
+          ${permitirContrato ? `<button type="button" class="btn btn-primary" style="grid-column:1 / -1;display:inline-flex;align-items:center;justify-content:center;gap:6px;" onclick="irPosCadastro_('contrato')">
+            <i data-lucide="file-signature" style="width:16px;height:16px;"></i> Criar contrato deste evento
+          </button>` : ''}
           <button type="button" class="btn btn-secondary" style="display:inline-flex;align-items:center;justify-content:center;gap:6px;" onclick="irPosCadastro_('novo')">
             <i data-lucide="plus-circle" style="width:16px;height:16px;"></i> Cadastrar outro
           </button>
@@ -3595,7 +3606,10 @@ if ((tipoRegistro === 'Evento' || tipoRegistro === 'Reunião' || tipoRegistro ==
                 mensagemFinal += ' O evento foi salvo; o vínculo da proposta poderá ser feito depois pela edição.';
               }
             }
-            sucesso('Registro criado!', mensagemFinal);
+            sucesso('Registro criado!', mensagemFinal, null, {
+              idEvento: resultado.idEvento,
+              tipoRegistro: String(dados && dados.tipoRegistro || '').trim()
+            });
           } else {
             fecharLoading();
             mostrarAlertaGlobal(resultado.mensagem || 'Erro ao salvar o registro.', 'error');

@@ -2279,6 +2279,13 @@
           <button type="button" onclick="buscarPropostaManualEdicao_()">Buscar proposta</button>
         </div>
       </div>
+
+      <details id="contratoEventoEdicao" class="section contrato-evento-box" hidden ontoggle="aoAlternarContratoEventoEdicao_(this)">
+        <summary><span><i data-lucide="file-signature"></i> Contrato</span><small>Consulta opcional e independente da edição</small></summary>
+        <div id="contratoEventoEdicaoConteudo" class="contrato-evento-conteudo">
+          Abra esta seção para consultar os contratos vinculados.
+        </div>
+      </details>
       
       <!-- AÇÕES -->
       <div class="actions">
@@ -2307,8 +2314,34 @@
     .proposta-vinculo-manual{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;margin-top:13px;padding-top:13px;border-top:1px solid #e2e8f0}
     .proposta-vinculo-manual input{margin:0}
     .proposta-vinculo-manual button{border:1px solid #cbd5e1;background:#fff;color:#1e293b;border-radius:10px;padding:9px 12px;font-weight:800;cursor:pointer}
+    .contrato-evento-box{border:1px solid #dbe5f2;background:#fff;padding:0;overflow:hidden}
+    .contrato-evento-box summary{cursor:pointer;list-style:none;display:flex;justify-content:space-between;align-items:center;gap:12px;padding:16px 18px;font-weight:800;color:#17335d}
+    .contrato-evento-box summary::-webkit-details-marker{display:none}.contrato-evento-box summary span{display:flex;align-items:center;gap:9px}.contrato-evento-box summary i{width:19px}.contrato-evento-box summary small{font-size:11px;font-weight:600;color:#64748b}
+    .contrato-evento-conteudo{border-top:1px solid #e2e8f0;padding:16px 18px;color:#475569;font-size:13px;line-height:1.5}.contrato-evento-acoes{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}.contrato-evento-acoes a{display:inline-flex;text-decoration:none}
     @media(max-width:640px){.proposta-vinculo-manual{grid-template-columns:1fr}.proposta-vinculo-manual button{width:100%}}
   </style>
+
+  <script>
+    let contratoEventoConsultaId_ = '';
+    function prepararContratoEventoEdicao_(){
+      const box=document.getElementById('contratoEventoEdicao');
+      const id=String(eventoOriginal?.id||'').trim();
+      const ehEvento=String(eventoOriginal?.tipoRegistro||'').trim()==='Evento';
+      if(!box)return;box.hidden=!id||!ehEvento;box.open=false;contratoEventoConsultaId_='';
+      const c=document.getElementById('contratoEventoEdicaoConteudo');if(c)c.textContent='Abra esta seção para consultar os contratos vinculados.';
+      if(window.lucide)lucide.createIcons();
+    }
+    async function aoAlternarContratoEventoEdicao_(box){
+      if(!box.open)return;const id=String(eventoOriginal?.id||'').trim(),conteudo=document.getElementById('contratoEventoEdicaoConteudo');
+      if(!id||!conteudo||contratoEventoConsultaId_===id)return;contratoEventoConsultaId_=id;
+      conteudo.innerHTML='<strong>Consultando vínculo local…</strong><br>Você pode continuar editando normalmente.';
+      try{const r=await Auth.apiCall('obterContratosDoEvento',{idEvento:id}),lista=Array.isArray(r?.contratos)?r.contratos:[];
+        if(!lista.length){conteudo.innerHTML=`<strong>Nenhum contrato gerenciado pelo sistema.</strong><br><span>Isso não representa pendência, especialmente para eventos anteriores à integração.</span><div class="contrato-evento-acoes"><a class="btn btn-primary" href="contratos.html?evento=${encodeURIComponent(id)}&novo=1">Criar contrato</a><a class="btn btn-secondary" href="contratos.html?evento=${encodeURIComponent(id)}">Abrir Central</a></div>`;}
+        else{const atual=lista[0];conteudo.innerHTML=`<strong>${escapeHtmlEdicao_(atual.nomeDocumento||atual.idContrato)}</strong><br>Status: ${escapeHtmlEdicao_(atual.status||'RASCUNHO')} · Modelo: ${escapeHtmlEdicao_(atual.templateNome||'—')}<br><span>${lista.length>1?lista.length+' contratos vinculados; consulte o histórico na Central.':'Contrato vinculado a este evento.'}</span><div class="contrato-evento-acoes"><a class="btn btn-primary" href="contratos.html?evento=${encodeURIComponent(id)}">Abrir Central de Contratos</a></div>`;}
+      }catch(e){contratoEventoConsultaId_='';conteudo.innerHTML='<strong>Não foi possível consultar agora.</strong><br>A edição do evento continua disponível normalmente.';}
+    }
+    function escapeHtmlEdicao_(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+  </script>
   
   <!-- MODAL DE CONFIRMAÇÃO -->
   <div id="modalConfirmacao" class="modal-overlay">
@@ -4385,6 +4418,7 @@ async function iniciarEditarEvento() {
       const evento = await promessaEvento;
       eventoAtual = evento;
       eventoOriginal = JSON.parse(JSON.stringify(evento));
+      prepararContratoEventoEdicao_();
       modoConversaoReserva = getConverterFromURL() && String(eventoOriginal.tipoRegistro || '').trim() === 'Reserva';
 
       // Aguarda referências críticas em paralelo com a busca do evento.
@@ -4855,6 +4889,7 @@ function mostrarResultados(eventos) {
       // snapshot seguro
       eventoAtual = resultado.evento;
       eventoOriginal = JSON.parse(JSON.stringify(resultado.evento));
+      prepararContratoEventoEdicao_();
       modoConversaoReserva = false;
 
       await aplicarPermissaoFinanceiraEdicao();
