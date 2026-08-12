@@ -1111,6 +1111,9 @@
       const telefone = String(document.getElementById('fTelefone')?.value || '').trim();
       const email = String(document.getElementById('fEmail')?.value || '').trim();
       const cpfCnpj = String(document.getElementById('fCpfCnpj')?.value || '').trim();
+      const tipoPessoa = String(document.getElementById('fTipoPessoa')?.value || '').trim();
+      const enderecoCompleto = String(document.getElementById('fEnderecoContratante')?.value || '').trim();
+      const representanteLegal = String(document.getElementById('fRepresentanteLegal')?.value || '').trim();
       if (!id || !nome) {
         setStatus('Selecione um contratante válido e informe nome.', 'err');
         return;
@@ -1118,7 +1121,7 @@
       const btn = document.getElementById('btnSalvar');
       try {
         setButtonLoading(btn, true, 'Salvando...');
-        const resp = await Auth.apiCall('atualizarContratante', { id, nome, telefone, email, cpfCnpj });
+        const resp = await Auth.apiCall('atualizarContratante', { id, nome, telefone, email, cpfCnpj, tipoPessoa, enderecoCompleto, representanteLegal });
         if (!resp?.sucesso) throw new Error(resp?.mensagem || 'Falha ao atualizar contratante');
         setStatus('Contratante atualizado com sucesso.', 'ok');
         await carregarLista();
@@ -1168,6 +1171,9 @@
       const telefone = String(document.getElementById('fTelefone')?.value || '').trim();
       const email = String(document.getElementById('fEmail')?.value || '').trim();
       const cpfCnpj = String(document.getElementById('fCpfCnpj')?.value || '').trim();
+      const tipoPessoa = String(document.getElementById('fTipoPessoa')?.value || '').trim();
+      const enderecoCompleto = String(document.getElementById('fEnderecoContratante')?.value || '').trim();
+      const representanteLegal = String(document.getElementById('fRepresentanteLegal')?.value || '').trim();
       if (!nome) {
         setStatus('Informe o nome para cadastrar o contratante.', 'err');
         return;
@@ -1183,7 +1189,10 @@
           nome,
           telefone,
           email,
-          cpfCnpj
+          cpfCnpj,
+          tipoPessoa,
+          enderecoCompleto,
+          representanteLegal
         });
         if (!atualizado?.sucesso) throw new Error(atualizado?.mensagem || 'Falha ao completar cadastro do contratante');
 
@@ -1335,11 +1344,14 @@
       if (id === '__new__' && state.tab === 'contratantes') {
         box.innerHTML = `
           <div class="grid-2">
-            <div class="field"><label>Nome</label><input id="fNome" placeholder="Nome do contratante"></div>
-            <div class="field"><label>WhatsApp / Telefone</label><input id="fTelefone" placeholder="(85) 99999-9999"></div>
-            <div class="field"><label>E-mail</label><input id="fEmail" placeholder="email@dominio.com"></div>
-            <div class="field"><label>CPF / CNPJ</label><input id="fCpfCnpj" placeholder="Opcional"></div>
+            <div class="field"><label>Nome completo / Razão social *</label><input id="fNome" placeholder="Nome do contratante" required></div>
+            <div class="field"><label>Tipo de pessoa (opcional)</label><select id="fTipoPessoa"><option value="">Não informado</option><option value="PF">Pessoa física</option><option value="PJ">Pessoa jurídica</option></select></div>
+            <div class="field"><label>CPF / CNPJ (opcional)</label><input id="fCpfCnpj" placeholder="000.000.000-00 ou 00.000.000/0000-00"></div>
+            <div class="field"><label>Representante legal (opcional)</label><input id="fRepresentanteLegal" placeholder="Quando o contratante for empresa"></div>
+            <div class="field"><label>WhatsApp / Telefone (opcional)</label><input id="fTelefone" placeholder="(85) 99999-9999"></div>
+            <div class="field"><label>E-mail (opcional)</label><input id="fEmail" type="email" placeholder="email@dominio.com"></div>
           </div>
+          <div class="field"><label>Endereço completo (opcional)</label><input id="fEnderecoContratante" placeholder="Rua, número, complemento, bairro, cidade e estado"></div>
           <div class="row"><button class="btn primary" id="btnSalvar">Cadastrar completo</button></div>
           <div class="hint">Sem alterar o fluxo atual, o sistema cria primeiro o cadastro rápido e em seguida completa os dados.</div>
         `;
@@ -1410,11 +1422,14 @@
           const c = resp?.contratante || {};
           box.innerHTML = `
             <div class="grid-2">
-              <div class="field"><label>Nome</label><input id="fNome" value="${escapeAttr(c.nome || '')}"></div>
-              <div class="field"><label>WhatsApp / Telefone</label><input id="fTelefone" value="${escapeAttr(c.telefone || '')}"></div>
-              <div class="field"><label>E-mail</label><input id="fEmail" value="${escapeAttr(c.email || '')}"></div>
-              <div class="field"><label>CPF / CNPJ</label><input id="fCpfCnpj" value="${escapeAttr(c.cpfCnpj || '')}"></div>
+              <div class="field"><label>Nome completo / Razão social *</label><input id="fNome" value="${escapeAttr(c.nome || '')}" required></div>
+              <div class="field"><label>Tipo de pessoa (opcional)</label><select id="fTipoPessoa"><option value="" ${!c.tipoPessoa?'selected':''}>Não informado</option><option value="PF" ${c.tipoPessoa==='PF'?'selected':''}>Pessoa física</option><option value="PJ" ${c.tipoPessoa==='PJ'?'selected':''}>Pessoa jurídica</option></select></div>
+              <div class="field"><label>CPF / CNPJ (opcional)</label><input id="fCpfCnpj" value="${escapeAttr(c.cpfCnpj || '')}"></div>
+              <div class="field"><label>Representante legal (opcional)</label><input id="fRepresentanteLegal" value="${escapeAttr(c.representanteLegal || '')}" placeholder="Quando o contratante for empresa"></div>
+              <div class="field"><label>WhatsApp / Telefone (opcional)</label><input id="fTelefone" value="${escapeAttr(c.telefone || '')}"></div>
+              <div class="field"><label>E-mail (opcional)</label><input id="fEmail" type="email" value="${escapeAttr(c.email || '')}"></div>
             </div>
+            <div class="field"><label>Endereço completo (opcional)</label><input id="fEnderecoContratante" value="${escapeAttr(c.enderecoCompleto || '')}" placeholder="Rua, número, complemento, bairro, cidade e estado"></div>
             <div class="field"><label>Status</label><input value="${statusAtual}" disabled></div>
             <div class="row">
               <button class="btn primary" id="btnSalvar">Salvar alterações</button>
