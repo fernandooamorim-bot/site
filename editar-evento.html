@@ -2323,16 +2323,25 @@
 
   <script>
     let contratoEventoConsultaId_ = '';
-    function prepararContratoEventoEdicao_(){
+    let contratosAtivoEdicao_ = false;
+    let contratosConfigCarregadaEdicao_ = false;
+    async function carregarConfigContratoEdicao_(){
+      if(contratosConfigCarregadaEdicao_)return contratosAtivoEdicao_;
+      contratosConfigCarregadaEdicao_=true;
+      try{const v=await Auth.apiCall('obterConfig',{chave:'CONTRATOS_ATIVO'});contratosAtivoEdicao_=String(v).trim().toLowerCase()==='true';}
+      catch(_){contratosAtivoEdicao_=false;}
+      return contratosAtivoEdicao_;
+    }
+    async function prepararContratoEventoEdicao_(){
       const box=document.getElementById('contratoEventoEdicao');
       const id=String(eventoOriginal?.id||'').trim();
       const ehEvento=String(eventoOriginal?.tipoRegistro||'').trim()==='Evento';
-      if(!box)return;box.hidden=!id||!ehEvento;box.open=false;contratoEventoConsultaId_='';
+      if(!box)return;const ativo=await carregarConfigContratoEdicao_();box.hidden=!ativo||!id||!ehEvento;box.open=false;contratoEventoConsultaId_='';
       const c=document.getElementById('contratoEventoEdicaoConteudo');if(c)c.textContent='Abra esta seção para consultar os contratos vinculados.';
       if(window.lucide)lucide.createIcons();
     }
     async function aoAlternarContratoEventoEdicao_(box){
-      if(!box.open)return;const id=String(eventoOriginal?.id||'').trim(),conteudo=document.getElementById('contratoEventoEdicaoConteudo');
+      if(!box.open||!contratosAtivoEdicao_)return;const id=String(eventoOriginal?.id||'').trim(),conteudo=document.getElementById('contratoEventoEdicaoConteudo');
       if(!id||!conteudo||contratoEventoConsultaId_===id)return;contratoEventoConsultaId_=id;
       conteudo.innerHTML='<strong>Consultando vínculo local…</strong><br>Você pode continuar editando normalmente.';
       try{const r=await Auth.apiCall('obterContratosDoEvento',{idEvento:id}),lista=Array.isArray(r?.contratos)?r.contratos:[];

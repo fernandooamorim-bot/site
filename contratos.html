@@ -99,6 +99,11 @@
         $('btnNovo').disabled=true;$('btnModelos').disabled=true;$('btnStatusPendentes').disabled=true;
         aviso('Preparando a Central de Contratos...','info');
         estado.status=await Auth.apiCall('obterStatusIntegracaoContratos');
+        if(estado.status.ativo===false){
+          aviso('A Central de Contratos está desativada na configuração do sistema.','warn');
+          document.querySelector('main').hidden=true;
+          return;
+        }
         const i=estado.status.integracao||{};$('ambienteBadge').textContent=(i.ambiente||'sandbox').toUpperCase();$('modalAmbiente').textContent=(i.ambiente||'sandbox').toUpperCase();
         $('btnNovo').disabled=!estado.status.permissoes?.criar;$('btnModelos').disabled=!estado.status.permissoes?.sincronizarModelos;
         if(!i.configurada) aviso('Estrutura criada com segurança. Para sincronizar modelos e criar testes, falta configurar o token da conta sandbox da ZapSign.','warn');

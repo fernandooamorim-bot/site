@@ -1926,6 +1926,7 @@
     }
 
     if (cfgApi) {
+      if (!boolConfig_(cfgApi.CONTRATOS_ATIVO, false)) ocultar('cardContratos');
       IndexOfflineState.enabled = boolConfig_(cfgApi.AGENDA_OFFLINE_ATIVO, false);
       IndexOfflineState.showCard = boolConfig_(cfgApi.AGENDA_OFFLINE_INDEX_CARD, true);
       salvarConfigOfflineLocal_({

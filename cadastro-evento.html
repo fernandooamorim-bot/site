@@ -1823,6 +1823,7 @@
     }
 
     let ultimoEventoCriadoParaContrato_ = '';
+    let contratosAtivoCadastro_ = false;
 
     function irPosCadastro_(destino) {
       if (destino === 'contrato' && ultimoEventoCriadoParaContrato_) {
@@ -1841,7 +1842,7 @@
     }
 
     function sucesso(titulo, msg, callback, opcoes) {
-      const permitirContrato = !!(opcoes && opcoes.idEvento && opcoes.tipoRegistro === 'Evento');
+      const permitirContrato = contratosAtivoCadastro_ && !!(opcoes && opcoes.idEvento && opcoes.tipoRegistro === 'Evento');
       ultimoEventoCriadoParaContrato_ = permitirContrato ? String(opcoes.idEvento) : '';
       document.getElementById('overlay').classList.remove('overlay-loading');
       document.getElementById('spinner').style.display = 'none';
@@ -2074,6 +2075,9 @@ window.onload = function () {
   alterarTipoRegistro();
   alterarTipoComissao();
   configurarMascarasFinanceirasCadastro_();
+  Auth.apiCall('obterConfig', { chave: 'CONTRATOS_ATIVO' })
+    .then(v => { contratosAtivoCadastro_ = String(v).trim().toLowerCase() === 'true'; })
+    .catch(() => { contratosAtivoCadastro_ = false; });
 
   try {
     const email  = localStorage.getItem('auth_email');
