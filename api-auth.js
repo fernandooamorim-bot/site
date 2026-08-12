@@ -75,25 +75,6 @@ if (raw && raw.startsWith('{')) {
   } catch (err) {}
 }
 
-    // ======================================================
-    // WEBHOOK WOOVI — DETECÇÃO ANTES DE ACTION
-    // ======================================================
-    if (raw && raw.startsWith('{')) {
-      try {
-        const possibleWebhook = JSON.parse(raw);
-
-        if (
-          possibleWebhook &&
-          possibleWebhook.event &&
-          String(possibleWebhook.event).indexOf('OPENPIX') !== -1
-        ) {
-          return processarWebhookWoovi(e);
-        }
-      } catch (err) {
-        // não é webhook, segue fluxo normal
-      }
-    }
-
     action = params.action;
     email  = params.email;
 
@@ -2191,7 +2172,7 @@ function categorizarChaveConfig_(chave) {
   if (!c) return 'GERAL';
   if (c.indexOf('AUTH_') === 0) return 'AUTENTICACAO';
   if (c.indexOf('AGENDA_') === 0) return 'AGENDA';
-  if (c.indexOf('ASAAS_') === 0 || c.indexOf('PIX_') === 0 || c.indexOf('WOOVI_') === 0) return 'PAGAMENTOS';
+  if (c.indexOf('ASAAS_') === 0 || c.indexOf('PIX_') === 0) return 'PAGAMENTOS';
   if (c.indexOf('ORCAMENTO_') === 0) return 'ORCAMENTO';
   if (c.indexOf('FOLHA_') === 0) return 'FOLHA_CUSTOS';
   if (c.indexOf('COMISSAO_') === 0 || c.indexOf('NF_') === 0 || c.indexOf('FINANCEIRO_') === 0) return 'FINANCEIRO';
