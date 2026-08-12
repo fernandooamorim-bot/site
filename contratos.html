@@ -129,7 +129,8 @@
     function eventoAtual(){return estado.eventos.find(e=>String(e.id)===String($('evento').value))||null}
     function modeloAtual(){return estado.modelos.find(m=>String(m.token)===String($('modelo').value))||null}
     function valorMapeado(origem,ev){if(!origem||!ev)return '';const chave=origem.replace(/^evento\./,'');return ev[chave]??''}
-    function aplicarEventoSelecionado(){const ev=eventoAtual();if(!ev)return;if(!$('nomeDocumento').value)$('nomeDocumento').value='Contrato - '+(ev.nomeEvento||ev.nomeContratante);if(!$('signatarioNome').value)$('signatarioNome').value=ev.nomeContratante||'';renderizarCamposModelo()}
+    function valorMapeadoCampo(c,origem,ev){const valor=valorMapeado(origem,ev);if(origem!=='evento.tipoPessoa'||!valor)return valor;const tipo=String(valor).toUpperCase(),opcoes=opcoesCampo(c);const alvo=opcoes.find(op=>{const n=op.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase();return tipo==='PF'?(n==='PF'||n==='CPF'||n.includes('FISICA')):(n==='PJ'||n==='CNPJ'||n.includes('JURIDICA'))});return alvo||valor}
+    function aplicarEventoSelecionado(){const ev=eventoAtual();if(!ev)return;if(!$('nomeDocumento').value)$('nomeDocumento').value='Contrato - '+(ev.nomeEvento||ev.nomeContratante);if(!$('signatarioNome').value)$('signatarioNome').value=ev.nomeContratante||'';if(!$('signatarioEmail').value)$('signatarioEmail').value=ev.emailContratante||'';if(!$('signatarioTelefone').value)$('signatarioTelefone').value=ev.telefoneContratante||'';renderizarCamposModelo()}
     function opcoesCampo(c){const opcoes=Array.isArray(c.options)?c.options:String(c.options||'').split(';');return opcoes.map(v=>String(v).trim()).filter(Boolean)}
     function controleCampo(c,key,valor,i){
       const tipo=String(c.input_type||'input').toLowerCase(),req=c.required?'required':'',comum=`class="campo-modelo" data-variable="${esc(key)}" data-input-type="${esc(tipo)}"`;
@@ -145,7 +146,7 @@
     function renderizarCamposModelo(){
       const m=modeloAtual(),ev=eventoAtual(),box=$('camposDinamicos');$('revisao').classList.remove('show');$('btnConfirmar').style.display='none';estado.payloadRevisado=null;
       if(!m){box.innerHTML='<div class="empty">Selecione um modelo para carregar seus campos.</div>';return}
-      const campos=Array.isArray(m.campos)?m.campos:[];box.innerHTML=campos.length?campos.slice().sort((a,b)=>(a.order||0)-(b.order||0)).map((c,i)=>{const key=String(c.variable||c.label||('CAMPO_'+i)),valor=valorMapeado(m.mapeamento?.[key],ev),ajuda=String(c.help_text||'').trim();return `<div class="field"><label>${esc(c.label||key)}${c.required?' *':''}</label>${controleCampo(c,key,valor,i)}${ajuda?`<div class="hint">${esc(ajuda)}</div>`:''}</div>`}).join(''):'<div class="empty">Este modelo não retornou campos dinâmicos.</div>';
+      const campos=Array.isArray(m.campos)?m.campos:[];box.innerHTML=campos.length?campos.slice().sort((a,b)=>(a.order||0)-(b.order||0)).map((c,i)=>{const key=String(c.variable||c.label||('CAMPO_'+i)),valor=valorMapeadoCampo(c,m.mapeamento?.[key],ev),ajuda=String(c.help_text||'').trim();return `<div class="field"><label>${esc(c.label||key)}${c.required?' *':''}</label>${controleCampo(c,key,valor,i)}${ajuda?`<div class="hint">${esc(ajuda)}</div>`:''}</div>`}).join(''):'<div class="empty">Este modelo não retornou campos dinâmicos.</div>';
     }
     function abrirNovoContrato(){if(!estado.status?.integracao?.configurada){aviso('Configure primeiro o token da conta sandbox da ZapSign nas propriedades do backend.','warn');return}$('formContrato').reset();popularEventos();popularModelos();renderizarCamposModelo();$('modalContrato').showModal()}
     function fecharModal(){$('modalContrato').close();estado.payloadRevisado=null}
