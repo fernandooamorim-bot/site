@@ -1613,7 +1613,7 @@
         </div>
 
         <!-- Card: Contratos -->
-        <div class="nav-card anim-in anim-d5" id="cardContratos" onclick="abrir('contratos')">
+        <div class="nav-card anim-in anim-d5 hidden" id="cardContratos" onclick="abrir('contratos')">
           <div class="nav-card-top">
             <div class="nav-card-icon purple">
               <i data-lucide="file-signature"></i>
@@ -1916,6 +1916,15 @@
     }
   }
 
+  let contratosAtivoIndex_ = false;
+  let contratosPerfilPermitidoIndex_ = false;
+
+  function atualizarVisibilidadeContratosIndex_() {
+    const card = document.getElementById('cardContratos');
+    if (!card) return;
+    card.classList.toggle('hidden', !(contratosAtivoIndex_ && contratosPerfilPermitidoIndex_));
+  }
+
   async function carregarConfigOfflineIndex_() {
     let cfgApi = null;
     try {
@@ -1926,7 +1935,8 @@
     }
 
     if (cfgApi) {
-      if (!boolConfig_(cfgApi.CONTRATOS_ATIVO, false)) ocultar('cardContratos');
+      contratosAtivoIndex_ = boolConfig_(cfgApi.CONTRATOS_ATIVO, false);
+      atualizarVisibilidadeContratosIndex_();
       IndexOfflineState.enabled = boolConfig_(cfgApi.AGENDA_OFFLINE_ATIVO, false);
       IndexOfflineState.showCard = boolConfig_(cfgApi.AGENDA_OFFLINE_INDEX_CARD, true);
       salvarConfigOfflineLocal_({
@@ -2282,6 +2292,8 @@
     var perfilNorm = normalizarPerfil(user.perfil);
     var perfilRestritoAgenda = (perfilNorm === 'musico' || perfilNorm === 'producao');
     var perfilSocioAdmin = isPerfilSocioOuAdmin(user.perfil);
+    contratosPerfilPermitidoIndex_ = !perfilRestritoAgenda;
+    atualizarVisibilidadeContratosIndex_();
 
     if (perfilRestritoAgenda) {
     ocultar('cardNovoEvento');
