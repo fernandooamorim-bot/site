@@ -499,6 +499,29 @@
       color: #b45309;
     }
 
+    .field-guidance {
+      display: flex;
+      align-items: flex-start;
+      gap: 9px;
+      margin: 9px 0 0;
+      padding: 10px 12px;
+      border: 1px solid rgba(30, 58, 95, 0.14);
+      border-radius: 9px;
+      background: rgba(30, 58, 95, 0.045);
+      color: var(--gray-600);
+      font-size: 12px;
+      font-weight: 500;
+      line-height: 1.5;
+    }
+
+    .field-guidance i {
+      width: 16px;
+      height: 16px;
+      margin-top: 1px;
+      color: var(--navy-500);
+      flex: 0 0 auto;
+    }
+
     .input-vinculo-bloqueado {
       background: #f8fafc !important;
       color: #334155 !important;
@@ -1991,6 +2014,18 @@
 
         <!-- CONFLITOS DE AGENDA -->
         <div id="statusAgenda" class="status-agenda-slot"></div>
+
+        <div class="form-group hidden" id="campoNomeEventoEdicao">
+          <label class="label-indicator">
+            <span>Nome do Evento</span>
+            <span class="indicator indicator-free">🟢 Título da Agenda</span>
+          </label>
+          <input type="text" id="nomeEvento" maxlength="180" placeholder="Ex: Casamento de Marina e Lucas">
+          <p class="field-guidance">
+            <i data-lucide="info"></i>
+            <span>Este será o título exibido na Agenda. O contratante continua sendo a pessoa ou empresa responsável. Eventos já cadastrados continuam como antes.</span>
+          </p>
+        </div>
         
         <div class="form-row">
           <div class="form-group" id="campoTipoEventoEdicao">
@@ -2041,11 +2076,6 @@
         </div>
         
         <div id="secaoPessoasLocalCamposEdicao">
-          <div class="form-group hidden" id="campoNomeEventoEdicao">
-            <label class="label-indicator"><span>Nome do Evento</span><span class="indicator indicator-free">🟢 Título da Agenda</span></label>
-            <input type="text" id="nomeEvento" maxlength="180" placeholder="Ex: Casamento de Marina e Lucas">
-            <p class="helper-text">Eventos antigos sem título continuam usando o contratante.</p>
-          </div>
           <div class="form-row">
             <div class="form-group">
               <label class="label-indicator">

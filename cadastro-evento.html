@@ -520,6 +520,29 @@
       margin-bottom: 16px;
     }
 
+    .field-guidance {
+      display: flex;
+      align-items: flex-start;
+      gap: 9px;
+      margin: 9px 0 0;
+      padding: 10px 12px;
+      border: 1px solid rgba(30, 58, 95, 0.14);
+      border-radius: 9px;
+      background: rgba(30, 58, 95, 0.045);
+      color: var(--gray-600);
+      font-size: 12px;
+      font-weight: 500;
+      line-height: 1.5;
+    }
+
+    .field-guidance i {
+      width: 16px;
+      height: 16px;
+      margin-top: 1px;
+      color: var(--navy-500);
+      flex: 0 0 auto;
+    }
+
     .form-row {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -1311,6 +1334,15 @@
               <option value="">Carregando...</option>
             </select>
           </div>
+
+          <div id="campoNomeEventoCadastro" class="form-group" style="display:none">
+            <label for="nomeEvento" class="required">Nome do Evento</label>
+            <input type="text" id="nomeEvento" maxlength="180" placeholder="Ex: Casamento de Marina e Lucas">
+            <p class="field-guidance">
+              <i data-lucide="info"></i>
+              <span>Este será o título exibido na Agenda. O contratante continua sendo a pessoa ou empresa responsável. Eventos já cadastrados continuam como antes.</span>
+            </p>
+          </div>
           
           <div class="form-row-3">
             <div class="form-group">
@@ -1367,12 +1399,6 @@
             Pessoas e Local
           </div>
 
-          <div id="campoNomeEventoCadastro" class="form-group" style="display:none">
-            <label for="nomeEvento" class="required">Nome do Evento</label>
-            <input type="text" id="nomeEvento" maxlength="180" placeholder="Ex: Casamento de Marina e Lucas">
-            <p class="helper-text">Este será o título exibido na Agenda. O contratante continua sendo a pessoa ou empresa responsável.</p>
-          </div>
-          
           <!-- CONTRATANTE -->
           <div class="form-group">
             <label for="contratante" id="labelContratante">Contratante (opcional)</label>
