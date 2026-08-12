@@ -3174,7 +3174,11 @@ criarCardEvento(evento) {
   } else if (isEvento) {
     const nomeEventoProprio = String(evento.nomeEventoProprio || '').trim();
     if (nomeEventoProprio) {
-      tituloEventoRaw = nomeEventoProprio;
+      const nomeSemPrefixo = limparDuplicacaoPrefixo(nomeEventoProprio, tipoEvento);
+      const nomeSemDuplicacao = limparDuplicacaoTermoNoTexto(nomeSemPrefixo, tipoEvento) || nomeSemPrefixo;
+      tituloEventoRaw = tipoEventoGenerico
+        ? nomeEventoProprio
+        : (nomeSemDuplicacao ? `${tipoEvento} - ${nomeSemDuplicacao}` : tipoEvento);
     } else if (tipoEventoGenerico) {
       tituloEventoRaw = contratante || 'Evento';
     } else {

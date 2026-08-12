@@ -3554,6 +3554,7 @@ function renderSugestoesEvento_(list) {
     const d = document.createElement('div');
     const data = String(ev.dataFormatada || '--/--/----');
     const contratante = String(ev.contratante || 'Sem contratante');
+    const nomeEvento = String(ev.nomeEvento || contratante || 'Evento');
     const id = String(ev.id || '');
     const tipo = String(ev.tipoEvento || ev.tipoRegistro || 'Evento');
     const statusGeral = String(ev.statusGeral || ev.statusEvento || 'ATIVO').trim().toUpperCase();
@@ -3561,8 +3562,8 @@ function renderSugestoesEvento_(list) {
       ? '<span class="event-status-cancelled">Cancelado</span>'
       : '';
     d.innerHTML = `
-      <div class="ac-line-1" style="display:flex;align-items:center;justify-content:space-between;gap:8px"><span>${escaparHtml_(data)} • ${escaparHtml_(contratante)}</span>${statusHtml}</div>
-      <div class="ac-line-2">${escaparHtml_(id)} • ${escaparHtml_(tipo)}</div>
+      <div class="ac-line-1" style="display:flex;align-items:center;justify-content:space-between;gap:8px"><span>${escaparHtml_(data)} • ${escaparHtml_(nomeEvento)}</span>${statusHtml}</div>
+      <div class="ac-line-2">Contratante: ${escaparHtml_(contratante)} • ${escaparHtml_(id)}</div>
     `;
     d.onclick = () => selectEvento(ev);
     box.appendChild(d);
@@ -3588,6 +3589,7 @@ function filtrarListaLocalBuscaEvento_(list, termo) {
   return (list || []).filter(ev => {
     const hay = [
       String(ev.id || ''),
+      String(ev.nomeEvento || ''),
       String(ev.contratante || ''),
       String(ev.tipoEvento || ''),
       String(ev.tipoRegistro || ''),
@@ -3732,12 +3734,13 @@ async function selectEvento(ev){
   if (buscaEventoTimer) clearTimeout(buscaEventoTimer);
   buscaEventoSeq++;
   const inp = document.getElementById('inputEvento');
-  if (inp) inp.value = ev.id + ' — ' + ev.contratante;
+  if (inp) inp.value = ev.id + ' — ' + (ev.nomeEvento || ev.contratante);
   const idEventoReal = ev.id || ev.ID_EVENTO;
   eventoSelecionado = idEventoReal;
   eventoSelecionadoCancelado = String(ev.statusGeral || ev.statusEvento || '').trim().toUpperCase() === 'CANCELADO';
   eventoSelecionadoMeta = {
     idEvento: idEventoReal,
+    nomeEvento: String(ev.nomeEvento || '').trim(),
     contratante: String(ev.contratante || '').trim(),
     tipoEvento: String(ev.tipoEvento || ev.tipoRegistro || '').trim(),
     dataEvento: String(ev.dataFormatada || '').trim(),
