@@ -37,7 +37,8 @@
     <section class="hero">
       <div><h1>Contratos</h1><p>Criação e acompanhamento seguro de documentos pela ZapSign.</p></div>
       <div class="actions">
-        <button class="btn secondary" id="btnModelos" onclick="sincronizarModelos()"><i data-lucide="refresh-cw"></i>Sincronizar modelos</button>
+        <button class="btn secondary" id="btnModelos" onclick="sincronizarModelos()" title="Importa modelos novos ou alterados da ZapSign"><i data-lucide="settings-2"></i>Buscar modelos na ZapSign</button>
+        <button class="btn secondary" id="btnStatusPendentes" onclick="atualizarStatusPendentes(true)"><i data-lucide="refresh-cw"></i>Atualizar status pendentes</button>
         <button class="btn primary" id="btnNovo" onclick="abrirNovoContrato()"><i data-lucide="file-plus-2"></i>Novo contrato</button>
       </div>
     </section>
@@ -53,7 +54,7 @@
       <div class="toolbar">
         <input id="busca" placeholder="Buscar por contrato, evento ou contratante" oninput="renderizarContratos()">
         <select id="filtroStatus" onchange="renderizarContratos()"><option value="">Todos os status</option><option>PENDENTE</option><option>ASSINADO</option><option>RECUSADO</option><option>RASCUNHO</option></select>
-        <button class="btn secondary" onclick="carregarContratos()"><i data-lucide="refresh-cw"></i>Atualizar</button>
+        <button class="btn secondary" onclick="carregarContratos()"><i data-lucide="list-restart"></i>Recarregar lista</button>
       </div>
       <div class="table-wrap"><table><thead><tr><th>Contrato</th><th>Evento / contratante</th><th>Status</th><th>Criado</th><th>Ações</th></tr></thead><tbody id="listaContratos"></tbody></table></div>
     </section>
@@ -98,7 +99,8 @@
         $('btnNovo').disabled=!estado.status.permissoes?.criar;$('btnModelos').disabled=!estado.status.permissoes?.sincronizarModelos;
         if(!i.configurada) aviso('Estrutura criada com segurança. Para sincronizar modelos e criar testes, falta configurar o token da conta sandbox da ZapSign.','warn');
         else if(i.producaoBloqueada) aviso('Ambiente de produção detectado e bloqueado preventivamente.','error');
-        await Promise.all([carregarContratos(false),carregarModelos(false),carregarEventos(false)]);
+        await Promise.all([carregarModelos(false),carregarEventos(false)]);
+        await atualizarStatusPendentes(false);
       }catch(e){aviso('Não foi possível abrir a Central de Contratos: '+e.message,'error');$('btnNovo').disabled=true;$('btnModelos').disabled=true}
       if(window.lucide)lucide.createIcons();
     }
@@ -110,7 +112,7 @@
     function renderizarContratos(){
       const busca=$('busca').value.trim().toLowerCase(),status=$('filtroStatus').value;
       const lista=estado.contratos.filter(c=>(!status||c.status===status)&&(!busca||[c.idContrato,c.idEvento,c.nomeEvento,c.nomeContratante,c.nomeDocumento].join(' ').toLowerCase().includes(busca)));
-      $('listaContratos').innerHTML=lista.length?lista.map(c=>`<tr><td><strong>${esc(c.nomeDocumento||c.idContrato)}</strong><div class="hint">${esc(c.idContrato)} · ${esc(c.ambiente||'')}</div></td><td>${esc(c.nomeEvento||'Sem evento')}<div class="hint">${esc(c.nomeContratante||'—')}</div></td><td><span class="badge ${esc(c.status)}">${esc(c.status||'RASCUNHO')}</span></td><td>${esc(formatarData(c.criadoEm))}</td><td><button class="btn secondary mini" onclick="sincronizarContrato('${esc(c.idContrato)}')">Sincronizar</button>${c.signUrl?` <a class="link" href="${esc(c.signUrl)}" target="_blank" rel="noopener">Assinar</a>`:''}</td></tr>`).join(''):'<tr><td colspan="5" class="empty">Nenhum contrato registrado nesta primeira fase.</td></tr>';
+      $('listaContratos').innerHTML=lista.length?lista.map(c=>`<tr><td><strong>${esc(c.nomeDocumento||c.idContrato)}</strong><div class="hint">${esc(c.idContrato)} · ${esc(c.ambiente||'')}</div></td><td>${esc(c.nomeEvento||'Sem evento')}<div class="hint">${esc(c.nomeContratante||'—')}</div></td><td><span class="badge ${esc(c.status)}">${esc(c.status||'RASCUNHO')}</span></td><td>${esc(formatarData(c.criadoEm))}</td><td>${c.status==='PENDENTE'?`<button class="btn secondary mini" onclick="sincronizarContrato('${esc(c.idContrato)}')">Consultar status</button> `:''}${c.signUrl&&c.status!=='ASSINADO'?`<a class="link" href="${esc(c.signUrl)}" target="_blank" rel="noopener">Assinar</a>`:(c.status==='ASSINADO'?'<span class="hint">Concluído</span>':'')}</td></tr>`).join(''):'<tr><td colspan="5" class="empty">Nenhum contrato registrado nesta primeira fase.</td></tr>';
       $('statTotal').textContent=estado.contratos.length;$('statPendentes').textContent=estado.contratos.filter(c=>c.status==='PENDENTE').length;$('statAssinados').textContent=estado.contratos.filter(c=>c.status==='ASSINADO').length;
     }
     function popularModelos(){$('modelo').innerHTML='<option value="">Selecione um modelo</option>'+estado.modelos.filter(m=>m.ativo).map(m=>`<option value="${esc(m.token)}">${esc(m.nome)}</option>`).join('')}
@@ -137,6 +139,7 @@
     }
     async function sincronizarModelos(){const btn=$('btnModelos');setBusy(btn,true,'Sincronizando...');try{const r=await Auth.apiCall('sincronizarModelosContratos');estado.modelos=r.modelos||[];popularModelos();$('statModelos').textContent=estado.modelos.length;aviso(r.quantidade+' modelo(s) sincronizado(s) da ZapSign.','ok')}catch(e){aviso('Não foi possível sincronizar os modelos: '+e.message,'error')}finally{setBusy(btn,false,'')}}
     async function sincronizarContrato(id){try{aviso('Consultando status na ZapSign...');const r=await Auth.apiCall('sincronizarContratoZapSign',{idContrato:id});const local=estado.contratos.find(c=>String(c.idContrato)===String(id));if(local&&r?.status){local.status=r.status;local.statusZapSign=r.statusZapSign||'';local.signUrl=r.signUrl||local.signUrl}renderizarContratos();await carregarContratos(false);aviso('Status atualizado para '+(r?.status||'o valor mais recente')+'.','ok')}catch(e){aviso('Erro ao sincronizar contrato: '+e.message,'error')}}
+    async function atualizarStatusPendentes(mostrarResultado){const btn=$('btnStatusPendentes');setBusy(btn,true,'Consultando...');try{if(mostrarResultado)aviso('Consultando contratos pendentes na ZapSign...');const r=await Auth.apiCall('sincronizarContratosPendentesZapSign');await carregarContratos(false);if(mostrarResultado){const msg=r.encontrados?`${r.atualizados} contrato(s) atualizado(s)${r.erros?` e ${r.erros} com erro`:''}.`:'Nenhum contrato pendente para consultar.';aviso(msg,r.erros?'warn':'ok')}}catch(e){await carregarContratos(false);if(mostrarResultado)aviso('Erro ao atualizar status pendentes: '+e.message,'error')}finally{setBusy(btn,false,'')}}
     window.addEventListener('load',()=>{if(window.lucide)lucide.createIcons();iniciar()});
   </script>
 </body>
