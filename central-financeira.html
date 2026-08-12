@@ -2003,9 +2003,11 @@ function normalizarEventoFinanceiroParaAutocomplete_(ev) {
   const tipoEvento = String(ev?.tipoEvento || '').trim() || extrairTipoEventoFiscalizacao_(String(ev?.nomeEvento || 'Evento'));
   const tipoRegistro = String(ev?.tipoRegistro || 'EVENTO').trim().toUpperCase();
   const dataFormatada = formatarDataFiscalizacao_(ev?.dataEvento || ev?.dataFormatada || '');
-  const contratante = String(ev?.nomeContratante || ev?.contratante || ev?.nomeEvento || '').trim();
+  const contratante = String(ev?.nomeContratante || ev?.contratante || '').trim();
+  const nomeEvento = String(ev?.nomeEvento || contratante || '').trim();
   return {
     id,
+    nomeEvento,
     contratante,
     tipoEvento,
     tipoRegistro,
@@ -3373,7 +3375,8 @@ function renderListaFiscalizacao_(lista) {
       <div class="${cardClasse}">
         <div class="fiscal-top">
           <div>
-            <div><strong>${dataEvento} - ${contratante}</strong></div>
+            <div><strong>${dataEvento} - ${nomeEvento}</strong></div>
+            <div class="fiscal-id">Contratante: ${contratante}</div>
             <div class="fiscal-id">${escaparHtml_(idEvento)} • ${tipoEvento}</div>
           </div>
           <div><strong>${escaparHtml_(String(ev.status || 'ok').toUpperCase())}</strong></div>

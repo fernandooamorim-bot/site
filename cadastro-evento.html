@@ -2126,8 +2126,21 @@ window.onload = function () {
       const isCompromisso = tipo === 'Compromisso';
       const campoNomeEventoCadastro = document.getElementById('campoNomeEventoCadastro');
       const inputNomeEventoCadastro = document.getElementById('nomeEvento');
-      if (campoNomeEventoCadastro) campoNomeEventoCadastro.style.display = isEvento ? 'block' : 'none';
-      if (inputNomeEventoCadastro) inputNomeEventoCadastro.required = isEvento;
+      if (campoNomeEventoCadastro) campoNomeEventoCadastro.style.display = 'block';
+      if (inputNomeEventoCadastro) {
+        inputNomeEventoCadastro.required = true;
+        const rotulos = {
+          Evento: ['Nome do Evento', 'Ex: Sarah e Bruno'],
+          Reserva: ['Nome do Evento / Reserva', 'Ex: Sarah e Bruno'],
+          Bloqueio: ['Nome do Bloqueio', 'Ex: Viagem São Paulo'],
+          Compromisso: ['Nome do Compromisso', 'Ex: Ensaio banda completa'],
+          'Reunião': ['Assunto / Evento relacionado', 'Ex: Sarah e Bruno']
+        };
+        const cfgNome = rotulos[tipo] || ['Nome do Registro', 'Informe um nome'];
+        const labelNome = campoNomeEventoCadastro.querySelector('label[for="nomeEvento"]');
+        if (labelNome) labelNome.textContent = cfgNome[0];
+        inputNomeEventoCadastro.placeholder = cfgNome[1];
+      }
       atualizarVisibilidadeVinculoPropostaCadastro_(true);
       popularTiposDoRegistroCadastro_(tipo, '');
       const labelTipoEventoCadastro = document.getElementById('labelTipoEventoCadastro');
@@ -2222,6 +2235,8 @@ window.onload = function () {
       
       // BLOQUEIO: Esconde TODA seção de Pessoas e Local
       document.getElementById('secaoPessoasLocal').style.display = isBloqueio ? 'none' : 'block';
+      const grupoContratanteCadastro = document.getElementById('contratanteNome')?.closest('.form-group');
+      if (grupoContratanteCadastro) grupoContratanteCadastro.style.display = isCompromisso ? 'none' : 'block';
       const btnNovoContratanteCadastro = document.getElementById('btnNovoContratanteCadastro');
       const btnNovoLocalCadastro = document.getElementById('btnNovoLocalCadastro');
       if (btnNovoContratanteCadastro) {
@@ -2250,8 +2265,8 @@ window.onload = function () {
         labelContratante.innerHTML = 'Cliente/Pessoa (opcional)';
         labelContratante.classList.remove('required');
       } else if (isCompromisso) {
-        labelContratante.innerHTML = 'Nome do compromisso';
-        labelContratante.classList.add('required');
+        labelContratante.innerHTML = 'Contratante';
+        labelContratante.classList.remove('required');
       } else {
         labelContratante.innerHTML = 'Responsável (opcional)';
         labelContratante.classList.remove('required');
@@ -2309,7 +2324,7 @@ window.onload = function () {
       document.getElementById('idVendedor').required = isEvento;
 
       // Contratante e Local obrigatórios apenas para EVENTO
-      document.getElementById('contratanteNome').required = isEvento || isCompromisso;
+      document.getElementById('contratanteNome').required = isEvento;
       document.getElementById('localNome').required = isEvento;
       if (isCompromisso) {
         selectDuracao.required = true;
@@ -2784,6 +2799,7 @@ window.onload = function () {
     }
     
     function carregarDados() {
+      configurarAutocompleteEventoRelacionadoCadastro_();
       // VENDEDORES
       Auth.apiCall('listarVendedores').then(lista => {
         vendedores = lista || [];
@@ -2868,6 +2884,68 @@ window.onload = function () {
         if (label && percentual) {
           label.textContent = `Emitir Nota Fiscal (${percentual}% do valor total)`;
         }
+      });
+    }
+
+    function configurarAutocompleteEventoRelacionadoCadastro_() {
+      const input = document.getElementById('nomeEvento');
+      if (!input || input.dataset.autocompleteReuniao === '1') return;
+      input.dataset.autocompleteReuniao = '1';
+      let timer = null;
+      let eventosRef = null;
+      let cargaEventosRef = null;
+      const obterEventosRef = async () => {
+        if (Array.isArray(eventosRef)) return eventosRef;
+        if (cargaEventosRef) return cargaEventosRef;
+        cargaEventosRef = (async () => {
+          const chave = 'agenda:eventos-ref-reuniao:v1';
+          try {
+            const cache = JSON.parse(sessionStorage.getItem(chave) || 'null');
+            if (cache && Date.now() - Number(cache.ts || 0) < 5 * 60 * 1000 && Array.isArray(cache.eventos)) {
+              eventosRef = cache.eventos;
+              return eventosRef;
+            }
+          } catch (_) {}
+          const resp = await Auth.apiCall('listarEventosBootstrap');
+          eventosRef = Array.isArray(resp?.eventos) ? resp.eventos : [];
+          try {
+            sessionStorage.setItem(chave, JSON.stringify({ ts: Date.now(), eventos: eventosRef }));
+          } catch (_) {}
+          return eventosRef;
+        })().finally(() => { cargaEventosRef = null; });
+        return cargaEventosRef;
+      };
+      input.addEventListener('input', function () {
+        if (document.getElementById('tipoRegistro')?.value !== 'Reunião') return;
+        const termo = String(input.value || '').trim().toLowerCase();
+        const antiga = input.parentNode?.querySelector('.autocomplete-items');
+        if (antiga) antiga.remove();
+        clearTimeout(timer);
+        if (termo.length < 2) return;
+        timer = setTimeout(async () => {
+          let referencias = [];
+          try { referencias = await obterEventosRef(); } catch (_) { return; }
+          const lista = document.createElement('div');
+          lista.className = 'autocomplete-items';
+          const resultados = referencias.filter(ev => {
+            const texto = [ev.nomeEvento, ev.nomeEventoProprio, ev.contratante, ev.local, ev.data]
+              .join(' ').toLowerCase();
+            return texto.includes(termo) && String(ev.tipo || ev.tipoRegistro || '') === 'Evento';
+          }).slice(0, 12);
+          if (!resultados.length) return;
+          resultados.forEach(ev => {
+            const item = document.createElement('div');
+            item.textContent = [ev.nomeEvento || ev.contratante, ev.data, ev.local].filter(Boolean).join(' • ');
+            item.addEventListener('click', () => {
+              input.value = ev.nomeEventoProprio || ev.nomeEvento || ev.contratante || '';
+              const campoContratante = document.getElementById('contratanteNome');
+              if (campoContratante && !campoContratante.value) campoContratante.value = ev.contratante || '';
+              lista.remove();
+            });
+            lista.appendChild(item);
+          });
+          input.parentNode.appendChild(lista);
+        }, 160);
       });
     }
     document.addEventListener('DOMContentLoaded', () => {
@@ -3208,6 +3286,12 @@ window.onload = function () {
         nomeCerimonialistaDigitado: document.getElementById('cerimonialistaNome').value.trim(),
         confirmarDataPassada: !!infoDataPassada && confirmacaoDataPassadaCadastro === assinaturaDataPassada
       };
+      dados.nomeEvento = document.getElementById('nomeEvento').value.trim();
+      if (!dados.nomeEvento) {
+        mostrarAlertaGlobal('Informe o nome ou assunto do registro.', 'error');
+        document.getElementById('nomeEvento').focus();
+        return;
+      }
       /* ───── Resolução automática de IDs por nome digitado ───── */
 
 // CONTRATANTE (Evento, Reunião ou Reserva)
@@ -3259,12 +3343,6 @@ if ((tipoRegistro === 'Evento' || tipoRegistro === 'Reunião' || tipoRegistro ==
 }
       // EVENTO
       if (tipoRegistro === 'Evento') {
-        dados.nomeEvento = document.getElementById('nomeEvento').value.trim();
-        if (!dados.nomeEvento) {
-          mostrarAlertaGlobal('Informe o Nome do Evento.', 'error');
-          document.getElementById('nomeEvento').focus();
-          return;
-        }
         const valorTotalParsed = parseNumeroFinanceiro(document.getElementById('valorTotal').value, {
           allowNegative: false,
           allowZero: false,
@@ -3324,7 +3402,9 @@ if ((tipoRegistro === 'Evento' || tipoRegistro === 'Reunião' || tipoRegistro ==
         dados.idCerimonialista = null;
         dados.motivo = '';
         dados.observacoes = document.getElementById('observacoes').value;
-        if (!dados.tipoEvento || !dados.nomeContratanteDigitado || !dados.horaInicio || !dados.duracao) {
+        dados.idContratante = null;
+        dados.nomeContratanteDigitado = '';
+        if (!dados.tipoEvento || !dados.nomeEvento || !dados.horaInicio || !dados.duracao) {
           mostrarAlertaGlobal('Preencha tipo, nome, horário e duração do compromisso.', 'error');
           return;
         }

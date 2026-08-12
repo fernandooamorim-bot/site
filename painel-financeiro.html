@@ -1483,10 +1483,12 @@
       divergencias.push(labelDivergencia(d));
     });
 
-    const contratante = String(evento.nomeContratante || evento.nomeEvento || 'Evento');
+    const contratante = String(evento.nomeContratante || 'Sem contratante');
+    const nomeEventoExibicao = String(evento.nomeEvento || contratante || 'Evento');
     const tipoEvento = extrairTipoEvento(evento.nomeEvento, evento.tipoEvento);
     const idEvento = String(evento.idEvento || '');
     const contratanteSeguro = escaparHtml(contratante);
+    const nomeEventoSeguro = escaparHtml(nomeEventoExibicao);
     const tipoEventoSeguro = escaparHtml(tipoEvento);
     const idEventoSeguro = escaparHtml(idEvento);
     const podeExecutarRecebimento = !ehSocioAdmin_();
@@ -1496,8 +1498,8 @@
     card.innerHTML = `
       <div class="card-head">
         <div class="card-title-wrap">
-          <div class="titulo">${formatarData(evento.dataEvento)} - ${contratanteSeguro}</div>
-          <div class="data"><i data-lucide="hash"></i> ${idEventoSeguro} • ${tipoEventoSeguro}</div>
+          <div class="titulo">${formatarData(evento.dataEvento)} - ${nomeEventoSeguro}</div>
+          <div class="data"><i data-lucide="hash"></i> ${idEventoSeguro} • ${tipoEventoSeguro} • ${contratanteSeguro}</div>
         </div>
         <div class="valor">R$ ${formatarValor(evento.valorContrato)}</div>
       </div>

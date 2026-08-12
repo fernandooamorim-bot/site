@@ -3150,6 +3150,7 @@ criarCardEvento(evento) {
 
   const tipoEvento = String(evento.tipoEvento || '').trim();
   const contratante = String(evento.contratante || '').trim();
+  const nomeEventoProprioGeral = String(evento.nomeEventoProprio || '').trim();
   const tipoEventoGenerico = !tipoEvento || /^evento$/i.test(tipoEvento);
 
   const motivoReuniao = normalizarMotivoReuniao(observacaoParaTitulo || tipoEvento);
@@ -3165,21 +3166,25 @@ criarCardEvento(evento) {
   );
 
   let tituloEventoRaw = '-';
-  if (isReuniao) {
+  if (nomeEventoProprioGeral) {
+    const prefixoNovo = isEvento
+      ? (tipoEventoGenerico ? '' : tipoEvento)
+      : isCompromisso
+        ? ((tipoEvento && !/^outro$/i.test(tipoEvento)) ? tipoEvento : 'Compromisso')
+        : (tipoRegistro || tipoEvento);
+    const nomeSemPrefixo = limparDuplicacaoPrefixo(nomeEventoProprioGeral, prefixoNovo);
+    const nomeSemDuplicacao = limparDuplicacaoTermoNoTexto(nomeSemPrefixo, prefixoNovo) || nomeSemPrefixo;
+    tituloEventoRaw = prefixoNovo
+      ? (nomeSemDuplicacao ? `${prefixoNovo} - ${nomeSemDuplicacao}` : prefixoNovo)
+      : nomeEventoProprioGeral;
+  } else if (isReuniao) {
     tituloEventoRaw = `${motivoReuniao}${pessoaDiferenteDoMotivo ? ' - ' + pessoaReuniao : ''}`;
   } else if (isBloqueio) {
     tituloEventoRaw = `Bloqueio${baseBloqueio ? ' - ' + baseBloqueio : ''}`;
   } else if (isReserva) {
     tituloEventoRaw = `Reserva - ${conteudoReserva}`;
   } else if (isEvento) {
-    const nomeEventoProprio = String(evento.nomeEventoProprio || '').trim();
-    if (nomeEventoProprio) {
-      const nomeSemPrefixo = limparDuplicacaoPrefixo(nomeEventoProprio, tipoEvento);
-      const nomeSemDuplicacao = limparDuplicacaoTermoNoTexto(nomeSemPrefixo, tipoEvento) || nomeSemPrefixo;
-      tituloEventoRaw = tipoEventoGenerico
-        ? nomeEventoProprio
-        : (nomeSemDuplicacao ? `${tipoEvento} - ${nomeSemDuplicacao}` : tipoEvento);
-    } else if (tipoEventoGenerico) {
+    if (tipoEventoGenerico) {
       tituloEventoRaw = contratante || 'Evento';
     } else {
       const contratanteSemPrefixo = limparDuplicacaoPrefixo(contratante, tipoEvento);

@@ -3365,7 +3365,9 @@ function aplicarFallbackReferenciasMestre(evento) {
   document.getElementById('idContratante').value = ehCompromisso
     ? ''
     : String(evento.idContratante || '').trim();
-  document.getElementById('nomeContratante').value = evento.nomeContratanteAtual || '';
+  document.getElementById('nomeContratante').value = ehCompromisso
+    ? ''
+    : (evento.nomeContratanteAtual || '');
   const inputNomeEvento = document.getElementById('nomeEvento');
   if (inputNomeEvento) inputNomeEvento.value = evento.nomeEventoProprio || '';
   document.getElementById('idEndereco').value = String(evento.idEndereco || '').trim();
@@ -4142,9 +4144,9 @@ function configurarVisibilidadeCamposPorTipoEdicao_(tipoOriginal) {
   const exibeObservacoes = isEvento || isCompromisso;
 
   if (campoTipoEvento) campoTipoEvento.classList.toggle('hidden', !exibeTipoEvento);
-  // Não força migração durante a edição: aparece para eventos novos que já
-  // possuem título e durante conversões que criarão um novo evento.
-  const exibeNomeEvento = isEvento && (!!String(eventoOriginal?.nomeEventoProprio || '').trim() || modoConversaoReserva);
+  // Não força migração durante a edição: o campo aparece apenas em
+  // registros que já usam NOME_EVENTO ou na conversão de reserva.
+  const exibeNomeEvento = !!String(eventoOriginal?.nomeEventoProprio || '').trim() || modoConversaoReserva;
   if (campoNomeEvento) campoNomeEvento.classList.toggle('hidden', !exibeNomeEvento);
   if (campoProjeto) campoProjeto.classList.toggle('hidden', !exibeProjeto);
   if (campoMotivo) campoMotivo.classList.toggle('hidden', !exibeMotivo);
@@ -4168,7 +4170,11 @@ function configurarVisibilidadeCamposPorTipoEdicao_(tipoOriginal) {
   if (inputProjeto) inputProjeto.required = false;
   if (inputMotivo) inputMotivo.required = !isEvento && !isReuniao && !isReserva && !isCompromisso;
   if (motivoReservaPreset) motivoReservaPreset.required = isReserva;
-  if (inputContratante) inputContratante.required = isEvento || isCompromisso;
+  if (inputContratante) inputContratante.required = isEvento;
+  if (inputContratante) {
+    const grupoContratante = inputContratante.closest('.form-group');
+    if (grupoContratante) grupoContratante.classList.toggle('hidden', isCompromisso);
+  }
   if (inputLocal) inputLocal.required = isEvento;
   if (inputHora) inputHora.required = isEvento || isReuniao || isCompromisso;
   if (inputDuracao) inputDuracao.required = isEvento || isCompromisso;
@@ -4214,7 +4220,7 @@ function configurarVisibilidadeCamposPorTipoEdicao_(tipoOriginal) {
     if (isEvento) labelContratante.textContent = 'Contratante';
     else if (isReserva) labelContratante.textContent = 'Contratante (opcional)';
     else if (isReuniao) labelContratante.textContent = 'Cliente/Pessoa (opcional)';
-    else if (isCompromisso) labelContratante.textContent = 'Nome do compromisso';
+    else if (isCompromisso) labelContratante.textContent = 'Contratante';
     else labelContratante.textContent = 'Responsável (opcional)';
   }
 
@@ -4243,8 +4249,21 @@ function configurarVisibilidadeCamposPorTipoEdicao_(tipoOriginal) {
   }
   if (inputContratante) {
     inputContratante.placeholder = isCompromisso
-      ? 'Nome ou título do compromisso'
+      ? 'Não utilizado neste tipo de registro'
       : 'Nome do contratante';
+  }
+  if (inputNomeEvento && exibeNomeEvento) {
+    const configuracoesNome = {
+      Evento: ['Nome do Evento', 'Ex: Sarah e Bruno'],
+      Reserva: ['Nome do Evento / Reserva', 'Ex: Sarah e Bruno'],
+      Bloqueio: ['Nome do Bloqueio', 'Ex: Viagem São Paulo'],
+      Compromisso: ['Nome do Compromisso', 'Ex: Ensaio banda completa'],
+      'Reunião': ['Assunto / Evento relacionado', 'Ex: Sarah e Bruno']
+    };
+    const cfgNome = configuracoesNome[tipo] || ['Nome do Registro', 'Informe um nome'];
+    const labelNome = document.querySelector('#campoNomeEventoEdicao label span:first-child');
+    if (labelNome) labelNome.textContent = cfgNome[0];
+    inputNomeEvento.placeholder = cfgNome[1];
   }
   if (inputLocal) {
     inputLocal.placeholder = isCompromisso
@@ -5265,7 +5284,8 @@ function formatarValorResumoAlteracao_(campo, valor, origem) {
       if (tipoAtual === 'Compromisso') {
         const faltantes = [];
         if (!String(dadosAtual.tipoEvento || '').trim()) faltantes.push('tipo do compromisso');
-        if (!String(dadosAtual.nomeContratanteEditado || '').trim()) faltantes.push('nome do compromisso');
+        const exigeTituloNovo = !!String(eventoOriginal?.nomeEventoProprio || '').trim();
+        if (exigeTituloNovo && !String(dadosAtual.nomeEvento || '').trim()) faltantes.push('nome do compromisso');
         if (!String(dadosAtual.dataEvento || '').trim()) faltantes.push('data');
         if (!String(dadosAtual.horaInicio || '').trim()) faltantes.push('horário');
         if (!(Number(dadosAtual.duracao) > 0)) faltantes.push('duração');
@@ -5581,7 +5601,7 @@ function formatarValorResumoAlteracao_(campo, valor, origem) {
         idContratante: ehCompromissoVisual ? '' : document.getElementById('idContratante').value,
         nomeContratante: document.getElementById('nomeContratante').value,
         nomeEvento: document.getElementById('nomeEvento')?.value || '',
-        nomeContratanteEditado: document.getElementById('nomeContratante').value,
+        nomeContratanteEditado: ehCompromissoVisual ? '' : document.getElementById('nomeContratante').value,
         idCerimonialista: document.getElementById('idCerimonialista').value,
         idEndereco: document.getElementById('idEndereco').value,
         nomeLocal: document.getElementById('nomeLocal').value,
@@ -5634,7 +5654,7 @@ function formatarValorResumoAlteracao_(campo, valor, origem) {
 
     function validarNomeEventoEdicao(dados) {
       const eventoComTituloProprio = !!String(eventoOriginal?.nomeEventoProprio || '').trim();
-      if (!registroEhEvento() || (!eventoComTituloProprio && !modoConversaoReserva)) return true;
+      if (!eventoComTituloProprio && !modoConversaoReserva) return true;
       if (String(dados?.nomeEvento || '').trim()) return true;
       const campo = document.getElementById('nomeEvento');
       if (campo) {
