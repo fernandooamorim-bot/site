@@ -1312,7 +1312,7 @@
 
           <div id="campoNomeEventoCadastro" class="form-group" style="display:none">
             <label for="nomeEvento" class="required">Nome do Evento</label>
-            <input type="text" id="nomeEvento" maxlength="180" placeholder="Ex: Casamento de Marina e Lucas">
+            <input type="text" id="nomeEvento" maxlength="180" placeholder="Ex: Nome dos noivos">
           </div>
           
           <!-- EVENTO: Tipo de evento -->
@@ -2130,11 +2130,11 @@ window.onload = function () {
       if (inputNomeEventoCadastro) {
         inputNomeEventoCadastro.required = true;
         const rotulos = {
-          Evento: ['Nome do Evento', 'Ex: Sarah e Bruno'],
-          Reserva: ['Nome do Evento / Reserva', 'Ex: Sarah e Bruno'],
-          Bloqueio: ['Nome do Bloqueio', 'Ex: Viagem São Paulo'],
-          Compromisso: ['Nome do Compromisso', 'Ex: Ensaio banda completa'],
-          'Reunião': ['Assunto / Evento relacionado', 'Ex: Sarah e Bruno']
+          Evento: ['Nome do Evento', 'Ex: Nome dos noivos'],
+          Reserva: ['Nome do Evento / Reserva', 'Ex: Nome dos noivos'],
+          Bloqueio: ['Nome do Bloqueio', 'Ex: Viagem ou indisponibilidade'],
+          Compromisso: ['Nome do Compromisso', 'Ex: Ensaio da banda'],
+          'Reunião': ['Assunto / Evento relacionado', 'Ex: Nome do evento relacionado']
         };
         const cfgNome = rotulos[tipo] || ['Nome do Registro', 'Informe um nome'];
         const labelNome = campoNomeEventoCadastro.querySelector('label[for="nomeEvento"]');
