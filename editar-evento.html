@@ -2041,6 +2041,11 @@
         </div>
         
         <div id="secaoPessoasLocalCamposEdicao">
+          <div class="form-group hidden" id="campoNomeEventoEdicao">
+            <label class="label-indicator"><span>Nome do Evento</span><span class="indicator indicator-free">🟢 Título da Agenda</span></label>
+            <input type="text" id="nomeEvento" maxlength="180" placeholder="Ex: Casamento de Marina e Lucas">
+            <p class="helper-text">Eventos antigos sem título continuam usando o contratante.</p>
+          </div>
           <div class="form-row">
             <div class="form-group">
               <label class="label-indicator">
@@ -3141,7 +3146,7 @@ function renderizarConflitosEdicao(eventos) {
       <div class="conflitos-lista">
   `;
   eventos.forEach((ev) => {
-    const nomeEvento = ev.nomeContratante || ev.tipoEvento || ev.observacoes || 'Evento sem título';
+    const nomeEvento = ev.nomeEvento || ev.nomeContratante || ev.tipoEvento || ev.observacoes || 'Evento sem título';
     const horaIni = String(ev.hora || '').trim();
     const duracaoTxt = formatarDuracaoEdicao(ev.duracao);
     const horaFim = calcularHoraFinalEdicao(horaIni, Number(ev.duracao || 0));
@@ -3154,7 +3159,7 @@ function renderizarConflitosEdicao(eventos) {
           <span class="conflito-tipo">${String(ev.tipoRegistro || 'Evento')}</span>
           <span class="conflito-meta">${formatarDataBRTextoEdicao(ev.data)}</span>
         </div>
-        <div class="conflito-evento">${nomeEvento}</div>
+        <div class="conflito-evento">${escapeHtml(nomeEvento)}</div>
         <div class="conflito-linha"><strong>Horário:</strong> ${faixa} • <strong>Duração:</strong> ${duracaoTxt}</div>
         <div class="conflito-linha"><strong>Local:</strong> ${local}</div>
       </div>
@@ -3249,6 +3254,8 @@ function aplicarFallbackReferenciasMestre(evento) {
     ? ''
     : String(evento.idContratante || '').trim();
   document.getElementById('nomeContratante').value = evento.nomeContratanteAtual || '';
+  const inputNomeEvento = document.getElementById('nomeEvento');
+  if (inputNomeEvento) inputNomeEvento.value = evento.nomeEventoProprio || '';
   document.getElementById('idEndereco').value = String(evento.idEndereco || '').trim();
   document.getElementById('nomeLocal').value = evento.nomeLocalAtual || '';
 
@@ -3965,6 +3972,7 @@ function configurarVisibilidadeCamposPorTipoEdicao_(tipoOriginal) {
   const isCompromisso = tipo === 'Compromisso';
 
   const campoTipoEvento = document.getElementById('campoTipoEventoEdicao');
+  const campoNomeEvento = document.getElementById('campoNomeEventoEdicao');
   const campoProjeto = document.getElementById('campoProjetoEdicao');
   const campoMotivo = document.getElementById('campoMotivoEdicao');
   const campoCerimonialista = document.getElementById('campoCerimonialistaEdicao');
@@ -3978,6 +3986,7 @@ function configurarVisibilidadeCamposPorTipoEdicao_(tipoOriginal) {
   const dataFimEl = document.getElementById('dataFim');
 
   const inputTipoEvento = document.getElementById('tipoEvento');
+  const inputNomeEvento = document.getElementById('nomeEvento');
   const inputProjeto = document.getElementById('projeto');
   const inputMotivo = document.getElementById('motivoRegistro');
   const motivoReuniaoPresetWrap = document.getElementById('motivoReuniaoPresetWrapEdicao');
@@ -4014,6 +4023,10 @@ function configurarVisibilidadeCamposPorTipoEdicao_(tipoOriginal) {
   const exibeObservacoes = isEvento || isCompromisso;
 
   if (campoTipoEvento) campoTipoEvento.classList.toggle('hidden', !exibeTipoEvento);
+  // Não força migração durante a edição: aparece para eventos novos que já
+  // possuem título e durante conversões que criarão um novo evento.
+  const exibeNomeEvento = isEvento && (!!String(eventoOriginal?.nomeEventoProprio || '').trim() || modoConversaoReserva);
+  if (campoNomeEvento) campoNomeEvento.classList.toggle('hidden', !exibeNomeEvento);
   if (campoProjeto) campoProjeto.classList.toggle('hidden', !exibeProjeto);
   if (campoMotivo) campoMotivo.classList.toggle('hidden', !exibeMotivo);
   if (campoCerimonialista) campoCerimonialista.classList.toggle('hidden', !exibeCerimonialista);
@@ -4032,6 +4045,7 @@ function configurarVisibilidadeCamposPorTipoEdicao_(tipoOriginal) {
   if (inputObservacoes) inputObservacoes.disabled = !exibeObservacoes;
 
   if (inputTipoEvento) inputTipoEvento.required = isEvento || isCompromisso;
+  if (inputNomeEvento) inputNomeEvento.required = exibeNomeEvento;
   if (inputProjeto) inputProjeto.required = false;
   if (inputMotivo) inputMotivo.required = !isEvento && !isReuniao && !isReserva && !isCompromisso;
   if (motivoReservaPreset) motivoReservaPreset.required = isReserva;
@@ -4667,7 +4681,7 @@ function mostrarResultados(eventos) {
       </div>
 
       <div class="result-main">
-        ${evento.contratante}
+        ${escapeHtml(evento.nomeEvento || evento.contratante || '—')}
       </div>
 
       <div class="result-details">
@@ -5442,6 +5456,7 @@ function formatarValorResumoAlteracao_(campo, valor, origem) {
         projeto: (ehEventoVisual || ehReservaVisual) ? document.getElementById('projeto').value : '',
         idContratante: ehCompromissoVisual ? '' : document.getElementById('idContratante').value,
         nomeContratante: document.getElementById('nomeContratante').value,
+        nomeEvento: document.getElementById('nomeEvento')?.value || '',
         nomeContratanteEditado: document.getElementById('nomeContratante').value,
         idCerimonialista: document.getElementById('idCerimonialista').value,
         idEndereco: document.getElementById('idEndereco').value,

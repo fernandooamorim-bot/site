@@ -795,6 +795,10 @@
             </div>
             <div class="event-meta">
               <div>
+                <label>Nome do evento</label>
+                <input data-k="nomeEvento" value="${escapeAttr(ev.nomeEvento || ev.contratante || '')}">
+              </div>
+              <div>
                 <label>Contratante</label>
                 <input data-k="contratante" value="${escapeAttr(ev.contratante || '')}">
               </div>

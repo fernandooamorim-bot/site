@@ -3172,7 +3172,10 @@ criarCardEvento(evento) {
   } else if (isReserva) {
     tituloEventoRaw = `Reserva - ${conteudoReserva}`;
   } else if (isEvento) {
-    if (tipoEventoGenerico) {
+    const nomeEventoProprio = String(evento.nomeEventoProprio || '').trim();
+    if (nomeEventoProprio) {
+      tituloEventoRaw = nomeEventoProprio;
+    } else if (tipoEventoGenerico) {
       tituloEventoRaw = contratante || 'Evento';
     } else {
       const contratanteSemPrefixo = limparDuplicacaoPrefixo(contratante, tipoEvento);
@@ -3203,7 +3206,7 @@ criarCardEvento(evento) {
   }
 
   // Blindagem: evento com tipo específico não deve perder o prefixo de tipo no título.
-  if (isEvento && !tipoEventoGenerico && tipoEvento) {
+  if (isEvento && !String(evento.nomeEventoProprio || '').trim() && !tipoEventoGenerico && tipoEvento) {
     const tituloLower = String(tituloEventoRaw || '').toLocaleLowerCase('pt-BR');
     const tipoLower = tipoEvento.toLocaleLowerCase('pt-BR');
     if (!tituloLower.includes(tipoLower)) {
@@ -3286,7 +3289,7 @@ criarCardEvento(evento) {
       <div class="evento-conflitos-lista">
         ${evento.eventosDentro.map(e => `
           <div class="evento-dentro-item">
-            📅 ${Utils.formatarData(e.data)} ${e.hora || ''} — ${e.tipoEvento}${e.contratante ? ' ' + e.contratante : ''}
+            📅 ${Utils.formatarData(e.data)} ${e.hora || ''} — ${e.nomeEvento || (e.tipoEvento + (e.contratante ? ' ' + e.contratante : ''))}
           </div>
         `).join('')}
       </div>
@@ -3834,7 +3837,7 @@ renderizarEventosDentro(evento) {
           // Busca textual
           if (busca) {
             eventosFiltrados = eventosFiltrados.filter(e => {
-              const texto = `${e.tipoEvento} ${e.contratante} ${e.local} ${e.projeto}`.toLowerCase();
+              const texto = `${e.nomeEvento || ''} ${e.tipoEvento} ${e.contratante} ${e.local} ${e.projeto}`.toLowerCase();
               return texto.includes(busca);
             });
           }
@@ -4108,6 +4111,7 @@ renderizarEventosDentro(evento) {
           String(evt?.tipo || ''),
           String(evt?.data || ''),
           String(evt?.hora || ''),
+          String(evt?.nomeEvento || ''),
           String(evt?.contratante || ''),
           String(evt?.local || '')
         ].join('|');

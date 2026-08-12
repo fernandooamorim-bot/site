@@ -2314,7 +2314,7 @@
           const dataEvento = getDataEventoDate_(ev);
           const dataCadastro = getDataCadastroEvento_(ev);
           const valor = getValorEventoCadastro_(ev);
-          const nome = String(ev?.contratante || ev?.nomeContratante || ev?.NOME_CONTRATANTE || ev?.nomeEvento || 'Evento').trim();
+          const nome = String(ev?.nomeEvento || ev?.contratante || ev?.nomeContratante || ev?.NOME_CONTRATANTE || 'Evento').trim();
           return {
             raw: ev,
             nome,

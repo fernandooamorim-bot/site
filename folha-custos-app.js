@@ -1280,6 +1280,7 @@ async function buscarEventoAgendaFolha_(q) {
       if (!dt || dt.getFullYear() < 2026) return false;
       const hay = [
         String(ev.id || ''),
+        String(ev.nomeEvento || ''),
         String(ev.contratante || ''),
         String(ev.tipoEvento || ''),
         String(ev.data || '')
@@ -1305,7 +1306,7 @@ async function buscarEventoAgendaFolha_(q) {
     return `
     <div style="padding:8px 10px;cursor:pointer;border-bottom:1px solid #eef2f7" onclick="selecionarEventoAgendaFolha_('${String(ev.id || '').replace(/'/g, "\\'")}')">
       <div>
-        <strong>${String(ev.id || '')}</strong> • ${String(ev.contratante || 'Sem contratante')}
+        <strong>${String(ev.id || '')}</strong> • ${String(ev.nomeEvento || ev.contratante || 'Sem título')}
         <span style="margin-left:6px;font-size:11px;padding:2px 6px;border-radius:999px;background:${badgeBg};color:${badgeColor}">
           ${badgeTxt}
         </span>
@@ -1364,7 +1365,7 @@ async function renderEventosAgendaRecomendados_() {
     <button type="button"
       style="margin:0 8px 8px 0;padding:8px 12px;border:1px solid #bfdbfe;border-radius:12px;background:linear-gradient(180deg,#eff6ff 0%,#dbeafe 100%);color:#1e3a8a;cursor:pointer;font-weight:600;box-shadow:0 1px 2px rgba(30,58,138,.12)"
       onclick="selecionarEventoAgendaFolha_('${String(ev.id || '').replace(/'/g, "\\'")}')">
-      ${String(ev.id || '')} • ${String(ev.contratante || 'Sem contratante')} • ${String(ev.data || '')}
+      ${String(ev.id || '')} • ${String(ev.nomeEvento || ev.contratante || 'Sem título')} • ${String(ev.data || '')}
     </button>
   `).join('');
 
@@ -1435,11 +1436,12 @@ async function selecionarEventoAgendaFolha_(idEvento) {
     revisaoFolhaAtivaAtual = true;
   }
 
-  if (inpBusca) inpBusca.value = `${ev.id} — ${ev.contratante || ''}`;
+  if (inpBusca) inpBusca.value = `${ev.id} — ${ev.nomeEvento || ev.contratante || ''}`;
   if (inpId) inpId.value = id;
   if (eventoData) eventoData.value = normalizarDataAgendaParaIso_(ev.dataIso || ev.data);
   if (eventoNome) {
-    const nomePadrao = [String(ev.tipoEvento || '').trim(), String(ev.contratante || '').trim()].filter(Boolean).join(' ');
+    const nomePadrao = String(ev.nomeEvento || '').trim() ||
+      [String(ev.tipoEvento || '').trim(), String(ev.contratante || '').trim()].filter(Boolean).join(' ');
     eventoNome.value = nomePadrao || String(ev.nome || ev.id || '').trim();
   }
   if (box) box.innerHTML = '';

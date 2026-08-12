@@ -1366,6 +1366,12 @@
             <i data-lucide="users"></i>
             Pessoas e Local
           </div>
+
+          <div id="campoNomeEventoCadastro" class="form-group" style="display:none">
+            <label for="nomeEvento" class="required">Nome do Evento</label>
+            <input type="text" id="nomeEvento" maxlength="180" placeholder="Ex: Casamento de Marina e Lucas">
+            <p class="helper-text">Este será o título exibido na Agenda. O contratante continua sendo a pessoa ou empresa responsável.</p>
+          </div>
           
           <!-- CONTRATANTE -->
           <div class="form-group">
@@ -2046,6 +2052,10 @@ window.onload = function () {
       const isReuniao = tipo === 'Reunião';
       const isReserva = tipo === 'Reserva';
       const isCompromisso = tipo === 'Compromisso';
+      const campoNomeEventoCadastro = document.getElementById('campoNomeEventoCadastro');
+      const inputNomeEventoCadastro = document.getElementById('nomeEvento');
+      if (campoNomeEventoCadastro) campoNomeEventoCadastro.style.display = isEvento ? 'block' : 'none';
+      if (inputNomeEventoCadastro) inputNomeEventoCadastro.required = isEvento;
       atualizarVisibilidadeVinculoPropostaCadastro_(true);
       popularTiposDoRegistroCadastro_(tipo, '');
       const labelTipoEventoCadastro = document.getElementById('labelTipoEventoCadastro');
@@ -2515,7 +2525,7 @@ window.onload = function () {
           'background:#f8d7da;color:#721c24';
 
         const dataTxt = formatarDataBRTexto(ev.data);
-        const nomeEvento = ev.nomeContratante || ev.tipoEvento || ev.observacoes || 'Evento sem título';
+        const nomeEvento = ev.nomeEvento || ev.nomeContratante || ev.tipoEvento || ev.observacoes || 'Evento sem título';
         const faixa = formatarFaixaHorario(ev);
         const duracaoFmt = ev.duracao ? formatarDuracao(parseInt(ev.duracao, 10)) : '';
         const duracaoTxt = duracaoFmt || 'N/A';
@@ -3171,6 +3181,12 @@ if ((tipoRegistro === 'Evento' || tipoRegistro === 'Reunião' || tipoRegistro ==
 }
       // EVENTO
       if (tipoRegistro === 'Evento') {
+        dados.nomeEvento = document.getElementById('nomeEvento').value.trim();
+        if (!dados.nomeEvento) {
+          mostrarAlertaGlobal('Informe o Nome do Evento.', 'error');
+          document.getElementById('nomeEvento').focus();
+          return;
+        }
         const valorTotalParsed = parseNumeroFinanceiro(document.getElementById('valorTotal').value, {
           allowNegative: false,
           allowZero: false,
