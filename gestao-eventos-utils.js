@@ -41,6 +41,26 @@ function gerarIDEvento() {
 }
 
 /**
+ * Ativa com segurança a coluna de título próprio dos eventos.
+ * Não sobrescreve uma coluna 45 que pertença a outra estrutura.
+ */
+function garantirColunaNomeEvento_(sheet) {
+  if (!sheet) throw new Error('Planilha EVENTOS não encontrada.');
+  if (sheet.getMaxColumns() < COLUNA.NOME_EVENTO) {
+    sheet.insertColumnsAfter(
+      sheet.getMaxColumns(),
+      COLUNA.NOME_EVENTO - sheet.getMaxColumns()
+    );
+  }
+  const rangeHeader = sheet.getRange(1, COLUNA.NOME_EVENTO);
+  const headerAtual = String(rangeHeader.getValue() || '').trim();
+  if (!headerAtual) rangeHeader.setValue('NOME_EVENTO');
+  else if (headerAtual !== 'NOME_EVENTO') {
+    throw new Error('ESTRUTURA_EVENTOS_COLUNA_45_OCUPADA');
+  }
+}
+
+/**
  * Gera ID único para movimentação financeira
  * Formato: MOV-YYYYMMDD-NNN
  */
@@ -98,21 +118,35 @@ function gerarIDFechamento(idVendedor) {
 // ========================================
 
 /**
+ * Snapshot somente em memória da execução atual.
+ *
+ * Apps Script recria este estado a cada execução, portanto a aba CONFIG
+ * continua sendo a fonte oficial e não existe risco de um valor persistir
+ * desatualizado entre acionadores. A invalidação em setConfig também mantém
+ * consistência quando uma configuração é alterada durante a própria execução.
+ */
+var CONFIG_SNAPSHOT_EXECUCAO_ = null;
+
+/**
  * Retorna configurações do sistema como objeto
  */
-function getConfig() {
+function getConfig(forcarRecarga) {
+  if (!forcarRecarga && CONFIG_SNAPSHOT_EXECUCAO_) {
+    return CONFIG_SNAPSHOT_EXECUCAO_;
+  }
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheet = ss.getSheetByName('CONFIG');
+  if (!sheet) return {};
   const data = sheet.getDataRange().getValues();
   
   const config = {};
   for (let i = 1; i < data.length; i++) {
     const chave = data[i][0];
     const valor = data[i][1];
-    config[chave] = valor;
+    if (String(chave || '').trim()) config[String(chave).trim()] = valor;
   }
-  
-  return config;
+  CONFIG_SNAPSHOT_EXECUCAO_ = config;
+  return CONFIG_SNAPSHOT_EXECUCAO_;
 }
 
 /**
@@ -126,6 +160,7 @@ function setConfig(chave, valor) {
   for (let i = 1; i < data.length; i++) {
     if (data[i][0] === chave) {
       sheet.getRange(i + 1, 2).setValue(valor);
+      if (CONFIG_SNAPSHOT_EXECUCAO_) CONFIG_SNAPSHOT_EXECUCAO_[chave] = valor;
       registrarLog('ATUALIZAR', 'CONFIG', chave, `Valor atualizado para: ${valor}`);
       return true;
     }
@@ -206,6 +241,64 @@ function registrarLog() {
 // ========================================
 // VALIDAÇÕES
 // ========================================
+
+/**
+ * Título operacional do evento com compatibilidade total com o legado.
+ * Registros anteriores à coluna NOME_EVENTO continuam usando o contratante.
+ */
+function normalizarTextoTituloEvento_(valor) {
+  return String(valor || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+}
+
+function comporTituloEventoComTipo_(tipoEvento, nomeBase) {
+  const tipo = String(tipoEvento || '').trim();
+  let base = String(nomeBase || '').trim();
+  if (!base) return tipo;
+  if (!tipo || normalizarTextoTituloEvento_(tipo) === 'evento') return base;
+
+  const tipoEscapado = tipo.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const regexTipo = new RegExp('\\b' + tipoEscapado + '\\b', 'ig');
+  base = base.replace(regexTipo, ' ')
+    .replace(/\s*[-–—:|/]\s*/g, ' - ')
+    .replace(/(?:\s*-\s*){2,}/g, ' - ')
+    .replace(/^\s*-\s*|\s*-\s*$/g, '')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+  return base ? tipo + ' - ' + base : tipo;
+}
+
+function prefixoTituloRegistro_(tipoRegistro, tipoEvento) {
+  const registro = String(tipoRegistro || 'Evento').trim();
+  const tipo = String(tipoEvento || '').trim();
+  if (registro === 'Evento') return tipo && !/^evento$/i.test(tipo) ? tipo : '';
+  if (registro === 'Compromisso') return tipo && !/^outro$/i.test(tipo) ? tipo : 'Compromisso';
+  if (registro === 'Reserva') return 'Reserva';
+  if (registro === 'Reunião') return 'Reunião';
+  if (registro === 'Bloqueio') return 'Bloqueio';
+  return registro || tipo;
+}
+
+function comporTituloRegistroNovo_(tipoRegistro, tipoEvento, nomeEvento) {
+  return comporTituloEventoComTipo_(prefixoTituloRegistro_(tipoRegistro, tipoEvento), nomeEvento);
+}
+
+function obterNomeEventoExibicao_(linhaOuEvento) {
+  if (Array.isArray(linhaOuEvento)) {
+    const nomeProprio = String(linhaOuEvento[COL.NOME_EVENTO] || '').trim();
+    if (nomeProprio) return comporTituloRegistroNovo_(linhaOuEvento[COL.TIPO_REGISTRO], linhaOuEvento[COL.TIPO_EVENTO], nomeProprio);
+    return String(linhaOuEvento[COL.NOME_CONTRATANTE] || '').trim();
+  }
+  const evento = linhaOuEvento || {};
+  const nomeProprio = String(evento.nomeEventoProprio || evento.NOME_EVENTO || '').trim();
+  if (nomeProprio) {
+    return comporTituloRegistroNovo_(evento.tipoRegistro || evento.tipo || evento.TIPO_REGISTRO, evento.tipoEvento || evento.TIPO_EVENTO, nomeProprio);
+  }
+  // Objetos de leitura normalmente já trazem `nomeEvento` como título final.
+  // Não recompomos aqui para não transformar inadvertidamente um legado.
+  const tituloJaResolvido = String(evento.nomeEvento || '').trim();
+  if (tituloJaResolvido) return tituloJaResolvido;
+  return String(evento.nomeContratante || evento.contratante || evento.NOME_CONTRATANTE || '').trim();
+}
 
 /**
  * Valida se email é de usuário ativo
@@ -334,10 +427,12 @@ function buscarEvento(id) {
           valorRecebido,
           valorPendente
         ), // Col 18 (antes 17)
+        statusGeral: String(data[i][COL.STATUS_GERAL] || 'ATIVO').trim().toUpperCase(),
         idVendedor: data[i][COL.ID_VENDEDOR],        // Col 19 (antes 18)
         nomeVendedor: data[i][COL.NOME_VENDEDOR],    // Col 20 (antes 19)
         comissaoTipo: data[i][COL.COMISSAO_TIPO],    // Col 21 (antes 20)
         comissaoValor: data[i][COL.COMISSAO_VALOR],  // Col 22 (antes 21)
+        valorComissaoCalculado: data[i][COL.VALOR_COMISSAO_CALCULADO],
         idBV: data[i][COL.ID_BV],                    // Col 26 (antes 25)
         nomeBV: data[i][COL.NOME_BV],                // Col 27 (antes 26)
         valorBV: data[i][COL.VALOR_BV],              // Col 28 (antes 27)

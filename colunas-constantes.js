@@ -1,12 +1,12 @@
 /**
  * ════════════════════════════════════════════════════════════════
- * CONSTANTES DE COLUNAS - ESTRUTURA 43 COLUNAS //
+ * CONSTANTES DE COLUNAS - ESTRUTURA 45 COLUNAS //
  * ════════════════════════════════════════════════════════════════
  * 
  * IMPORTANTE: Sempre usar estas constantes em vez de números!
  * Exemplo: dados[i][COL.VALOR_TOTAL] em vez de dados[i][14]
  * 
- * Índices JavaScript (base-0): Coluna 1 = índice 0, Coluna 43 = índice 42
+ * Índices JavaScript (base-0): Coluna 1 = índice 0, Coluna 44 = índice 43
  */
 
 const COL = {
@@ -69,7 +69,11 @@ const COL = {
   DATA_CRIACAO: 39,          // Col 40 (antes era índice 35)
   CRIADO_POR: 40,            // Col 41 (antes era índice 36)
   ULTIMA_EDICAO: 41,         // Col 42 (antes era índice 37)
-  EDITADO_POR: 42            // Col 43 (antes era índice 38)
+  EDITADO_POR: 42,           // Col 43 (antes era índice 38)
+
+  // Integrações opcionais (44)
+  NUM_ORCAMENTO_ORIGEM: 43,  // Col 44 — vínculo proposta/evento
+  NOME_EVENTO: 44            // Col 45 — título próprio (vazio nos registros legados)
 };
 
 /**
@@ -118,8 +122,10 @@ const COLUNA = {
   DATA_CRIACAO: 40,
   CRIADO_POR: 41,
   ULTIMA_EDICAO: 42,
-  EDITADO_POR: 43
+  EDITADO_POR: 43,
+  NUM_ORCAMENTO_ORIGEM: 44,
+  NOME_EVENTO: 45
 };
 
 // Total de colunas
-const TOTAL_COLUNAS_EVENTOS = 43;
+const TOTAL_COLUNAS_EVENTOS = 45;

@@ -10,8 +10,9 @@
    BUSCAS
 ========================= */
 
-function buscarEventoPorID(idParcial) {
+function buscarEventoPorID(idParcial, email) {
   exigirAcao('eventos:editar');
+  const user = requireUserByEmail(email || getUsuarioAtual().EMAIL || getUsuarioAtual().email);
   Logger.log('🔍 buscarEventoPorID: ' + idParcial);
   const sheet = SpreadsheetApp.getActive().getSheetByName('EVENTOS');
   if (!sheet) return [];
@@ -22,6 +23,7 @@ function buscarEventoPorID(idParcial) {
 
   for (let i = 1; i < dados.length; i++) {
     const linha = dados[i];
+    if (linhaEhCompromissoPessoal_(linha) && !usuarioEhProprietarioCompromissoPessoal_(user)) continue;
     if (!linha[COL.ID_EVENTO]) continue;
     const statusGeral = String(linha[COL.STATUS_GERAL] || 'ATIVO').trim().toUpperCase();
     if (statusGeral === 'CANCELADO') continue;
@@ -37,8 +39,9 @@ function buscarEventoPorID(idParcial) {
   return eventos;
 }
 
-function buscarEventoPorContratante(nomeParcial) {
+function buscarEventoPorContratante(nomeParcial, incluirCancelados, email) {
   exigirAcao('eventos:editar');
+  const user = requireUserByEmail(email || getUsuarioAtual().EMAIL || getUsuarioAtual().email);
   Logger.log('🔍 buscarEventoPorContratante: ' + nomeParcial);
   const sheet = SpreadsheetApp.getActive().getSheetByName('EVENTOS');
   if (!sheet) return [];
@@ -51,12 +54,14 @@ function buscarEventoPorContratante(nomeParcial) {
 
   for (let i = 1; i < dados.length; i++) {
     const linha = dados[i];
+    if (linhaEhCompromissoPessoal_(linha) && !usuarioEhProprietarioCompromissoPessoal_(user)) continue;
     const statusGeral = String(linha[COL.STATUS_GERAL] || 'ATIVO').trim().toUpperCase();
-    if (statusGeral === 'CANCELADO') continue;
+    if (statusGeral === 'CANCELADO' && incluirCancelados !== true) continue;
     const id = String(linha[COL.ID_EVENTO] || '').trim();
     const nome = String(linha[COL.NOME_CONTRATANTE] || '').toLowerCase();
+    const titulo = String(linha[COL.NOME_EVENTO] || '').toLowerCase();
     const tipoEvento = String(linha[COL.TIPO_EVENTO] || '').trim();
-    const matchNome = nome.includes(busca);
+    const matchNome = nome.includes(busca) || titulo.includes(busca) || tipoEvento.toLowerCase().includes(busca);
     const matchId = id.toLowerCase().includes(busca);
     if (!matchNome && !matchId) continue;
 
@@ -98,8 +103,9 @@ function buscarEventoPorContratante(nomeParcial) {
   return result;
 }
 
-function buscarEventoPorData(dataISO) {
+function buscarEventoPorData(dataISO, incluirCancelados, email) {
   exigirAcao('eventos:editar');
+  const user = requireUserByEmail(email || getUsuarioAtual().EMAIL || getUsuarioAtual().email);
   Logger.log('🔍 buscarEventoPorData: ' + dataISO);
   if (!dataISO) return [];
 
@@ -114,8 +120,9 @@ function buscarEventoPorData(dataISO) {
   const eventos = [];
 
   for (let i = 1; i < dados.length; i++) {
+    if (linhaEhCompromissoPessoal_(dados[i]) && !usuarioEhProprietarioCompromissoPessoal_(user)) continue;
     const statusGeral = String(dados[i][COL.STATUS_GERAL] || 'ATIVO').trim().toUpperCase();
-    if (statusGeral === 'CANCELADO') continue;
+    if (statusGeral === 'CANCELADO' && incluirCancelados !== true) continue;
     const dataEvento = normalizarData(dados[i][COL.DATA_EVENTO]);
     if (!dataEvento) continue;
 
@@ -132,8 +139,9 @@ function buscarEventoPorData(dataISO) {
   return eventos;
 }
 
-function buscarEventoPorPeriodo(periodo) {
+function buscarEventoPorPeriodo(periodo, email) {
   exigirAcao('eventos:editar');
+  const user = requireUserByEmail(email || getUsuarioAtual().EMAIL || getUsuarioAtual().email);
   Logger.log('🔍 buscarEventoPorPeriodo: ' + periodo);
   const hoje = new Date();
   hoje.setHours(0, 0, 0, 0);
@@ -168,6 +176,7 @@ function buscarEventoPorPeriodo(periodo) {
   const eventos = [];
 
   for (let i = 1; i < dados.length; i++) {
+    if (linhaEhCompromissoPessoal_(dados[i]) && !usuarioEhProprietarioCompromissoPessoal_(user)) continue;
     const statusGeral = String(dados[i][COL.STATUS_GERAL] || 'ATIVO').trim().toUpperCase();
     if (statusGeral === 'CANCELADO') continue;
     const dataEvento = normalizarData(dados[i][COL.DATA_EVENTO]);
@@ -194,8 +203,9 @@ function buscarEventoPorPeriodo(periodo) {
    EDIÇÃO
 ========================= */
 
-function buscarEventoParaEdicao(idEvento) {
+function buscarEventoParaEdicao(idEvento, email) {
   exigirAcao('eventos:editar');
+  const user = requireUserByEmail(email || getUsuarioAtual().EMAIL || getUsuarioAtual().email);
   Logger.log('═══════════════════════════════════════════════');
   Logger.log('📝 buscarEventoParaEdicao INICIADA');
   Logger.log('ID recebido: ' + idEvento);
@@ -217,6 +227,9 @@ function buscarEventoParaEdicao(idEvento) {
     for (let i = 1; i < dados.length; i++) {
       const l = dados[i];
       if (String(l[COL.ID_EVENTO]) !== String(idEvento)) continue;
+      if (linhaEhCompromissoPessoal_(l) && !usuarioEhProprietarioCompromissoPessoal_(user)) {
+        return { sucesso: false, mensagem: 'Compromisso pessoal restrito ao proprietário.' };
+      }
 
       Logger.log('✅ Evento encontrado na linha ' + (i + 1));
 
@@ -267,6 +280,8 @@ function buscarEventoParaEdicao(idEvento) {
   idVendedor: String(l[COL.ID_VENDEDOR] || '').trim(),
   idBV: String(l[COL.ID_BV] || '').trim(),
   nomeContratanteAtual: nomeContratanteAtual,
+  nomeEvento: obterNomeEventoExibicao_(l),
+  nomeEventoProprio: String(l[COL.NOME_EVENTO] || '').trim(),
   nomeLocalAtual: nomeLocalAtual,
   nomeContratanteCadastro: nomeContratanteCadastro,
   nomeLocalCadastro: nomeLocalCadastro,
@@ -285,7 +300,8 @@ function buscarEventoParaEdicao(idEvento) {
   look: l[COL.LOOK] || '',
   somResponsavel: l[COL.SOM_RESPONSAVEL] || '',
   observacoes: l[COL.OBSERVACOES] || '',
-  statusGeral: String(l[COL.STATUS_GERAL] || 'ATIVO').trim().toUpperCase()
+  statusGeral: String(l[COL.STATUS_GERAL] || 'ATIVO').trim().toUpperCase(),
+  numeroOrcamentoOrigem: String(l[COL.NUM_ORCAMENTO_ORIGEM] || '').trim()
 };
 
       return {
@@ -565,6 +581,7 @@ function salvarEdicaoEvento(idEvento, dadosFormulario, email) {
     idVendedor: dadosFormulario.idVendedor || arguments[1]?.idVendedor,
     idBV: dadosFormulario.idBV || arguments[1]?.idBV,
     nomeContratanteEditado: dadosFormulario.nomeContratanteEditado || dadosFormulario.nomeContratante || arguments[1]?.nomeContratanteEditado,
+    nomeEvento: String(dadosFormulario.nomeEvento || '').trim(),
     nomeLocalEditado: dadosFormulario.nomeLocalEditado || dadosFormulario.nomeLocal || arguments[1]?.nomeLocalEditado,
     nomeContratanteFallback: dadosFormulario.nomeContratanteFallback || arguments[1]?.nomeContratanteFallback,
     nomeLocalFallback: dadosFormulario.nomeLocalFallback || arguments[1]?.nomeLocalFallback,
@@ -640,6 +657,10 @@ function salvarEdicaoEvento(idEvento, dadosFormulario, email) {
 
     const linha = dadosSheet[linhaIndex];
     const linhaOriginal = linha.slice();
+    const userExecutor = requireUserByEmail(emailExecutor);
+    if (linhaEhCompromissoPessoal_(linha) && !usuarioEhProprietarioCompromissoPessoal_(userExecutor)) {
+      throw new Error('Compromisso pessoal restrito ao proprietário.');
+    }
     const tipoRegistroAtual = String(linha[COL.TIPO_REGISTRO] || 'Evento').trim() || 'Evento';
     const estaConvertendoReserva = converterReserva && tipoRegistroAtual === 'Reserva';
     const dataEventoAnteriorISO = formatarDataISO(linha[COL.DATA_EVENTO]);
@@ -653,6 +674,9 @@ function salvarEdicaoEvento(idEvento, dadosFormulario, email) {
     }
 
     if (estaConvertendoReserva) {
+      if (!dados.nomeEvento) {
+        throw new Error('Para converter reserva em evento, informe o Nome do Evento.');
+      }
       if (!dados.tipoEvento) {
         throw new Error('Para converter reserva em evento, selecione o Tipo de Evento.');
       }
@@ -675,13 +699,25 @@ function salvarEdicaoEvento(idEvento, dadosFormulario, email) {
 
     const tipoRegistroFinal = String(linha[COL.TIPO_REGISTRO] || tipoRegistroAtual || 'Evento').trim() || 'Evento';
     const ehEventoFinal = tipoRegistroFinal === 'Evento';
+    const ehCompromissoFinal = tipoRegistroFinal === 'Compromisso';
+    const tinhaNomeEventoProprio = !!String(linhaOriginal[COL.NOME_EVENTO] || '').trim();
+    validarTipoCompromissoPessoalParaUsuario_(tipoRegistroFinal, dados.tipoEvento, userExecutor);
+    const permissaoFinanceiraEdicao = ehEventoFinal
+      ? verificarPermissaoEdicaoFinanceira(idEvento)
+      : { permitido: true };
+    const financeiroBloqueado =
+      ehEventoFinal &&
+      !estaConvertendoReserva &&
+      permissaoFinanceiraEdicao.permitido !== true;
 
     // ================================
     // DETECTAR ATIVAÇÃO DE NF / BV NA EDIÇÃO
     // ================================
     // Normalização explícita de NF (boolean definitivo)
     // NF normalizada é a fonte da verdade
-    linha[COL.TEM_NF] = ehEventoFinal ? (dados.temNF === true) : false;
+    linha[COL.TEM_NF] = ehEventoFinal
+      ? (financeiroBloqueado ? linhaOriginal[COL.TEM_NF] : (dados.temNF === true))
+      : false;
 
     // DATA EVENTO
     if (dados.dataEvento) {
@@ -704,7 +740,7 @@ function salvarEdicaoEvento(idEvento, dadosFormulario, email) {
 
     // Outros campos
     linha[COL.DURACAO] = dados.duracao || '';
-    linha[COL.TIPO_EVENTO] = (ehEventoFinal || tipoRegistroFinal === 'Reserva')
+    linha[COL.TIPO_EVENTO] = (ehEventoFinal || tipoRegistroFinal === 'Reserva' || ehCompromissoFinal)
       ? (dados.tipoEvento || linha[COL.TIPO_EVENTO] || '')
       : '';
     linha[COL.PROJETO] = (ehEventoFinal || tipoRegistroFinal === 'Reserva')
@@ -712,21 +748,42 @@ function salvarEdicaoEvento(idEvento, dadosFormulario, email) {
       : '';
 
     // IDs + ESPELHAMENTO DE NOMES (resiliente: nunca apagar por referência ausente)
-    const refContratante = resolverReferenciaMestreEdicao_({
-      aba: 'CONTRATANTES',
-      idNovo: dados.idContratante,
-      idAtual: linha[COL.ID_CONTRATANTE],
-      nomeAtual: linha[COL.NOME_CONTRATANTE],
-      nomeFallback: dados.nomeContratanteFallback
-    });
+    const tipoPermiteContratante = ehEventoFinal || tipoRegistroFinal === 'Reserva' || tipoRegistroFinal === 'Reunião';
+    const refContratante = !tipoPermiteContratante
+      ? (tinhaNomeEventoProprio
+          ? { id: '', nome: '' }
+          : {
+              id: String(linha[COL.ID_CONTRATANTE] || '').trim(),
+              nome: String(linha[COL.NOME_CONTRATANTE] || '').trim()
+            })
+      : resolverReferenciaMestreEdicao_({
+          aba: 'CONTRATANTES',
+          idNovo: dados.idContratante,
+          idAtual: linha[COL.ID_CONTRATANTE],
+          nomeAtual: linha[COL.NOME_CONTRATANTE],
+          nomeFallback: dados.nomeContratanteFallback
+        });
     linha[COL.ID_CONTRATANTE] = refContratante.id;
     linha[COL.NOME_CONTRATANTE] = refContratante.nome;
 
-    const nomeContratanteDigitado = String(dados.nomeContratanteEditado || '').trim();
+    const nomeContratanteDigitado = tipoPermiteContratante
+      ? String(dados.nomeContratanteEditado || '').trim()
+      : '';
     if (nomeContratanteDigitado) {
       linha[COL.NOME_CONTRATANTE] = nomeContratanteDigitado;
       if (linha[COL.ID_CONTRATANTE] && dados.aplicarNomeContratanteNoMestre) {
         atualizarNomeNaAbaMestrePorId_('CONTRATANTES', linha[COL.ID_CONTRATANTE], nomeContratanteDigitado);
+      }
+    }
+    if (ehCompromissoFinal) {
+      if (!String(linha[COL.TIPO_EVENTO] || '').trim()) {
+        throw new Error('Selecione o tipo de compromisso.');
+      }
+      if (!String(linha[COL.HORA_INICIO] || '').trim()) {
+        throw new Error('Informe o horário do compromisso.');
+      }
+      if (!(Number(linha[COL.DURACAO]) > 0)) {
+        throw new Error('Informe a duração do compromisso.');
       }
     }
 
@@ -754,13 +811,19 @@ function salvarEdicaoEvento(idEvento, dadosFormulario, email) {
       }
     }
 
-    linha[COL.ID_VENDEDOR] = ehEventoFinal ? (dados.idVendedor || '') : '';
-    linha[COL.ID_BV] = ehEventoFinal ? (dados.idBV || '') : '';
-    linha[COL.NOME_VENDEDOR] = (ehEventoFinal && linha[COL.ID_VENDEDOR])
-      ? buscarNomePorId('VENDEDORES', linha[COL.ID_VENDEDOR])
+    linha[COL.ID_VENDEDOR] = ehEventoFinal
+      ? (financeiroBloqueado ? linhaOriginal[COL.ID_VENDEDOR] : (dados.idVendedor || ''))
       : '';
+    linha[COL.ID_BV] = ehEventoFinal
+      ? (financeiroBloqueado ? linhaOriginal[COL.ID_BV] : (dados.idBV || ''))
+      : '';
+    linha[COL.NOME_VENDEDOR] = financeiroBloqueado
+      ? linhaOriginal[COL.NOME_VENDEDOR]
+      : ((ehEventoFinal && linha[COL.ID_VENDEDOR])
+          ? buscarNomePorId('VENDEDORES', linha[COL.ID_VENDEDOR])
+          : '');
 
-    if (ehEventoFinal) {
+    if (ehEventoFinal && !financeiroBloqueado) {
       if (!linha[COL.COMISSAO_TIPO] || String(linha[COL.COMISSAO_TIPO]).trim() === 'N/A') {
         linha[COL.COMISSAO_TIPO] = 'Padrão';
       }
@@ -771,14 +834,8 @@ function salvarEdicaoEvento(idEvento, dadosFormulario, email) {
 
     if (ehEventoFinal) {
       // ───────── CONTROLE DE EDIÇÃO FINANCEIRA ─────────
-      let podeAlterarFinanceiro = false;
-      let permissaoFinanceira = verificarPermissaoEdicaoFinanceira(idEvento);
+      const podeAlterarFinanceiro = permissaoFinanceiraEdicao.permitido === true;
       const usuario = getUsuarioAtual();
-      if (usuario.PERFIL === 'Proprietário') {
-        podeAlterarFinanceiro = permissaoFinanceira.permitido;
-      } else {
-        podeAlterarFinanceiro = permissaoFinanceira.permitido;
-      }
 
       if (podeAlterarFinanceiro || estaConvertendoReserva) {
         const querBVAgora = Number(dados.valorBV) > 0;
@@ -808,33 +865,36 @@ function salvarEdicaoEvento(idEvento, dadosFormulario, email) {
           linha[COL.NOME_BV] = '';
         }
       } else {
-        Logger.log('🔒 Financeiro bloqueado: ' + permissaoFinanceira.motivo);
+        Logger.log('🔒 Financeiro preservado na edição: ' + permissaoFinanceiraEdicao.motivo);
       }
 
-      // 🔁 BLOCO FINANCEIRO DEFINITIVO (somente Evento)
-      const percentualNFConfig = Number(obterConfig('NF_PERCENTUAL')) || 0;
-      const financeiro = calcularFinanceiroEvento({
-        valorTotal: Number(linha[COL.VALOR_TOTAL]) || 0,
-        valorBV: Number(linha[COL.VALOR_BV]) || 0,
-        temNF: linha[COL.TEM_NF] === true,
-        percentualNF: linha[COL.TEM_NF] === true ? percentualNFConfig : 0,
-        comissaoTipo: linha[COL.COMISSAO_TIPO],
-        comissaoValor: linha[COL.COMISSAO_VALOR]
-      });
+      // O recálculo estrutural só é seguro antes da primeira movimentação.
+      // Depois disso, os espelhos pertencem ao fluxo financeiro e permanecem intactos.
+      if (podeAlterarFinanceiro || estaConvertendoReserva) {
+        const percentualNFConfig = Number(obterConfig('NF_PERCENTUAL')) || 0;
+        const financeiro = calcularFinanceiroEvento({
+          valorTotal: Number(linha[COL.VALOR_TOTAL]) || 0,
+          valorBV: Number(linha[COL.VALOR_BV]) || 0,
+          temNF: linha[COL.TEM_NF] === true,
+          percentualNF: linha[COL.TEM_NF] === true ? percentualNFConfig : 0,
+          comissaoTipo: linha[COL.COMISSAO_TIPO],
+          comissaoValor: linha[COL.COMISSAO_VALOR]
+        });
 
-      linha[COL.VALOR_NF] = Number(financeiro.valorNF) || 0;
-      linha[COL.STATUS_NF] = financeiro.statusNF || 'N/A';
-      linha[COL.VALOR_COMISSAO_CALCULADO] = financeiro.valorComissaoCalculado || 0;
-      linha[COL.STATUS_COMISSAO] = financeiro.statusComissao || 'N/A';
-      linha[COL.STATUS_BV] = financeiro.statusBV || 'N/A';
-      const valorRecebidoAtual = Number(linha[COL.VALOR_RECEBIDO]) || 0;
-      const valorPendenteAtual = Number(linha[COL.VALOR_PENDENTE]) || 0;
-      if (valorPendenteAtual <= 0) {
-        linha[COL.STATUS_RECEBIMENTO] = 'QUITADO';
-      } else if (valorRecebidoAtual > 0) {
-        linha[COL.STATUS_RECEBIMENTO] = 'PARCIAL';
-      } else {
-        linha[COL.STATUS_RECEBIMENTO] = 'EM_ABERTO';
+        linha[COL.VALOR_NF] = Number(financeiro.valorNF) || 0;
+        linha[COL.STATUS_NF] = financeiro.statusNF || 'N/A';
+        linha[COL.VALOR_COMISSAO_CALCULADO] = financeiro.valorComissaoCalculado || 0;
+        linha[COL.STATUS_COMISSAO] = financeiro.statusComissao || 'N/A';
+        linha[COL.STATUS_BV] = financeiro.statusBV || 'N/A';
+        const valorRecebidoAtual = Number(linha[COL.VALOR_RECEBIDO]) || 0;
+        const valorPendenteAtual = Number(linha[COL.VALOR_PENDENTE]) || 0;
+        if (valorPendenteAtual <= 0) {
+          linha[COL.STATUS_RECEBIMENTO] = 'QUITADO';
+        } else if (valorRecebidoAtual > 0) {
+          linha[COL.STATUS_RECEBIMENTO] = 'PARCIAL';
+        } else {
+          linha[COL.STATUS_RECEBIMENTO] = 'EM_ABERTO';
+        }
       }
     } else {
       // Tipos não financeiros: limpa espelho financeiro para evitar poluição.
@@ -863,6 +923,14 @@ function salvarEdicaoEvento(idEvento, dadosFormulario, email) {
     linha[COL.LOOK] = dados.look || '';
     linha[COL.SOM_RESPONSAVEL] = dados.somResponsavel || '';
     linha[COL.OBSERVACOES] = dados.observacoes || '';
+    if ((tinhaNomeEventoProprio || estaConvertendoReserva) && !String(dados.nomeEvento || '').trim()) {
+      throw new Error('Informe o nome ou assunto do registro.');
+    }
+    if (dados.nomeEvento && (tinhaNomeEventoProprio || estaConvertendoReserva)) {
+      garantirColunaNomeEvento_(sheet);
+      while (linha.length <= COL.NOME_EVENTO) linha.push('');
+      linha[COL.NOME_EVENTO] = dados.nomeEvento;
+    }
 
     // Auditoria
     linha[COL.ULTIMA_EDICAO] = new Date();
@@ -878,6 +946,7 @@ function salvarEdicaoEvento(idEvento, dadosFormulario, email) {
     // =====================================================
     const eventoAtualizado = {
       idEvento: linha[COL.ID_EVENTO],
+      nomeEvento: obterNomeEventoExibicao_(linha),
       tipoEvento: linha[COL.TIPO_EVENTO],
       nomeContratante: linha[COL.NOME_CONTRATANTE],
       temNF: linha[COL.TEM_NF] === true,
@@ -898,13 +967,14 @@ function salvarEdicaoEvento(idEvento, dadosFormulario, email) {
     }
 
     const alteracoesEvento = resumirAlteracoesEdicaoEvento_(linhaOriginal, linha);
+    const pessoalFinal = linhaEhCompromissoPessoal_(linha);
 
     registrarLog(
       'EDITAR',
       'EVENTOS',
       String(linha[COL.ID_EVENTO] || idEvento || ''),
       JSON.stringify({
-        alteracoes: alteracoesEvento,
+        alteracoes: pessoalFinal ? [{ campo: 'compromissoPessoal', de: '', para: 'atualizado' }] : alteracoesEvento,
         origem: 'salvarEdicaoEvento',
         editor: String(emailExecutor || '')
       })
@@ -940,6 +1010,7 @@ function resumirAlteracoesEdicaoEvento_(antes, depois) {
     { k: 'projeto', i: COL.PROJETO },
     { k: 'idContratante', i: COL.ID_CONTRATANTE },
     { k: 'contratante', i: COL.NOME_CONTRATANTE },
+    { k: 'nomeEvento', i: COL.NOME_EVENTO },
     { k: 'idEndereco', i: COL.ID_ENDERECO },
     { k: 'local', i: COL.LOCAL },
     { k: 'idCerimonialista', i: COL.ID_CERIMONIALISTA },
@@ -1021,6 +1092,10 @@ function cancelarEvento(idEvento, motivo) {
     }
 
     const linha = dados[linhaIndex];
+    const userExecutor = getUsuarioAtual();
+    if (linhaEhCompromissoPessoal_(linha) && !usuarioEhProprietarioCompromissoPessoal_(userExecutor)) {
+      return { sucesso: false, mensagem: 'Compromisso pessoal restrito ao proprietário.' };
+    }
     const tipoRegistro = String(linha[COL.TIPO_REGISTRO] || 'Evento').trim();
     const statusAtual = String(linha[COL.STATUS_GERAL] || 'ATIVO').trim().toUpperCase();
     if (statusAtual === 'CANCELADO') {
@@ -1052,7 +1127,9 @@ function cancelarEvento(idEvento, motivo) {
       'CANCELAR',
       'EVENTOS',
       alvo,
-      `tipo=${tipoRegistro}; motivo=${motivoLimpo}; status_anterior=${statusAtual}; usuario=${usuario}`
+      linhaEhCompromissoPessoal_(linha)
+        ? `tipo=Compromisso pessoal; status_anterior=${statusAtual}; usuario=${usuario}`
+        : `tipo=${tipoRegistro}; motivo=${motivoLimpo}; status_anterior=${statusAtual}; usuario=${usuario}`
     );
 
     return {
@@ -1332,6 +1409,8 @@ function mapEventoResumo(l) {
     tipoRegistro: l[COL.TIPO_REGISTRO] || 'Evento',
     tipoEvento: l[COL.TIPO_EVENTO] || '',
     contratante: l[COL.NOME_CONTRATANTE] || '—',
+    nomeEvento: obterNomeEventoExibicao_(l),
+    nomeEventoProprio: String(l[COL.NOME_EVENTO] || '').trim(),
     local: l[COL.LOCAL] || '',
     horaInicio: horaInicio,
     duracao: Number(l[COL.DURACAO]) || 0,

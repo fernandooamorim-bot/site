@@ -138,7 +138,8 @@ function migrarSaldoInicialFinanceiro(params) {
 
       const tipoEvento = String(row[e('TIPO_EVENTO')] || '').trim();
       const nomeContratante = String(row[e('NOME_CONTRATANTE')] || '').trim();
-      const nomeEvento = (tipoEvento + ' ' + nomeContratante).trim() || idEvento;
+      const idxNomeEvento = e('NOME_EVENTO');
+      const nomeEvento = String(idxNomeEvento >= 0 ? row[idxNomeEvento] : '').trim() || (tipoEvento + ' ' + nomeContratante).trim() || idEvento;
       const dataMov = row[e('DATA_EVENTO')] || new Date();
       const dataNormalizada = normalizarData(dataMov);
       const idContratante = row[e('ID_CONTRATANTE')];
@@ -615,7 +616,8 @@ function repararPendenciasSaldoInicialComissao(params) {
 
         const tipoEvento = String(evento[e('TIPO_EVENTO')] || '').trim();
         const nomeContratante = String(evento[e('NOME_CONTRATANTE')] || '').trim();
-        const nomeEvento = (tipoEvento + ' ' + nomeContratante).trim() || idEvento;
+        const idxNomeEvento = e('NOME_EVENTO');
+        const nomeEvento = String(idxNomeEvento >= 0 ? evento[idxNomeEvento] : '').trim() || (tipoEvento + ' ' + nomeContratante).trim() || idEvento;
         const dataNormalizada = normalizarData(evento[e('DATA_EVENTO')] || new Date());
 
         const linhaComissao = [
@@ -804,7 +806,7 @@ function reconciliarMovimentacoesSaldoInicialPosAuditoria(params) {
       const rowNum = seed.rowIndex;
       const tipoEvento = String(evento[e('TIPO_EVENTO')] || '').trim();
       const nomeContratante = String(evento[e('NOME_CONTRATANTE')] || '').trim();
-      const nomeEvento = (tipoEvento + ' ' + nomeContratante).trim();
+      const nomeEvento = String(evento[e('NOME_EVENTO')] || '').trim() || (tipoEvento + ' ' + nomeContratante).trim();
       const dataNorm = normalizarData(evento[e('DATA_EVENTO')] || new Date());
       const idContratante = evento[e('ID_CONTRATANTE')];
       const status = desired > 0 ? 'PROCESSADO' : 'CANCELADO';
@@ -824,7 +826,7 @@ function reconciliarMovimentacoesSaldoInicialPosAuditoria(params) {
       const rowNum = seed.rowIndex;
       const tipoEvento = String(evento[e('TIPO_EVENTO')] || '').trim();
       const nomeContratante = String(evento[e('NOME_CONTRATANTE')] || '').trim();
-      const nomeEvento = (tipoEvento + ' ' + nomeContratante).trim();
+      const nomeEvento = String(evento[e('NOME_EVENTO')] || '').trim() || (tipoEvento + ' ' + nomeContratante).trim();
       const dataNorm = normalizarData(evento[e('DATA_EVENTO')] || new Date());
       const status = desired > 0 ? 'PROCESSADO' : 'CANCELADO';
 
@@ -872,7 +874,7 @@ function reconciliarMovimentacoesSaldoInicialPosAuditoria(params) {
         } else if (desiredReceb > 0) {
           const tipoEvento = String(evento[e('TIPO_EVENTO')] || '').trim();
           const nomeContratante = String(evento[e('NOME_CONTRATANTE')] || '').trim();
-          const nomeEvento = (tipoEvento + ' ' + nomeContratante).trim() || idEvento;
+          const nomeEvento = String(evento[e('NOME_EVENTO')] || '').trim() || (tipoEvento + ' ' + nomeContratante).trim() || idEvento;
           const dataNorm = normalizarData(evento[e('DATA_EVENTO')] || new Date());
           const idContratante = evento[e('ID_CONTRATANTE')];
           const linhaReceb = [
@@ -926,7 +928,7 @@ function reconciliarMovimentacoesSaldoInicialPosAuditoria(params) {
           }
           const tipoEvento = String(evento[e('TIPO_EVENTO')] || '').trim();
           const nomeContratante = String(evento[e('NOME_CONTRATANTE')] || '').trim();
-          const nomeEvento = (tipoEvento + ' ' + nomeContratante).trim() || idEvento;
+          const nomeEvento = String(evento[e('NOME_EVENTO')] || '').trim() || (tipoEvento + ' ' + nomeContratante).trim() || idEvento;
           const dataNorm = normalizarData(evento[e('DATA_EVENTO')] || new Date());
           const linhaComis = [
             gerarIDMovimentacao(),
@@ -1131,7 +1133,7 @@ function auditarSaidasLegado2025(params) {
     if (ano < anoMinimo) continue;
     resumo.eventosAnoMinimo++;
 
-    const nomeEvento = (String(row[e('TIPO_EVENTO')] || '') + ' ' + String(row[e('NOME_CONTRATANTE')] || '')).trim();
+    const nomeEvento = obterNomeEventoExibicao_(row);
     const stat = mapa[idEvento] || { nfCount: 0, nfValor: 0, folhaCount: 0, folhaValor: 0, bvCount: 0, bvValor: 0 };
 
     const temNF = parseBooleanPlanilha_(row[e('TEM_NF')]);
@@ -1263,7 +1265,7 @@ function migrarSaidasLegadoNfFolha2025(params) {
 
       const tipoEvento = String(row[e('TIPO_EVENTO')] || '').trim();
       const nomeContratante = String(row[e('NOME_CONTRATANTE')] || '').trim();
-      const nomeEvento = (tipoEvento + ' ' + nomeContratante).trim() || idEvento;
+      const nomeEvento = String(row[e('NOME_EVENTO')] || '').trim() || (tipoEvento + ' ' + nomeContratante).trim() || idEvento;
       const dataMov = normalizarData(row[e('DATA_EVENTO')] || new Date());
 
       try {
@@ -1466,7 +1468,7 @@ function auditarBvLegado2025a2027(params) {
     const expectedStatus = ano === 2025 ? 'PROCESSADO' : 'PENDENTE';
     const idParceiro = String(row[e('ID_BV')] || '').trim();
     const nomeParceiro = String(row[e('NOME_BV')] || '').trim();
-    const nomeEvento = (String(row[e('TIPO_EVENTO')] || '') + ' ' + String(row[e('NOME_CONTRATANTE')] || '')).trim();
+    const nomeEvento = obterNomeEventoExibicao_(row);
 
     const movs = mapaBv[idEvento] || [];
     if (!movs.length) {
@@ -1597,7 +1599,7 @@ function migrarBvLegado2025a2027(params) {
       const obsEvento = String(row[e('OBSERVACOES')] || '').trim();
       const tipoEvento = String(row[e('TIPO_EVENTO')] || '').trim();
       const nomeContratante = String(row[e('NOME_CONTRATANTE')] || '').trim();
-      const nomeEvento = (tipoEvento + ' ' + nomeContratante).trim() || idEvento;
+      const nomeEvento = String(row[e('NOME_EVENTO')] || '').trim() || (tipoEvento + ' ' + nomeContratante).trim() || idEvento;
       const dataMov = normalizarData(row[e('DATA_EVENTO')] || new Date());
       const movs = mapaBv[idEvento] || [];
       const destino = resolverDestinatarioBV_(nomeCerimonialista, obsEvento, nomeParceiro);
@@ -1701,4 +1703,3 @@ function executarMigracaoBvLegadoManual(emailProprietario, chunkSize) {
     else globalThis.REQUEST_EMAIL = anterior;
   }
 }
-

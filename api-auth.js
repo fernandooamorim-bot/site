@@ -145,7 +145,7 @@ if (raw && raw.startsWith('{')) {
 
     if (action === 'buscarEventosPorData') {
       exigirAcao('eventos:listar');
-      return json(buscarEventosPorData(params.data));
+      return json(buscarEventosPorData(params.data, emailAutenticado));
     }
 
     if (action === 'obterAgendaSyncInfo') {
@@ -160,6 +160,7 @@ if (raw && raw.startsWith('{')) {
     if (action === 'listarDuracoesPadrao') return json(listarDuracoesPadrao());
     if (action === 'listarProjetosSugeridos') return json(listarProjetosSugeridos());
     if (action === 'listarTiposEvento') return json(listarTiposEvento());
+    if (action === 'listarTiposCompromisso') return json(listarTiposCompromisso(emailAutenticado));
     if (action === 'obterConfig') return json(obterConfigPublica(params.chave));
     if (action === 'obterPercentualNF') return json(obterPercentualNF());
     if (action === 'listarAclReadOnly') {
@@ -367,22 +368,22 @@ if (raw && raw.startsWith('{')) {
 
     if (action === 'buscarEventoParaEdicao') {
       exigirAcao('eventos:editar');
-      return json(buscarEventoParaEdicao(params.idEvento));
+      return json(buscarEventoParaEdicao(params.idEvento, emailAutenticado));
     }
 
     if (action === 'buscarEventoPorID') {
       exigirAcao('eventos:editar');
-      return json(buscarEventoPorID(params.idEvento));
+      return json(buscarEventoPorID(params.idEvento, emailAutenticado));
     }
 
     if (action === 'buscarEventoPorContratante') {
       exigirAcao('eventos:editar');
-      return json(buscarEventoPorContratante(params.nome));
+      return json(buscarEventoPorContratante(params.nome, paramBool_(params.incluirCancelados), emailAutenticado));
     }
 
     if (action === 'buscarEventoPorData') {
   exigirAcao('eventos:editar');
-  return json(buscarEventoPorData(params.data));
+  return json(buscarEventoPorData(params.data, paramBool_(params.incluirCancelados), emailAutenticado));
 }
 
 function paramBool_(v) {
@@ -393,7 +394,7 @@ function paramBool_(v) {
 
     if (action === 'buscarEventoPorPeriodo') {
       exigirAcao('eventos:editar');
-      return json(buscarEventoPorPeriodo(params.periodo));
+      return json(buscarEventoPorPeriodo(params.periodo, emailAutenticado));
     }
 
     if (action === 'verificarPermissaoEdicaoFinanceira') {
@@ -425,6 +426,10 @@ function paramBool_(v) {
       exigirAcao('eventos:cancelar');
       const resultadoCancelamento = cancelarEvento(params.idEvento, params.motivo || '');
       if (resultadoCancelamento && resultadoCancelamento.sucesso && !resultadoCancelamento.jaCancelado) {
+        resultadoCancelamento.vinculoProposta = sincronizarCancelamentoPropostaEvento_(
+          params.idEvento,
+          emailAutenticado
+        );
         executarNotificacaoSemBloquear_('EVENTO_CANCELADO', function () {
           return notificarEventoCancelado_(params.idEvento, emailAutenticado);
         });
@@ -525,6 +530,11 @@ if (action === 'apiUploadComprovante') {
 if (action === 'visualizarPreviewFechamento') {
   exigirAcao('comissao:fechar');
   return json(visualizarPreviewFechamento(params.idVendedor));
+}
+
+if (action === 'listarFechamentosComissaoVendedor') {
+  exigirAcao('comissao:fechar');
+  return json(listarFechamentosComissaoVendedor(params.idVendedor, params.limite));
 }
 
 if (action === 'fecharComissaoVendedor') {
@@ -817,11 +827,96 @@ if (action === 'gerarTextoAgendaSemanal') {
 }
 
 // ======================================================
-// 13. ORÇAMENTO (UTILITÁRIO EXTERNO INTEGRADO)
+// 13. ORÇAMENTOS DO SISTEMA PRINCIPAL
 // ======================================================
 if (action === 'gerarOrcamentoInterno') {
   exigirAcao('orcamento:gerar');
   return json(gerarOrcamentoInterno(params, emailAutenticado));
+}
+
+if (action === 'listarOrcamentosInternos') {
+  exigirAcao('orcamento:gerar');
+  return json(listarOrcamentosInternos(params, emailAutenticado));
+}
+
+// ======================================================
+// CENTRAL DE CONTRATOS / ZAPSIGN
+// ======================================================
+if (action === 'obterStatusIntegracaoContratos') {
+  exigirAcao('contratos:listar');
+  return json(obterStatusIntegracaoContratos_(emailAutenticado));
+}
+if (action === 'listarContratos') {
+  exigirContratosAtivos_();
+  exigirAcao('contratos:listar');
+  return json(listarContratos_(emailAutenticado, params));
+}
+if (action === 'obterContratosDoEvento') {
+  exigirContratosAtivos_();
+  exigirAcao('contratos:listar');
+  return json(obterContratosDoEvento_(emailAutenticado, params.idEvento));
+}
+if (action === 'listarModelosContratos') {
+  exigirContratosAtivos_();
+  exigirAcao('contratos:listar');
+  return json(listarModelosContratos_(emailAutenticado));
+}
+if (action === 'sincronizarModelosContratos') {
+  exigirContratosAtivos_();
+  exigirAcao('contratos:gerenciarModelos');
+  return json(sincronizarModelosContratos_(emailAutenticado));
+}
+if (action === 'obterEventosParaContrato') {
+  exigirContratosAtivos_();
+  exigirAcao('contratos:criar');
+  return json(obterEventosParaContrato_(emailAutenticado));
+}
+if (action === 'criarContratoZapSign') {
+  exigirContratosAtivos_();
+  exigirAcao('contratos:criar');
+  exigirAcao('contratos:enviar');
+  return json(criarContratoZapSign_(emailAutenticado, params));
+}
+if (action === 'sincronizarContratoZapSign') {
+  exigirContratosAtivos_();
+  exigirAcao('contratos:listar');
+  return json(sincronizarContratoZapSign_(emailAutenticado, params.idContrato));
+}
+if (action === 'sincronizarContratosPendentesZapSign') {
+  exigirContratosAtivos_();
+  exigirAcao('contratos:listar');
+  return json(sincronizarContratosPendentesZapSign_(emailAutenticado));
+}
+
+if (action === 'obterStatusVinculoPropostaEvento') {
+  exigirAcao('eventos:listar');
+  return json(obterStatusVinculoPropostaEvento_());
+}
+
+if (action === 'consultarPropostasCompativeisEvento') {
+  exigirAcao(params.idEvento ? 'eventos:editar' : 'eventos:criar');
+  return json(consultarPropostasCompativeisEvento_(params, emailAutenticado));
+}
+
+if (action === 'buscarEventosCompativeisParaProposta') {
+  exigirAcao('orcamento:gerar');
+  exigirAcao('eventos:editar');
+  return json(buscarEventosCompativeisParaProposta_(params, emailAutenticado));
+}
+
+if (action === 'vincularPropostaAoEvento') {
+  exigirAcao('eventos:editar');
+  return json(vincularPropostaAoEvento_(params, emailAutenticado));
+}
+
+if (action === 'desvincularPropostaDoEvento') {
+  exigirAcao('eventos:editar');
+  return json(desvincularPropostaDoEvento_(params, emailAutenticado));
+}
+
+if (action === 'reconciliarVinculosPropostasEventos') {
+  exigirPerfilProprietario_();
+  return json(reconciliarVinculosPropostasEventos_(emailAutenticado));
 }
 
 // ======================================================
@@ -1016,7 +1111,15 @@ if (action === 'precificadorShowProxy') {
   }
 
   // Para orçamento integrado, também devolve erro técnico para diagnóstico rápido.
-  if (action === 'gerarOrcamentoInterno') {
+  if (
+    action === 'gerarOrcamentoInterno' ||
+    action === 'listarOrcamentosInternos' ||
+    action === 'consultarPropostasCompativeisEvento' ||
+    action === 'buscarEventosCompativeisParaProposta' ||
+    action === 'vincularPropostaAoEvento' ||
+    action === 'desvincularPropostaDoEvento' ||
+    action === 'reconciliarVinculosPropostasEventos'
+  ) {
     mensagem = msg || mensagem;
   }
 
@@ -1612,7 +1715,12 @@ const SOCIO_RULES = [
   'eventos:registrarSaidaBV',
   'agenda:gerarSemanal',
   'orcamento:gerar',
-  'notificacoes:comunicar'
+  'notificacoes:comunicar',
+  'contratos:listar',
+  'contratos:criar',
+  'contratos:enviar',
+  'contratos:cancelar',
+  'contratos:gerenciarModelos'
 ];
 
 const ACL = {

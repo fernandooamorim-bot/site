@@ -351,7 +351,7 @@ function gerarPdfFechamentoComissao(idFechamento) {
 
       eventosMap[c.idEvento] = {
         idEvento: c.idEvento,
-        nomeEvento: evt[e('NOME_CONTRATANTE')],
+        nomeEvento: obterNomeEventoExibicao_(evt),
         dataEvento: dataEventoFmt,
         recebimentos: [],
         totalComissaoEvento: 0,
@@ -517,7 +517,7 @@ function gerarRelatorioComissaoHTML_V2(
 
     blocoAjustesDetalhados = `
       <div class="summary" style="margin-top:14px">
-        <h2 style="margin-top:0">Ajustes Aplicados</h2>
+        <h2 class="summary-title">Ajustes Aplicados</h2>
         <table class="summary-grid">
           <tr><td><strong>Tipo</strong></td><td><strong>Descrição</strong></td><td style="text-align:right"><strong>Valor</strong></td></tr>
           ${linhas}
@@ -717,6 +717,11 @@ function gerarRelatorioComissaoHTML_V2(
       background-color: #1e3a8a !important;
       page-break-inside: avoid;
       break-inside: avoid;
+    }
+
+    .summary-title {
+      margin: 0 0 10px;
+      color: #ffffff !important;
     }
 
     .summary-grid {

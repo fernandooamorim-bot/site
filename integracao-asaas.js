@@ -20,6 +20,9 @@ function pixAsaasCriarCobranca(params, emailAutenticado) {
 
   const evento = buscarEvento(idEvento);
   if (!evento) throw new Error('EVENTO_NAO_ENCONTRADO');
+  if (String(evento.statusGeral || '').toUpperCase() === 'CANCELADO') {
+    throw new Error('EVENTO_CANCELADO_SOMENTE_AUDITORIA: nova cobrança não é permitida.');
+  }
   const idContratanteEvento = String(evento.idContratante || '').trim();
   if (!idContratanteEvento) throw new Error('EVENTO_SEM_VINCULO_CONTRATANTE');
 
@@ -127,6 +130,9 @@ function pixAsaasCriarPlanoParcelado(params, emailAutenticado) {
 
   const evento = buscarEvento(idEvento);
   if (!evento) throw new Error('EVENTO_NAO_ENCONTRADO');
+  if (String(evento.statusGeral || '').toUpperCase() === 'CANCELADO') {
+    throw new Error('EVENTO_CANCELADO_SOMENTE_AUDITORIA: novo plano de cobrança não é permitido.');
+  }
   const idContratanteEvento = String(evento.idContratante || '').trim();
   if (!idContratanteEvento) throw new Error('EVENTO_SEM_VINCULO_CONTRATANTE');
 

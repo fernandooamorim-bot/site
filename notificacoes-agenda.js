@@ -134,6 +134,9 @@ function processarResumoEventosHoje_(opcoes) {
   regra.perfis.forEach(function (perfil) {
     const visiveis = eventos.filter(function (linha) {
       if (!perfilPodeVisualizarTipoAgendaNotificacao_(perfil, linha[COL.TIPO_REGISTRO])) return false;
+      if (typeof linhaEhCompromissoPessoal_ === 'function' && linhaEhCompromissoPessoal_(linha)) {
+        return normalizarPerfilNotificacao_(perfil) === 'Proprietário';
+      }
       if (tipoRegistroEventoNotificacao_(linha) !== 'reuniao') return true;
       return filtroReuniaoPermiteNotificacao_(
         regra,
@@ -143,7 +146,9 @@ function processarResumoEventosHoje_(opcoes) {
     });
     if (!visiveis.length) return;
     const contagem = contarTiposResumoAgendaNotificacao_(visiveis);
-    const textoResumo = montarTextoResumoAgendaNotificacao_(contagem);
+    const textoResumo = visiveis.length === 1
+      ? montarTextoRegistroUnicoAgendaNotificacao_(visiveis[0])
+      : montarTextoResumoAgendaNotificacao_(contagem);
     const resultado = despacharRegraNotificacao_('EVENTO_HOJE', {
       referencia: hoje + '|' + normalizarPerfilNotificacao_(perfil),
       titulo: tituloResumoAgendaNotificacao_(contagem),
@@ -217,6 +222,37 @@ function montarTextoResumoAgendaNotificacao_(contagem) {
     lista = itens.slice(0, -1).join(', ') + ' e ' + itens[itens.length - 1];
   }
   return 'Você tem ' + lista + ' hoje. Abra a agenda para conferir horários e locais.';
+}
+
+function montarTextoRegistroUnicoAgendaNotificacao_(linha) {
+  const tipo = tipoRegistroEventoNotificacao_(linha);
+  const tipoEvento = String(linha[COL.TIPO_EVENTO] || '').trim();
+  const contratante = String(linha[COL.NOME_CONTRATANTE] || '').trim();
+  const motivo = motivoReuniaoLinhaNotificacao_(linha);
+  const hora = formatarHoraValorNotificacao_(linha[COL.HORA_INICIO]);
+  const local = String(linha[COL.LOCAL] || '').trim();
+  let identificacao = '';
+
+  if (String(linha[COL.NOME_EVENTO] || '').trim()) {
+    identificacao = obterNomeEventoExibicao_(linha);
+  }
+
+  if (!identificacao && tipo === 'reuniao') {
+    identificacao = motivo || tipoEvento || 'Reunião';
+  } else if (!identificacao && tipo === 'bloqueio') {
+    identificacao = motivo || tipoEvento || 'Período bloqueado';
+  } else if (!identificacao && tipo === 'reserva') {
+    identificacao = contratante || tipoEvento || 'Reserva';
+  } else if (!identificacao && tipo === 'compromisso') {
+    identificacao = [tipoEvento || 'Compromisso', contratante]
+      .filter(Boolean).join(' — ');
+  } else if (!identificacao) {
+    identificacao = obterNomeEventoExibicao_(linha) ||
+      [tipoEvento || 'Evento', contratante].filter(Boolean).join(' — ');
+  }
+
+  const detalhes = [identificacao, hora, local].filter(Boolean);
+  return detalhes.join(' • ') + '. Toque para conferir os detalhes.';
 }
 
 function tituloResumoAgendaNotificacao_(contagem) {

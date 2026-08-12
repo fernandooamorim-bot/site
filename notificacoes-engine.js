@@ -169,7 +169,10 @@ function processarFilaNotificacoes(idFilaAlvo) {
       if (status === 'ENVIADO' || status === 'IGNORADO' || tentativas >= maxTentativas) continue;
       try {
         const contexto = JSON.parse(String(dados[i][2] || '{}'));
-        const resultado = despacharRegraNotificacao_(dados[i][1], contexto, recursos);
+        const opcoesContexto = Object.assign({}, recursos, {
+          emailRestrito: String(contexto.emailRestrito || '')
+        });
+        const resultado = despacharRegraNotificacao_(dados[i][1], contexto, opcoesContexto);
         sheet.getRange(i + 2, 4, 1, 5).setValues([[
           resultado.ignorado ? 'IGNORADO' : (resultado.erros ? 'ERRO' : 'ENVIADO'),
           tentativas + 1, dados[i][5] || new Date(), new Date(),
@@ -440,6 +443,7 @@ function montarValoresEventoNotificacao_(linha, extras, contextoTempo) {
     obterConfig('NOTIFICACOES_TIMEZONE') ||
     'America/Fortaleza'
   );
+  const tituloEvento = obterNomeEventoExibicao_(linha) || String(linha[COL.NOME_CONTRATANTE] || 'Evento');
   return Object.assign({
     ID_EVENTO: String(linha[COL.ID_EVENTO] || ''),
     DATA_COMERCIAL: formatarDataComercialNotificacao_(linha[COL.DATA_EVENTO], timezone),
@@ -448,6 +452,7 @@ function montarValoresEventoNotificacao_(linha, extras, contextoTempo) {
     TIPO_REGISTRO: String(linha[COL.TIPO_REGISTRO] || 'Evento'),
     MOTIVO_REUNIAO: motivoReuniaoLinhaNotificacao_(linha),
     CONTRATANTE: String(linha[COL.NOME_CONTRATANTE] || 'sem contratante'),
+    EVENTO: tituloEvento,
     LOCAL: String(linha[COL.LOCAL] || ''),
     VALOR_PENDENTE: formatarMoedaNotificacao_(linha[COL.VALOR_PENDENTE])
   }, extras || {});
@@ -477,12 +482,20 @@ function despacharRegraNotificacao_(codigo, contexto, opcoes) {
 
   const ctx = contexto || {};
   const valores = ctx.valores || {};
+  let templateMensagem = ctx.mensagem || regra.mensagem || regra.descricao;
+  if ((String(codigo || '').toUpperCase() === 'EVENTO_CRIADO' ||
+       String(codigo || '').toUpperCase() === 'EVENTO_ALTERADO_IMPORTANTE') &&
+      valores.EVENTO) {
+    templateMensagem = String(templateMensagem || '')
+      .replace(/\{TIPO_EVENTO\}\s*:\s*\{CONTRATANTE\}/g, '{EVENTO}')
+      .replace(/\{TIPO_EVENTO\}\s*[-–—]\s*\{CONTRATANTE\}/g, '{EVENTO}');
+  }
   const titulo = limitarTextoNotificacao_(
     aplicarTemplateNotificacao_(ctx.titulo || regra.titulo || regra.nome, valores),
     120
   );
   const mensagem = limitarTextoNotificacao_(
-    aplicarTemplateNotificacao_(ctx.mensagem || regra.mensagem || regra.descricao, valores),
+    aplicarTemplateNotificacao_(templateMensagem, valores),
     420
   );
   const link = String(ctx.link || regra.linkDestino || './index.html?menu=1');
@@ -613,6 +626,13 @@ function listarUsuariosAtivosNotificacao_() {
   });
 }
 
+function emailProprietarioNotificacao_() {
+  const proprietario = listarUsuariosAtivosNotificacao_().filter(function (u) {
+    return normalizarPerfilNotificacao_(u.perfil) === 'Proprietário';
+  })[0];
+  return String(proprietario && proprietario.email || '').trim().toLowerCase();
+}
+
 function obterCoberturaNotificacoes_() {
   const dispositivos = listarTodosDispositivosNotificacao_Interno_();
   return listarUsuariosAtivosNotificacao_().map(function (u) {
@@ -738,6 +758,10 @@ function notificarEventoCriado_(idEvento, autorEmail) {
   const linha = buscarLinhaEventoNotificacao_(idEvento);
   if (!linha) return { ok: true, ignorado: true, motivo: 'EVENTO_NAO_ENCONTRADO' };
   const tipo = tipoRegistroEventoNotificacao_(linha);
+  const pessoal = typeof linhaEhCompromissoPessoal_ === 'function' && linhaEhCompromissoPessoal_(linha);
+  if (pessoal) {
+    return { ok: true, ignorado: true, motivo: 'COMPROMISSO_PESSOAL_SEM_AVISO_IMEDIATO' };
+  }
   if (tipo !== 'evento' && tipo !== 'reuniao' && tipo !== 'reserva' && tipo !== 'compromisso') {
     return { ok: true, ignorado: true, motivo: 'TIPO_NAO_ELEGIVEL', tipo: tipo };
   }
@@ -772,7 +796,7 @@ function notificarEventoAlterado_(idEvento, alteracoesRecebidas, autorEmail) {
     dataEvento: true, dataFim: true, horaInicio: true, duracao: true,
     tipoEvento: true, projeto: true, idEndereco: true, local: true,
     nomeLocalEditado: true, look: true, somResponsavel: true,
-    observacoes: true, motivo: true
+    observacoes: true, motivo: true, nomeEvento: true
   };
   const alteracoes = alteracoesOriginais.filter(function (a) {
     return a && importantes[String(a.campo || '')] === true &&
@@ -784,6 +808,10 @@ function notificarEventoAlterado_(idEvento, alteracoesRecebidas, autorEmail) {
   const linha = buscarLinhaEventoNotificacao_(idEvento);
   if (!linha) return { ok: true, ignorado: true, motivo: 'EVENTO_NAO_ENCONTRADO' };
   const tipo = tipoRegistroEventoNotificacao_(linha);
+  const pessoal = typeof linhaEhCompromissoPessoal_ === 'function' && linhaEhCompromissoPessoal_(linha);
+  if (pessoal) {
+    return { ok: true, ignorado: true, motivo: 'COMPROMISSO_PESSOAL_SEM_AVISO_IMEDIATO' };
+  }
   if (tipo !== 'evento' && tipo !== 'reuniao' && tipo !== 'reserva' &&
       tipo !== 'compromisso' && !conversaoReserva) {
     return { ok: true, ignorado: true, motivo: 'TIPO_NAO_ELEGIVEL', tipo: tipo };
@@ -906,6 +934,10 @@ function notificarEventoCancelado_(idEvento, autorEmail) {
   const linha = buscarLinhaEventoNotificacao_(idEvento);
   if (!linha) return { ok: true, ignorado: true, motivo: 'EVENTO_NAO_ENCONTRADO' };
   const tipo = tipoRegistroEventoNotificacao_(linha);
+  const pessoal = typeof linhaEhCompromissoPessoal_ === 'function' && linhaEhCompromissoPessoal_(linha);
+  if (pessoal) {
+    return { ok: true, ignorado: true, motivo: 'COMPROMISSO_PESSOAL_SEM_AVISO_IMEDIATO' };
+  }
   if (tipo !== 'evento' && tipo !== 'reuniao' && tipo !== 'reserva' && tipo !== 'compromisso') {
     return { ok: true, ignorado: true, motivo: 'TIPO_NAO_ELEGIVEL', tipo: tipo };
   }
@@ -1010,13 +1042,19 @@ function processarLembretesEventoProximo() {
     if (!instante) return;
     const faltam = (instante.getTime() - agora.getTime()) / 60000;
     if (faltam < antecedencia - margem || faltam > antecedencia + margem) return;
+    const pessoal = typeof linhaEhCompromissoPessoal_ === 'function' && linhaEhCompromissoPessoal_(linha);
+    const emailProprietario = pessoal ? emailProprietarioNotificacao_() : '';
+    if (pessoal && !emailProprietario) return;
     despacharRegraNotificacao_(definicao.codigo, {
       idEvento: linha[COL.ID_EVENTO],
       referencia: linha[COL.ID_EVENTO] + '|' + instante.getTime(),
       tipoRegistro: String(linha[COL.TIPO_REGISTRO] || ''),
       motivoReuniao: motivoReuniaoLinhaNotificacao_(linha),
       valores: montarValoresEventoNotificacao_(linha, null, contextoTempo)
-    }, Object.assign({ regra: definicao.regra }, recursosComuns));
+    }, Object.assign({
+      regra: definicao.regra,
+      emailRestrito: emailProprietario
+    }, recursosComuns));
     processados++;
     processadosPorTipo[tipo]++;
   });

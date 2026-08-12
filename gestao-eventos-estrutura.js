@@ -83,6 +83,7 @@ function criarAbaEventos(ss) {
     'ID_EVENTO',
     'TIPO_REGISTRO',
     'DATA_EVENTO',
+    'DATA_FIM',
     'HORA_INICIO',
     'DURACAO',
     'TIPO_EVENTO',
@@ -94,22 +95,36 @@ function criarAbaEventos(ss) {
     'ID_ENDERECO',
     'LOCAL',
     'VALOR_TOTAL',
-    'TEM_NF',
-    'VALOR_NF',
-    'ID_BV',
-    'VALOR_BV',
+    'VALOR_RECEBIDO',
+    'VALOR_PENDENTE',
+    'STATUS_RECEBIMENTO',
     'ID_VENDEDOR',
     'NOME_VENDEDOR',
     'COMISSAO_TIPO',
     'COMISSAO_VALOR',
-    'STATUS_PAGAMENTO',
+    'VALOR_COMISSAO_CALCULADO',
+    'VALOR_COMISSAO_PAGO',
+    'STATUS_COMISSAO',
+    'ID_BV',
+    'NOME_BV',
+    'VALOR_BV',
+    'STATUS_BV',
+    'BV_DATA_PAGAMENTO',
+    'TEM_NF',
+    'VALOR_NF',
+    'STATUS_NF',
+    'FOLHA_CUSTO_VALOR',
+    'FOLHA_CUSTO_DESCRICAO',
     'LOOK',
     'SOM_RESPONSAVEL',
     'OBSERVACOES',
+    'STATUS_GERAL',
     'DATA_CRIACAO',
     'CRIADO_POR',
     'ULTIMA_EDICAO',
-    'EDITADO_POR'
+    'EDITADO_POR',
+    'NUM_ORCAMENTO_ORIGEM',
+    'NOME_EVENTO'
   ];
   
   sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
@@ -145,7 +160,11 @@ function criarAbaContratantes(ss) {
     'WHATSAPP',
     'EMAIL',
     'OBSERVACOES',
-    'DATA_CADASTRO'
+    'DATA_CADASTRO',
+    'STATUS',
+    'TIPO_PESSOA',
+    'ENDERECO_COMPLETO',
+    'REPRESENTANTE_LEGAL'
   ];
   
   sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
@@ -174,7 +193,10 @@ function criarAbaCerimonialistas(ss) {
     'NOME',
     'WHATSAPP',
     'OBSERVACOES',
-    'DATA_CADASTRO'
+    'DATA_CADASTRO',
+    'CIDADE',
+    'ESTADO',
+    'STATUS'
   ];
   
   sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
@@ -498,7 +520,8 @@ function inserirDadosIniciais(ss) {
     ['PREFIXO_ID_FECHAMENTO', 'AC-VND', 'Prefixo para ID de fechamentos'],
     ['PASTA_COMPROVANTES_FINANCEIRO_ID', '', 'ID da pasta no Drive para upload automático de comprovantes'],
     ['EMAIL_NOTIFICACOES', 'fernando@exemplo.com', 'Email para notificações do sistema'],
-    ['NOME_EMPRESA', 'Banda XYZ', 'Nome da banda/empresa']
+    ['NOME_EMPRESA', 'Banda XYZ', 'Nome da banda/empresa'],
+    ['PROPOSTA_EVENTO_VINCULO_ATIVO', 'FALSE', 'Ativa sugestões e vínculo entre propostas e eventos']
   ];
   sheetConfig.getRange(2, 1, configs.length, configs[0].length).setValues(configs);
   

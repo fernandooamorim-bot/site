@@ -10,6 +10,31 @@ const CADASTROS_MESTRES_INFO_ = {
   parceiro: { sheet: 'PARCEIROS_BV', statusCol: 6, label: 'Parceiro' }
 };
 
+const CONTRATANTE_CAMPOS_COMPLEMENTARES_ = ['TIPO_PESSOA', 'ENDERECO_COMPLETO', 'REPRESENTANTE_LEGAL'];
+
+function garantirCamposComplementaresContratante_(sheet) {
+  if (!sheet) throw new Error('Aba CONTRATANTES não encontrada');
+  const ultimaColuna = Math.max(sheet.getLastColumn(), 1);
+  const headers = sheet.getRange(1, 1, 1, ultimaColuna).getValues()[0].map(function (v) {
+    return String(v || '').trim().toUpperCase();
+  });
+  CONTRATANTE_CAMPOS_COMPLEMENTARES_.forEach(function (header) {
+    if (headers.indexOf(header) >= 0) return;
+    headers.push(header);
+    sheet.getRange(1, headers.length).setValue(header);
+  });
+  const mapa = {};
+  headers.forEach(function (header, i) { if (header) mapa[header] = i + 1; });
+  return mapa;
+}
+
+function normalizarTipoPessoaContratante_(valor) {
+  const tipo = String(valor || '').trim().toUpperCase();
+  if (tipo === 'PF' || tipo === 'PESSOA FÍSICA' || tipo === 'PESSOA FISICA') return 'PF';
+  if (tipo === 'PJ' || tipo === 'PESSOA JURÍDICA' || tipo === 'PESSOA JURIDICA') return 'PJ';
+  return '';
+}
+
 function normalizarEntidadeCadastro_(entidade) {
   const e = String(entidade || '')
     .normalize('NFD')
@@ -179,6 +204,7 @@ function cadastrarContratanteRapido(dados) {
     if (!sheet) {
       return { sucesso: false, mensagem: 'Aba CONTRATANTES não encontrada' };
     }
+    const camposComplementares = garantirCamposComplementaresContratante_(sheet);
 
     const ultimaLinha = sheet.getLastRow();
     const novoId = ultimaLinha > 1 ? sheet.getRange(ultimaLinha, 1).getValue() + 1 : 1;
@@ -203,6 +229,10 @@ function cadastrarContratanteRapido(dados) {
       new Date()
     ]);
     sheet.getRange(sheet.getLastRow(), CADASTROS_MESTRES_INFO_.contratante.statusCol).setValue('ATIVO');
+    const linhaNova = sheet.getLastRow();
+    if (dados.tipoPessoa !== undefined) sheet.getRange(linhaNova, camposComplementares.TIPO_PESSOA).setValue(normalizarTipoPessoaContratante_(dados.tipoPessoa));
+    if (dados.enderecoCompleto !== undefined) sheet.getRange(linhaNova, camposComplementares.ENDERECO_COMPLETO).setValue(String(dados.enderecoCompleto || '').trim());
+    if (dados.representanteLegal !== undefined) sheet.getRange(linhaNova, camposComplementares.REPRESENTANTE_LEGAL).setValue(String(dados.representanteLegal || '').trim());
 
     return {
       sucesso: true,
@@ -443,6 +473,7 @@ function atualizarContratante(dados) {
 
     const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('CONTRATANTES');
     if (!sheet) return { sucesso: false, mensagem: 'Aba CONTRATANTES não encontrada' };
+    const camposComplementares = garantirCamposComplementaresContratante_(sheet);
 
     const registro = localizarRegistroPorId_(sheet, id);
     if (!registro) return { sucesso: false, mensagem: 'Contratante não encontrado.' };
@@ -451,7 +482,10 @@ function atualizarContratante(dados) {
       nome: String(registro.raw[1] || '').trim(),
       telefone: String(registro.raw[2] || '').trim(),
       email: String(registro.raw[3] || '').trim(),
-      cpfCnpj: String(registro.raw[4] || '').trim()
+      cpfCnpj: String(registro.raw[4] || '').trim(),
+      tipoPessoa: String(registro.raw[camposComplementares.TIPO_PESSOA - 1] || '').trim(),
+      enderecoCompleto: String(registro.raw[camposComplementares.ENDERECO_COMPLETO - 1] || '').trim(),
+      representanteLegal: String(registro.raw[camposComplementares.REPRESENTANTE_LEGAL - 1] || '').trim()
     };
 
     const nome = String((dados && dados.nome) || registro.nome || '').trim();
@@ -461,11 +495,17 @@ function atualizarContratante(dados) {
     if (dados.telefone !== undefined) sheet.getRange(registro.linha, 3).setValue(String(dados.telefone || '').trim());
     if (dados.email !== undefined) sheet.getRange(registro.linha, 4).setValue(String(dados.email || '').trim());
     if (dados.cpfCnpj !== undefined) sheet.getRange(registro.linha, 5).setValue(String(dados.cpfCnpj || '').trim());
+    if (dados.tipoPessoa !== undefined) sheet.getRange(registro.linha, camposComplementares.TIPO_PESSOA).setValue(normalizarTipoPessoaContratante_(dados.tipoPessoa));
+    if (dados.enderecoCompleto !== undefined) sheet.getRange(registro.linha, camposComplementares.ENDERECO_COMPLETO).setValue(String(dados.enderecoCompleto || '').trim());
+    if (dados.representanteLegal !== undefined) sheet.getRange(registro.linha, camposComplementares.REPRESENTANTE_LEGAL).setValue(String(dados.representanteLegal || '').trim());
     const depois = {
       nome: nome,
       telefone: dados.telefone !== undefined ? String(dados.telefone || '').trim() : antes.telefone,
       email: dados.email !== undefined ? String(dados.email || '').trim() : antes.email,
-      cpfCnpj: dados.cpfCnpj !== undefined ? String(dados.cpfCnpj || '').trim() : antes.cpfCnpj
+      cpfCnpj: dados.cpfCnpj !== undefined ? String(dados.cpfCnpj || '').trim() : antes.cpfCnpj,
+      tipoPessoa: dados.tipoPessoa !== undefined ? normalizarTipoPessoaContratante_(dados.tipoPessoa) : antes.tipoPessoa,
+      enderecoCompleto: dados.enderecoCompleto !== undefined ? String(dados.enderecoCompleto || '').trim() : antes.enderecoCompleto,
+      representanteLegal: dados.representanteLegal !== undefined ? String(dados.representanteLegal || '').trim() : antes.representanteLegal
     };
     const delta = coletarDeltaCadastro_(antes, depois);
     registrarLogCadastroDetalhado_('EDITAR_CADASTRO', 'CONTRATANTES', id, nome, delta, { entidade: 'contratante' });
@@ -529,6 +569,7 @@ function obterContratantePorId(dados) {
 
     const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('CONTRATANTES');
     if (!sheet) return { sucesso: false, mensagem: 'Aba CONTRATANTES não encontrada' };
+    const camposComplementares = garantirCamposComplementaresContratante_(sheet);
 
     const registro = localizarRegistroPorId_(sheet, id);
     if (!registro) return { sucesso: false, mensagem: 'Contratante não encontrado.' };
@@ -541,7 +582,10 @@ function obterContratantePorId(dados) {
         nome: String(linha[1] || '').trim(),
         telefone: String(linha[2] || '').trim(),
         email: String(linha[3] || '').trim(),
-        cpfCnpj: String(linha[4] || '').trim()
+        cpfCnpj: String(linha[4] || '').trim(),
+        tipoPessoa: String(linha[camposComplementares.TIPO_PESSOA - 1] || '').trim(),
+        enderecoCompleto: String(linha[camposComplementares.ENDERECO_COMPLETO - 1] || '').trim(),
+        representanteLegal: String(linha[camposComplementares.REPRESENTANTE_LEGAL - 1] || '').trim()
       }
     };
   } catch (erro) {

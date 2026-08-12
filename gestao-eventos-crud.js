@@ -86,6 +86,69 @@ function normalizarTemNF(valor) {
   );
 }
 
+const COMPROMISSO_PESSOAL_TIPO_ = 'Pessoal';
+
+function normalizarTextoCompromissoPessoal_(valor) {
+  return String(valor || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .trim().toLowerCase();
+}
+
+function usuarioEhProprietarioCompromissoPessoal_(user) {
+  return normalizarTextoCompromissoPessoal_(user && (user.PERFIL || user.perfil)) === 'proprietario';
+}
+
+function linhaEhCompromissoPessoal_(linha) {
+  return !!linha &&
+    normalizarTextoCompromissoPessoal_(linha[COL.TIPO_REGISTRO]) === 'compromisso' &&
+    normalizarTextoCompromissoPessoal_(linha[COL.TIPO_EVENTO]) === 'pessoal';
+}
+
+function eventoEhCompromissoPessoal_(evento) {
+  return !!evento &&
+    normalizarTextoCompromissoPessoal_(evento.tipo || evento.tipoRegistro) === 'compromisso' &&
+    normalizarTextoCompromissoPessoal_(evento.tipoEvento) === 'pessoal';
+}
+
+function validarTipoCompromissoPessoalParaUsuario_(tipoRegistro, tipoEvento, user) {
+  const pessoal = normalizarTextoCompromissoPessoal_(tipoRegistro) === 'compromisso' &&
+    normalizarTextoCompromissoPessoal_(tipoEvento) === 'pessoal';
+  if (pessoal && !usuarioEhProprietarioCompromissoPessoal_(user)) {
+    throw new Error('Apenas o proprietário pode cadastrar ou editar compromisso pessoal.');
+  }
+  return pessoal;
+}
+
+function obterTextoOcupadoCompromissoPessoal_() {
+  const configurado = String(
+    obterConfig('COMPROMISSO_PESSOAL_TEXTO_OCUPADO') || 'Ocupado'
+  ).trim();
+  return (configurado || 'Ocupado').slice(0, 60);
+}
+
+function sanitizarCompromissoPessoalAgenda_(evento, user, textoOcupado) {
+  if (!evento) return evento;
+  const rotuloOcupado = String(textoOcupado || 'Ocupado').trim() || 'Ocupado';
+  let saida = evento;
+  if (eventoEhCompromissoPessoal_(evento) && !usuarioEhProprietarioCompromissoPessoal_(user)) {
+    saida = Object.assign({}, evento, {
+      tipoEvento: 'Pessoal',
+      contratante: rotuloOcupado,
+      local: '',
+      observacoes: '',
+      criadoPor: '',
+      editadoPor: '',
+      compromissoPessoalOcupado: true
+    });
+  }
+  if (Array.isArray(evento.eventosDentro) && evento.eventosDentro.length) {
+    if (saida === evento) saida = Object.assign({}, evento);
+    saida.eventosDentro = evento.eventosDentro.map(function (relacionado) {
+      return sanitizarCompromissoPessoalAgenda_(relacionado, user, rotuloOcupado);
+    });
+  }
+  return saida;
+}
+
 function normalizarPerfilComissaoCadastro_(perfil) {
   return String(perfil || '')
     .normalize('NFD')
@@ -169,8 +232,23 @@ function criarEvento(dados, email) {
     const isReuniao = tipoRegistro === 'Reunião';
     const isBloqueio = tipoRegistro === 'Bloqueio';
     const isReserva = tipoRegistro === 'Reserva';
+    const isCompromisso = tipoRegistro === 'Compromisso';
+    const tiposRegistroPermitidos = ['Evento', 'Reserva', 'Reunião', 'Bloqueio', 'Compromisso'];
+    if (tiposRegistroPermitidos.indexOf(tipoRegistro) === -1) {
+      throw new Error('Tipo de registro inválido.');
+    }
+    const isCompromissoPessoal = validarTipoCompromissoPessoalParaUsuario_(
+      tipoRegistro, dados.tipoEvento, user
+    );
 
     const idEvento = gerarIDEvento();
+
+    // Todo registro novo usa NOME_EVENTO. Registros antigos permanecem no
+    // fluxo legado porque continuam com esta coluna vazia.
+    const nomeEvento = String(dados.nomeEvento || '').trim();
+    if (!nomeEvento) {
+      throw new Error('Informe o nome ou assunto do registro.');
+    }
 
     // Datas sempre como TEXTO
     const dataEventoTexto = dados.dataEvento
@@ -209,10 +287,22 @@ const horaInicio = dados.horaInicio
       }
     }
 
+    if (isCompromisso) {
+      if (!dataEventoTexto) throw new Error('Informe a data do compromisso.');
+      if (!horaInicio) throw new Error('Informe o horário do compromisso.');
+      if (!(duracaoNumero > 0)) throw new Error('Informe a duração do compromisso.');
+      if (!String(dados.tipoEvento || '').trim()) {
+        throw new Error('Selecione o tipo de compromisso.');
+      }
+    }
+
     // ===== RESOLUÇÃO DE NOMES (IGUAL AO WEBAPP, PORÉM CENTRALIZADO) =====
-    const nomeContratante = dados.idContratante
-      ? buscarNomePorId('CONTRATANTES', dados.idContratante)
-      : String(dados.nomeContratanteDigitado || '').trim();
+    const permiteContratante = isEvento || isReserva || isReuniao;
+    const nomeContratante = permiteContratante
+      ? (dados.idContratante
+        ? buscarNomePorId('CONTRATANTES', dados.idContratante)
+        : String(dados.nomeContratanteDigitado || '').trim())
+      : '';
 
     const nomeCerimonialista = (isEvento || isReserva || isReuniao)
       ? (dados.idCerimonialista
@@ -283,9 +373,10 @@ const horaInicio = dados.horaInicio
       dataFimTexto,                      // 4 DATA_FIM
       horaInicio,                    // 5 HORA_INICIO
       duracaoNumero,                     // 6 DURACAO
-      isEvento ? dados.tipoEvento || '' : (isReserva ? (dados.tipoEvento || 'RESERVA') : ''), // 7
+      isEvento ? dados.tipoEvento || '' :
+        ((isReserva || isCompromisso) ? (dados.tipoEvento || (isReserva ? 'RESERVA' : 'Outro')) : ''), // 7
       (isEvento || isReserva) ? (dados.projeto || '') : '',               // 8
-      dados.idContratante || '',         // 9
+      permiteContratante ? (dados.idContratante || '') : '', // 9
       nomeContratante,                   // 10 NOME_CONTRATANTE
       dados.idCerimonialista || '',      // 11
       nomeCerimonialista,                // 12 NOME_CERIMONIALISTA
@@ -322,12 +413,24 @@ const horaInicio = dados.horaInicio
       usuarioFinal                       // 43 EDITADO_POR
     ];
 
+    // A coluna opcional só participa da escrita quando a estrutura já foi ativada.
+    if (
+      sheet.getLastColumn() >= COLUNA.NUM_ORCAMENTO_ORIGEM &&
+      String(sheet.getRange(1, COLUNA.NUM_ORCAMENTO_ORIGEM).getValue() || '').trim() === 'NUM_ORCAMENTO_ORIGEM'
+    ) {
+      novaLinha.push('');
+    }
+    garantirColunaNomeEvento_(sheet);
+    while (novaLinha.length < COL.NOME_EVENTO) novaLinha.push('');
+    novaLinha[COL.NOME_EVENTO] = nomeEvento;
     sheet.appendRow(novaLinha);
 
     // 🔐 GARANTE MOVIMENTAÇÕES FINANCEIRAS DE NF E BV (IDEMPOTENTE)
     garantirMovimentacoesNF_BV(
   {
     idEvento: idEvento,
+    nomeEvento: nomeEvento,
+    tipoRegistro: tipoRegistro,
     tipoEvento: isEvento ? (dados.tipoEvento || '') : tipoRegistro,
     nomeContratante: nomeContratante,
     temNF: temNF,
@@ -346,10 +449,13 @@ const horaInicio = dados.horaInicio
     const payloadLogCriacao = {
       tipo: 'CRIACAO_EVENTO',
       tipoRegistro: tipoRegistro,
-      tipoEvento: isEvento ? String(dados.tipoEvento || '').trim() : '',
+      tipoEvento: (isEvento || isReserva || isCompromisso) ? String(dados.tipoEvento || '').trim() : '',
       dataEvento: String(dados.data || '').trim(),
-      contratante: String(nomeContratante || '').trim(),
-      tituloEvento: montarTituloEventoParaLog_(tipoRegistro, dados, nomeContratante)
+      contratante: isCompromissoPessoal ? '' : String(nomeContratante || '').trim(),
+      nomeEvento: nomeEvento,
+      tituloEvento: isCompromissoPessoal
+        ? 'Compromisso pessoal'
+        : comporTituloRegistroNovo_(tipoRegistro, dados.tipoEvento, nomeEvento)
     };
     registrarLog('CRIAR', 'EVENTOS', idEvento, JSON.stringify(payloadLogCriacao));
 
@@ -687,6 +793,8 @@ function listarEventos(filtros = {}) {
         tipoEvento: data[i][COL.TIPO_EVENTO],   // "Casamento", "BLOQUEIO", "REUNIÃO"
         projeto: data[i][COL.PROJETO],          // "Banda Completa"
         contratante: data[i][COL.NOME_CONTRATANTE], // "Fernando Amorim"
+        nomeEvento: obterNomeEventoExibicao_(data[i]),
+        nomeEventoProprio: String(data[i][COL.NOME_EVENTO] || '').trim(),
         cerimonialista: data[i][COL.NOME_CERIMONIALISTA], // Cerimonialista
         local: data[i][COL.LOCAL],              // "PALLATIUM"
         look: data[i][COL.LOOK],                // Look
@@ -762,6 +870,32 @@ function listarEventosPorUsuario(email, opts) {
   return listarEventosBootstrap(email, opts).eventos || [];
 }
 
+function normalizarPerfilVisibilidadeCompromisso_(perfil) {
+  const p = String(perfil || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .trim().toLowerCase();
+  if (p === 'socio' || p === 'admin') return 'administrador';
+  if (p === 'producao') return 'producao';
+  if (p === 'musico') return 'musico';
+  return p;
+}
+
+function perfisVisiveisCompromissoAgenda_() {
+  const bruto = String(obterConfig('AGENDA_COMPROMISSO_PERFIS_VISIVEIS') ||
+    'Proprietário;Administrador');
+  const mapa = {};
+  bruto.split(/[;,]+/).forEach(function (perfil) {
+    const normalizado = normalizarPerfilVisibilidadeCompromisso_(perfil);
+    if (normalizado) mapa[normalizado] = true;
+  });
+  return mapa;
+}
+
+function perfilPodeVerCompromissoAgenda_(perfil) {
+  return !!perfisVisiveisCompromissoAgenda_()[
+    normalizarPerfilVisibilidadeCompromisso_(perfil)
+  ];
+}
+
 function listarEventosBootstrap(email, opts) {
   const user = requireUserByEmail(email);
   return obterPayloadAgendaPorUsuario_(user, opts || {});
@@ -777,9 +911,11 @@ function obterPayloadAgendaPorUsuario_(user, opts) {
     ? 'financeiro'
     : (perfilNormAgenda === 'musico' ? 'musico' : 'restrito');
   const passadoDiasBootNum = escopoPerfil === 'musico' ? null : obterPassadoDiasBootAgenda_(opts);
+  const textoOcupadoPessoal = obterTextoOcupadoCompromissoPessoal_();
   const optsAgenda = Object.assign({}, opts, {
     incluirCancelados: incluirCancelados,
-    passadoDiasBoot: passadoDiasBootNum
+    passadoDiasBoot: passadoDiasBootNum,
+    textoOcupadoPessoal: textoOcupadoPessoal
   });
 
   if (!cfgCache.ativo) {
@@ -808,6 +944,10 @@ function obterPayloadAgendaPorUsuario_(user, opts) {
     const chaveCache = [
       'AGENDA_SHARED_V2',
       escopoPerfil,
+      'compromisso_' + normalizarPerfilVisibilidadeCompromisso_(user && user.PERFIL) +
+        '_' + (perfilPodeVerCompromissoAgenda_(user && user.PERFIL) ? '1' : '0'),
+      'pessoal_texto_' + normalizarTextoCompromissoPessoal_(textoOcupadoPessoal)
+        .replace(/[^a-z0-9]+/g, '_').slice(0, 60),
       'passado_boot_' + passadoDiasBoot,
       diaBucket,
       incluirCancelados ? 'inc_cancelados' : 'sem_cancelados',
@@ -869,15 +1009,24 @@ function listarEventosPorUsuarioSemCache_(user, opts) {
     incluirCancelados: !!opts.incluirCancelados,
     passadoDiasBoot: passadoDiasBoot
   });
+  const textoOcupadoPessoal = String(
+    opts.textoOcupadoPessoal || obterTextoOcupadoCompromissoPessoal_()
+  );
+  const eventosVisiveis = eventos.filter(function (evento) {
+    return !evento || evento.tipo !== 'Compromisso' ||
+      perfilPodeVerCompromissoAgenda_(user && user.PERFIL);
+  }).map(function (evento) {
+    return sanitizarCompromissoPessoalAgenda_(evento, user, textoOcupadoPessoal);
+  });
 
   if (!podeVerFinanceiroAgenda && !ehMusico) {
-    return eventos.map(function (evento) {
+    return eventosVisiveis.map(function (evento) {
       return sanitizarEventoFinanceiroAgenda_(evento);
     });
   }
 
   if (!ehMusico) {
-    return eventos;
+    return eventosVisiveis;
   }
 
   const inicio = new Date();
@@ -887,7 +1036,7 @@ function listarEventosPorUsuarioSemCache_(user, opts) {
   limite.setMonth(limite.getMonth() + 1);
   limite.setHours(23, 59, 59, 999);
 
-  return eventos
+  return eventosVisiveis
     .filter(function (evento) {
       if (!evento || evento.tipo !== 'Evento') return false;
       const data = parseDataBR(evento.data);
@@ -1486,7 +1635,7 @@ function parseDataBR(dataStr) {
     const str = String(dataStr).trim();
     
     // Valida formato DD/MM/YYYY
-    const regex = /^(\d{2})\/(\d{2})\/(\d{4})$/;
+    const regex = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/;
     const match = str.match(regex);
     
     if (!match) return null;
@@ -1601,26 +1750,10 @@ function testarListarEventos() {
  */
 function obterConfig(chave) {
   try {
-    const ss = SpreadsheetApp.getActive();
-    const sheet = ss.getSheetByName('CONFIG');
-    
-    if (!sheet) {
-      Logger.log('⚠️ Aba CONFIG não encontrada');
-      return null;
-    }
-    
-    const dados = sheet.getDataRange().getValues();
-    
-    // Procura a chave (coluna A)
-    for (let i = 1; i < dados.length; i++) {
-      if (dados[i][0] === chave) {
-        return dados[i][1]; // Retorna valor (coluna B)
-      }
-    }
-    
+    const config = getConfig();
+    if (Object.prototype.hasOwnProperty.call(config, chave)) return config[chave];
     Logger.log('⚠️ Chave não encontrada na CONFIG: ' + chave);
     return null;
-    
   } catch (error) {
     Logger.log('ERRO em obterConfig: ' + error.message);
     return null;
@@ -1754,6 +1887,23 @@ function listarTiposEvento() {
   }
 }
 
+function listarTiposCompromisso(email) {
+  try {
+    const user = requireUserByEmail(email);
+    const valor = String(obterConfig('COMPROMISSO_TIPOS_PADRAO') || '').trim();
+    const fallback = ['Participação', 'Entrevista', 'Gravação', 'Ensaio', 'Evento promocional',
+        'Viagem profissional', 'Reunião externa', 'Outro'];
+    const tipos = (valor ? valor.split(';') : fallback).map(function (t) { return t.trim(); })
+      .filter(function (t) {
+        return !!t && normalizarTextoCompromissoPessoal_(t) !== 'pessoal';
+      });
+    if (usuarioEhProprietarioCompromissoPessoal_(user)) tipos.unshift(COMPROMISSO_PESSOAL_TIPO_);
+    return tipos;
+  } catch (_) {
+    return [];
+  }
+}
+
 /**
  * =====================================================
  * BUSCAR EVENTOS POR DATA (para verificação de conflitos)
@@ -1766,8 +1916,9 @@ function listarTiposEvento() {
  * @param {string} data - Data no formato YYYY-MM-DD
  * @returns {Array} - Array de eventos naquela data
  */
-function buscarEventosPorData(dataBusca) {
+function buscarEventosPorData(dataBusca, email) {
   try {
+    const user = requireUserByEmail(email);
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     const sheet = ss.getSheetByName('EVENTOS');
     if (!sheet) return [];
@@ -1775,6 +1926,7 @@ function buscarEventosPorData(dataBusca) {
 
     const dados = sheet.getDataRange().getValues();
     const eventos = [];
+    const textoOcupadoPessoal = obterTextoOcupadoCompromissoPessoal_();
 
     const dataBuscaDate = normalizarData(dataBusca);
     if (!dataBuscaDate) return [];
@@ -1811,6 +1963,7 @@ function buscarEventosPorData(dataBusca) {
           horaStr = valorHora.trim().padStart(5, '0');
         }
 
+        const pessoal = linhaEhCompromissoPessoal_(dados[i]);
         eventos.push({
           id: String(dados[i][0]),
           tipoRegistro: String(dados[i][1] || 'Evento'),
@@ -1818,10 +1971,19 @@ function buscarEventosPorData(dataBusca) {
           dataFim: dados[i][3] ? formatarDataTexto(dados[i][3]) : null,
           hora: horaStr,
           duracao: dados[i][5] || '',
-          tipoEvento: String(dados[i][6] || ''),
-          nomeContratante: String(dados[i][9] || ''),
-          nomeLocal: String(dados[i][13] || ''),
-          observacoes: String(dados[i][37] || '')
+          tipoEvento: pessoal && !usuarioEhProprietarioCompromissoPessoal_(user)
+            ? 'Pessoal' : String(dados[i][6] || ''),
+          nomeContratante: pessoal && !usuarioEhProprietarioCompromissoPessoal_(user)
+            ? textoOcupadoPessoal : String(dados[i][9] || ''),
+          nomeEvento: pessoal && !usuarioEhProprietarioCompromissoPessoal_(user)
+            ? textoOcupadoPessoal : obterNomeEventoExibicao_(dados[i]),
+          nomeEventoProprio: pessoal && !usuarioEhProprietarioCompromissoPessoal_(user)
+            ? '' : String(dados[i][COL.NOME_EVENTO] || ''),
+          nomeLocal: pessoal && !usuarioEhProprietarioCompromissoPessoal_(user)
+            ? '' : String(dados[i][13] || ''),
+          observacoes: pessoal && !usuarioEhProprietarioCompromissoPessoal_(user)
+            ? '' : String(dados[i][37] || ''),
+          compromissoPessoalOcupado: pessoal && !usuarioEhProprietarioCompromissoPessoal_(user)
         });
       }
     }
@@ -1965,6 +2127,9 @@ const CONFIG_PUBLICA_CHAVES = [
   'COMISSAO_PADRAO_PERCENTUAL',
   'REUNIAO_MOTIVOS_PADRAO',
   'RESERVA_MOTIVOS_PADRAO',
+  'COMPROMISSO_TIPOS_PADRAO',
+  'COMPROMISSO_PESSOAL_TEXTO_OCUPADO',
+  'AGENDA_COMPROMISSO_PERFIS_VISIVEIS',
   'AGENDA_FILTRO_PADRAO',
   'AGENDA_CACHE_TIMEOUT',
   'AGENDA_CACHE_INSTANT_BOOT',
@@ -1980,7 +2145,9 @@ const CONFIG_PUBLICA_CHAVES = [
   'AGENDA_VIRTUALIZACAO_ENABLED',
   'AGENDA_VIRTUALIZACAO_THRESHOLD',
   'AGENDA_VIRTUALIZACAO_BUFFER',
-  'AGENDA_VIRTUALIZACAO_DEBUG'
+  'AGENDA_VIRTUALIZACAO_DEBUG',
+  'CONTRATOS_ATIVO',
+  'PROPOSTA_EVENTO_VINCULO_ATIVO'
 ];
 
 function chaveConfigPublica_(chave) {
@@ -1988,6 +2155,9 @@ function chaveConfigPublica_(chave) {
 }
 
 function carregarConfiguracoesPublicas() {
+  if (typeof garantirConfiguracaoZapSignNaAbaConfig_ === 'function') {
+    garantirConfiguracaoZapSignNaAbaConfig_();
+  }
   const todas = carregarConfiguracoes() || {};
   const publicas = {};
   CONFIG_PUBLICA_CHAVES.forEach(function (chave) {
@@ -2002,6 +2172,9 @@ function obterConfigPublica(chave) {
   const nome = String(chave || '').trim();
   if (!chaveConfigPublica_(nome)) {
     throw new Error('CONFIG_CHAVE_NAO_PUBLICA');
+  }
+  if (nome === 'CONTRATOS_ATIVO' && typeof garantirConfiguracaoZapSignNaAbaConfig_ === 'function') {
+    garantirConfiguracaoZapSignNaAbaConfig_();
   }
   return obterConfig(nome);
 }
@@ -2060,7 +2233,10 @@ function garantirMovimentacoesNF_BV(evento, email) {
   const dadosMov = sheetMov.getDataRange().getValues();
 
   const idEvento = evento.idEvento;
-  const nomeEvento = `${evento.tipoEvento} - ${evento.nomeContratante}`;
+  const nomeEventoProprio = String(evento.nomeEvento || '').trim();
+  const nomeEvento = nomeEventoProprio
+    ? comporTituloRegistroNovo_(evento.tipoRegistro || 'Evento', evento.tipoEvento, nomeEventoProprio)
+    : `${evento.tipoEvento} - ${evento.nomeContratante}`;
 
   let existeNF = false;
   let existeBV = false;

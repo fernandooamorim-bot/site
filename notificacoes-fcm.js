@@ -874,7 +874,7 @@ function enviarFcmHttpV1_(token, notificacao, opcoes) {
   const mensagem = {
       notification: { title: String(notificacao.title || 'Super Agenda'), body: String(notificacao.body || '') },
       data: { url: String(notificacao.url || './index.html?menu=1'), tipo: String(notificacao.tipo || 'GERAL') },
-      webpush: { headers: { TTL: '300', Urgency: 'high' } }
+      webpush: { headers: { TTL: '7200', Urgency: 'high' } }
   };
   mensagem[identificadorTipo === 'FID' ? 'fid' : 'token'] = String(token);
   const payload = { message: mensagem };

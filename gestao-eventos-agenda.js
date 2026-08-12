@@ -36,6 +36,7 @@ function gerarAgendaSemanal(dataInicio, dataFim) {
           duracao: data[i][5],        // Col 6: DURACAO
           tipoEvento: data[i][6],     // Col 7: TIPO_EVENTO
           contratante: data[i][9],    // Col 10: NOME_CONTRATANTE ← CORRIGIDO!
+          nomeEvento: obterNomeEventoExibicao_(data[i]),
           cerimonialista: data[i][11],// Col 12: NOME_CERIMONIALISTA ← CORRIGIDO!
           local: data[i][13],         // Col 14: LOCAL ← CORRIGIDO!
           projeto: data[i][7],        // Col 8: PROJETO
@@ -72,7 +73,7 @@ function gerarAgendaSemanal(dataInicio, dataFim) {
       const horaFim = calcularHoraFimAgenda_(horaInicio, evento.duracao);
       
       agenda += `${diaSemana.toUpperCase()} ${dia}/${mes} – ${horaInicio} ÀS ${horaFim}\n`;
-      agenda += `${evento.tipoEvento.toUpperCase()} ${evento.contratante.toUpperCase()}\n`;
+      agenda += `${String(evento.nomeEvento || evento.contratante || evento.tipoEvento || 'EVENTO').toUpperCase()}\n`;
       
       // Local com link se tiver
       if (evento.local) {
@@ -390,6 +391,8 @@ function listarEventosAgendaSemanal_(dataInicio, dataFim) {
       horaFim: horaFim,
       duracao: duracao,
       tipoEvento: String(row[6] || '').trim(),
+      nomeEvento: obterNomeEventoExibicao_(row),
+      nomeEventoProprio: String(row[COL.NOME_EVENTO] || '').trim(),
       contratante: String(row[9] || '').trim(),
       local: local,
       linkMaps: local ? (enderecosMap[local.toLowerCase()] || '') : '',
@@ -469,9 +472,9 @@ function montarTextoAgendaWhatsApp_(eventos, dataInicio, dataFim) {
     const dataBR = String(ev.dataBR || formatDateBR_(parseISODateOnly_(ev.dataISO)) || '');
     const horaInicio = String(ev.horaInicio || '').trim();
     const horaFim = String(ev.horaFim || '').trim();
-    const tituloEvento = [String(ev.tipoEvento || '').trim(), String(ev.contratante || '').trim()]
-      .filter(function (x) { return x; })
-      .join(' ');
+    const tituloEvento = String(ev.nomeEvento || '').trim() ||
+      [String(ev.tipoEvento || '').trim(), String(ev.contratante || '').trim()]
+        .filter(function (x) { return x; }).join(' ');
 
     const faixaHora = horaInicio && horaFim ? (horaInicio + ' ÀS ' + horaFim) : (horaInicio || 'HORÁRIO A DEFINIR');
     linhas.push('*' + dia + ' ' + dataBR + ' – ' + faixaHora + '*');
@@ -506,14 +509,22 @@ function gerarLinkCalendarioLoteAgenda_(eventos, baseUrlCalendario, lembreteCale
 
   const lista = Array.isArray(eventos) ? eventos : [];
   const payloadEventos = [];
+  const horaVirada = obterHoraViradaMadrugadaAgendaSemanal_();
 
   for (let i = 0; i < lista.length; i++) {
     const ev = lista[i] || {};
     const dataCompacta = normalizarDataCompactaAgenda_(ev.dataISO, ev.dataBR);
     if (!dataCompacta) continue;
+    const datasCronologicas = calcularDatasCronologicasCalendarioAgenda_(
+      dataCompacta,
+      ev.horaInicio,
+      ev.horaFim,
+      horaVirada
+    );
 
-    const tituloCompleto = (String(ev.tipoEvento || 'Evento').trim()
-      + (ev.contratante ? (' - ' + String(ev.contratante).trim()) : '')).trim();
+    const tituloCompleto = String(ev.nomeEvento || '').trim() ||
+      (String(ev.tipoEvento || 'Evento').trim()
+        + (ev.contratante ? (' - ' + String(ev.contratante).trim()) : '')).trim();
     const item = {
       e: String(ev.idEvento || '').trim(),
       t: tituloCompleto.substring(0, 72),
@@ -521,6 +532,11 @@ function gerarLinkCalendarioLoteAgenda_(eventos, baseUrlCalendario, lembreteCale
       s: String(ev.horaInicio || '').trim().replace(':', ''),
       f: String(ev.horaFim || '').trim().replace(':', '')
     };
+
+    if (datasCronologicas) {
+      item.ds = datasCronologicas.inicio;
+      item.df = datasCronologicas.fim;
+    }
 
     const local = String(ev.local || '').trim();
     if (local) item.l = local.substring(0, 80);
@@ -560,6 +576,44 @@ function normalizarDataCompactaAgenda_(dataISO, dataBR) {
   return '';
 }
 
+function calcularDatasCronologicasCalendarioAgenda_(dataComercial, horaInicio, horaFim, horaVirada) {
+  const inicioMinutos = minutosHoraCalendarioAgenda_(horaInicio);
+  const fimMinutos = minutosHoraCalendarioAgenda_(horaFim);
+  if (inicioMinutos === null || fimMinutos === null) return null;
+
+  const virada = Math.max(0, Math.min(12, Math.floor(Number(horaVirada) || 0)));
+  let inicioNaLinhaDoTempo = inicioMinutos;
+  let fimNaLinhaDoTempo = fimMinutos;
+
+  if (inicioMinutos < virada * 60) inicioNaLinhaDoTempo += 24 * 60;
+  if (fimMinutos < virada * 60) fimNaLinhaDoTempo += 24 * 60;
+  if (fimNaLinhaDoTempo <= inicioNaLinhaDoTempo) fimNaLinhaDoTempo += 24 * 60;
+
+  return {
+    inicio: somarDiasDataCompactaAgenda_(dataComercial, Math.floor(inicioNaLinhaDoTempo / (24 * 60))),
+    fim: somarDiasDataCompactaAgenda_(dataComercial, Math.floor(fimNaLinhaDoTempo / (24 * 60)))
+  };
+}
+
+function minutosHoraCalendarioAgenda_(valor) {
+  const m = String(valor || '').trim().match(/^(\d{1,2}):?(\d{2})$/);
+  if (!m) return null;
+  const hora = Number(m[1]);
+  const minuto = Number(m[2]);
+  if (hora < 0 || hora > 23 || minuto < 0 || minuto > 59) return null;
+  return hora * 60 + minuto;
+}
+
+function somarDiasDataCompactaAgenda_(dataCompacta, quantidadeDias) {
+  const m = String(dataCompacta || '').match(/^(\d{4})(\d{2})(\d{2})$/);
+  if (!m) return dataCompacta;
+  const data = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]), 12, 0, 0, 0);
+  data.setDate(data.getDate() + Number(quantidadeDias || 0));
+  return String(data.getFullYear())
+    + String(data.getMonth() + 1).padStart(2, '0')
+    + String(data.getDate()).padStart(2, '0');
+}
+
 function resolverBaseCalendarioAgenda_(baseUrlCalendario) {
   const raw = String(baseUrlCalendario || '').trim();
   if (!raw) return '';
@@ -592,7 +646,7 @@ function parseDataEventoSheet_(valor) {
   const str = String(valor).trim();
   if (!str) return null;
 
-  const br = str.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  const br = str.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
   if (br) {
     const d = new Date(Number(br[3]), Number(br[2]) - 1, Number(br[1]), 12, 0, 0, 0);
     return isNaN(d.getTime()) ? null : d;
