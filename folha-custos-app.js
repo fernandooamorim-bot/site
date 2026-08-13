@@ -1878,11 +1878,6 @@ function removerCheckboxesPassagemDosCards() {
   renderMusicos();
 }
 
-function removerCheckboxesPassagemDosCards() {
-  // ✅ SIMPLIFICADO: Apenas re-renderizar os cards
-  renderMusicos();
-}
-
 function togglePassagemMusico(musicoId) {
   const idNorm = normalizarIdMusico_(musicoId);
   const checkbox = document.getElementById(`passagem-${idNorm}`);
