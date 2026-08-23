@@ -6,7 +6,7 @@
   // ======================================================
 
   const API_URL = 'https://script.google.com/macros/s/AKfycbx-hCrZUTiTcRMffvq9mPCXsGkSCOhKyUODe16s5PoVaujTgAp2RzYf15q7VKKvV6jYLw/exec';
-  const CLIENT_ID = '179346910046-ph0lma4i52sc9prtlkfdd63d82m350qj.apps.googleusercontent.com';
+  const CLIENT_ID = '860394426284-k5d2snkined8ap7mq9a8e7haml698rta.apps.googleusercontent.com';
 
   const Auth = {};
 
