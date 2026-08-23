@@ -16,7 +16,14 @@
  * ======================================================
  */
 const AUTH_CONFIG = {
-  GOOGLE_CLIENT_ID: '179346910046-ph0lma4i52sc9prtlkfdd63d82m350qj.apps.googleusercontent.com',
+  // O Client ID próprio do Agenda passa a ser o emissor padrão. O ID
+  // compartilhado anterior permanece aceito durante a transição para não
+  // interromper logins iniciados antes da publicação do frontend.
+  GOOGLE_CLIENT_ID: '860394426284-k5d2snkined8ap7mq9a8e7haml698rta.apps.googleusercontent.com',
+  GOOGLE_CLIENT_IDS_ACEITOS: [
+    '860394426284-k5d2snkined8ap7mq9a8e7haml698rta.apps.googleusercontent.com',
+    '179346910046-ph0lma4i52sc9prtlkfdd63d82m350qj.apps.googleusercontent.com'
+  ],
   SESSION_TTL_DIAS_PADRAO: 30,
   USER_CACHE_TTL_SEGUNDOS: 30
 };
@@ -1463,7 +1470,7 @@ function validarIdTokenGoogle_(idToken) {
     throw new Error('GOOGLE_ID_TOKEN_INVALID');
   }
 
-  if (String(data.aud || '').trim() !== AUTH_CONFIG.GOOGLE_CLIENT_ID) {
+  if (AUTH_CONFIG.GOOGLE_CLIENT_IDS_ACEITOS.indexOf(String(data.aud || '').trim()) === -1) {
     throw new Error('GOOGLE_AUDIENCE_MISMATCH');
   }
 
