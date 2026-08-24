@@ -1546,6 +1546,28 @@
           </div>
         </div>
 
+        <!-- Card: Dashboard Executivo 2.0 (Beta) — rota isolada do dashboard atual -->
+        <div class="nav-card anim-in anim-d5" id="cardDashboardGestaoV2" onclick="abrir('dashboardGestaoV2')">
+          <div class="nav-card-top">
+            <div class="nav-card-icon navy">
+              <i data-lucide="chart-no-axes-combined"></i>
+            </div>
+            <div class="nav-card-arrow">
+              <i data-lucide="arrow-right"></i>
+            </div>
+          </div>
+          <div class="nav-card-body">
+            <div class="nav-card-title">Dashboard 2.0 <span style="display:inline-flex;vertical-align:middle;margin-left:5px;padding:2px 6px;border-radius:5px;background:#fff6df;color:#8d681f;font-size:8px;font-weight:800;letter-spacing:.08em">BETA</span></div>
+            <div class="nav-card-desc">Nova central executiva com previsibilidade de comissões, receita e riscos.</div>
+          </div>
+          <div class="nav-card-footer">
+            <span class="access-badge restricted">
+              <i data-lucide="shield"></i>
+              Proprietário e Administrador
+            </span>
+          </div>
+        </div>
+
         <!-- Card: Configurações -->
         <div class="nav-card anim-in anim-d5" id="cardConfiguracoes" onclick="abrir('configuracoes')">
           <div class="nav-card-top">
@@ -2301,6 +2323,7 @@
     ocultar('cardCentralFinanceira');
     ocultar('cardPainelFinanceiro');
     ocultar('cardDashboardGestao');
+    ocultar('cardDashboardGestaoV2');
     ocultar('cardGerarAgenda');
     ocultar('cardOrcamento');
     ocultar('cardContratos');
@@ -2425,6 +2448,7 @@
       centralFinanceira: './central-financeira.html',
       painelFinanceiro: './painel-financeiro.html',
       dashboardGestao: './dashboard-gestao.html',
+      dashboardGestaoV2: './dashboard-v2.html',
       configuracoes: './configuracoes.html',
       gerarAgenda: './GerarAgenda.html',
       orcamentoForm: './form-orcamento.html',

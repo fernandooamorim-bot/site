@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#081425">
+  <meta name="application-name" content="Sistema FA Produções">
+  <link rel="manifest" href="site.webmanifest">
+  <link rel="icon" href="img/favicon.ico">
+  <title>Dashboard 2.0 Beta • FA Produções</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&amp;family=Manrope:wght@600;700;800&amp;display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="dashboard-v2.css?v=20260823a">
+  <script src="auth.js"></script>
+  <script src="dashboard-v2.js?v=20260823a" defer></script>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="side-rail" aria-label="Navegação do dashboard">
+      <a class="brand-mark" href="index.html?menu=1" aria-label="FA Produções - início">
+        <img src="img/logo.png" alt="">
+        <span><strong>FA</strong><small>PRODUÇÕES</small></span>
+      </a>
+      <nav class="rail-nav">
+        <a class="rail-item active" href="#visao-geral"><span class="rail-icon">⌂</span><span>Visão geral</span></a>
+        <a class="rail-item" href="#previsao"><span class="rail-icon">↗</span><span>Previsibilidade</span></a>
+        <a class="rail-item" href="#comissoes"><span class="rail-icon">%</span><span>Comissões</span></a>
+        <a class="rail-item" href="#riscos"><span class="rail-icon">!</span><span>Riscos</span></a>
+      </nav>
+      <div class="rail-spacer"></div>
+      <a class="rail-secondary" href="dashboard-gestao.html"><span>▦</span><span>Dashboard atual</span></a>
+      <a class="rail-secondary" href="index.html?menu=1"><span>←</span><span>Menu principal</span></a>
+      <button class="rail-profile" id="logoutButton" type="button" aria-label="Sair da conta">
+        <span class="profile-avatar" id="profileAvatar">FA</span>
+        <span class="profile-copy"><strong id="profileName">Carregando</strong><small id="profileRole">—</small></span>
+        <span>↪</span>
+      </button>
+    </aside>
+
+    <main class="main-content" id="visao-geral">
+      <header class="mobile-header">
+        <a class="mobile-brand" href="index.html?menu=1"><img src="img/logo.png" alt="FA Produções"><span>Dashboard 2.0</span></a>
+        <span class="beta-chip">BETA</span>
+      </header>
+
+      <section class="page-head">
+        <div>
+          <div class="eyebrow"><span class="live-dot"></span> CENTRAL EXECUTIVA <span class="beta-chip">BETA</span></div>
+          <h1>Decisões claras, antes que virem urgência.</h1>
+          <p>Receita, compromissos e riscos financeiros organizados em uma visão única.</p>
+        </div>
+        <div class="head-actions">
+          <label class="select-control"><span>Período</span><select id="yearFilter" aria-label="Ano"></select></label>
+          <label class="select-control"><span>Recorte</span><select id="monthFilter" aria-label="Mês"><option value="0">Ano completo</option></select></label>
+          <button class="refresh-button" id="refreshButton" type="button"><span class="refresh-icon">↻</span><span>Atualizar</span></button>
+        </div>
+      </section>
+
+      <div class="status-row" aria-live="polite">
+        <span id="dataStatus">Preparando visão executiva…</span>
+        <span class="status-meta" id="dataTimestamp"></span>
+      </div>
+
+      <section class="metric-grid" id="metricGrid" aria-label="Indicadores principais">
+        <article class="metric-card metric-primary"><div class="metric-top"><span>Vendido</span><span class="metric-symbol">↗</span></div><strong id="metricContracted">—</strong><small id="metricContractedSub">Contratos no período</small><div class="metric-trend" id="metricContractedTrend"></div></article>
+        <article class="metric-card"><div class="metric-top"><span>Recebido</span><span class="metric-symbol positive">●</span></div><strong id="metricReceived">—</strong><small id="metricReceivedSub">—</small><div class="metric-progress"><i id="receivedProgress"></i></div></article>
+        <article class="metric-card"><div class="metric-top"><span>A receber</span><span class="metric-symbol warning">○</span></div><strong id="metricReceivable">—</strong><small id="metricReceivableSub">—</small><div class="metric-foot warning" id="metricFutureEvents">—</div></article>
+        <article class="metric-card metric-commission"><div class="metric-top"><span>Comissão prevista</span><span class="metric-symbol gold">%</span></div><strong id="metricCommission">—</strong><small id="metricCommissionSub">Configuração dos eventos</small><div class="metric-foot gold" id="metricCommissionRate">—</div></article>
+        <article class="metric-card"><div class="metric-top"><span>Comissão a pagar</span><span class="metric-symbol coral">↓</span></div><strong id="metricCommissionDue">—</strong><small id="metricCommissionDueSub">—</small><div class="metric-foot coral" id="metricCommission90">—</div></article>
+        <article class="metric-card"><div class="metric-top"><span>Resultado em caixa</span><span class="metric-symbol positive">≈</span></div><strong id="metricResult">—</strong><small>Recebido menos saídas processadas</small><div class="metric-foot" id="metricResultSub">—</div></article>
+      </section>
+
+      <section class="decision-strip" aria-label="Leitura inteligente">
+        <article><span class="decision-icon positive">✓</span><div><small>Cobertura das comissões</small><strong id="insightCoverage">—</strong><p id="insightCoverageText">—</p></div></article>
+        <article><span class="decision-icon gold">◎</span><div><small>Saldo projetado dos eventos</small><strong id="insightProjected">—</strong><p>A receber menos comissões ainda comprometidas.</p></div></article>
+        <article><span class="decision-icon warning">!</span><div><small>Pontos de atenção</small><strong id="insightRisks">—</strong><p id="insightRisksText">—</p></div></article>
+      </section>
+
+      <section class="dashboard-grid" id="previsao">
+        <article class="panel panel-wide">
+          <div class="panel-head">
+            <div><span class="section-kicker">RITMO DO NEGÓCIO</span><h2>Receita e compromissos por mês</h2><p>Valores agrupados pelo mês de realização de cada evento.</p></div>
+            <div class="chart-legend"><span><i class="legend-revenue"></i>Vendido</span><span><i class="legend-received"></i>Recebido</span><span><i class="legend-commission"></i>Comissão prevista</span></div>
+          </div>
+          <div class="monthly-chart" id="monthlyChart" role="img" aria-label="Gráfico mensal de vendido, recebido e comissão prevista"></div>
+          <div class="chart-footer"><span id="chartHighlight">—</span><span>Passe ou toque em um mês para detalhar</span></div>
+        </article>
+
+        <article class="panel projection-panel">
+          <div class="panel-head compact"><div><span class="section-kicker">PREVISIBILIDADE</span><h2>Próximos compromissos</h2></div><span class="info-tag">Mês do evento</span></div>
+          <div class="projection-number"><small>Comissões futuras</small><strong id="futureCommission">—</strong><span id="futureCommissionCount">—</span></div>
+          <div class="projection-list" id="projectionList"></div>
+          <div class="projection-note"><span>i</span><p>A data real do pagamento pode variar conforme o fechamento. Esta visão antecipa a necessidade pelo calendário dos eventos.</p></div>
+        </article>
+      </section>
+
+      <section class="dashboard-grid commission-grid" id="comissoes">
+        <article class="panel commission-overview">
+          <div class="panel-head compact"><div><span class="section-kicker">COMISSÕES</span><h2>Compromisso anual</h2><p>Previsto, pago e ainda comprometido.</p></div></div>
+          <div class="commission-visual">
+            <div class="donut" id="commissionDonut"><div><strong id="commissionDonutPct">0%</strong><span>pago</span></div></div>
+            <div class="commission-totals">
+              <div><span><i class="dot gold-bg"></i>Previsto</span><strong id="commissionExpected">—</strong></div>
+              <div><span><i class="dot green-bg"></i>Pago</span><strong id="commissionPaid">—</strong></div>
+              <div><span><i class="dot coral-bg"></i>A pagar</span><strong id="commissionPending">—</strong></div>
+            </div>
+          </div>
+          <div class="commission-health" id="commissionHealth">—</div>
+        </article>
+
+        <article class="panel sellers-panel">
+          <div class="panel-head compact"><div><span class="section-kicker">DISTRIBUIÇÃO</span><h2>Previsão por vendedor</h2></div><span class="info-tag" id="sellerCount">—</span></div>
+          <div class="seller-list" id="sellerList"></div>
+        </article>
+      </section>
+
+      <section class="dashboard-grid" id="riscos">
+        <article class="panel risks-panel">
+          <div class="panel-head compact"><div><span class="section-kicker">ATENÇÃO EXECUTIVA</span><h2>Riscos priorizados</h2><p>Exceções que merecem conferência.</p></div><span class="count-badge" id="riskCount">0</span></div>
+          <div class="risk-list" id="riskList"></div>
+        </article>
+
+        <article class="panel quality-panel">
+          <div class="panel-head compact"><div><span class="section-kicker">CONFIABILIDADE</span><h2>Qualidade da leitura</h2></div></div>
+          <div class="quality-score"><strong id="qualityScore">—</strong><span>dos eventos sem alertas estruturais</span></div>
+          <div class="quality-list" id="qualityList"></div>
+          <button class="text-button" id="togglePremises" type="button">Ver premissas dos cálculos <span>→</span></button>
+          <div class="premises" id="premisesBox" hidden></div>
+        </article>
+      </section>
+
+      <section class="panel events-panel">
+        <div class="panel-head table-head">
+          <div><span class="section-kicker">AGENDA FINANCEIRA</span><h2>Eventos e compromissos</h2><p>Detalhamento do recorte selecionado, ordenado por data.</p></div>
+          <label class="search-control"><span>⌕</span><input id="eventSearch" type="search" placeholder="Buscar evento ou vendedor" autocomplete="off"></label>
+        </div>
+        <div class="events-table-wrap">
+          <table class="events-table">
+            <thead><tr><th>Evento</th><th>Vendedor</th><th class="number">Contrato</th><th class="number">A receber</th><th class="number">Comissão prevista</th><th class="number">A pagar</th></tr></thead>
+            <tbody id="eventsTableBody"></tbody>
+          </table>
+        </div>
+        <div class="table-footer"><span id="eventsCount">—</span><button class="text-button" id="showMoreEvents" type="button">Mostrar mais</button></div>
+      </section>
+
+      <footer class="dashboard-footer"><span>Dashboard 2.0 Beta • leitura financeira somente leitura</span><span>FA Produções</span></footer>
+    </main>
+  </div>
+
+  <nav class="mobile-nav" aria-label="Navegação rápida">
+    <a href="#visao-geral" class="active"><span>⌂</span><small>Visão</small></a>
+    <a href="#previsao"><span>↗</span><small>Previsão</small></a>
+    <a href="#comissoes"><span>%</span><small>Comissões</small></a>
+    <a href="#riscos"><span>!</span><small>Riscos</small></a>
+  </nav>
+
+  <div class="loading-overlay" id="loadingOverlay" aria-live="polite">
+    <div class="loading-mark"><span></span><span></span><span></span></div>
+    <strong>Organizando sua visão executiva</strong>
+    <p>Cruzando eventos e movimentações financeiras…</p>
+  </div>
+  <div class="toast" id="toast" role="status"></div>
+</body>
+</html>
