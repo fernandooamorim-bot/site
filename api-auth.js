@@ -687,6 +687,11 @@ if (action === 'obterDashboardGestao') {
   return json(obterDashboardGestao(params));
 }
 
+if (action === 'obterDashboardGestaoV2') {
+  exigirAcao('eventos:visualizarFinanceiro');
+  return json(obterDashboardGestaoV2(params));
+}
+
 if (action === 'obterMetaAnualDashboard') {
   const usuario = exigirAcao('eventos:visualizarFinanceiro');
   const bruto = obterConfig('DASHBOARD_META_ANUAL_PCT');
