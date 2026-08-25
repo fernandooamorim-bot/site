@@ -108,11 +108,151 @@ function dashboardV2MovimentosPorEvento_(movimentos) {
   return mapa;
 }
 
+function dashboardV2Mediana_(valores) {
+  const lista = (valores || []).filter(function (valor) { return Number.isFinite(Number(valor)); }).map(Number).sort(function (a, b) { return a - b; });
+  if (!lista.length) return null;
+  const meio = Math.floor(lista.length / 2);
+  return lista.length % 2 ? lista[meio] : Number(((lista[meio - 1] + lista[meio]) / 2).toFixed(1));
+}
+
+function dashboardV2AnaliseAvancada_(eventos, indice, movPorEvento, params) {
+  const ano = Number(params.ano);
+  const hoje = params.hoje;
+  const incluirCancelados = params.incluirCancelados;
+  const tipoFiltro = dashboardV2TextoNormalizado_(params.tipoEvento);
+  const projetoFiltro = dashboardV2TextoNormalizado_(params.projeto);
+  const linhasAno = [];
+  const linhasHistoricas = [];
+  const funil = { eventos: 0, reservas: 0, reunioes: 0, bloqueios: 0 };
+  const tipos = {};
+  const projetos = {};
+  const cerimonialistas = {};
+  const folhasPorTipo = {};
+  const antecedenciaPorMes = {};
+  const metaAnterior = { contratado: 0 };
+
+  for (let i = 1; Array.isArray(eventos) && i < eventos.length; i++) {
+    const row = eventos[i];
+    const tipoRegistro = dashboardV2TextoNormalizado_(dashboardV2Valor_(row, indice, 'TIPO_REGISTRO', ''));
+    if (tipoRegistro === 'EVENTO') funil.eventos++;
+    else if (tipoRegistro === 'RESERVA') funil.reservas++;
+    else if (tipoRegistro === 'REUNIAO') funil.reunioes++;
+    else if (tipoRegistro === 'BLOQUEIO') funil.bloqueios++;
+    if (tipoRegistro !== 'EVENTO') continue;
+
+    const dataEvento = dashboardV2Data_(dashboardV2Valor_(row, indice, 'DATA_EVENTO', ''));
+    if (!dataEvento) continue;
+    const status = dashboardV2TextoNormalizado_(dashboardV2Valor_(row, indice, 'STATUS_GERAL', 'ATIVO')) || 'ATIVO';
+    if (!incluirCancelados && status === 'CANCELADO') continue;
+    const anoEvento = dataEvento.getFullYear();
+    const valorContrato = dashboardV2Numero_(dashboardV2Valor_(row, indice, 'VALOR_TOTAL', 0));
+    const tipoEvento = String(dashboardV2Valor_(row, indice, 'TIPO_EVENTO', '') || '').trim() || 'Sem tipo';
+    const projeto = String(dashboardV2Valor_(row, indice, 'PROJETO', '') || '').trim() || 'Sem projeto';
+    if (tipoFiltro && dashboardV2TextoNormalizado_(tipoEvento) !== tipoFiltro) continue;
+    if (projetoFiltro && dashboardV2TextoNormalizado_(projeto) !== projetoFiltro) continue;
+    if (anoEvento === ano - 1) metaAnterior.contratado += valorContrato;
+
+    const idEvento = String(dashboardV2Valor_(row, indice, 'ID_EVENTO', '') || '').trim();
+    const mov = movPorEvento[idEvento] || { recebido: 0, comissaoGerada: 0, comissaoPaga: 0, bvPago: 0, nfPaga: 0, folhaPaga: 0 };
+    const recebidoEspelho = dashboardV2Numero_(dashboardV2Valor_(row, indice, 'VALOR_RECEBIDO', 0));
+    const recebido = Math.abs(mov.recebido) > 0.009 ? mov.recebido : recebidoEspelho;
+    const comissaoEsperada = dashboardV2Numero_(dashboardV2Valor_(row, indice, 'VALOR_COMISSAO_CALCULADO', 0));
+    const bvEsperado = dashboardV2Numero_(dashboardV2Valor_(row, indice, 'VALOR_BV', 0));
+    const nfEsperada = dashboardV2Numero_(dashboardV2Valor_(row, indice, 'VALOR_NF', 0));
+    const cerimonialista = String(dashboardV2Valor_(row, indice, 'NOME_CERIMONIALISTA', '') || '').trim() || 'Sem cerimonialista';
+    const criadoEm = dashboardV2Data_(dashboardV2Valor_(row, indice, 'DATA_CRIACAO', ''));
+    const folhaPaga = dashboardV2Numero_(mov.folhaPaga);
+    const custosPagos = dashboardV2Numero_(mov.comissaoPaga) + dashboardV2Numero_(mov.bvPago) + dashboardV2Numero_(mov.nfPaga) + folhaPaga;
+    const provisaoComissao = Math.max(comissaoEsperada - dashboardV2Numero_(mov.comissaoPaga), 0);
+    const provisaoBv = Math.max(bvEsperado - dashboardV2Numero_(mov.bvPago), 0);
+    const provisaoNf = Math.max(nfEsperada - dashboardV2Numero_(mov.nfPaga), 0);
+    const provisoes = provisaoComissao + provisaoBv + provisaoNf;
+    const futuro = dataEvento >= hoje;
+    const pendencias = [];
+    if (valorContrato > recebido + 0.01) pendencias.push('Recebimento incompleto');
+    if (provisaoComissao > 0.009) pendencias.push('Comissão pendente');
+    if (provisaoBv > 0.009) pendencias.push('BV pendente');
+    if (provisaoNf > 0.009) pendencias.push('NF pendente');
+    if (!folhaPaga && !futuro) pendencias.push('Folha sem movimento');
+    const linha = {
+      idEvento: idEvento,
+      nomeEvento: String(dashboardV2Valor_(row, indice, 'NOME_EVENTO', '') || '').trim() || [tipoEvento, String(dashboardV2Valor_(row, indice, 'NOME_CONTRATANTE', '') || '').trim()].filter(Boolean).join(' - '),
+      dataEvento: dataEvento.getTime(), ano: anoEvento, mes: dataEvento.getMonth() + 1,
+      tipoEvento: tipoEvento, projeto: projeto, cerimonialista: cerimonialista,
+      valorContrato: dashboardV2Dinheiro_(valorContrato), recebido: dashboardV2Dinheiro_(recebido),
+      custosPagos: dashboardV2Dinheiro_(custosPagos), provisoes: dashboardV2Dinheiro_(provisoes),
+      lucroAtual: dashboardV2Dinheiro_(recebido - custosPagos),
+      lucroProjetado: dashboardV2Dinheiro_(valorContrato - custosPagos - provisoes),
+      margemProjetada: valorContrato > 0 ? Number((((valorContrato - custosPagos - provisoes) / valorContrato) * 100).toFixed(1)) : null,
+      folhaPaga: dashboardV2Dinheiro_(folhaPaga), futuro: futuro, pendencias: pendencias
+    };
+    linhasHistoricas.push({ dataEvento: dataEvento, criadoEm: criadoEm, tipoEvento: tipoEvento, folhaPaga: folhaPaga, valorContrato: valorContrato, linha: linha });
+    if (anoEvento !== ano) continue;
+    linhasAno.push(linha);
+    tipos[tipoEvento] = (tipos[tipoEvento] || { nome: tipoEvento, eventos: 0, contratado: 0, lucroProjetado: 0 });
+    tipos[tipoEvento].eventos++; tipos[tipoEvento].contratado += valorContrato; tipos[tipoEvento].lucroProjetado += linha.lucroProjetado;
+    projetos[projeto] = (projetos[projeto] || { nome: projeto, eventos: 0, contratado: 0, lucroProjetado: 0 });
+    projetos[projeto].eventos++; projetos[projeto].contratado += valorContrato; projetos[projeto].lucroProjetado += linha.lucroProjetado;
+    cerimonialistas[cerimonialista] = (cerimonialistas[cerimonialista] || { nome: cerimonialista, eventos: 0, contratado: 0 });
+    cerimonialistas[cerimonialista].eventos++; cerimonialistas[cerimonialista].contratado += valorContrato;
+  }
+
+  linhasHistoricas.forEach(function (item) {
+    if (item.dataEvento >= hoje || item.folhaPaga <= 0) return;
+    const bucket = folhasPorTipo[item.tipoEvento] || { soma: 0, eventos: 0 };
+    bucket.soma += item.folhaPaga; bucket.eventos++;
+    folhasPorTipo[item.tipoEvento] = bucket;
+  });
+  linhasHistoricas.forEach(function (item) {
+    if (!item.criadoEm || item.dataEvento <= item.criadoEm || item.dataEvento >= hoje) return;
+    const meses = antecedenciaPorMes[item.dataEvento.getMonth() + 1] || [];
+    meses.push(Math.round((item.dataEvento.getTime() - item.criadoEm.getTime()) / 86400000));
+    antecedenciaPorMes[item.dataEvento.getMonth() + 1] = meses;
+  });
+
+  const folhaGlobal = Object.keys(folhasPorTipo).reduce(function (acc, chave) { acc.soma += folhasPorTipo[chave].soma; acc.eventos += folhasPorTipo[chave].eventos; return acc; }, { soma: 0, eventos: 0 });
+  const mediaFolhaGlobal = folhaGlobal.eventos ? folhaGlobal.soma / folhaGlobal.eventos : 0;
+  let folhaEstimadaFutura = 0;
+  let eventosComFolhaEstimada = 0;
+  linhasAno.forEach(function (linha) {
+    if (!linha.futuro || linha.folhaPaga > 0) return;
+    const base = folhasPorTipo[linha.tipoEvento];
+    const media = base && base.eventos ? base.soma / base.eventos : mediaFolhaGlobal;
+    if (media > 0) { folhaEstimadaFutura += media; eventosComFolhaEstimada++; }
+  });
+  const antecedencia = [];
+  for (let mes = 1; mes <= 12; mes++) {
+    const dias = antecedenciaPorMes[mes] || [];
+    const eventosMes = linhasAno.filter(function (linha) { return linha.mes === mes; });
+    antecedencia.push({ mes: mes, eventosAtuais: eventosMes.length, valorAtual: dashboardV2Dinheiro_(eventosMes.reduce(function (s, linha) { return s + linha.valorContrato; }, 0)), amostraHistorica: dias.length, medianaDias: dashboardV2Mediana_(dias), mediaDias: dias.length ? Number((dias.reduce(function (s, n) { return s + n; }, 0) / dias.length).toFixed(1)) : null });
+  }
+  const realizado = linhasAno.filter(function (linha) { return !linha.futuro; });
+  const futuro = linhasAno.filter(function (linha) { return linha.futuro; });
+  const ticket = linhasAno.length ? linhasAno.reduce(function (s, linha) { return s + linha.valorContrato; }, 0) / linhasAno.length : 0;
+  const metaPctRaw = typeof obterConfig === 'function' ? Number(obterConfig('DASHBOARD_META_ANUAL_PCT')) : 30;
+  const metaPct = Number.isFinite(metaPctRaw) ? Math.max(0, Math.min(200, metaPctRaw)) : 30;
+  const meta = metaAnterior.contratado * (1 + metaPct / 100);
+  const segmentos = function (mapa) { return Object.keys(mapa).map(function (chave) { const item = mapa[chave]; item.contratado = dashboardV2Dinheiro_(item.contratado); item.lucroProjetado = dashboardV2Dinheiro_(item.lucroProjetado); return item; }).sort(function (a, b) { return b.contratado - a.contratado; }).slice(0, 10); };
+  const auditoria = linhasAno.sort(function (a, b) { return a.dataEvento - b.dataEvento; }).slice(0, 180);
+  return {
+    meta: { percentual: metaPct, baseAnoAnterior: dashboardV2Dinheiro_(metaAnterior.contratado), alvo: dashboardV2Dinheiro_(meta), realizado: dashboardV2Dinheiro_(linhasAno.reduce(function (s, linha) { return s + linha.valorContrato; }, 0)), falta: dashboardV2Dinheiro_(Math.max(meta - linhasAno.reduce(function (s, linha) { return s + linha.valorContrato; }, 0), 0)) },
+    operacao: { ticketMedio: dashboardV2Dinheiro_(ticket), realizados: { eventos: realizado.length, contratado: dashboardV2Dinheiro_(realizado.reduce(function (s, linha) { return s + linha.valorContrato; }, 0)), lucroProjetado: dashboardV2Dinheiro_(realizado.reduce(function (s, linha) { return s + linha.lucroProjetado; }, 0)) }, futuros: { eventos: futuro.length, contratado: dashboardV2Dinheiro_(futuro.reduce(function (s, linha) { return s + linha.valorContrato; }, 0)), lucroProjetado: dashboardV2Dinheiro_(futuro.reduce(function (s, linha) { return s + linha.lucroProjetado; }, 0)) } },
+    folha: { mediaGlobal: dashboardV2Dinheiro_(mediaFolhaGlobal), eventosBase: folhaGlobal.eventos, estimativaFutura: dashboardV2Dinheiro_(folhaEstimadaFutura), eventosEstimados: eventosComFolhaEstimada, porTipo: Object.keys(folhasPorTipo).map(function (chave) { const item = folhasPorTipo[chave]; return { nome: chave, eventos: item.eventos, media: dashboardV2Dinheiro_(item.soma / item.eventos) }; }).sort(function (a, b) { return b.media - a.media; }) },
+    segmentos: { tipos: segmentos(tipos), projetos: segmentos(projetos) },
+    cerimonialistas: Object.keys(cerimonialistas).map(function (chave) { const item = cerimonialistas[chave]; item.contratado = dashboardV2Dinheiro_(item.contratado); return item; }).sort(function (a, b) { return b.contratado - a.contratado; }).slice(0, 10),
+    funil: funil, auditoria: auditoria,
+    formacaoAgenda: { meses: antecedencia, observacao: 'Antecedência usa DATA_CRIACAO. Eventos migrados ou sem data de criação não entram na amostra.' },
+    filtros: { tipos: Object.keys(tipos).sort(), projetos: Object.keys(projetos).sort() }
+  };
+}
+
 function construirDashboardGestaoV2_(eventos, movimentos, opcoes) {
   const params = opcoes || {};
   const agora = dashboardV2Data_(params.agora) || new Date();
   const ano = Number(params.ano) || agora.getFullYear();
   const incluirCancelados = params.incluirCancelados === true || String(params.incluirCancelados || '').toUpperCase() === 'TRUE';
+  const tipoFiltro = dashboardV2TextoNormalizado_(params.tipoEvento);
+  const projetoFiltro = dashboardV2TextoNormalizado_(params.projeto);
   const e = dashboardV2Indice_((eventos && eventos[0]) || []);
   const movPorEvento = dashboardV2MovimentosPorEvento_(movimentos || []);
   const meses = {};
@@ -159,6 +299,10 @@ function construirDashboardGestaoV2_(eventos, movimentos, opcoes) {
     anos[anoEvento] = true;
     const statusEvento = dashboardV2TextoNormalizado_(dashboardV2Valor_(linha, e, 'STATUS_GERAL', 'ATIVO')) || 'ATIVO';
     if (!incluirCancelados && statusEvento === 'CANCELADO') continue;
+    const tipoEventoFiltro = String(dashboardV2Valor_(linha, e, 'TIPO_EVENTO', '') || '').trim() || 'Sem tipo';
+    const projetoFiltroEvento = String(dashboardV2Valor_(linha, e, 'PROJETO', '') || '').trim() || 'Sem projeto';
+    if (tipoFiltro && dashboardV2TextoNormalizado_(tipoEventoFiltro) !== tipoFiltro) continue;
+    if (projetoFiltro && dashboardV2TextoNormalizado_(projetoFiltroEvento) !== projetoFiltro) continue;
 
     const valorTotal = dashboardV2Numero_(dashboardV2Valor_(linha, e, 'VALOR_TOTAL', 0));
     const comissaoPrevista = dashboardV2Numero_(dashboardV2Valor_(linha, e, 'VALOR_COMISSAO_CALCULADO', 0));
@@ -255,7 +399,11 @@ function construirDashboardGestaoV2_(eventos, movimentos, opcoes) {
       comissaoPrevista: dashboardV2Dinheiro_(comissaoPrevista),
       comissaoPaga: dashboardV2Dinheiro_(comissaoPaga),
       comissaoAPagar: dashboardV2Dinheiro_(comissaoAPagar),
-      futuro: futuro
+      futuro: futuro,
+      tipoEvento: tipoEventoFiltro,
+      projeto: String(dashboardV2Valor_(linha, e, 'PROJETO', '') || '').trim() || 'Sem projeto',
+      cerimonialista: String(dashboardV2Valor_(linha, e, 'NOME_CERIMONIALISTA', '') || '').trim() || 'Sem cerimonialista',
+      folhaPaga: dashboardV2Dinheiro_(mov.folhaPaga)
     });
   }
 
@@ -312,7 +460,8 @@ function construirDashboardGestaoV2_(eventos, movimentos, opcoes) {
     riscos: riscos.slice(0, 60),
     eventos: eventosDetalhe.slice(0, 250),
     qualidade: qualidade,
-    comparativo: comparativo
+    comparativo: comparativo,
+    analise: dashboardV2AnaliseAvancada_(eventos, e, movPorEvento, { ano: ano, hoje: hoje, incluirCancelados: incluirCancelados, tipoEvento: params.tipoEvento, projeto: params.projeto })
   };
 }
 
@@ -320,9 +469,11 @@ function obterDashboardGestaoV2(params) {
   exigirAcao('eventos:visualizarFinanceiro');
   const ano = Number((params && params.ano) || new Date().getFullYear());
   const incluirCancelados = String((params && params.incluirCancelados) || '').toUpperCase() === 'TRUE';
+  const tipoEvento = String((params && params.tipoEvento) || '').trim();
+  const projeto = String((params && params.projeto) || '').trim();
   const forceRefresh = String((params && params.forceRefresh) || '').toUpperCase() === 'TRUE';
   const cache = CacheService.getScriptCache();
-  const cacheKey = ['dashboard:gestao:v2beta:1', ano, incluirCancelados ? '1' : '0'].join(':');
+  const cacheKey = ['dashboard:gestao:v2beta:2', ano, incluirCancelados ? '1' : '0', tipoEvento || '-', projeto || '-'].join(':');
   if (!forceRefresh) {
     const armazenado = cache.get(cacheKey);
     if (armazenado) {
@@ -340,7 +491,7 @@ function obterDashboardGestaoV2(params) {
   const movimentos = shMovimentos.getLastRow() > 0
     ? shMovimentos.getRange(1, 1, shMovimentos.getLastRow(), shMovimentos.getLastColumn()).getValues()
     : [];
-  const resultado = construirDashboardGestaoV2_(eventos, movimentos, { ano: ano, incluirCancelados: incluirCancelados });
+  const resultado = construirDashboardGestaoV2_(eventos, movimentos, { ano: ano, incluirCancelados: incluirCancelados, tipoEvento: tipoEvento, projeto: projeto });
   try { cache.put(cacheKey, JSON.stringify(resultado), 90); } catch (_) {}
   return resultado;
 }
