@@ -11,9 +11,9 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&amp;family=Manrope:wght@600;700;800&amp;display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="dashboard-v2.css?v=20260823a">
+  <link rel="stylesheet" href="dashboard-v2.css?v=20260824a">
   <script src="auth.js"></script>
-  <script src="dashboard-v2.js?v=20260823a" defer></script>
+  <script src="dashboard-v2.js?v=20260824a" defer></script>
 </head>
 <body>
   <div class="app-shell">
@@ -53,6 +53,8 @@
         <div class="head-actions">
           <label class="select-control"><span>Período</span><select id="yearFilter" aria-label="Ano"></select></label>
           <label class="select-control"><span>Recorte</span><select id="monthFilter" aria-label="Mês"><option value="0">Ano completo</option></select></label>
+          <label class="select-control optional-filter"><span>Tipo</span><select id="typeFilter" aria-label="Tipo de evento"><option value="">Todos</option></select></label>
+          <label class="select-control optional-filter"><span>Projeto</span><select id="projectFilter" aria-label="Projeto"><option value="">Todos</option></select></label>
           <button class="refresh-button" id="refreshButton" type="button"><span class="refresh-icon">↻</span><span>Atualizar</span></button>
         </div>
       </section>
@@ -115,6 +117,31 @@
         </article>
       </section>
 
+      <section class="dashboard-grid intelligence-grid" id="operacao">
+        <article class="panel meta-panel">
+          <div class="panel-head compact"><div><span class="section-kicker">META E EXECUÇÃO</span><h2>Ritmo comercial</h2><p>Meta baseada no ano anterior e configuração vigente.</p></div></div>
+          <div class="meta-progress"><div class="meta-progress-head"><span id="metaPercent">—</span><strong id="metaGap">—</strong></div><div class="metric-progress"><i id="metaProgress"></i></div></div>
+          <div class="compact-metrics"><div><small>Meta</small><strong id="metaTarget">—</strong></div><div><small>Ticket médio</small><strong id="ticketAverage">—</strong></div><div><small>Eventos realizados</small><strong id="executedEvents">—</strong></div></div>
+        </article>
+        <article class="panel segment-panel">
+          <div class="panel-head compact"><div><span class="section-kicker">MIX DO NEGÓCIO</span><h2>Segmentos e parceiros</h2></div><span class="info-tag">Por evento</span></div>
+          <div class="segment-columns"><div><h3>Por tipo</h3><div id="typeSegments" class="micro-list"></div></div><div><h3>Top cerimonialistas</h3><div id="ceremonialistList" class="micro-list"></div></div></div>
+        </article>
+      </section>
+
+      <section class="dashboard-grid planning-grid" id="planejamento">
+        <article class="panel folha-panel">
+          <div class="panel-head"><div><span class="section-kicker">PREVISÃO OPERACIONAL</span><h2>Folha de custos estimada</h2><p>Referência histórica de folhas já processadas; não substitui a folha aprovada.</p></div><span class="info-tag" id="folhaSample">—</span></div>
+          <div class="forecast-hero"><div><small>Média observada</small><strong id="folhaAverage">—</strong></div><div><small>Estimativa futura</small><strong id="folhaForecast">—</strong><span id="folhaForecastSub">—</span></div></div>
+          <div class="micro-list" id="folhaByType"></div>
+        </article>
+        <article class="panel leadtime-panel">
+          <div class="panel-head"><div><span class="section-kicker">FORMAÇÃO DA AGENDA</span><h2>Antecedência de fechamento</h2><p id="leadtimeNarrative">—</p></div><span class="info-tag">Mediana histórica</span></div>
+          <div class="leadtime-grid" id="leadtimeGrid"></div>
+          <div class="projection-note"><span>i</span><p>Uma janela ainda aberta não é, por si, um problema: compare-a com a mediana histórica de fechamento daquele mês.</p></div>
+        </article>
+      </section>
+
       <section class="dashboard-grid" id="riscos">
         <article class="panel risks-panel">
           <div class="panel-head compact"><div><span class="section-kicker">ATENÇÃO EXECUTIVA</span><h2>Riscos priorizados</h2><p>Exceções que merecem conferência.</p></div><span class="count-badge" id="riskCount">0</span></div>
@@ -128,6 +155,17 @@
           <button class="text-button" id="togglePremises" type="button">Ver premissas dos cálculos <span>→</span></button>
           <div class="premises" id="premisesBox" hidden></div>
         </article>
+      </section>
+
+      <section class="panel audit-panel" id="auditoria">
+        <div class="panel-head table-head"><div><span class="section-kicker">AUDITORIA ECONÔMICA POR EVENTO</span><h2>Caixa atual, provisões e margem projetada</h2><p>Projeção econômica: contrato menos custos pagos e obrigações previstas. Não registra nem altera valores.</p></div><div class="audit-actions"><select id="auditView" aria-label="Visão da auditoria"><option value="TODOS">Todos</option><option value="OCORRIDOS">Ocorridos</option><option value="FUTUROS">Futuros</option></select><button class="text-button" id="toggleAudit" type="button">Ver auditoria</button></div></div>
+        <div class="audit-summary" id="auditSummary"></div>
+        <div class="events-table-wrap audit-detail" id="auditDetail" hidden><table class="events-table"><thead><tr><th>Evento</th><th class="number">Contrato</th><th class="number">Recebido</th><th class="number">Custos pagos</th><th class="number">Provisões</th><th class="number">Lucro projetado</th><th class="number">Margem</th><th>Status</th></tr></thead><tbody id="auditTableBody"></tbody></table></div>
+      </section>
+
+      <section class="dashboard-grid funnel-grid">
+        <article class="panel"><div class="panel-head compact"><div><span class="section-kicker">FUNIL OPERACIONAL</span><h2>Composição da agenda</h2></div></div><div class="funnel-list" id="funnelList"></div></article>
+        <article class="panel"><div class="panel-head compact"><div><span class="section-kicker">LEITURA DO PERÍODO</span><h2>Destaques automáticos</h2></div></div><div class="narrative-list" id="narrativeList"></div></article>
       </section>
 
       <section class="panel events-panel">
@@ -152,7 +190,7 @@
     <a href="#visao-geral" class="active"><span>⌂</span><small>Visão</small></a>
     <a href="#previsao"><span>↗</span><small>Previsão</small></a>
     <a href="#comissoes"><span>%</span><small>Comissões</small></a>
-    <a href="#riscos"><span>!</span><small>Riscos</small></a>
+    <a href="#planejamento"><span>↗</span><small>Plano</small></a>
   </nav>
 
   <div class="loading-overlay" id="loadingOverlay" aria-live="polite">

@@ -2,7 +2,7 @@
   'use strict';
 
   const MONTHS = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
-  const CACHE_PREFIX = 'dashboard:v2beta:1';
+  const CACHE_PREFIX = 'dashboard:v2beta:2';
   const CACHE_TTL_MS = 5 * 60 * 1000;
   const state = { data: null, month: 0, eventLimit: 12, user: null, loading: false };
 
@@ -34,7 +34,7 @@
   function cacheKey(year) {
     const email = normalize(localStorage.getItem('auth_email')) || 'sem-email';
     const profile = normalize(localStorage.getItem('auth_perfil')) || 'sem-perfil';
-    return `${CACHE_PREFIX}:${email}:${profile}:${year}`;
+    return `${CACHE_PREFIX}:${email}:${profile}:${year}:${normalize($('typeFilter')?.value)}:${normalize($('projectFilter')?.value)}`;
   }
   function readCache(year) {
     try {
@@ -67,6 +67,14 @@
     const current = Number($('yearFilter').value) || new Date().getFullYear();
     const options = new Set([...years.map(Number), current, new Date().getFullYear()]);
     $('yearFilter').innerHTML = [...options].filter(Boolean).sort((a, b) => b - a).map((year) => `<option value="${year}"${year === current ? ' selected' : ''}>${year}</option>`).join('');
+  }
+  function filterOptions(id, values = []) {
+    const select = $(id);
+    if (!select) return;
+    const selected = select.value;
+    const valid = new Set(values.filter(Boolean));
+    select.innerHTML = `<option value="">Todos</option>${[...valid].sort((a, b) => String(a).localeCompare(String(b), 'pt-BR')).map((value) => `<option value="${esc(value)}">${esc(value)}</option>`).join('')}`;
+    select.value = valid.has(selected) ? selected : '';
   }
 
   function sliceData() {
@@ -245,6 +253,69 @@
     $('showMoreEvents').hidden = visible.length >= events.length;
   }
 
+  function renderMicroList(id, rows, value, suffix = '') {
+    const target = $(id);
+    if (!target) return;
+    const max = Math.max(1, ...(rows || []).map((item) => number(item[value])));
+    target.innerHTML = rows?.length ? rows.slice(0, 5).map((item) => `<div class="micro-row"><div><strong>${esc(item.nome)}</strong><small>${number(item.eventos)} eventos${suffix}</small></div><div class="micro-track"><i style="--width:${number(item[value]) / max * 100}%"></i></div><strong>${money(item[value])}</strong></div>`).join('') : '<div class="empty-state">Sem base suficiente neste recorte.</div>';
+  }
+  function auditRows() {
+    const analysis = state.data?.analise || {};
+    const view = $('auditView')?.value || 'TODOS';
+    return (analysis.auditoria || []).filter((item) => {
+      if (state.month && number(item.mes) !== state.month) return false;
+      return view === 'TODOS' || (view === 'FUTUROS' ? item.futuro : !item.futuro);
+    });
+  }
+  function renderAdvanced() {
+    const analysis = state.data?.analise || {};
+    const meta = analysis.meta || {};
+    const operation = analysis.operacao || {};
+    const progress = number(meta.alvo) > 0 ? number(meta.realizado) / number(meta.alvo) * 100 : 0;
+    setText('metaPercent', number(meta.alvo) > 0 ? pct(progress, 1) : 'Sem base');
+    setText('metaGap', number(meta.alvo) > 0 ? (number(meta.falta) > 0 ? `${money(meta.falta)} para a meta` : 'Meta atingida') : 'Meta sem histórico');
+    $('metaProgress').style.width = `${Math.min(100, Math.max(0, progress))}%`;
+    setText('metaTarget', money(meta.alvo));
+    setText('ticketAverage', money(operation.ticketMedio));
+    setText('executedEvents', `${number(operation.realizados?.eventos)} realizados`);
+    renderMicroList('typeSegments', analysis.segmentos?.tipos || [], 'contratado');
+    renderMicroList('ceremonialistList', analysis.cerimonialistas || [], 'contratado');
+
+    const folha = analysis.folha || {};
+    setText('folhaSample', `${number(folha.eventosBase)} folhas processadas`);
+    setText('folhaAverage', money(folha.mediaGlobal));
+    setText('folhaForecast', money(folha.estimativaFutura));
+    setText('folhaForecastSub', `${number(folha.eventosEstimados)} eventos futuros sem folha processada`);
+    renderMicroList('folhaByType', folha.porTipo || [], 'media', ' na amostra');
+
+    const formation = analysis.formacaoAgenda?.meses || [];
+    const preferredMonth = state.month || formation.find((item) => number(item.mes) >= new Date().getMonth() + 1 && number(item.eventosAtuais) === 0)?.mes || new Date().getMonth() + 1;
+    const selected = formation.find((item) => number(item.mes) === number(preferredMonth)) || {};
+    const leadMessage = selected.medianaDias !== null && selected.medianaDias !== undefined
+      ? `${MONTHS[number(selected.mes) - 1]} tem ${number(selected.eventosAtuais)} eventos no recorte. Historicamente, eventos desse mês foram fechados com mediana de ${selected.medianaDias} dias de antecedência (${number(selected.amostraHistorica)} casos).`
+      : `${MONTHS[number(selected.mes) - 1] || 'Este mês'} tem ${number(selected.eventosAtuais) || 'nenhum'} evento no recorte e ainda não possui amostra histórica confiável de antecedência.`;
+    setText('leadtimeNarrative', leadMessage);
+    $('leadtimeGrid').innerHTML = formation.map((item) => `<div class="leadtime-cell ${number(item.mes) === number(selected.mes) ? 'selected' : ''}"><strong>${MONTHS[number(item.mes) - 1]}</strong><span>${item.medianaDias === null || item.medianaDias === undefined ? '—' : `${item.medianaDias}d`}</span><small>${number(item.eventosAtuais)} atuais · ${number(item.amostraHistorica)} base</small></div>`).join('');
+
+    const rows = auditRows();
+    const contract = rows.reduce((sum, item) => sum + number(item.valorContrato), 0);
+    const profit = rows.reduce((sum, item) => sum + number(item.lucroProjetado), 0);
+    const pending = rows.reduce((sum, item) => sum + number(item.provisoes), 0);
+    $('auditSummary').innerHTML = `<div><small>Eventos</small><strong>${rows.length}</strong></div><div><small>Contratado</small><strong>${money(contract)}</strong></div><div><small>Provisões</small><strong>${money(pending)}</strong></div><div><small>Lucro projetado</small><strong>${money(profit)}</strong></div>`;
+    $('auditTableBody').innerHTML = rows.length ? rows.map((item) => `<tr><td><div class="event-cell"><strong>${esc(item.nomeEvento)}</strong><small>${dateText(item.dataEvento)} · ${esc(item.tipoEvento)}</small></div></td><td class="number">${moneyExact(item.valorContrato)}</td><td class="number">${moneyExact(item.recebido)}</td><td class="number">${moneyExact(item.custosPagos)}</td><td class="number">${moneyExact(item.provisoes)}</td><td class="number">${moneyExact(item.lucroProjetado)}</td><td class="number">${item.margemProjetada === null ? '—' : pct(item.margemProjetada, 1)}</td><td>${item.futuro ? '<span class="info-tag">Futuro</span>' : '<span class="info-tag">Ocorrido</span>'}</td></tr>`).join('') : '<tr><td colspan="8"><div class="empty-state">Nenhum evento para esta visão.</div></td></tr>';
+
+    const funnel = analysis.funil || {};
+    const funnelRows = [['Eventos', funnel.eventos], ['Reservas', funnel.reservas], ['Reuniões', funnel.reunioes], ['Bloqueios', funnel.bloqueios]];
+    const funnelMax = Math.max(1, ...funnelRows.map(([, value]) => number(value)));
+    $('funnelList').innerHTML = funnelRows.map(([label, value]) => `<div class="funnel-row"><span>${label}</span><div class="micro-track"><i style="--width:${number(value) / funnelMax * 100}%"></i></div><strong>${number(value)}</strong></div>`).join('');
+    const narratives = [
+      number(folha.eventosEstimados) ? `Folha: ${money(folha.estimativaFutura)} é uma estimativa para ${number(folha.eventosEstimados)} eventos futuros, calculada somente sobre folhas processadas.` : 'Folha: ainda não há eventos futuros com base histórica suficiente para estimativa.',
+      number(meta.alvo) ? `Meta: ${pct(progress, 1)} do alvo anual; ${number(meta.falta) > 0 ? `${money(meta.falta)} ainda necessários.` : 'alvo alcançado.'}` : 'Meta: configure histórico e percentual para habilitar a comparação.',
+      analysis.formacaoAgenda?.observacao || ''
+    ].filter(Boolean);
+    $('narrativeList').innerHTML = narratives.map((item) => `<div class="narrative-row"><span>✦</span><p>${esc(item)}</p></div>`).join('');
+  }
+
   function render() {
     if (!state.data) return;
     const view = sliceData();
@@ -253,6 +324,7 @@
     renderProjection(view);
     renderCommission(view);
     renderRisks(view);
+    renderAdvanced();
     renderEvents(view);
   }
 
@@ -265,13 +337,15 @@
       let data = !force ? readCache(year) : null;
       let source = 'cache local';
       if (!data) {
-        data = await Auth.apiCall('obterDashboardGestaoV2', { ano: year, incluirCancelados: false, forceRefresh: force });
+        data = await Auth.apiCall('obterDashboardGestaoV2', { ano: year, incluirCancelados: false, tipoEvento: $('typeFilter').value, projeto: $('projectFilter').value, forceRefresh: force });
         if (!data?.sucesso) throw new Error(data?.mensagem || 'Resposta inválida do dashboard');
         saveCache(year, data);
         source = 'dados atualizados';
       }
       state.data = data;
       yearOptions(data.anosDisponiveis || []);
+      filterOptions('typeFilter', data.analise?.filtros?.tipos || []);
+      filterOptions('projectFilter', data.analise?.filtros?.projetos || []);
       $('yearFilter').value = String(data.ano || year);
       render();
       setText('dataStatus', `Visão de ${data.ano} • ${source}`);
@@ -289,9 +363,12 @@
     $('refreshButton').addEventListener('click', () => loadDashboard(true));
     $('yearFilter').addEventListener('change', () => { state.month = 0; $('monthFilter').value = '0'; state.eventLimit = 12; loadDashboard(false); });
     $('monthFilter').addEventListener('change', (event) => { state.month = number(event.target.value); state.eventLimit = 12; render(); });
+    ['typeFilter', 'projectFilter'].forEach((id) => $(id).addEventListener('change', () => { state.month = 0; $('monthFilter').value = '0'; state.eventLimit = 12; loadDashboard(false); }));
     $('eventSearch').addEventListener('input', () => { state.eventLimit = 12; renderEvents(sliceData()); });
     $('showMoreEvents').addEventListener('click', () => { state.eventLimit += 12; renderEvents(sliceData()); });
     $('togglePremises').addEventListener('click', () => { const box = $('premisesBox'); box.hidden = !box.hidden; $('togglePremises').firstChild.textContent = box.hidden ? 'Ver premissas dos cálculos ' : 'Ocultar premissas '; });
+    $('auditView').addEventListener('change', renderAdvanced);
+    $('toggleAudit').addEventListener('click', () => { const detail = $('auditDetail'); detail.hidden = !detail.hidden; $('toggleAudit').textContent = detail.hidden ? 'Ver auditoria' : 'Ocultar auditoria'; });
     $('logoutButton').addEventListener('click', () => Auth.logout());
     document.querySelectorAll('.mobile-nav a').forEach((link) => link.addEventListener('click', () => { document.querySelectorAll('.mobile-nav a').forEach((item) => item.classList.remove('active')); link.classList.add('active'); }));
   }
