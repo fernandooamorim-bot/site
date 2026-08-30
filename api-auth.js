@@ -1069,6 +1069,15 @@ if (action === 'precificadorShowProxy') {
     mensagem = msg;
   }
 
+  if (erroDeAutorizacaoPlanilha_(msg)) {
+    codigo = 'AUTORIZACAO_PLANILHA_AUSENTE';
+    mensagem = 'A autorização interna para acessar a planilha está pendente. Execute a rotina administrativa de autorização do sistema.';
+    registrarFalhaAutorizacaoSistema_({
+      action: action,
+      requestId: requestId
+    });
+  }
+
   // Observabilidade determinística para rastrear falhas de produção
   Logger.log(
     '[API_AUTH_ERRO] requestId=' + requestId +
