@@ -123,6 +123,7 @@ function precificadorShowLerEntrada_(params) {
   }
   if (!entrada || typeof entrada !== 'object' || Array.isArray(entrada)) throw new Error('PRECIFICADOR_SIMULACAO_INVALIDA');
   if (Array.isArray(entrada.equipe) && entrada.equipe.length > 30) throw new Error('PRECIFICADOR_EQUIPE_EXCESSIVA');
+  if (Array.isArray(entrada.adicionaisEquipe) && entrada.adicionaisEquipe.length > 2) throw new Error('PRECIFICADOR_ADICIONAIS_EQUIPE_EXCESSIVOS');
   if (Array.isArray(entrada.custos) && entrada.custos.length > 20) throw new Error('PRECIFICADOR_CUSTOS_EXCESSIVOS');
   return entrada;
 }
