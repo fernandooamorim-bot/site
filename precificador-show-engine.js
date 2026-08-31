@@ -6,9 +6,14 @@
  * internos; o retorno público traz somente preços, custos e comissões.
  */
 
-const PRECIFICADOR_SHOW_PERFIS_PADRAO_ = {
-  usual: { minimo: 65, ideal: 70, excelente: 75 },
-  logistica: { minimo: 60, ideal: 65, excelente: 70 }
+const PRECIFICADOR_SHOW_MARGENS_MINIMAS_PADRAO_ = {
+  usual: 65,
+  logistica: 60
+};
+
+const PRECIFICADOR_SHOW_ACRESCIMOS_PADRAO_ = {
+  ideal: 40,
+  excelente: 70
 };
 
 function precificadorShowNumero_(valor, fallback) {
@@ -43,15 +48,24 @@ function precificadorShowPerfil_(entrada, config) {
   return possuiLogistica ? 'logistica' : 'usual';
 }
 
-function precificadorShowMargens_(perfil, config) {
-  const origem = (config && config.margens && config.margens[perfil]) || PRECIFICADOR_SHOW_PERFIS_PADRAO_[perfil] || PRECIFICADOR_SHOW_PERFIS_PADRAO_.usual;
-  const minimo = precificadorShowNumero_(origem.minimo, 0);
-  const ideal = precificadorShowNumero_(origem.ideal, minimo);
-  const excelente = precificadorShowNumero_(origem.excelente, ideal);
-  if (minimo < 0 || ideal < minimo || excelente < ideal || excelente >= 100) {
-    throw new Error('PRECIFICADOR_MARGENS_INVALIDAS');
-  }
-  return { minimo: minimo, ideal: ideal, excelente: excelente };
+function precificadorShowMargemMinima_(perfil, config) {
+  const legado = config && config.margens && config.margens[perfil];
+  const margem = precificadorShowNumero_(
+    config && config.margensMinimas && config.margensMinimas[perfil],
+    legado && legado.minimo !== undefined
+      ? legado.minimo
+      : (PRECIFICADOR_SHOW_MARGENS_MINIMAS_PADRAO_[perfil] || PRECIFICADOR_SHOW_MARGENS_MINIMAS_PADRAO_.usual)
+  );
+  if (margem < 0 || margem >= 100) throw new Error('PRECIFICADOR_MARGEM_MINIMA_INVALIDA');
+  return margem;
+}
+
+function precificadorShowAcrescimosFaixa_(config) {
+  const origem = (config && config.acrescimosFaixa) || {};
+  const ideal = precificadorShowNumero_(origem.ideal, PRECIFICADOR_SHOW_ACRESCIMOS_PADRAO_.ideal);
+  const excelente = precificadorShowNumero_(origem.excelente, PRECIFICADOR_SHOW_ACRESCIMOS_PADRAO_.excelente);
+  if (ideal < 0 || excelente < ideal) throw new Error('PRECIFICADOR_ACRESCIMOS_INVALIDOS');
+  return { ideal: ideal, excelente: excelente };
 }
 
 function precificadorShowSomarCustos_(entrada, config) {
@@ -72,17 +86,15 @@ function precificadorShowSomarCustos_(entrada, config) {
     const valorOficial = precificadorShowNumero_(oficial.valor, 0);
     const ajuste = selecionado && selecionado.ajuste;
     let valorAplicado = valorOficial;
-    let motivo = '';
     if (ajuste && ajuste.ativo) {
       valorAplicado = precificadorShowNumero_(ajuste.valor, -1);
-      motivo = precificadorShowTexto_(ajuste.motivo);
-      if (valorAplicado < 0 || !motivo) throw new Error('PRECIFICADOR_AJUSTE_EQUIPE_INVALIDO: ' + id);
+      if (valorAplicado < 0) throw new Error('PRECIFICADOR_AJUSTE_EQUIPE_INVALIDO: ' + id);
       if (valorAplicado < valorOficial) {
         alertas.push('Cachê abaixo do padrão: ' + oficial.nome);
       }
     }
     totalEquipe += valorAplicado;
-    detalhesEquipe.push({ id: id, nome: oficial.nome, valor: precificadorShowDinheiro_(valorAplicado), ajuste: valorAplicado !== valorOficial, motivo: motivo });
+    detalhesEquipe.push({ id: id, nome: oficial.nome, valor: precificadorShowDinheiro_(valorAplicado), ajuste: valorAplicado !== valorOficial });
   });
 
   const categoriasUsadas = {};
@@ -111,7 +123,7 @@ function precificadorShowSomarCustos_(entrada, config) {
   };
 }
 
-function precificadorShowCalcularFaixa_(dados) {
+function precificadorShowCalcularMinimo_(dados) {
   const margem = precificadorShowNumero_(dados.margem, -1) / 100;
   const comissaoBase = precificadorShowNumero_(dados.comissaoVendedor, -1) / 100;
   const bonusVendedor = precificadorShowNumero_(dados.bonusVendedor, 0) / 100;
@@ -139,7 +151,43 @@ function precificadorShowCalcularFaixa_(dados) {
   const comissao = baseVendedor * percentualVendedor;
   const comissaoBaseValor = baseVendedor * comissaoBase;
   const bonusValor = baseVendedor * bonusVendedor;
-  const lucro = preco * margem;
+  const lucro = preco - custoOperacional - bv - nf - taxas - comissao;
+  return {
+    valor: precificadorShowDinheiro_(preco),
+    percentualAumento: 0,
+    comissaoVendedor: precificadorShowDinheiro_(comissao),
+    comissaoBaseVendedor: precificadorShowDinheiro_(comissaoBaseValor),
+    bonusVendedor: precificadorShowDinheiro_(bonusValor),
+    valorBv: precificadorShowDinheiro_(bv),
+    valorNf: precificadorShowDinheiro_(nf),
+    valorTaxas: precificadorShowDinheiro_(taxas),
+    lucroInterno: precificadorShowDinheiro_(lucro)
+  };
+}
+
+function precificadorShowDetalharPreco_(dados) {
+  const preco = precificadorShowNumero_(dados.preco, -1);
+  const comissaoBase = precificadorShowNumero_(dados.comissaoVendedor, -1) / 100;
+  const bonusVendedor = precificadorShowNumero_(dados.bonusVendedor, 0) / 100;
+  const percentualVendedor = comissaoBase + bonusVendedor;
+  const percentualBv = dados.bv && dados.bv.ativo && dados.bv.tipo === 'percentual'
+    ? precificadorShowNumero_(dados.bv.valor, -1) / 100 : 0;
+  const bvFixo = dados.bv && dados.bv.ativo && dados.bv.tipo === 'fixo'
+    ? precificadorShowNumero_(dados.bv.valor, -1) : 0;
+  const percentualNf = dados.nf && dados.nf.ativo ? precificadorShowNumero_(dados.nf.valor, -1) / 100 : 0;
+  const percentualTaxas = precificadorShowNumero_(dados.taxasPercentuais, 0) / 100;
+  const custoOperacional = precificadorShowNumero_(dados.custoOperacional, 0);
+  if ([preco, comissaoBase, bonusVendedor, percentualBv, bvFixo, percentualNf, percentualTaxas].some(function (valor) { return valor < 0; })) {
+    throw new Error('PRECIFICADOR_PERCENTUAL_INVALIDO');
+  }
+  const bv = preco * percentualBv + bvFixo;
+  const nf = preco * percentualNf;
+  const taxas = preco * percentualTaxas;
+  const baseVendedor = Math.max(preco - bv - nf - taxas, 0);
+  const comissaoBaseValor = baseVendedor * comissaoBase;
+  const bonusValor = baseVendedor * bonusVendedor;
+  const comissao = comissaoBaseValor + bonusValor;
+  const lucro = preco - custoOperacional - bv - nf - taxas - comissao;
   return {
     valor: precificadorShowDinheiro_(preco),
     percentualAumento: 0,
@@ -157,7 +205,8 @@ function precificadorShowSimular_(entrada, config) {
   const custos = precificadorShowSomarCustos_(entrada || {}, config || {});
   if (custos.totalOperacional <= 0) throw new Error('PRECIFICADOR_SEM_CUSTOS');
   const perfil = precificadorShowPerfil_(entrada || {}, config || {});
-  const margens = precificadorShowMargens_(perfil, config || {});
+  const margemMinima = precificadorShowMargemMinima_(perfil, config || {});
+  const acrescimos = precificadorShowAcrescimosFaixa_(config || {});
   const comercial = (entrada && entrada.comercial) || {};
   const bonusExcelente = precificadorShowNumero_(config && config.bonusVendedorExcelente, 0);
   const base = {
@@ -167,18 +216,22 @@ function precificadorShowSimular_(entrada, config) {
     nf: comercial.nf || { ativo: false },
     taxasPercentuais: comercial.taxasPercentuais
   };
-  const minimo = precificadorShowCalcularFaixa_(Object.assign({}, base, { margem: margens.minimo, bonusVendedor: 0 }));
-  const ideal = precificadorShowCalcularFaixa_(Object.assign({}, base, { margem: margens.ideal, bonusVendedor: 0 }));
-  const excelente = precificadorShowCalcularFaixa_(Object.assign({}, base, { margem: margens.excelente, bonusVendedor: bonusExcelente }));
-  [ideal, excelente].forEach(function (faixa) {
-    faixa.percentualAumento = minimo.valor > 0
-      ? Number((((faixa.valor / minimo.valor) - 1) * 100).toFixed(1)) : 0;
-  });
+  const minimo = precificadorShowCalcularMinimo_(Object.assign({}, base, { margem: margemMinima, bonusVendedor: 0 }));
+  const ideal = precificadorShowDetalharPreco_(Object.assign({}, base, {
+    preco: minimo.valor * (1 + (acrescimos.ideal / 100)),
+    bonusVendedor: 0
+  }));
+  const excelente = precificadorShowDetalharPreco_(Object.assign({}, base, {
+    preco: minimo.valor * (1 + (acrescimos.excelente / 100)),
+    bonusVendedor: bonusExcelente
+  }));
+  ideal.percentualAumento = acrescimos.ideal;
+  excelente.percentualAumento = acrescimos.excelente;
   return {
     sucesso: true,
     faixas: { minimo: minimo, ideal: ideal, excelente: excelente },
     custos: custos,
     alertas: custos.alertas,
-    interno: { perfil: perfil, margens: margens }
+    interno: { perfil: perfil, margemMinima: margemMinima, acrescimos: acrescimos }
   };
 }

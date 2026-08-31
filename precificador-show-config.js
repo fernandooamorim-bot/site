@@ -85,23 +85,19 @@ function precificadorShowLerConfiguracao_() {
     custosPadrao: custosPadrao,
     categoriasPermitidas: categoriasPermitidas,
     categoriasLogistica: categoriasLogistica,
-    margens: {
-      usual: {
-        minimo: precificadorShowValorParametro_(parametros, ['Lucro Mínimo Usual (%)'], 65),
-        ideal: precificadorShowValorParametro_(parametros, ['Lucro Ideal Usual (%)'], 70),
-        excelente: precificadorShowValorParametro_(parametros, ['Lucro Excelente Usual (%)'], 75)
-      },
-      logistica: {
-        minimo: precificadorShowValorParametro_(parametros, ['Lucro Mínimo Logística (%)', 'Lucro Mínimo Logistica (%)'], 60),
-        ideal: precificadorShowValorParametro_(parametros, ['Lucro Ideal Logística (%)', 'Lucro Ideal Logistica (%)'], 65),
-        excelente: precificadorShowValorParametro_(parametros, ['Lucro Excelente Logística (%)', 'Lucro Excelente Logistica (%)'], 70)
-      }
+    margensMinimas: {
+      usual: precificadorShowValorParametro_(parametros, ['Margem Mínima (%)', 'Lucro Mínimo Usual (%)', 'Comissão Fernando (%)'], 65),
+      logistica: precificadorShowValorParametro_(parametros, ['Margem Mínima com Logística (%)', 'Margem Mínima com Logistica (%)', 'Lucro Mínimo Logística (%)', 'Lucro Mínimo Logistica (%)'], 60)
+    },
+    acrescimosFaixa: {
+      ideal: precificadorShowValorParametro_(parametros, ['Acréscimo Ideal (%)', 'Acrescimo Ideal (%)', 'Margem Bom (%)'], 40),
+      excelente: precificadorShowValorParametro_(parametros, ['Acréscimo Excelente (%)', 'Acrescimo Excelente (%)', 'Margem Ótimo (%)', 'Margem Otimo (%)'], 70)
     },
     bonusVendedorExcelente: precificadorShowValorParametro_(parametros, ['Bônus Vendedor Excelente (p.p.)', 'Bonus Vendedor Excelente (p.p.)'], 2),
     padroesComerciais: {
       bvPercentual: precificadorShowValorParametro_(parametros, ['BV Padrão (%)'], 0),
       nfPercentual: precificadorShowValorParametro_(parametros, ['NF Simples Nacional (%)'], 0),
-      comissaoVendedor: precificadorShowValorParametro_(parametros, ['Comissão Sócio (%)'], 0)
+      comissaoVendedor: precificadorShowValorParametro_(parametros, ['Comissão do Vendedor (%)', 'Comissão Sócio (%)'], 0)
     }
   };
 }
