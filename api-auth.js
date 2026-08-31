@@ -991,9 +991,9 @@ if (action === 'aprovarPendenciaFolhaCusto') {
 }
 
 // ======================================================
-// 15. PRECIFICADOR DE SHOW (UTILITÁRIO EXTERNO INTEGRADO)
+// 15. PRECIFICADOR DE SHOW (CALCULADORA COM CONFIGURAÇÃO EXTERNA)
 // ======================================================
-if (action === 'precificadorShowProxy') {
+if (action === 'obterPrecificadorShowFormulario' || action === 'simularPrecificadorShow' || action === 'salvarPrecificadorShowSimulacao') {
   const usuario = exigirAcao('eventos:visualizarFinanceiro');
   const perfilNorm = String((usuario && usuario.PERFIL) || '')
     .normalize('NFD')
@@ -1009,7 +1009,13 @@ if (action === 'precificadorShowProxy') {
   if (!permitido) {
     throw new Error('FORBIDDEN_ACTION: precificadorShow:acessar');
   }
-  return json(precificadorShowProxy(params, emailAutenticado));
+  return json(
+    action === 'obterPrecificadorShowFormulario'
+      ? precificadorShowObterFormulario_()
+      : action === 'salvarPrecificadorShowSimulacao'
+        ? precificadorShowSalvarSimulacao(params, emailAutenticado)
+        : precificadorShowSimular(params)
+  );
 }
 
     // ======================================================
