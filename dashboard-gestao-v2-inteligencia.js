@@ -121,6 +121,8 @@ function dashboardV2LinhaEconomica_(row, e, livro, hoje) {
     idVendedor: String(dashboardV2Valor_(row, e, 'ID_VENDEDOR', '') || '').trim(),
     vendedor: String(dashboardV2Valor_(row, e, 'NOME_VENDEDOR', '') || '').trim() || 'Sem vendedor',
     contrato: contrato, recebido: recebido, aReceber: Math.max(contrato - recebido, 0),
+    comissaoTipo: String(dashboardV2Valor_(row, e, 'COMISSAO_TIPO', '') || '').trim(),
+    comissaoValor: dashboardV2Numero_(dashboardV2Valor_(row, e, 'COMISSAO_VALOR', 0)),
     comissaoSnapshot: comissaoSnapshot, bvSnapshot: bvSnapshot, nfSnapshot: nfSnapshot, temNf: temNf,
     comissaoPaga: mov.comissao.processado, comissaoPendenteGerada: mov.comissao.pendente,
     bvPago: mov.bv.processado, bvPendenteGerado: mov.bv.pendente,
@@ -234,11 +236,15 @@ function dashboardV2ConstruirInteligencia_(eventos, movimentos, opcoes) {
     linhasAno.forEach(function (linha) {
       const nome = linha[campo] || 'Sem informação';
       const chave = campo === 'vendedor' ? dashboardV2ChavePessoa_(linha.idVendedor, nome) : nome;
-      const item = mapa[chave] || { nome: nome, eventos: 0, realizados: 0, futuros: 0, contrato: 0, recebido: 0, custosProcessados: 0, custoTotalProjetado: 0, liquidoProjetado: 0 };
+      const item = mapa[chave] || { nome: nome, eventos: 0, realizados: 0, futuros: 0, contrato: 0, recebido: 0, custosProcessados: 0, custoTotalProjetado: 0, liquidoProjetado: 0, comissaoComprometida: 0, eventosSemComissao: 0 };
       if (campo === 'vendedor') dashboardV2RegistrarNomeRanking_(item, nome);
       item.eventos++; if (linha.ocorrido) item.realizados++; else item.futuros++;
       item.contrato += linha.contrato; item.recebido += linha.recebido; item.custosProcessados += linha.custosProcessados;
       item.custoTotalProjetado += linha.custoTotalProjetado; item.liquidoProjetado += linha.contratoLiquidoProjetado;
+      if (campo === 'vendedor') {
+        item.comissaoComprometida += linha.comissaoComprometida;
+        if (linha.comissaoComprometida <= 0) item.eventosSemComissao++;
+      }
       mapa[chave] = item;
     });
     return Object.keys(mapa).map(function (chave) {
@@ -255,7 +261,9 @@ function dashboardV2ConstruirInteligencia_(eventos, movimentos, opcoes) {
         custosProcessados: item.custosProcessados,
         custoTotalProjetado: item.custoTotalProjetado,
         liquidoProjetado: item.liquidoProjetado,
-        margemProjetada: item.margemProjetada
+        margemProjetada: item.margemProjetada,
+        comissaoComprometida: dashboardV2Dinheiro_(item.comissaoComprometida),
+        eventosSemComissao: item.eventosSemComissao
       };
     }).sort(function (a, b) { return b.contrato - a.contrato; });
   };
