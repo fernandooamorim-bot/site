@@ -394,27 +394,6 @@ function toggleCheckbox(checkbox) {
   if (item) item.classList.toggle('active', checkbox.checked);
 }
 
-function toggleAdicionalEquipe(chave) {
-  const ativo = document.getElementById(`adicional-${chave}-ativo`);
-  const valor = document.getElementById(`adicional-${chave}-valor`);
-  const row = document.getElementById(`adicional-${chave}-row`);
-  if (!ativo || !valor) return;
-  valor.disabled = !ativo.checked;
-  if (!ativo.checked) valor.value = '';
-  if (row) row.classList.toggle('active', ativo.checked);
-}
-
-function coletarAdicionaisEquipe_() {
-  return [
-    { chave: 'fora-cidade', tipo: 'FORA_DA_CIDADE' },
-    { chave: 'passagem-som', tipo: 'PASSAGEM_DE_SOM' }
-  ].filter((item) => document.getElementById(`adicional-${item.chave}-ativo`)?.checked)
-    .map((item) => ({
-      tipo: item.tipo,
-      valorPorMusico: parseFloat(document.getElementById(`adicional-${item.chave}-valor`)?.value || 0) || 0
-    }));
-}
-
 function atualizarInputTerceirizado(input) {
   const item = input.closest('.input-item');
   const valor = parseFloat(input.value) || 0;
@@ -460,7 +439,6 @@ function coletarDadosEvento() {
   const dados = {
     equipe: [],
     custos: [],
-    adicionaisEquipe: coletarAdicionaisEquipe_(),
     comercial: {
       comissaoVendedor: Number(configuracoes?.padroesComerciais?.comissaoVendedor || 0),
       bv: {
@@ -616,14 +594,6 @@ function novaSimulacao() {
   manualCostCounter = 0;
   atualizarEstadoItensManuais_();
 
-  ['fora-cidade', 'passagem-som'].forEach((chave) => {
-    const ativo = document.getElementById(`adicional-${chave}-ativo`);
-    if (ativo) {
-      ativo.checked = false;
-      toggleAdicionalEquipe(chave);
-    }
-  });
-
   document.getElementById('bv-ativo').checked = false;
   document.getElementById('nf-ativo').checked = false;
 
@@ -659,7 +629,6 @@ window.selecionarFaixa = selecionarFaixa;
 window.selecionarTodos = selecionarTodos;
 window.selecionarBandaCompleta = selecionarBandaCompleta;
 window.selecionarBandaReduzida = selecionarBandaReduzida;
-window.toggleAdicionalEquipe = toggleAdicionalEquipe;
 window.limparSelecao = limparSelecao;
 window.toggleCheckbox = toggleCheckbox;
 window.toggleEdicaoProducao = toggleEdicaoProducao;
