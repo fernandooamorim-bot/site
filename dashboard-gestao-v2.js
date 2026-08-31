@@ -461,8 +461,47 @@ function construirDashboardGestaoV2_(eventos, movimentos, opcoes) {
     eventos: eventosDetalhe.slice(0, 250),
     qualidade: qualidade,
     comparativo: comparativo,
-    analise: dashboardV2AnaliseAvancada_(eventos, e, movPorEvento, { ano: ano, hoje: hoje, incluirCancelados: incluirCancelados, tipoEvento: params.tipoEvento, projeto: params.projeto })
+    analise: dashboardV2AnaliseAvancada_(eventos, e, movPorEvento, { ano: ano, hoje: hoje, incluirCancelados: incluirCancelados, tipoEvento: params.tipoEvento, projeto: params.projeto }),
+    inteligencia: typeof dashboardV2ConstruirInteligencia_ === 'function'
+      ? dashboardV2ConstruirInteligencia_(eventos, movimentos, { ano: ano, hoje: hoje, incluirCancelados: incluirCancelados, tipoEvento: params.tipoEvento, projeto: params.projeto })
+      : null
   };
+}
+
+function dashboardV2LerCacheSegmentado_(cache, chave) {
+  const cabecalho = cache.get(chave);
+  if (!cabecalho) return null;
+  try {
+    const parsed = JSON.parse(cabecalho);
+    if (!parsed || parsed.__dashboardV2Segmentos === undefined) return parsed;
+    const quantidade = Number(parsed.__dashboardV2Segmentos) || 0;
+    if (!quantidade) return null;
+    let json = '';
+    for (let i = 0; i < quantidade; i++) {
+      const parte = cache.get(chave + ':parte:' + i);
+      if (parte === null) return null;
+      json += parte;
+    }
+    return JSON.parse(json);
+  } catch (_) {
+    return null;
+  }
+}
+
+function dashboardV2SalvarCacheSegmentado_(cache, chave, valor, ttlSeg) {
+  const json = JSON.stringify(valor);
+  // CacheService limita cada item a 100 KB. 22 mil caracteres continuam
+  // seguros mesmo quando nomes contêm caracteres UTF-8 multibyte.
+  const limiteSeguro = 22000;
+  if (json.length <= limiteSeguro) {
+    cache.put(chave, json, ttlSeg);
+    return;
+  }
+  const quantidade = Math.ceil(json.length / limiteSeguro);
+  for (let i = 0; i < quantidade; i++) {
+    cache.put(chave + ':parte:' + i, json.slice(i * limiteSeguro, (i + 1) * limiteSeguro), ttlSeg);
+  }
+  cache.put(chave, JSON.stringify({ __dashboardV2Segmentos: quantidade }), ttlSeg);
 }
 
 function obterDashboardGestaoV2(params) {
@@ -473,12 +512,10 @@ function obterDashboardGestaoV2(params) {
   const projeto = String((params && params.projeto) || '').trim();
   const forceRefresh = String((params && params.forceRefresh) || '').toUpperCase() === 'TRUE';
   const cache = CacheService.getScriptCache();
-  const cacheKey = ['dashboard:gestao:v2beta:2', ano, incluirCancelados ? '1' : '0', tipoEvento || '-', projeto || '-'].join(':');
+  const cacheKey = ['dashboard:gestao:v2beta:3', ano, incluirCancelados ? '1' : '0', tipoEvento || '-', projeto || '-'].join(':');
   if (!forceRefresh) {
-    const armazenado = cache.get(cacheKey);
-    if (armazenado) {
-      try { return JSON.parse(armazenado); } catch (_) {}
-    }
+    const armazenado = dashboardV2LerCacheSegmentado_(cache, cacheKey);
+    if (armazenado) return armazenado;
   }
 
   const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -492,6 +529,6 @@ function obterDashboardGestaoV2(params) {
     ? shMovimentos.getRange(1, 1, shMovimentos.getLastRow(), shMovimentos.getLastColumn()).getValues()
     : [];
   const resultado = construirDashboardGestaoV2_(eventos, movimentos, { ano: ano, incluirCancelados: incluirCancelados, tipoEvento: tipoEvento, projeto: projeto });
-  try { cache.put(cacheKey, JSON.stringify(resultado), 90); } catch (_) {}
+  try { dashboardV2SalvarCacheSegmentado_(cache, cacheKey, resultado, 90); } catch (_) {}
   return resultado;
 }
