@@ -174,54 +174,6 @@ function aplicarConfiguracoes_(cfg) {
   carregarParametrosPadrao(parametros);
 }
 
-function lerCachePrecificador_() {
-  try {
-    const raw = localStorage.getItem(PRECIFICADOR_CACHE_KEY);
-    return raw ? JSON.parse(raw) : null;
-  } catch (_) {
-    return null;
-  }
-}
-
-function salvarCachePrecificador_(cfg, hash) {
-  try {
-    localStorage.setItem(PRECIFICADOR_CACHE_KEY, JSON.stringify({
-      ts: Date.now(),
-      configHash: String(hash || ''),
-      configuracoes: cfg || {}
-    }));
-  } catch (e) {
-    console.warn('Falha ao salvar cache do precificador:', e);
-  }
-}
-
-function cachePrecificadorValido_(cache) {
-  return !!(cache && cache.ts && cache.configuracoes && cache.configHash);
-}
-
-function cachePrecificadorExpirado_(cache) {
-  if (!cache || !cache.ts) return true;
-  return (Date.now() - Number(cache.ts)) > PRECIFICADOR_CACHE_TTL_MS;
-}
-
-function assinaturaDados_(dados) {
-  try {
-    return JSON.stringify(normalizarObjetoParaHash_(dados || {}));
-  } catch (_) {
-    return '';
-  }
-}
-
-function normalizarObjetoParaHash_(value) {
-  if (Array.isArray(value)) return value.map(normalizarObjetoParaHash_);
-  if (value && typeof value === 'object') {
-    const out = {};
-    Object.keys(value).sort().forEach((k) => { out[k] = normalizarObjetoParaHash_(value[k]); });
-    return out;
-  }
-  return value;
-}
-
 function renderizarMusicos(musicos) {
   const container = document.getElementById('musicos-list');
   if (!container) return;
@@ -247,14 +199,9 @@ function renderizarMusicos(musicos) {
                id="musico-valor-${index}"
                min="0"
                step="0.01"
-               placeholder="Valor excepcional"
-               aria-label="Valor excepcional de ${escaparAttr_(musico.nome)}"
+               placeholder="Valor neste evento"
+               aria-label="Valor de ${escaparAttr_(musico.nome)} neste evento"
                oninput="atualizarValorMusicoManual(this)">
-        <input type="text"
-               class="production-value-input hidden"
-               id="musico-motivo-${index}"
-               placeholder="Motivo do ajuste"
-               aria-label="Motivo do ajuste de ${escaparAttr_(musico.nome)}">
       </div>
     `;
     container.appendChild(item);
@@ -277,7 +224,7 @@ function aplicarEstadoEdicaoProducao_() {
 
   if (btn) {
     btn.classList.toggle('active', edicaoProducaoAtiva);
-    btn.textContent = edicaoProducaoAtiva ? 'Ajustes ativos' : 'Ajustar cachês';
+    btn.textContent = edicaoProducaoAtiva ? 'Valores liberados' : 'Ajustar valores';
   }
 
   if (note) note.classList.toggle('hidden', !edicaoProducaoAtiva);
@@ -535,12 +482,11 @@ function coletarDadosEvento() {
   musicosCfg.forEach((musico, index) => {
     const checkbox = document.getElementById(`musico-${index}`);
     const valorManualInput = document.getElementById(`musico-valor-${index}`);
-    const motivoManual = String(document.getElementById(`musico-motivo-${index}`)?.value || '').trim();
     const valorManual = parseFloat(valorManualInput ? valorManualInput.value : '');
     if (!checkbox || !checkbox.checked) return;
     const item = { id: String(checkbox.dataset.id || '') };
     if (edicaoProducaoAtiva && !isNaN(valorManual)) {
-      item.ajuste = { ativo: true, valor: valorManual, motivo: motivoManual };
+      item.ajuste = { ativo: true, valor: valorManual };
     }
     dados.equipe.push(item);
   });

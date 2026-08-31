@@ -259,13 +259,13 @@
               <button class="btn-selection" onclick="selecionarBandaReduzida()">Banda Reduzida</button>
               <button class="btn-selection" onclick="limparSelecao()">Limpar Seleção</button>
               <button class="btn-selection btn-edit-values" id="btn-editar-producao" type="button">
-                Editar valores
+                Ajustar valores
               </button>
             </div>
 
             <div class="production-edit-note hidden" id="production-edit-note">
               <i data-lucide="badge-info"></i>
-              <span>Modo manual ativo: ajuste cachês e diárias apenas para esta simulação. A planilha não será alterada.</span>
+              <span>Use apenas quando o cachê deste evento for diferente do valor padrão. A planilha não será alterada.</span>
             </div>
 
             <div class="checkbox-group" id="musicos-list">
@@ -287,8 +287,8 @@
           <div class="section manual-costs-section">
             <div class="section-heading-row">
               <div>
-                <div class="section-title">🧾 Ajustes Manuais do Evento</div>
-                <div class="section-subtitle">Inclua custos atípicos somente para esta simulação, sem alterar a planilha.</div>
+                <div class="section-title">🧾 Outros custos do evento</div>
+                <div class="section-subtitle">Inclua somente custos que não aparecem na lista acima.</div>
               </div>
               <button type="button" class="btn-add-manual" onclick="adicionarItemManual()">
                 <i data-lucide="plus"></i>
@@ -461,6 +461,6 @@
     </button>
   </nav>
 
-  <script src="precificador-show-app.js?v=20260831c"></script>
+  <script src="precificador-show-app.js?v=20260831d"></script>
 </body>
 </html>
