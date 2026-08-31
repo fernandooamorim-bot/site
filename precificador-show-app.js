@@ -227,8 +227,6 @@ function renderizarMusicos(musicos) {
   if (!container) return;
   container.innerHTML = '';
 
-  const exibirValores = frontendConfig && frontendConfig['Exibir Valores dos Músicos'];
-
   musicos.forEach((musico, index) => {
     const item = document.createElement('div');
     item.className = 'checkbox-item';
