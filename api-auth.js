@@ -688,7 +688,7 @@ if (action === 'obterDashboardGestao') {
 }
 
 if (action === 'obterDashboardGestaoV2') {
-  exigirAcao('eventos:visualizarFinanceiro');
+  dashboardV2ExigirPerfilProprietario_();
   return json(obterDashboardGestaoV2(params));
 }
 

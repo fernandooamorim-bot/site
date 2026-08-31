@@ -23,6 +23,16 @@ function dashboardV2TextoNormalizado_(valor) {
     .toUpperCase();
 }
 
+// O beta reúne dados financeiros e projeções estratégicas. A permissão comum
+// de visualização financeira não basta: somente o proprietário pode consultá-lo.
+function dashboardV2ExigirPerfilProprietario_() {
+  const usuario = exigirAcao('eventos:visualizarFinanceiro');
+  if (dashboardV2TextoNormalizado_(usuario && usuario.PERFIL) !== 'PROPRIETARIO') {
+    throw new Error('FORBIDDEN_ACTION: dashboardV2:visualizar');
+  }
+  return usuario;
+}
+
 // Rankings são leitura analítica: quando não há ID, evita fragmentar a mesma
 // pessoa por diferenças apenas de acento, caixa ou espaçamento no histórico.
 function dashboardV2ChavePessoa_(idPessoa, nomePessoa) {
@@ -538,7 +548,7 @@ function dashboardV2SalvarCacheSegmentado_(cache, chave, valor, ttlSeg) {
 }
 
 function obterDashboardGestaoV2(params) {
-  exigirAcao('eventos:visualizarFinanceiro');
+  dashboardV2ExigirPerfilProprietario_();
   const ano = Number((params && params.ano) || new Date().getFullYear());
   const incluirCancelados = String((params && params.incluirCancelados) || '').toUpperCase() === 'TRUE';
   const tipoEvento = String((params && params.tipoEvento) || '').trim();
