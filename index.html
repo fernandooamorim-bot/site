@@ -1563,7 +1563,7 @@
           <div class="nav-card-footer">
             <span class="access-badge restricted">
               <i data-lucide="shield"></i>
-              Proprietário e Administrador
+              Somente Proprietário
             </span>
           </div>
         </div>
@@ -2338,6 +2338,12 @@
     // Sócio/Admin não acessa mais Painel Financeiro.
     if (perfilSocioAdmin) {
       ocultar('cardPainelFinanceiro');
+    }
+
+    // O Dashboard 2.0 Beta reúne projeções financeiras estratégicas e é
+    // deliberadamente exclusivo do proprietário; a API repete essa validação.
+    if (perfilNorm !== 'proprietario') {
+      ocultar('cardDashboardGestaoV2');
     }
 
     // Card de Folha de Custos é para Proprietário e Produção.
