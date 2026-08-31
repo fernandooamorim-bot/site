@@ -93,19 +93,19 @@
     renderRanking('intelTypeExecution', intel.execucao?.porTipo || [], 'contrato', (item) => `${num(item.realizados)} realizados · ${num(item.futuros)} futuros`);
     renderRanking('intelProjectRanking', intel.rankings?.projetos || [], 'contrato', (item) => `${num(item.eventos)} eventos · margem ${pct(item.margemProjetada)}`, 10);
     renderRanking('intelCeremonialistRanking', (intel.rankings?.cerimonialistas || []).filter((item) => item.nome !== 'Sem cerimonialista'), 'contrato', (item) => `${num(item.eventos)} eventos · líquido ${money(item.liquidoProjetado)}`, 12);
-    renderRanking('intelSellerPortfolio', (intel.rankings?.vendedores || []).filter((item) => item.nome !== 'Sem vendedor'), 'contrato', (item) => {
+    renderRanking('intelSellerPortfolio', (intel.rankings?.vendedores || []).filter((item) => item.nome !== 'Sem vendedor'), 'recebido', (item) => {
       const semComissao = num(item.eventosSemComissao);
       const comissao = semComissao ? `sem comissão em ${semComissao}` : `comissão ${money(item.comissaoComprometida)}`;
-      return `${num(item.eventos)} eventos · ${comissao} · recebido ${money(item.recebido)}`;
-    }, 10);
+      return `${num(item.eventos)} eventos · ${comissao}`;
+    }, 10, (item) => `Recebido ${money(item.recebido)}`);
   }
 
-  function renderRanking(id, items, field, metaFn, limit = 8) {
+  function renderRanking(id, items, field, metaFn, limit = 8, valueFn = null) {
     const target = $(id);
     if (!target) return;
     const rows = items || [];
     const max = Math.max(1, ...rows.map((item) => num(item[field])));
-    target.innerHTML = rows.length ? rows.slice(0, limit).map((item) => `<div class="intel-rank-row"><div class="intel-rank-copy"><strong title="${esc(item.nome)}">${esc(item.nome)}</strong><small>${esc(metaFn(item))}</small></div><div class="intel-rank-track"><i style="--width:${num(item[field]) / max * 100}%"></i></div><div class="intel-rank-value">${field === 'media' ? money(item[field]) : `${num(item.eventos)} · ${money(item[field])}`}</div></div>`).join('') : '<div class="empty-intel">Sem base suficiente neste recorte.</div>';
+    target.innerHTML = rows.length ? rows.slice(0, limit).map((item) => `<div class="intel-rank-row"><div class="intel-rank-copy"><strong title="${esc(item.nome)}">${esc(item.nome)}</strong><small>${esc(metaFn(item))}</small></div><div class="intel-rank-track"><i style="--width:${num(item[field]) / max * 100}%"></i></div><div class="intel-rank-value">${valueFn ? esc(valueFn(item)) : (field === 'media' ? money(item[field]) : `${num(item.eventos)} · ${money(item[field])}`)}</div></div>`).join('') : '<div class="empty-intel">Sem base suficiente neste recorte.</div>';
   }
 
   function renderReceipts(intel, summary) {
