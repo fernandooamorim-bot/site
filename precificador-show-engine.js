@@ -70,16 +70,13 @@ function precificadorShowAcrescimosFaixa_(config) {
 
 function precificadorShowSomarCustos_(entrada, config) {
   const equipeSelecionada = Array.isArray(entrada && entrada.equipe) ? entrada.equipe : [];
-  const adicionaisEquipeInformados = Array.isArray(entrada && entrada.adicionaisEquipe) ? entrada.adicionaisEquipe : [];
   const custosInformados = Array.isArray(entrada && entrada.custos) ? entrada.custos : [];
   const equipeOficial = (config && config.equipePorId) || {};
   const categoriasPermitidas = (config && config.categoriasPermitidas) || [];
   const detalhesEquipe = [];
-  const detalhesAdicionaisEquipe = [];
   const detalhesCustos = [];
   const alertas = [];
   let totalEquipe = 0;
-  let totalAdicionaisEquipe = 0;
   let totalCustos = 0;
 
   equipeSelecionada.forEach(function (selecionado) {
@@ -100,33 +97,6 @@ function precificadorShowSomarCustos_(entrada, config) {
     detalhesEquipe.push({ id: id, nome: oficial.nome, valor: precificadorShowDinheiro_(valorAplicado), ajuste: valorAplicado !== valorOficial });
   });
 
-  const adicionaisPermitidos = {
-    FORA_DA_CIDADE: 'Evento fora da cidade',
-    PASSAGEM_DE_SOM: 'Passagem de som'
-  };
-  if (adicionaisEquipeInformados.length > Object.keys(adicionaisPermitidos).length) {
-    throw new Error('PRECIFICADOR_ADICIONAIS_EQUIPE_EXCESSIVOS');
-  }
-  const adicionaisUsados = {};
-  adicionaisEquipeInformados.forEach(function (adicional) {
-    const tipo = precificadorShowNormalizarChave_(adicional && adicional.tipo);
-    const valorPorMusico = precificadorShowNumero_(adicional && adicional.valorPorMusico, -1);
-    if (!adicionaisPermitidos[tipo] || valorPorMusico <= 0 || adicionaisUsados[tipo]) {
-      throw new Error('PRECIFICADOR_ADICIONAL_EQUIPE_INVALIDO');
-    }
-    if (!detalhesEquipe.length) throw new Error('PRECIFICADOR_ADICIONAL_SEM_EQUIPE');
-    adicionaisUsados[tipo] = true;
-    const valorTotal = valorPorMusico * detalhesEquipe.length;
-    totalAdicionaisEquipe += valorTotal;
-    detalhesAdicionaisEquipe.push({
-      tipo: tipo,
-      nome: adicionaisPermitidos[tipo],
-      valorPorMusico: precificadorShowDinheiro_(valorPorMusico),
-      quantidadeMusicos: detalhesEquipe.length,
-      valor: precificadorShowDinheiro_(valorTotal)
-    });
-  });
-
   const categoriasUsadas = {};
   custosInformados.forEach(function (custo) {
     const categoria = precificadorShowNormalizarChave_(custo && custo.categoria);
@@ -145,12 +115,10 @@ function precificadorShowSomarCustos_(entrada, config) {
   });
   return {
     equipe: detalhesEquipe,
-    adicionaisEquipe: detalhesAdicionaisEquipe,
     custos: detalhesCustos,
-    totalEquipe: precificadorShowDinheiro_(totalEquipe + totalAdicionaisEquipe),
-    totalAdicionaisEquipe: precificadorShowDinheiro_(totalAdicionaisEquipe),
+    totalEquipe: precificadorShowDinheiro_(totalEquipe),
     totalCustos: precificadorShowDinheiro_(totalCustos),
-    totalOperacional: precificadorShowDinheiro_(totalEquipe + totalAdicionaisEquipe + totalCustos),
+    totalOperacional: precificadorShowDinheiro_(totalEquipe + totalCustos),
     alertas: alertas
   };
 }
