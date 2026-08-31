@@ -2,7 +2,7 @@
   'use strict';
 
   const MONTHS = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
-  const CACHE_PREFIX = 'dashboard:v2beta:2';
+  const CACHE_PREFIX = 'dashboard:v2beta:3';
   const CACHE_TTL_MS = 5 * 60 * 1000;
   const state = { data: null, month: 0, eventLimit: 12, user: null, loading: false };
 
@@ -326,6 +326,7 @@
     renderRisks(view);
     renderAdvanced();
     renderEvents(view);
+    window.DashboardV2Intelligence?.render(state.data, { month: state.month });
   }
 
   async function loadDashboard(force = false) {

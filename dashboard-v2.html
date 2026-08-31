@@ -4,16 +4,19 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#081425">
-  <meta name="application-name" content="Sistema FA Produções">
+  <meta name="application-name" content="Agenda FA — Gestão de Eventos">
+  <meta name="apple-mobile-web-app-title" content="Agenda FA">
   <link rel="manifest" href="site.webmanifest">
   <link rel="icon" href="img/favicon.ico">
   <title>Dashboard 2.0 Beta • FA Produções</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&amp;family=Manrope:wght@600;700;800&amp;display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="dashboard-v2.css?v=20260824a">
+  <link rel="stylesheet" href="dashboard-v2.css?v=20260830a">
+  <link rel="stylesheet" href="dashboard-v2-inteligencia.css?v=20260830a">
   <script src="auth.js"></script>
-  <script src="dashboard-v2.js?v=20260824a" defer></script>
+  <script src="dashboard-v2.js?v=20260830a" defer></script>
+  <script src="dashboard-v2-inteligencia.js?v=20260830a" defer></script>
 </head>
 <body>
   <div class="app-shell">
@@ -23,9 +26,9 @@
         <span><strong>FA</strong><small>PRODUÇÕES</small></span>
       </a>
       <nav class="rail-nav">
-        <a class="rail-item active" href="#visao-geral"><span class="rail-icon">⌂</span><span>Visão geral</span></a>
-        <a class="rail-item" href="#previsao"><span class="rail-icon">↗</span><span>Previsibilidade</span></a>
-        <a class="rail-item" href="#comissoes"><span class="rail-icon">%</span><span>Comissões</span></a>
+        <a class="rail-item active" href="#central-inteligencia" data-open-workspace="geral"><span class="rail-icon">⌂</span><span>Visão geral</span></a>
+        <a class="rail-item" href="#central-inteligencia" data-open-workspace="previsibilidade"><span class="rail-icon">↗</span><span>Previsibilidade</span></a>
+        <a class="rail-item" href="#central-inteligencia" data-open-workspace="comissoes"><span class="rail-icon">%</span><span>Comissões</span></a>
         <a class="rail-item" href="#riscos"><span class="rail-icon">!</span><span>Riscos</span></a>
       </nav>
       <div class="rail-spacer"></div>
@@ -63,6 +66,83 @@
         <span id="dataStatus">Preparando visão executiva…</span>
         <span class="status-meta" id="dataTimestamp"></span>
       </div>
+
+      <section class="executive-workspace" id="central-inteligencia" aria-label="Central de inteligência do negócio">
+        <div class="workspace-head">
+          <div><span class="section-kicker">CENTRAL DE INTELIGÊNCIA</span><h2>Seu negócio, do caixa de hoje ao resultado futuro.</h2><p>Valores reais, compromissos e estimativas aparecem em camadas separadas para decisões seguras.</p></div>
+          <div class="confidence-legend"><span><i class="real"></i>Processado</span><span><i class="committed"></i>Comprometido</span><span><i class="estimated"></i>Estimado</span></div>
+        </div>
+        <div class="workspace-tabs" role="tablist" aria-label="Áreas do dashboard">
+          <button type="button" class="workspace-tab active" role="tab" aria-selected="true" data-dashboard-tab="geral">Visão geral</button>
+          <button type="button" class="workspace-tab" role="tab" aria-selected="false" data-dashboard-tab="recebimentos">Recebimentos</button>
+          <button type="button" class="workspace-tab" role="tab" aria-selected="false" data-dashboard-tab="custos">Custos e folha</button>
+          <button type="button" class="workspace-tab" role="tab" aria-selected="false" data-dashboard-tab="comissoes">Comissões</button>
+          <button type="button" class="workspace-tab" role="tab" aria-selected="false" data-dashboard-tab="previsibilidade">Previsibilidade</button>
+          <button type="button" class="workspace-tab" role="tab" aria-selected="false" data-dashboard-tab="auditoria">Auditoria</button>
+          <button type="button" class="workspace-tab" role="tab" aria-selected="false" data-dashboard-tab="leitura">Leitura executiva</button>
+        </div>
+
+        <div class="workspace-panel active" role="tabpanel" data-dashboard-panel="geral">
+          <div class="executive-kpis">
+            <article class="executive-kpi dark"><small>Caixa líquido atual <span class="data-badge real">REAL</span></small><strong id="intelCashNow">—</strong><p id="intelCashNowSub">Recebido menos custos processados</p></article>
+            <article class="executive-kpi"><small>Contrato líquido projetado <span class="data-badge committed">PROJEÇÃO</span></small><strong id="intelNetContract">—</strong><p id="intelNetMargin">—</p></article>
+            <article class="executive-kpi"><small>Saldo futuro líquido <span class="data-badge estimated">ESTIMATIVA</span></small><strong id="intelFutureNet">—</strong><p id="intelFutureNetSub">A receber menos custos restantes</p></article>
+            <article class="executive-kpi"><small>Execução da agenda</small><strong id="intelExecution">—</strong><p id="intelExecutionSub">—</p></article>
+          </div>
+          <div class="business-pulse" aria-label="Pulso comercial e financeiro">
+            <div><small>Ticket médio</small><strong id="intelTicket">—</strong><span>por evento contratado</span></div>
+            <div><small>Progresso da meta</small><strong id="intelGoal">—</strong><span id="intelGoalSub">—</span></div>
+            <div><small>Conversão em caixa</small><strong id="intelReceiptPulse">—</strong><span>recebido sobre contratado</span></div>
+            <div><small>Peso dos custos</small><strong id="intelCostPulse">—</strong><span>custo total sobre contratos</span></div>
+          </div>
+          <div class="workspace-grid split-65">
+            <article class="workspace-card"><div class="workspace-card-head"><div><h3>Resultado econômico por mês</h3><p>Contrato, recebido, custos e líquido pelo mês do evento.</p></div><span class="formula-chip">Contrato − custo total</span></div><div class="intel-month-chart" id="intelEconomicChart"></div></article>
+            <article class="workspace-card"><div class="workspace-card-head"><div><h3>Eventos realizados e futuros</h3><p>Quantidade e valor por tipo.</p></div></div><div class="intel-ranking" id="intelTypeExecution"></div></article>
+          </div>
+          <div class="workspace-grid triple portfolio-rankings">
+            <article class="workspace-card"><div class="workspace-card-head"><div><h3>Projetos</h3><p>Formações com maior volume contratado.</p></div></div><div class="intel-ranking" id="intelProjectRanking"></div></article>
+            <article class="workspace-card"><div class="workspace-card-head"><div><h3>Cerimonialistas</h3><p>Eventos, receita e margem associada.</p></div></div><div class="intel-ranking" id="intelCeremonialistRanking"></div></article>
+            <article class="workspace-card"><div class="workspace-card-head"><div><h3>Vendedores</h3><p>Carteira comercial do recorte.</p></div></div><div class="intel-ranking" id="intelSellerPortfolio"></div></article>
+          </div>
+        </div>
+
+        <div class="workspace-panel" role="tabpanel" data-dashboard-panel="recebimentos" hidden>
+          <div class="executive-kpis compact">
+            <article class="executive-kpi"><small>Contratado</small><strong id="intelReceiptsContract">—</strong><p id="intelReceiptsEvents">—</p></article>
+            <article class="executive-kpi"><small>Recebido processado <span class="data-badge real">REAL</span></small><strong id="intelReceiptsPaid">—</strong><p id="intelReceiptsRate">—</p></article>
+            <article class="executive-kpi"><small>A receber</small><strong id="intelReceiptsOpen">—</strong><p>Saldo contratual dos eventos</p></article>
+            <article class="executive-kpi"><small>Caixa por movimentação</small><strong id="intelMovementNet">—</strong><p>Entradas líquidas menos saídas no ano</p></article>
+          </div>
+          <div class="workspace-grid split-65"><article class="workspace-card"><div class="workspace-card-head"><div><h3>Fluxo real por data de movimentação</h3><p>Recebimentos, estornos, saídas e resultado mensal do livro financeiro.</p></div></div><div class="cashflow-chart" id="intelCashflowChart"></div></article><article class="workspace-card"><div class="workspace-card-head"><div><h3>Leitura dos recebimentos</h3><p>Meses fortes, concentração e valores ainda expostos.</p></div></div><div class="intel-insight-list" id="intelReceiptInsights"></div></article></div>
+        </div>
+
+        <div class="workspace-panel" role="tabpanel" data-dashboard-panel="custos" hidden>
+          <div class="workspace-grid split-65"><article class="workspace-card"><div class="workspace-card-head"><div><h3>Composição completa dos custos</h3><p>Processado versus custo total projetado.</p></div><span class="formula-chip">Sem dupla contagem</span></div><div class="cost-composition" id="intelCostComposition"></div></article><article class="workspace-card"><div class="workspace-card-head"><div><h3>Referência da folha</h3><p>Médias históricas exclusivamente de folhas processadas.</p></div><span class="data-badge estimated">ESTIMATIVA</span></div><div class="folha-reference"><strong id="intelFolhaAverage">—</strong><span id="intelFolhaSample">—</span></div><div class="intel-ranking" id="intelFolhaTypes"></div></article></div>
+          <article class="workspace-card"><div class="workspace-card-head"><div><h3>Custos por mês do evento</h3><p>O que já saiu e o que ainda precisa ser reservado para concluir a agenda.</p></div></div><div class="cost-months" id="intelCostMonths"></div></article>
+        </div>
+
+        <div class="workspace-panel" role="tabpanel" data-dashboard-panel="comissoes" hidden>
+          <div class="executive-kpis compact"><article class="executive-kpi"><small>Comissão comprometida</small><strong id="intelCommissionExpected">—</strong><p>Snapshot ou valor já gerado, o que for maior</p></article><article class="executive-kpi"><small>Comissão processada <span class="data-badge real">REAL</span></small><strong id="intelCommissionPaid">—</strong><p id="intelCommissionPaidRate">—</p></article><article class="executive-kpi"><small>Comissão ainda necessária</small><strong id="intelCommissionOpen">—</strong><p>Reserva para os próximos fechamentos</p></article><article class="executive-kpi dark"><small>Taxa sobre contratos</small><strong id="intelCommissionRate">—</strong><p>Compromisso total / contratado</p></article></div>
+          <div class="workspace-grid split-65"><article class="workspace-card"><div class="workspace-card-head"><div><h3>Comissão por mês do evento</h3><p>Comprometida, processada e ainda necessária.</p></div></div><div class="commission-months" id="intelCommissionMonths"></div></article><article class="workspace-card"><div class="workspace-card-head"><div><h3>Compromisso por vendedor</h3><p>Ranking detalhado da carteira selecionada.</p></div></div><div class="intel-ranking" id="intelCommissionSellers"></div></article></div>
+        </div>
+
+        <div class="workspace-panel" role="tabpanel" data-dashboard-panel="previsibilidade" hidden>
+          <div class="executive-kpis compact"><article class="executive-kpi"><small>Receita futura bruta</small><strong id="intelFutureGross">—</strong><p>Saldo contratual a receber</p></article><article class="executive-kpi"><small>Custos futuros</small><strong id="intelFutureCosts">—</strong><p>Compromissos e estimativas restantes</p></article><article class="executive-kpi dark"><small>Receita futura líquida</small><strong id="intelFutureLiquid">—</strong><p>A receber menos custos futuros</p></article><article class="executive-kpi"><small>Folha futura estimada</small><strong id="intelFutureFolha">—</strong><p id="intelFutureFolhaSub">—</p></article></div>
+          <div class="workspace-grid"><article class="workspace-card"><div class="workspace-card-head"><div><h3>Formação histórica da agenda</h3><p>Quando os eventos de cada mês costumam ser fechados.</p></div><span class="formula-chip">Mediana + faixa histórica</span></div><div class="agenda-forecast" id="intelAgendaForecast"></div></article><article class="workspace-card"><div class="workspace-card-head"><div><h3>Comparativo anual</h3><p>Eventos, contrato, recebido, ticket e margem.</p></div></div><div class="year-comparison" id="intelYearComparison"></div></article></div>
+        </div>
+
+        <div class="workspace-panel" role="tabpanel" data-dashboard-panel="auditoria" hidden>
+          <div class="audit-formulas"><div><strong>Caixa líquido atual</strong><span>Recebido − custos processados</span></div><div><strong>Contrato líquido projetado</strong><span>Contrato − comissão − folha − BV − NF − outros</span></div><div><strong>Saldo futuro líquido</strong><span>A receber − custos ainda necessários</span></div></div>
+          <div class="audit-toolbar"><label>Visão <select id="intelAuditStatus"><option value="TODOS">Todos</option><option value="REALIZADOS">Realizados</option><option value="FUTUROS">Futuros</option></select></label><label>Ordenar <select id="intelAuditOrder"><option value="DATA">Data</option><option value="LIQUIDO_ASC">Menor líquido</option><option value="CUSTO_DESC">Maior custo</option><option value="MARGEM_ASC">Menor margem</option></select></label><label class="audit-search">Buscar <input type="search" id="intelAuditSearch" placeholder="Evento, tipo ou cerimonialista"></label></div>
+          <div class="audit-explained" id="intelAuditTable"></div>
+        </div>
+
+        <div class="workspace-panel" role="tabpanel" data-dashboard-panel="leitura" hidden>
+          <div class="reading-hero"><span>✦</span><div><small>ANÁLISE AUTOMÁTICA DO RECORTE</small><h3 id="intelReadingTitle">O que os números estão dizendo agora</h3><p>Leituras geradas a partir dos dados exibidos, sem substituir a conferência financeira.</p></div></div>
+          <div class="reading-grid" id="intelReadingGrid"></div>
+          <div class="premise-card"><div><span>i</span><div><strong>Como interpretar</strong><p>Todo texto informa se usa dado processado, comprometido ou estimado. Estimativas carregam a amostra histórica e nunca são registradas como custo real.</p></div></div><div id="intelPremises"></div></div>
+        </div>
+      </section>
 
       <section class="metric-grid" id="metricGrid" aria-label="Indicadores principais">
         <article class="metric-card metric-primary"><div class="metric-top"><span>Vendido</span><span class="metric-symbol">↗</span></div><strong id="metricContracted">—</strong><small id="metricContractedSub">Contratos no período</small><div class="metric-trend" id="metricContractedTrend"></div></article>
@@ -187,10 +267,10 @@
   </div>
 
   <nav class="mobile-nav" aria-label="Navegação rápida">
-    <a href="#visao-geral" class="active"><span>⌂</span><small>Visão</small></a>
-    <a href="#previsao"><span>↗</span><small>Previsão</small></a>
-    <a href="#comissoes"><span>%</span><small>Comissões</small></a>
-    <a href="#planejamento"><span>↗</span><small>Plano</small></a>
+    <a href="#central-inteligencia" class="active" data-open-workspace="geral"><span>⌂</span><small>Visão</small></a>
+    <a href="#central-inteligencia" data-open-workspace="previsibilidade"><span>↗</span><small>Previsão</small></a>
+    <a href="#central-inteligencia" data-open-workspace="comissoes"><span>%</span><small>Comissões</small></a>
+    <a href="#central-inteligencia" data-open-workspace="auditoria"><span>≡</span><small>Auditoria</small></a>
   </nav>
 
   <div class="loading-overlay" id="loadingOverlay" aria-live="polite">
