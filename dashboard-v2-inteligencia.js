@@ -93,7 +93,11 @@
     renderRanking('intelTypeExecution', intel.execucao?.porTipo || [], 'contrato', (item) => `${num(item.realizados)} realizados · ${num(item.futuros)} futuros`);
     renderRanking('intelProjectRanking', intel.rankings?.projetos || [], 'contrato', (item) => `${num(item.eventos)} eventos · margem ${pct(item.margemProjetada)}`, 10);
     renderRanking('intelCeremonialistRanking', (intel.rankings?.cerimonialistas || []).filter((item) => item.nome !== 'Sem cerimonialista'), 'contrato', (item) => `${num(item.eventos)} eventos · líquido ${money(item.liquidoProjetado)}`, 12);
-    renderRanking('intelSellerPortfolio', (intel.rankings?.vendedores || []).filter((item) => item.nome !== 'Sem vendedor'), 'contrato', (item) => `${num(item.eventos)} eventos · recebido ${money(item.recebido)}`, 10);
+    renderRanking('intelSellerPortfolio', (intel.rankings?.vendedores || []).filter((item) => item.nome !== 'Sem vendedor'), 'contrato', (item) => {
+      const semComissao = num(item.eventosSemComissao);
+      const comissao = semComissao ? `sem comissão em ${semComissao}` : `comissão ${money(item.comissaoComprometida)}`;
+      return `${num(item.eventos)} eventos · ${comissao} · recebido ${money(item.recebido)}`;
+    }, 10);
   }
 
   function renderRanking(id, items, field, metaFn, limit = 8) {
@@ -193,15 +197,21 @@
     const sellers = {};
     rows.forEach((item) => {
       const name = item.vendedor || 'Sem vendedor';
-      const seller = sellers[name] || { nome: name, eventos: 0, comprometida: 0, processada: 0 };
+      const key = normalize(name) || 'sem vendedor';
+      const seller = sellers[key] || { nome: name, variacoes: {}, eventos: 0, comprometida: 0, processada: 0, semComissao: 0 };
+      seller.variacoes[name] = (seller.variacoes[name] || 0) + 1;
       seller.eventos++;
       seller.comprometida += num(item.composicao?.comissao);
       seller.processada += num(item.composicaoProcessada?.comissao);
-      sellers[name] = seller;
+      if (num(item.composicao?.comissao) <= 0) seller.semComissao++;
+      sellers[key] = seller;
     });
-    const ranking = Object.values(sellers).map((item) => ({ ...item, aberta: Math.max(item.comprometida - item.processada, 0) })).sort((a, b) => b.comprometida - a.comprometida);
+    const ranking = Object.values(sellers).map((item) => {
+      const nome = Object.keys(item.variacoes).sort((a, b) => item.variacoes[b] - item.variacoes[a] || a.localeCompare(b, 'pt-BR'))[0] || item.nome;
+      return { ...item, nome, aberta: Math.max(item.comprometida - item.processada, 0) };
+    }).sort((a, b) => b.comprometida - a.comprometida);
     const max = Math.max(1, ...ranking.map((item) => item.comprometida));
-    $('intelCommissionSellers').innerHTML = ranking.length ? ranking.slice(0, 15).map((item) => `<div class="intel-rank-row"><div class="intel-rank-copy"><strong>${esc(item.nome)}</strong><small>${item.eventos} eventos · pago ${money(item.processada)} · aberto ${money(item.aberta)}</small></div><div class="intel-rank-track"><i style="--width:${item.comprometida / max * 100}%"></i></div><div class="intel-rank-value">${money(item.comprometida)}</div></div>`).join('') : '<div class="empty-intel">Sem comissão no recorte.</div>';
+    $('intelCommissionSellers').innerHTML = ranking.length ? ranking.slice(0, 15).map((item) => `<div class="intel-rank-row"><div class="intel-rank-copy"><strong>${esc(item.nome)}</strong><small>${item.eventos} eventos · ${item.semComissao ? `sem comissão em ${item.semComissao} · ` : ''}pago ${money(item.processada)} · aberto ${money(item.aberta)}</small></div><div class="intel-rank-track"><i style="--width:${item.comprometida / max * 100}%"></i></div><div class="intel-rank-value">${money(item.comprometida)}</div></div>`).join('') : '<div class="empty-intel">Sem comissão no recorte.</div>';
   }
 
   function getAuditRows(intel) {
@@ -228,7 +238,7 @@
       const c = item.composicao || {};
       const detail = `Comissão ${moneyExact(c.comissao)} · Folha ${moneyExact(c.folha)} · BV ${moneyExact(c.bv)} · NF ${moneyExact(c.nf)} · Outros ${moneyExact(c.outros)}${num(item.estimativaFolha?.valor) > 0 ? ` · Folha estimada por ${item.estimativaFolha.origem} (${item.estimativaFolha.amostra} casos)` : ''}`;
       const date = new Intl.DateTimeFormat('pt-BR').format(new Date(num(item.dataEvento)));
-      return `<tr><td><div class="event-name" title="${esc(item.nomeEvento)}"><strong>${esc(item.nomeEvento)}</strong><small>${date} · ${esc(item.tipoEvento)} · ${esc(item.cerimonialista)}</small></div></td><td>${moneyExact(item.contrato)}</td><td>${moneyExact(item.recebido)}</td><td>${moneyExact(item.aReceber)}</td><td>${moneyExact(item.custosProcessados)}</td><td>${moneyExact(item.custosRestantes)}</td><td><details class="cost-detail"><summary>${moneyExact(item.custoTotalProjetado)}</summary><div>${esc(detail)}</div></details></td><td class="${num(item.caixaLiquidoAtual) < 0 ? 'negative' : 'positive'}">${moneyExact(item.caixaLiquidoAtual)}</td><td class="${num(item.contratoLiquidoProjetado) < 0 ? 'negative' : 'positive'}">${moneyExact(item.contratoLiquidoProjetado)}</td><td class="${num(item.saldoFuturoLiquido) < 0 ? 'negative' : 'positive'}">${moneyExact(item.saldoFuturoLiquido)}</td><td>${pct(item.margemProjetada)}</td></tr>`;
+      return `<tr><td><div class="event-name" title="${esc(item.nomeEvento)}"><strong>${esc(item.nomeEvento)}</strong><small>${date} · ${esc(item.tipoEvento)} · ${esc(item.cerimonialista)} · vendedor: ${esc(item.vendedor)}</small></div></td><td>${moneyExact(item.contrato)}</td><td>${moneyExact(item.recebido)}</td><td>${moneyExact(item.aReceber)}</td><td>${moneyExact(item.custosProcessados)}</td><td>${moneyExact(item.custosRestantes)}</td><td><details class="cost-detail"><summary>${moneyExact(item.custoTotalProjetado)}</summary><div>${esc(detail)}</div></details></td><td class="${num(item.caixaLiquidoAtual) < 0 ? 'negative' : 'positive'}">${moneyExact(item.caixaLiquidoAtual)}</td><td class="${num(item.contratoLiquidoProjetado) < 0 ? 'negative' : 'positive'}">${moneyExact(item.contratoLiquidoProjetado)}</td><td class="${num(item.saldoFuturoLiquido) < 0 ? 'negative' : 'positive'}">${moneyExact(item.saldoFuturoLiquido)}</td><td>${pct(item.margemProjetada)}</td></tr>`;
     }).join('')}</tbody></table>` : '<div class="empty-intel">Nenhum evento corresponde aos filtros da auditoria.</div>';
   }
 
