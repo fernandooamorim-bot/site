@@ -276,31 +276,32 @@
                 <div class="skeleton-item"></div>
               </div>
             </div>
+
+            <div class="production-addons">
+              <div class="production-addons-title">Adicionais da equipe <span>valor por músico</span></div>
+              <div class="production-addon-row" id="adicional-fora-cidade-row">
+                <label><input type="checkbox" id="adicional-fora-cidade-ativo" onchange="toggleAdicionalEquipe('fora-cidade')"> Evento fora da cidade</label>
+                <div><span>R$</span><input type="number" id="adicional-fora-cidade-valor" min="0" step="0.01" placeholder="0,00" disabled></div>
+              </div>
+              <div class="production-addon-row" id="adicional-passagem-som-row">
+                <label><input type="checkbox" id="adicional-passagem-som-ativo" onchange="toggleAdicionalEquipe('passagem-som')"> Passagem de som</label>
+                <div><span>R$</span><input type="number" id="adicional-passagem-som-valor" min="0" step="0.01" placeholder="0,00" disabled></div>
+              </div>
+            </div>
           </div>
 
           <div class="section">
-            <div class="section-title">🚐 Custos Terceirizados</div>
-            <div class="section-subtitle">Digite os valores específicos deste evento</div>
-            <div class="input-group-list" id="terceirizados-list"></div>
-          </div>
-
-          <div class="section manual-costs-section">
             <div class="section-heading-row">
               <div>
-                <div class="section-title">🧾 Outros custos do evento</div>
-                <div class="section-subtitle">Inclua somente custos que não aparecem na lista acima.</div>
+                <div class="section-title">🚐 Custos Terceirizados</div>
+                <div class="section-subtitle">Digite os valores específicos deste evento</div>
               </div>
               <button type="button" class="btn-add-manual" onclick="adicionarItemManual()">
                 <i data-lucide="plus"></i>
-                <span>Adicionar</span>
+                <span>Outro custo</span>
               </button>
             </div>
-
-            <div class="manual-costs-empty" id="manual-costs-empty">
-              <i data-lucide="sparkles"></i>
-              <span>Use para passagem aérea, diária extra, hospedagem, transporte especial ou produção fora do padrão.</span>
-            </div>
-
+            <div class="input-group-list" id="terceirizados-list"></div>
             <div class="manual-costs-list" id="manual-costs-list"></div>
           </div>
 
@@ -461,6 +462,6 @@
     </button>
   </nav>
 
-  <script src="precificador-show-app.js?v=20260831d"></script>
+  <script src="precificador-show-app.js?v=20260831e"></script>
 </body>
 </html>

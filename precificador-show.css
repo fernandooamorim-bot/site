@@ -474,6 +474,72 @@
       border-color: var(--cor-destaque);
       background: #fffbf0;
     }
+
+    .production-addons {
+      display: grid;
+      gap: 8px;
+      margin-top: 14px;
+      padding-top: 14px;
+      border-top: 1px solid var(--cor-borda);
+    }
+
+    .production-addons-title {
+      color: #4b5563;
+      font-size: 0.85rem;
+      font-weight: 700;
+    }
+
+    .production-addons-title span {
+      color: #7a8494;
+      font-size: 0.78rem;
+      font-weight: 500;
+    }
+
+    .production-addon-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 9px 10px;
+      border: 1px solid var(--cor-borda);
+      border-radius: 8px;
+      background: #fff;
+    }
+
+    .production-addon-row.active {
+      border-color: var(--cor-destaque);
+      background: #fffdf7;
+    }
+
+    .production-addon-row label {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 0.88rem;
+      font-weight: 600;
+    }
+
+    .production-addon-row > div {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      color: #5a6678;
+      font-size: 0.82rem;
+    }
+
+    .production-addon-row input[type="number"] {
+      width: 88px;
+      min-height: 34px;
+      padding: 6px 8px;
+      border: 1px solid var(--cor-borda);
+      border-radius: 7px;
+      text-align: right;
+    }
+
+    .production-addon-row input[type="number"]:disabled {
+      background: #f5f6f8;
+      color: #9ba3af;
+    }
     
     /* ===== LOADING SKELETON ===== */
     
@@ -566,13 +632,6 @@
 
     /* ===== AJUSTES MANUAIS ===== */
 
-    .manual-costs-section {
-      padding: 16px;
-      border: 1px solid #eadfbd;
-      border-radius: 10px;
-      background: linear-gradient(180deg, #fffdf7 0%, #ffffff 100%);
-    }
-
     .btn-add-manual {
       display: inline-flex;
       align-items: center;
@@ -649,12 +708,7 @@
       box-shadow: 0 6px 18px rgba(212, 175, 55, 0.12);
     }
 
-    .manual-cost-main {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) 150px;
-      gap: 8px;
-      min-width: 0;
-    }
+    .manual-cost-main { min-width: 0; }
 
     .manual-cost-side {
       display: flex;
@@ -663,7 +717,6 @@
     }
 
     .manual-cost-name,
-    .manual-cost-category,
     .manual-cost-value {
       min-height: 38px;
       border: 1px solid var(--cor-borda);
@@ -680,11 +733,6 @@
       padding: 8px 10px;
     }
 
-    .manual-cost-category {
-      padding: 8px 9px;
-      color: #4b5563;
-    }
-
     .manual-cost-value {
       width: 112px;
       padding: 8px 10px;
@@ -693,7 +741,6 @@
     }
 
     .manual-cost-name:focus,
-    .manual-cost-category:focus,
     .manual-cost-value:focus {
       outline: none;
       border-color: var(--cor-destaque);
@@ -1154,6 +1201,20 @@
         min-height: 44px;
         font-size: 1rem;
       }
+
+      .production-addon-row {
+        flex-wrap: wrap;
+      }
+
+      .production-addon-row > div {
+        width: 100%;
+        justify-content: flex-end;
+      }
+
+      .production-addon-row input[type="number"] {
+        width: calc(100% - 28px);
+        min-height: 42px;
+      }
       
       /* Inputs de terceirizados mais fáceis de tocar */
       .input-item {
@@ -1171,15 +1232,6 @@
         width: 100%;
         padding: 12px;
         font-size: 1rem;
-      }
-
-      .manual-costs-section {
-        padding: 14px 12px;
-      }
-
-      .manual-costs-empty {
-        align-items: flex-start;
-        font-size: 0.8rem;
       }
 
       .manual-cost-row {
@@ -1203,8 +1255,7 @@
         font-size: 1rem;
       }
 
-      .manual-cost-name,
-      .manual-cost-category {
+      .manual-cost-name {
         min-height: 44px;
         font-size: 1rem;
       }

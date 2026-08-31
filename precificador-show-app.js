@@ -284,14 +284,9 @@ function adicionarItemManual(preset = {}) {
       <input type="text"
              class="manual-cost-name"
              id="manual-cost-name-${id}"
-             placeholder="Ex: Passagem aérea, diária extra..."
+             placeholder="Descrição do custo"
              value="${escaparAttr_(preset.nome || '')}"
              oninput="atualizarItemManual(this)">
-      <select class="manual-cost-category"
-              id="manual-cost-category-${id}"
-              onchange="atualizarItemManual(this)">
-        ${montarOpcoesCategoriaManual_(preset.categoria || '')}
-      </select>
     </div>
     <div class="manual-cost-side">
       <input type="number"
@@ -319,23 +314,6 @@ function adicionarItemManual(preset = {}) {
   if (nomeInput && !preset.nome) nomeInput.focus();
 }
 
-function montarOpcoesCategoriaManual_(selecionada) {
-  const categorias = [
-    'Produção',
-    'Diária',
-    'Transporte',
-    'Hospedagem',
-    'Passagem aérea',
-    'Alimentação',
-    'Equipamento',
-    'Outro'
-  ];
-  return categorias.map((categoria) => {
-    const selected = categoria === selecionada ? ' selected' : '';
-    return `<option value="${escaparAttr_(categoria)}"${selected}>${categoria}</option>`;
-  }).join('');
-}
-
 function removerItemManual(id) {
   const row = document.querySelector(`.manual-cost-row[data-manual-cost-id="${id}"]`);
   if (row) row.remove();
@@ -356,22 +334,18 @@ function atualizarItemManual(input) {
 }
 
 function atualizarEstadoItensManuais_() {
-  const lista = document.getElementById('manual-costs-list');
-  const empty = document.getElementById('manual-costs-empty');
-  const rows = lista ? Array.from(lista.querySelectorAll('.manual-cost-row')) : [];
-  if (empty) empty.classList.toggle('hidden', rows.length > 0);
+  // Linhas personalizadas ficam no próprio bloco de custos terceirizados.
 }
 
 function coletarItensManuais_() {
   return Array.from(document.querySelectorAll('.manual-cost-row')).map((row) => {
     const id = row.dataset.manualCostId;
     const nome = String(document.getElementById(`manual-cost-name-${id}`)?.value || '').trim();
-    const categoria = String(document.getElementById(`manual-cost-category-${id}`)?.value || 'Produção').trim();
     const valor = parseFloat(document.getElementById(`manual-cost-value-${id}`)?.value || 0) || 0;
 
     return {
-      nome: nome || categoria || 'Item manual',
-      categoria: categoria || 'Produção',
+      nome: nome || 'Outro custo',
+      categoria: 'Outro',
       valor,
       manual: true
     };
@@ -420,6 +394,27 @@ function toggleCheckbox(checkbox) {
   if (item) item.classList.toggle('active', checkbox.checked);
 }
 
+function toggleAdicionalEquipe(chave) {
+  const ativo = document.getElementById(`adicional-${chave}-ativo`);
+  const valor = document.getElementById(`adicional-${chave}-valor`);
+  const row = document.getElementById(`adicional-${chave}-row`);
+  if (!ativo || !valor) return;
+  valor.disabled = !ativo.checked;
+  if (!ativo.checked) valor.value = '';
+  if (row) row.classList.toggle('active', ativo.checked);
+}
+
+function coletarAdicionaisEquipe_() {
+  return [
+    { chave: 'fora-cidade', tipo: 'FORA_DA_CIDADE' },
+    { chave: 'passagem-som', tipo: 'PASSAGEM_DE_SOM' }
+  ].filter((item) => document.getElementById(`adicional-${item.chave}-ativo`)?.checked)
+    .map((item) => ({
+      tipo: item.tipo,
+      valorPorMusico: parseFloat(document.getElementById(`adicional-${item.chave}-valor`)?.value || 0) || 0
+    }));
+}
+
 function atualizarInputTerceirizado(input) {
   const item = input.closest('.input-item');
   const valor = parseFloat(input.value) || 0;
@@ -465,6 +460,7 @@ function coletarDadosEvento() {
   const dados = {
     equipe: [],
     custos: [],
+    adicionaisEquipe: coletarAdicionaisEquipe_(),
     comercial: {
       comissaoVendedor: Number(configuracoes?.padroesComerciais?.comissaoVendedor || 0),
       bv: {
@@ -620,6 +616,14 @@ function novaSimulacao() {
   manualCostCounter = 0;
   atualizarEstadoItensManuais_();
 
+  ['fora-cidade', 'passagem-som'].forEach((chave) => {
+    const ativo = document.getElementById(`adicional-${chave}-ativo`);
+    if (ativo) {
+      ativo.checked = false;
+      toggleAdicionalEquipe(chave);
+    }
+  });
+
   document.getElementById('bv-ativo').checked = false;
   document.getElementById('nf-ativo').checked = false;
 
@@ -655,6 +659,7 @@ window.selecionarFaixa = selecionarFaixa;
 window.selecionarTodos = selecionarTodos;
 window.selecionarBandaCompleta = selecionarBandaCompleta;
 window.selecionarBandaReduzida = selecionarBandaReduzida;
+window.toggleAdicionalEquipe = toggleAdicionalEquipe;
 window.limparSelecao = limparSelecao;
 window.toggleCheckbox = toggleCheckbox;
 window.toggleEdicaoProducao = toggleEdicaoProducao;
