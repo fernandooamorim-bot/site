@@ -23,6 +23,30 @@ function dashboardV2TextoNormalizado_(valor) {
     .toUpperCase();
 }
 
+// Rankings são leitura analítica: quando não há ID, evita fragmentar a mesma
+// pessoa por diferenças apenas de acento, caixa ou espaçamento no histórico.
+function dashboardV2ChavePessoa_(idPessoa, nomePessoa) {
+  const id = String(idPessoa || '').trim();
+  if (id) return 'ID:' + id;
+  return 'NOME:' + dashboardV2TextoNormalizado_(nomePessoa).replace(/\s+/g, ' ');
+}
+
+function dashboardV2RegistrarNomeRanking_(item, nome) {
+  const limpo = String(nome || '').trim() || 'Sem informação';
+  item.variacoesNome = item.variacoesNome || {};
+  item.variacoesNome[limpo] = (item.variacoesNome[limpo] || 0) + 1;
+}
+
+function dashboardV2NomeRanking_(item, fallback) {
+  const variacoes = (item && item.variacoesNome) || {};
+  const nomes = Object.keys(variacoes);
+  if (!nomes.length) return fallback;
+  nomes.sort(function (a, b) {
+    return variacoes[b] - variacoes[a] || a.localeCompare(b, 'pt-BR');
+  });
+  return nomes[0];
+}
+
 function dashboardV2Data_(valor) {
   if (typeof normalizarData === 'function') {
     const canonica = normalizarData(valor);
@@ -363,8 +387,9 @@ function construirDashboardGestaoV2_(eventos, movimentos, opcoes) {
       if (dataEvento <= limite90) totais.comissaoProximos90Dias += comissaoAPagar;
     }
 
-    const chaveVendedor = idVendedor || nomeVendedor;
+    const chaveVendedor = dashboardV2ChavePessoa_(idVendedor, nomeVendedor);
     if (!vendedores[chaveVendedor]) vendedores[chaveVendedor] = { idVendedor: idVendedor, nomeVendedor: nomeVendedor, eventos: 0, prevista: 0, paga: 0, aPagar: 0, futura: 0 };
+    dashboardV2RegistrarNomeRanking_(vendedores[chaveVendedor], nomeVendedor);
     vendedores[chaveVendedor].eventos++;
     vendedores[chaveVendedor].prevista += comissaoPrevista;
     vendedores[chaveVendedor].paga += comissaoPaga;
@@ -435,7 +460,15 @@ function construirDashboardGestaoV2_(eventos, movimentos, opcoes) {
   const rankingVendedores = Object.keys(vendedores).map(function (chave) {
     const item = vendedores[chave];
     ['prevista', 'paga', 'aPagar', 'futura'].forEach(function (campo) { item[campo] = dashboardV2Dinheiro_(item[campo]); });
-    return item;
+    return {
+      idVendedor: item.idVendedor,
+      nomeVendedor: dashboardV2NomeRanking_(item, item.nomeVendedor),
+      eventos: item.eventos,
+      prevista: item.prevista,
+      paga: item.paga,
+      aPagar: item.aPagar,
+      futura: item.futura
+    };
   }).sort(function (a, b) { return b.aPagar - a.aPagar; });
   riscos.sort(function (a, b) {
     const pesos = { CRITICO: 0, ALTO: 1, ATENCAO: 2 };

@@ -118,6 +118,7 @@ function dashboardV2LinhaEconomica_(row, e, livro, hoje) {
     tipoEvento: String(dashboardV2Valor_(row, e, 'TIPO_EVENTO', '') || '').trim() || 'Sem tipo',
     projeto: String(dashboardV2Valor_(row, e, 'PROJETO', '') || '').trim() || 'Sem projeto',
     cerimonialista: String(dashboardV2Valor_(row, e, 'NOME_CERIMONIALISTA', '') || '').trim() || 'Sem cerimonialista',
+    idVendedor: String(dashboardV2Valor_(row, e, 'ID_VENDEDOR', '') || '').trim(),
     vendedor: String(dashboardV2Valor_(row, e, 'NOME_VENDEDOR', '') || '').trim() || 'Sem vendedor',
     contrato: contrato, recebido: recebido, aReceber: Math.max(contrato - recebido, 0),
     comissaoSnapshot: comissaoSnapshot, bvSnapshot: bvSnapshot, nfSnapshot: nfSnapshot, temNf: temNf,
@@ -231,8 +232,10 @@ function dashboardV2ConstruirInteligencia_(eventos, movimentos, opcoes) {
   const agrupar = function (campo) {
     const mapa = {};
     linhasAno.forEach(function (linha) {
-      const chave = linha[campo] || 'Sem informação';
-      const item = mapa[chave] || { nome: chave, eventos: 0, realizados: 0, futuros: 0, contrato: 0, recebido: 0, custosProcessados: 0, custoTotalProjetado: 0, liquidoProjetado: 0 };
+      const nome = linha[campo] || 'Sem informação';
+      const chave = campo === 'vendedor' ? dashboardV2ChavePessoa_(linha.idVendedor, nome) : nome;
+      const item = mapa[chave] || { nome: nome, eventos: 0, realizados: 0, futuros: 0, contrato: 0, recebido: 0, custosProcessados: 0, custoTotalProjetado: 0, liquidoProjetado: 0 };
+      if (campo === 'vendedor') dashboardV2RegistrarNomeRanking_(item, nome);
       item.eventos++; if (linha.ocorrido) item.realizados++; else item.futuros++;
       item.contrato += linha.contrato; item.recebido += linha.recebido; item.custosProcessados += linha.custosProcessados;
       item.custoTotalProjetado += linha.custoTotalProjetado; item.liquidoProjetado += linha.contratoLiquidoProjetado;
@@ -242,7 +245,18 @@ function dashboardV2ConstruirInteligencia_(eventos, movimentos, opcoes) {
       const item = mapa[chave];
       ['contrato', 'recebido', 'custosProcessados', 'custoTotalProjetado', 'liquidoProjetado'].forEach(function (campoValor) { item[campoValor] = dashboardV2Dinheiro_(item[campoValor]); });
       item.margemProjetada = item.contrato > 0 ? Number(((item.liquidoProjetado / item.contrato) * 100).toFixed(1)) : null;
-      return item;
+      return {
+        nome: campo === 'vendedor' ? dashboardV2NomeRanking_(item, item.nome) : item.nome,
+        eventos: item.eventos,
+        realizados: item.realizados,
+        futuros: item.futuros,
+        contrato: item.contrato,
+        recebido: item.recebido,
+        custosProcessados: item.custosProcessados,
+        custoTotalProjetado: item.custoTotalProjetado,
+        liquidoProjetado: item.liquidoProjetado,
+        margemProjetada: item.margemProjetada
+      };
     }).sort(function (a, b) { return b.contrato - a.contrato; });
   };
 
