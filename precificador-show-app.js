@@ -11,17 +11,6 @@ let CURRENT_USER_EMAIL = '';
 let manualCostCounter = 0;
 let edicaoProducaoAtiva = false;
 
-let loadingMessageTimer = null;
-let loadingMessageIndex = 0;
-
-const LOADING_MESSAGES = [
-  'Verificando sessão...',
-  'Validando acesso...',
-  'Carregando precificador...',
-  'Sincronizando parâmetros...',
-  'Preparando ambiente...'
-];
-
 function normalizarPerfil(perfil) {
   return String(perfil || '')
     .normalize('NFD')
@@ -36,7 +25,6 @@ function perfilPermitido(perfil) {
 }
 
 document.addEventListener('DOMContentLoaded', async function () {
-  showLoading();
   setupEventListeners();
   if (window.lucide) window.lucide.createIcons();
 
@@ -55,13 +43,18 @@ document.addEventListener('DOMContentLoaded', async function () {
     CURRENT_USER_EMAIL = String(auth.user.email || localStorage.getItem('auth_email') || '').trim();
     if (auth.user.nome) localStorage.setItem('auth_nome', String(auth.user.nome));
 
-    await carregarConfiguracoes(false);
-    hideLoading();
+    showApp();
+    await carregarConfiguracoes();
     showApp();
   } catch (error) {
     console.error('❌ Erro na inicialização:', error);
-    alert('Sessão inválida. Faça login novamente.');
-    window.location.href = 'index.html';
+    if (error && (error.name === 'AuthSessionError' || error.message === 'NOT_AUTH' || error.message === 'AUTH_NOT_LOADED')) {
+      alert('Sessão inválida. Faça login novamente.');
+      window.location.href = 'index.html';
+      return;
+    }
+    showApp();
+    mostrarErro('Não foi possível carregar as configurações do precificador. Tente novamente em instantes.');
   }
 });
 
@@ -114,49 +107,6 @@ function setupEventListeners() {
   }
 }
 
-function showLoading(message) {
-  const screen = document.getElementById('loading-screen');
-  if (screen) {
-    screen.classList.remove('hide');
-    screen.classList.remove('hidden');
-  }
-
-  if (typeof message === 'string' && message.trim()) {
-    stopLoadingMessageRotation_();
-    updateLoadingMessage(message);
-  } else {
-    startLoadingMessageRotation_();
-  }
-}
-
-function hideLoading() {
-  stopLoadingMessageRotation_();
-  const screen = document.getElementById('loading-screen');
-  if (screen) screen.classList.add('hide');
-}
-
-function updateLoadingMessage(message) {
-  const loadingMessage = document.getElementById('loading-message');
-  if (loadingMessage) loadingMessage.textContent = message;
-}
-
-function startLoadingMessageRotation_() {
-  stopLoadingMessageRotation_();
-  loadingMessageIndex = 0;
-  updateLoadingMessage(LOADING_MESSAGES[loadingMessageIndex]);
-  loadingMessageTimer = setInterval(function () {
-    loadingMessageIndex = (loadingMessageIndex + 1) % LOADING_MESSAGES.length;
-    updateLoadingMessage(LOADING_MESSAGES[loadingMessageIndex]);
-  }, 1400);
-}
-
-function stopLoadingMessageRotation_() {
-  if (loadingMessageTimer) {
-    clearInterval(loadingMessageTimer);
-    loadingMessageTimer = null;
-  }
-}
-
 function showApp() {
   const app = document.getElementById('app-screen');
   if (app) app.classList.remove('hidden');
@@ -199,10 +149,8 @@ async function apiPost(action, data = {}) {
   }
 }
 
-async function carregarConfiguracoes(background = false) {
+async function carregarConfiguracoes() {
   console.log('📥 Carregando configurações do precificador...');
-
-  if (!background) showLoading('Carregando precificador...');
 
   try {
     const response = await apiPost('obterPrecificadorShowFormulario', {});
