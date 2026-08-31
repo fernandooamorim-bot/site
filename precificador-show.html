@@ -24,7 +24,7 @@
   <script src="auth.js?v=20260311b" defer></script>
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js" defer></script>
 
-  <link rel="stylesheet" href="precificador-show.css?v=20260622a">
+  <link rel="stylesheet" href="precificador-show.css?v=20260831a">
   <style>
     :root {
       --navy-800: #0f1a2e;
@@ -374,24 +374,24 @@
               <div class="resultado-titulo">💰 Valor Mínimo do Show</div>
               <div class="resultado-valor-principal" id="valor-final">R$ 0,00</div>
               <div class="resultado-alerta">
-                ⚠️ Este é o valor MÍNIMO para manter o padrão de entrega do show.
+                ⚠️ Não ofereça abaixo deste valor.
               </div>
             </div>
 
             <div class="margem-negociacao" id="margem-negociacao">
               <div class="margem-titulo">🎯 Faixas de Negociação</div>
               <div class="margem-barra">
-                <div class="margem-indicador minimo">
+                <div class="margem-indicador minimo" data-faixa-resultado="minimo" role="button" tabindex="0" onclick="selecionarFaixa('minimo')">
                   <div class="margem-label">Mínimo</div>
                   <div class="margem-valor" id="margem-valor-minimo">R$ 0</div>
                 </div>
-                <div class="margem-indicador bom">
-                  <div class="margem-label">Bom</div>
+                <div class="margem-indicador bom" data-faixa-resultado="ideal" role="button" tabindex="0" onclick="selecionarFaixa('ideal')">
+                  <div class="margem-label">Ideal</div>
                   <div class="margem-valor" id="margem-valor-bom">R$ 0</div>
                   <div class="margem-percentual" id="margem-percent-bom">+0%</div>
                 </div>
-                <div class="margem-indicador otimo">
-                  <div class="margem-label">Ótimo</div>
+                <div class="margem-indicador otimo" data-faixa-resultado="excelente" role="button" tabindex="0" onclick="selecionarFaixa('excelente')">
+                  <div class="margem-label">Excelente</div>
                   <div class="margem-valor" id="margem-valor-otimo">R$ 0</div>
                   <div class="margem-percentual" id="margem-percent-otimo">+0%</div>
                 </div>
@@ -474,6 +474,6 @@
     </button>
   </nav>
 
-  <script src="precificador-show-app.js?v=20260622b"></script>
+  <script src="precificador-show-app.js?v=20260831a"></script>
 </body>
 </html>

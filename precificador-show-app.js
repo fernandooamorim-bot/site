@@ -6,6 +6,7 @@
 
 let configuracoes = null;
 let ultimoResultado = null;
+let faixaSelecionada = 'ideal';
 let CURRENT_USER_EMAIL = '';
 let manualCostCounter = 0;
 let edicaoProducaoAtiva = false;
@@ -13,8 +14,6 @@ let edicaoProducaoAtiva = false;
 let loadingMessageTimer = null;
 let loadingMessageIndex = 0;
 
-const PRECIFICADOR_CACHE_KEY = 'precificadorShow:dataCache:v1';
-const PRECIFICADOR_CACHE_TTL_MS = 5 * 60 * 1000;
 const LOADING_MESSAGES = [
   'Verificando sessão...',
   'Validando acesso...',
@@ -56,23 +55,9 @@ document.addEventListener('DOMContentLoaded', async function () {
     CURRENT_USER_EMAIL = String(auth.user.email || localStorage.getItem('auth_email') || '').trim();
     if (auth.user.nome) localStorage.setItem('auth_nome', String(auth.user.nome));
 
-    const cache = lerCachePrecificador_();
-    const cacheValido = cachePrecificadorValido_(cache);
-
-    if (cacheValido) {
-      stopLoadingMessageRotation_();
-      updateLoadingMessage('Abrindo versão em cache...');
-      aplicarConfiguracoes_(cache.configuracoes);
-      hideLoading();
-      showApp();
-      carregarConfiguracoes(true).catch((err) => {
-        console.warn('Falha na sincronização em background:', err);
-      });
-    } else {
-      await carregarConfiguracoes(false);
-      hideLoading();
-      showApp();
-    }
+    await carregarConfiguracoes(false);
+    hideLoading();
+    showApp();
   } catch (error) {
     console.error('❌ Erro na inicialização:', error);
     alert('Sessão inválida. Faça login novamente.');
@@ -203,34 +188,10 @@ function showApp() {
 async function apiPost(action, data = {}) {
   try {
     console.log(`📡 API POST: ${action}`);
-
-    const payload = Object.assign({}, data || {});
-    const resp = await Auth.apiCall(
-      'precificadorShowProxy',
-      Object.assign(
-        {
-          externalAction: action,
-          payloadJson: JSON.stringify(payload)
-        },
-        payload
-      )
-    );
-
-    if (!resp || resp.sucesso !== true) {
-      throw new Error(resp?.mensagem || resp?.error || 'Falha na integração com Precificador de Show');
+    const result = await Auth.apiCall(action, data || {});
+    if (!result || result.sucesso === false || result.error) {
+      throw new Error(result?.mensagem || result?.error || 'Falha no Precificador de Show');
     }
-
-    if (resp.debug && resp.debug.endpointUtilizado) {
-      console.log('[PrecificadorShowProxy] endpoint:', resp.debug.endpointUtilizado);
-    }
-
-    const result = resp.data || {};
-    if (result.error) throw new Error(String(result.error));
-
-    if (resp.debug && resp.debug.endpointUtilizado) {
-      result.__debugEndpoint = resp.debug.endpointUtilizado;
-    }
-
     return result;
   } catch (error) {
     console.error('❌ Erro na requisição:', error);
@@ -243,53 +204,24 @@ async function carregarConfiguracoes(background = false) {
 
   if (!background) showLoading('Carregando precificador...');
 
-  const cache = lerCachePrecificador_();
-  const cacheValido = cachePrecificadorValido_(cache);
-  const cacheExpirado = cachePrecificadorExpirado_(cache);
-
   try {
-    const response = await apiPost('getConfiguracoes', {});
-
-    if (!response || response.success !== true || !response.data) {
-      throw new Error(response?.error || 'Resposta inválida ao carregar configurações');
-    }
-
-    const assinaturaAtual = assinaturaDados_(response.data);
-    const assinaturaCache = cacheValido ? String(cache.configHash || '') : '';
-
-    if (cacheValido && !cacheExpirado && assinaturaAtual === assinaturaCache) {
-      console.log('✅ Cache do Precificador válido e configurações inalteradas.');
-      if (!background) {
-        aplicarConfiguracoes_(cache.configuracoes);
-      }
-      return;
-    }
-
-    if (background) {
-      stopLoadingMessageRotation_();
-      updateLoadingMessage('Atualizando parâmetros da planilha...');
-    }
-
-    aplicarConfiguracoes_(response.data);
-    salvarCachePrecificador_(response.data, assinaturaAtual);
+    const response = await apiPost('obterPrecificadorShowFormulario', {});
+    if (!response || response.sucesso !== true) throw new Error(response?.error || 'Resposta inválida ao carregar configurações');
+    aplicarConfiguracoes_(response);
   } catch (error) {
-    if (!cacheValido) {
-      console.error('❌ Erro ao carregar configurações:', error);
-      mostrarErro('Erro ao carregar configurações: ' + String(error.message || error));
-      throw error;
-    }
-    console.warn('⚠️ Falha ao atualizar configurações; mantendo cache:', error);
+    console.error('❌ Erro ao carregar configurações:', error);
+    mostrarErro('Erro ao carregar configurações: ' + String(error.message || error));
+    throw error;
   }
 }
 
 function aplicarConfiguracoes_(cfg) {
   configuracoes = cfg || {};
-  const musicos = Array.isArray(configuracoes.musicos) ? configuracoes.musicos : [];
-  const terceirizados = Array.isArray(configuracoes.terceirizados) ? configuracoes.terceirizados : [];
-  const frontend = configuracoes.frontend || {};
-  const parametros = configuracoes.parametros || {};
+  const musicos = Array.isArray(configuracoes.equipe) ? configuracoes.equipe : [];
+  const terceirizados = Array.isArray(configuracoes.custosPadrao) ? configuracoes.custosPadrao : [];
+  const parametros = configuracoes.padroesComerciais || {};
 
-  renderizarMusicos(musicos, frontend);
+  renderizarMusicos(musicos);
   renderizarTerceirizados(terceirizados);
   carregarParametrosPadrao(parametros);
 }
@@ -342,7 +274,7 @@ function normalizarObjetoParaHash_(value) {
   return value;
 }
 
-function renderizarMusicos(musicos, frontendConfig) {
+function renderizarMusicos(musicos) {
   const container = document.getElementById('musicos-list');
   if (!container) return;
   container.innerHTML = '';
@@ -353,30 +285,30 @@ function renderizarMusicos(musicos, frontendConfig) {
     const item = document.createElement('div');
     item.className = 'checkbox-item';
 
-    const valorHtml = exibirValores
-      ? `<span class="checkbox-value" data-show-value="true">R$ ${formatarMoeda(musico.valorFixo)}</span>`
-      : `<span class="checkbox-value hidden" data-show-value="false">R$ ${formatarMoeda(musico.valorFixo)}</span>`;
-
     item.innerHTML = `
       <label class="checkbox-label">
         <input type="checkbox"
                id="musico-${index}"
-               data-valor="${musico.valorFixo}"
+               data-id="${escaparAttr_(musico.id)}"
                data-banda-completa="${musico.bandaCompleta}"
                data-banda-reduzida="${musico.bandaReduzida}"
                onchange="toggleCheckbox(this)">
-        ${musico.funcao}
+        ${musico.nome}
       </label>
       <div class="production-value-wrap">
-        ${valorHtml}
         <input type="number"
                class="production-value-input hidden"
                id="musico-valor-${index}"
-               value="${Number(musico.valorFixo || 0)}"
                min="0"
                step="0.01"
-               aria-label="Valor manual de ${escaparAttr_(musico.funcao)}"
+               placeholder="Valor excepcional"
+               aria-label="Valor excepcional de ${escaparAttr_(musico.nome)}"
                oninput="atualizarValorMusicoManual(this)">
+        <input type="text"
+               class="production-value-input hidden"
+               id="musico-motivo-${index}"
+               placeholder="Motivo do ajuste"
+               aria-label="Motivo do ajuste de ${escaparAttr_(musico.nome)}">
       </div>
     `;
     container.appendChild(item);
@@ -399,7 +331,7 @@ function aplicarEstadoEdicaoProducao_() {
 
   if (btn) {
     btn.classList.toggle('active', edicaoProducaoAtiva);
-    btn.textContent = edicaoProducaoAtiva ? 'Valores manuais ativos' : 'Editar valores';
+    btn.textContent = edicaoProducaoAtiva ? 'Ajustes ativos' : 'Ajustar cachês';
   }
 
   if (note) note.classList.toggle('hidden', !edicaoProducaoAtiva);
@@ -410,11 +342,6 @@ function aplicarEstadoEdicaoProducao_() {
 
   document.querySelectorAll('.production-value-input').forEach((input) => {
     input.classList.toggle('hidden', !edicaoProducaoAtiva);
-  });
-
-  document.querySelectorAll('.checkbox-value').forEach((span) => {
-    const podeExibirValor = span.dataset.showValue === 'true';
-    span.classList.toggle('hidden', edicaoProducaoAtiva || !podeExibirValor);
   });
 
   if (window.lucide) window.lucide.createIcons();
@@ -501,7 +428,7 @@ function adicionarItemManual(preset = {}) {
 
 function montarOpcoesCategoriaManual_(selecionada) {
   const categorias = [
-    'Produção extra',
+    'Produção',
     'Diária',
     'Transporte',
     'Hospedagem',
@@ -546,12 +473,12 @@ function coletarItensManuais_() {
   return Array.from(document.querySelectorAll('.manual-cost-row')).map((row) => {
     const id = row.dataset.manualCostId;
     const nome = String(document.getElementById(`manual-cost-name-${id}`)?.value || '').trim();
-    const categoria = String(document.getElementById(`manual-cost-category-${id}`)?.value || 'Produção extra').trim();
+    const categoria = String(document.getElementById(`manual-cost-category-${id}`)?.value || 'Produção').trim();
     const valor = parseFloat(document.getElementById(`manual-cost-value-${id}`)?.value || 0) || 0;
 
     return {
       nome: nome || categoria || 'Item manual',
-      categoria: categoria || 'Produção extra',
+      categoria: categoria || 'Produção',
       valor,
       manual: true
     };
@@ -559,8 +486,8 @@ function coletarItensManuais_() {
 }
 
 function carregarParametrosPadrao(parametros) {
-  const bv = Number(parametros['BV Padrão (%)']);
-  const nf = Number(parametros['NF Simples Nacional (%)']);
+  const bv = Number(parametros.bvPercentual);
+  const nf = Number(parametros.nfPercentual);
   if (!isNaN(bv)) document.getElementById('bv-valor').value = bv;
   if (!isNaN(nf)) document.getElementById('nf-valor').value = nf;
 }
@@ -607,7 +534,7 @@ function atualizarInputTerceirizado(input) {
 }
 
 async function calcular() {
-  if (!configuracoes || !configuracoes.musicos) {
+  if (!configuracoes || !configuracoes.equipe) {
     mostrarErro('Configurações ainda não carregadas.');
     return;
   }
@@ -620,14 +547,14 @@ async function calcular() {
   const dadosEvento = coletarDadosEvento();
 
   try {
-    const response = await apiPost('calcular', { dados: dadosEvento });
+    const response = await apiPost('simularPrecificadorShow', { simulacaoJson: JSON.stringify(dadosEvento) });
 
     document.getElementById('loading').classList.remove('show');
     document.getElementById('btn-calcular').disabled = false;
 
-    if (response.success) {
-      ultimoResultado = response.data;
-      exibirResultado(response.data);
+    if (response.sucesso) {
+      ultimoResultado = response;
+      exibirResultado(response);
     } else {
       mostrarErro(response.error || 'Erro desconhecido no cálculo');
     }
@@ -639,151 +566,122 @@ async function calcular() {
 }
 
 function coletarDadosEvento() {
-  const params = configuracoes && configuracoes.parametros ? configuracoes.parametros : {};
-  const musicosCfg = Array.isArray(configuracoes.musicos) ? configuracoes.musicos : [];
-  const terceCfg = Array.isArray(configuracoes.terceirizados) ? configuracoes.terceirizados : [];
+  const musicosCfg = Array.isArray(configuracoes.equipe) ? configuracoes.equipe : [];
+  const terceCfg = Array.isArray(configuracoes.custosPadrao) ? configuracoes.custosPadrao : [];
 
   const dados = {
-    musicos: [],
-    terceirizados: [],
-    comissao_fernando: params['Comissão Fernando (%)'] !== undefined ? params['Comissão Fernando (%)'] : 70,
-    comissao_socio: params['Comissão Sócio (%)'] !== undefined ? params['Comissão Sócio (%)'] : 10,
-    caixa_banda: params['Caixa da Banda (%)'] !== undefined ? params['Caixa da Banda (%)'] : 5,
-    margem_sugestao: params['Margem Sugestão (%)'] !== undefined ? params['Margem Sugestão (%)'] : 15,
-    bv: {
-      ativo: document.getElementById('bv-ativo').checked,
-      tipo: document.getElementById('bv-tipo').value,
-      valor: parseFloat(document.getElementById('bv-valor').value) || 0
-    },
-    nf: {
-      ativo: document.getElementById('nf-ativo').checked,
-      valor: parseFloat(document.getElementById('nf-valor').value) || 0
+    equipe: [],
+    custos: [],
+    comercial: {
+      comissaoVendedor: Number(configuracoes?.padroesComerciais?.comissaoVendedor || 0),
+      bv: {
+        ativo: document.getElementById('bv-ativo').checked,
+        tipo: document.getElementById('bv-tipo').value,
+        valor: parseFloat(document.getElementById('bv-valor').value) || 0
+      },
+      nf: {
+        ativo: document.getElementById('nf-ativo').checked,
+        valor: parseFloat(document.getElementById('nf-valor').value) || 0
+      }
     }
   };
 
   musicosCfg.forEach((musico, index) => {
     const checkbox = document.getElementById(`musico-${index}`);
     const valorManualInput = document.getElementById(`musico-valor-${index}`);
+    const motivoManual = String(document.getElementById(`musico-motivo-${index}`)?.value || '').trim();
     const valorManual = parseFloat(valorManualInput ? valorManualInput.value : '');
-    const valorFixo = edicaoProducaoAtiva && !isNaN(valorManual)
-      ? valorManual
-      : musico.valorFixo;
-
-    dados.musicos.push({
-      funcao: musico.funcao,
-      valorFixo: valorFixo,
-      valorOriginal: musico.valorFixo,
-      manual: edicaoProducaoAtiva && Number(valorFixo) !== Number(musico.valorFixo),
-      selecionado: checkbox ? checkbox.checked : false
-    });
+    if (!checkbox || !checkbox.checked) return;
+    const item = { id: String(checkbox.dataset.id || '') };
+    if (edicaoProducaoAtiva && !isNaN(valorManual)) {
+      item.ajuste = { ativo: true, valor: valorManual, motivo: motivoManual };
+    }
+    dados.equipe.push(item);
   });
 
   terceCfg.forEach((item, index) => {
     const input = document.getElementById(`terceirizado-${index}`);
     const valor = parseFloat(input ? input.value : 0) || 0;
-    dados.terceirizados.push({
-      nome: item.nome,
+    if (valor <= 0) return;
+    dados.custos.push({
+      descricao: item.nome,
       categoria: item.categoria,
       valor: valor
     });
   });
 
   coletarItensManuais_().forEach((item) => {
-    dados.terceirizados.push(item);
+    dados.custos.push({ descricao: item.nome, categoria: item.categoria, valor: item.valor });
   });
 
   return dados;
 }
 
 function exibirResultado(resultado) {
-  const bd = resultado.breakdown || {};
-  const frontendConfig = configuracoes.frontend || {};
+  const faixas = resultado.faixas || {};
+  const minimo = faixas.minimo || {};
+  const ideal = faixas.ideal || {};
+  const excelente = faixas.excelente || {};
+  const custos = resultado.custos || {};
+  const alertas = Array.isArray(resultado.alertas) ? resultado.alertas : [];
 
-  document.getElementById('valor-final').textContent = 'R$ ' + formatarMoeda(resultado.valor_final || 0);
-
-  const breakdownComissoes = document.getElementById('breakdown-comissoes');
-  if (frontendConfig['Exibir Breakdown Comissões']) {
-    breakdownComissoes.classList.remove('hidden');
-    document.getElementById('bd-comissao-fernando').textContent =
-      'R$ ' + formatarMoeda(bd.comissao_fernando || 0) + ' (' + Number(bd.percentual_fernando || 0).toFixed(0) + '%)';
-    document.getElementById('bd-comissao-socio').textContent =
-      'R$ ' + formatarMoeda(bd.comissao_socio || 0) + ' (' + Number(bd.percentual_socio || 0).toFixed(0) + '%)';
-    document.getElementById('bd-caixa-banda').textContent =
-      'R$ ' + formatarMoeda(bd.comissao_caixa_banda || 0) + ' (' + Number(bd.percentual_caixa_banda || 0).toFixed(0) + '%)';
-  } else {
-    breakdownComissoes.classList.add('hidden');
+  document.getElementById('valor-final').textContent = 'R$ ' + formatarMoeda(minimo.valor || 0);
+  const avisoPrincipal = document.querySelector('.resultado-alerta');
+  if (avisoPrincipal) {
+    avisoPrincipal.textContent = alertas.length
+      ? '⚠️ ' + alertas[0]
+      : '⚠️ Não ofereça abaixo deste valor.';
   }
-
-  document.getElementById('bd-musicos').textContent = 'R$ ' + formatarMoeda(bd.custos_musicos || 0);
-  document.getElementById('bd-terceirizados').textContent = 'R$ ' + formatarMoeda(bd.custos_terceirizados || 0);
+  document.getElementById('margem-valor-minimo').textContent = 'R$ ' + formatarMoeda(minimo.valor || 0);
+  document.getElementById('margem-valor-bom').textContent = 'R$ ' + formatarMoeda(ideal.valor || 0);
+  document.getElementById('margem-valor-otimo').textContent = 'R$ ' + formatarMoeda(excelente.valor || 0);
+  document.getElementById('margem-percent-bom').textContent = '+' + Number(ideal.percentualAumento || 0).toFixed(0) + '%';
+  document.getElementById('margem-percent-otimo').textContent = '+' + Number(excelente.percentualAumento || 0).toFixed(0) + '%';
+  document.getElementById('breakdown-comissoes').classList.add('hidden');
+  document.getElementById('bd-musicos').textContent = 'R$ ' + formatarMoeda(custos.totalEquipe || 0);
+  document.getElementById('bd-terceirizados').textContent = 'R$ ' + formatarMoeda(custos.totalCustos || 0);
 
   const bvRow = document.getElementById('bd-bv-row');
-  if ((bd.valor_bv || 0) > 0) {
+  if ((ideal.valorBv || 0) > 0) {
     bvRow.style.display = 'flex';
-    let bvTexto = 'R$ ' + formatarMoeda(bd.valor_bv || 0);
-    if (bd.tipo_bv === 'percentual') bvTexto += ' (' + Number(bd.percentual_bv || 0).toFixed(1) + '%)';
-    document.getElementById('bd-bv').textContent = bvTexto;
+    document.getElementById('bd-bv').textContent = 'R$ ' + formatarMoeda(ideal.valorBv || 0);
   } else {
     bvRow.style.display = 'none';
   }
 
   const nfRow = document.getElementById('bd-nf-row');
-  if ((bd.valor_nf || 0) > 0) {
+  if ((ideal.valorNf || 0) > 0) {
     nfRow.style.display = 'flex';
     document.getElementById('bd-nf').textContent =
-      'R$ ' + formatarMoeda(bd.valor_nf || 0) + ' (' + Number(bd.percentual_nf || 0).toFixed(1) + '%)';
+      'R$ ' + formatarMoeda(ideal.valorNf || 0);
   } else {
     nfRow.style.display = 'none';
   }
 
   const destaqueFernando = document.getElementById('destaque-fernando');
-  if (frontendConfig['Exibir Destaque Fernando']) {
-    destaqueFernando.classList.remove('hidden');
-    const tipoExibicao = frontendConfig['Tipo Exibição Destaque'] || 'Comissão Fernando';
-    const destaqueLabel = document.getElementById('destaque-label');
-    const destaqueValor = document.getElementById('destaque-valor');
-
-    if (tipoExibicao === 'Comissão Total') {
-      destaqueLabel.textContent = '✨ Comissão Total (Lucro)';
-      destaqueValor.textContent = 'R$ ' + formatarMoeda(bd.total_comissoes || 0);
-    } else if (tipoExibicao === 'Sugestão de Valor') {
-      destaqueLabel.textContent = '💡 Valor Mínimo Sugerido (+' + Number(resultado.margem_sugestao_percentual || 0).toFixed(0) + '%)';
-      destaqueValor.textContent = 'R$ ' + formatarMoeda(resultado.valor_sugestao || 0);
-    } else if (tipoExibicao === 'Comissão do Vendedor') {
-      destaqueLabel.textContent = '💰 Comissão do Vendedor';
-      destaqueValor.textContent = 'R$ ' + formatarMoeda(bd.comissao_socio || 0);
-    } else {
-      destaqueLabel.textContent = '✨ Comissão Fernando';
-      destaqueValor.textContent = 'R$ ' + formatarMoeda(bd.comissao_fernando || 0);
-    }
-  } else {
-    destaqueFernando.classList.add('hidden');
-  }
-
-  const margemNegociacao = document.getElementById('margem-negociacao');
-  if (frontendConfig['Exibir Margem Negociação']) {
-    margemNegociacao.classList.remove('hidden');
-
-    const valorMinimo = Number(resultado.valor_final || 0);
-    const percentualBom = parseFloat(frontendConfig['Margem Bom (%)']) || 15;
-    const percentualOtimo = parseFloat(frontendConfig['Margem Ótimo (%)']) || 30;
-
-    const valorBom = valorMinimo * (1 + percentualBom / 100);
-    const valorOtimo = valorMinimo * (1 + percentualOtimo / 100);
-
-    document.getElementById('margem-valor-minimo').textContent = 'R$ ' + formatarMoeda(valorMinimo);
-    document.getElementById('margem-valor-bom').textContent = 'R$ ' + formatarMoeda(valorBom);
-    document.getElementById('margem-valor-otimo').textContent = 'R$ ' + formatarMoeda(valorOtimo);
-    document.getElementById('margem-percent-bom').textContent = '+' + percentualBom.toFixed(0) + '%';
-    document.getElementById('margem-percent-otimo').textContent = '+' + percentualOtimo.toFixed(0) + '%';
-  } else {
-    margemNegociacao.classList.add('hidden');
-  }
+  destaqueFernando.classList.remove('hidden');
+  document.getElementById('destaque-label').textContent = '💰 Comissão do Vendedor';
+  document.getElementById('margem-negociacao').classList.remove('hidden');
+  selecionarFaixa('ideal');
 
   document.getElementById('resultado').classList.add('show');
   setTimeout(() => {
     document.getElementById('resultado').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }, 100);
+}
+
+function selecionarFaixa(faixa) {
+  if (!ultimoResultado || !ultimoResultado.faixas || !ultimoResultado.faixas[faixa]) return;
+  faixaSelecionada = faixa;
+  const dados = ultimoResultado.faixas[faixa];
+  const label = faixa === 'excelente' && Number(dados.bonusVendedor || 0) > 0
+    ? '💰 Comissão do Vendedor · inclui bônus'
+    : '💰 Comissão do Vendedor';
+  document.getElementById('destaque-label').textContent = label;
+  document.getElementById('destaque-valor').textContent = 'R$ ' + formatarMoeda(dados.comissaoVendedor || 0);
+  document.querySelectorAll('[data-faixa-resultado]').forEach((item) => {
+    item.classList.toggle('selected', item.dataset.faixaResultado === faixa);
+  });
 }
 
 async function salvarHistorico() {
@@ -792,21 +690,16 @@ async function salvarHistorico() {
     return;
   }
 
-  const nomeDefault = String(localStorage.getItem('auth_nome') || CURRENT_USER_EMAIL || '');
-  const vendedor = prompt('Seu nome (vendedor):') || nomeDefault;
-
   const dadosEvento = coletarDadosEvento();
-  dadosEvento.vendedor = vendedor;
 
   try {
-    const response = await apiPost('salvarHistorico', {
-      dados: dadosEvento,
-      resultado: ultimoResultado,
-      email: CURRENT_USER_EMAIL
+    const response = await apiPost('salvarPrecificadorShowSimulacao', {
+      simulacaoJson: JSON.stringify(dadosEvento),
+      faixaSelecionada: faixaSelecionada
     });
 
-    if (response.success) {
-      alert('✅ ' + (response.message || 'Salvo no histórico!'));
+    if (response.sucesso) {
+      alert('✅ ' + (response.mensagem || 'Simulação salva!'));
     } else {
       alert('❌ Erro ao salvar: ' + (response.error || 'Erro desconhecido'));
     }
@@ -826,9 +719,7 @@ function novaSimulacao() {
 
   edicaoProducaoAtiva = false;
   document.querySelectorAll('.production-value-input').forEach((input) => {
-    const index = String(input.id || '').replace('musico-valor-', '');
-    const checkbox = document.getElementById(`musico-${index}`);
-    input.value = checkbox ? (checkbox.dataset.valor || '0') : '0';
+    input.value = '';
   });
   aplicarEstadoEdicaoProducao_();
 
@@ -868,6 +759,7 @@ function mostrarErro(mensagem) {
 }
 
 window.calcular = calcular;
+window.selecionarFaixa = selecionarFaixa;
 window.selecionarTodos = selecionarTodos;
 window.selecionarBandaCompleta = selecionarBandaCompleta;
 window.selecionarBandaReduzida = selecionarBandaReduzida;
