@@ -17,3 +17,19 @@
 @media(max-width:720px){html,body{overflow-x:hidden}.executive-workspace{margin-left:-14px;margin-right:-14px;padding:17px;border-radius:22px}.workspace-head{display:block}.confidence-legend{margin-top:12px}.workspace-tabs{margin-bottom:16px}.executive-kpis,.workspace-grid,.reading-grid,.audit-formulas,.premise-card{grid-template-columns:1fr}.executive-kpi{min-height:118px}.workspace-card{padding:15px}.intel-month-chart{overflow-x:auto;grid-template-columns:repeat(12,42px);justify-content:start}.agenda-forecast{grid-template-columns:repeat(2,1fr)}.audit-toolbar{display:grid;grid-template-columns:1fr 1fr}.audit-search{grid-column:1/-1}.cost-row{grid-template-columns:90px minmax(100px,1fr) 75px}.cost-row .cost-value:last-child{display:none}.cost-months{grid-template-columns:repeat(12,94px)}.intel-rank-row{grid-template-columns:minmax(90px,1fr) 70px auto}.reading-hero{align-items:flex-start}.executive-kpi>strong{font-size:1.55rem}}
 @media(max-width:420px){.executive-kpis{grid-template-columns:1fr}.agenda-forecast{grid-template-columns:1fr}.workspace-head h2{font-size:1.18rem}.cost-row{grid-template-columns:82px 1fr 72px}.intel-rank-row{grid-template-columns:1fr auto}.intel-rank-track{grid-column:1/-1;grid-row:2}.audit-toolbar{grid-template-columns:1fr}.audit-search{grid-column:auto}}
 .workspace-card-head h3,.reading-hero h3{color:#f2f6fb}
+
+/* A central usa fundo escuro; nunca deve herdar os tons de texto do canvas claro. */
+.executive-workspace{--muted:#bac7d8;color:#eef4fb}
+.executive-workspace .section-kicker{color:#9dc5ff;font-size:.68rem}
+.confidence-legend{font-size:.82rem}.workspace-tab{font-size:.84rem}
+.executive-kpi small{font-size:.82rem}.executive-kpi p{font-size:.83rem}.data-badge{font-size:.64rem}
+.business-pulse small,.business-pulse span{font-size:.75rem}.business-pulse strong{font-size:1.05rem}
+.workspace-card-head h3{font-size:1.04rem}.workspace-card-head p{font-size:.82rem}.formula-chip{font-size:.72rem}
+.intel-month>small{font-size:.7rem}.intel-month-tooltip{font-size:.78rem}.intel-rank-copy strong{font-size:.86rem}.intel-rank-copy small{font-size:.76rem}.intel-rank-value{font-size:.8rem}.empty-intel{font-size:.84rem}
+.cashflow-row>span{font-size:.78rem}.cashflow-row strong{font-size:.82rem}.intel-insight strong{font-size:.86rem}.intel-insight p{font-size:.78rem}
+.cost-row-name strong{font-size:.84rem}.cost-row-name small,.cost-value small{font-size:.72rem}.cost-value strong{font-size:.82rem}.folha-reference span{font-size:.76rem}.cost-month>strong,.commission-month>strong{font-size:.8rem}.cost-month small,.commission-month small{font-size:.7rem}.cost-month span,.commission-month span{font-size:.8rem}
+.agenda-cell header strong{font-size:.84rem}.agenda-cell p{font-size:.74rem}.year-table{font-size:.78rem}.year-table th{font-size:.68rem}
+.audit-formulas strong{font-size:.82rem}.audit-formulas span,.audit-toolbar label{font-size:.72rem}.audit-toolbar select,.audit-toolbar input{font-size:.8rem}.intel-audit-table{font-size:.76rem}.intel-audit-table th{font-size:.66rem}.intel-audit-table small{font-size:.68rem}
+.reading-hero small{font-size:.7rem}.reading-hero p,.reading-card p,.premise-card{font-size:.78rem}.reading-card strong{font-size:.9rem}.reading-card header span{font-size:.68rem}
+
+@media(max-width:720px){.executive-workspace .section-kicker{font-size:.62rem}.workspace-tab{font-size:.78rem}.business-pulse small,.business-pulse span{font-size:.7rem}}
