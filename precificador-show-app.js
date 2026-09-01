@@ -115,18 +115,34 @@ function setupEventListeners() {
   const bvAtivo = document.getElementById('bv-ativo');
   if (bvAtivo) {
     bvAtivo.addEventListener('change', function () {
-      const el = document.getElementById('bv-row');
-      if (el) el.classList.toggle('active', this.checked);
+      atualizarEstadoComercial_();
     });
   }
 
   const nfAtivo = document.getElementById('nf-ativo');
   if (nfAtivo) {
     nfAtivo.addEventListener('change', function () {
-      const el = document.getElementById('nf-row');
-      if (el) el.classList.toggle('active', this.checked);
+      atualizarEstadoComercial_();
     });
   }
+
+  atualizarEstadoComercial_();
+}
+
+function atualizarEstadoComercial_() {
+  const bvAtivo = Boolean(document.getElementById('bv-ativo')?.checked);
+  const nfAtivo = Boolean(document.getElementById('nf-ativo')?.checked);
+  const bvRow = document.getElementById('bv-row');
+  const nfRow = document.getElementById('nf-row');
+
+  if (bvRow) bvRow.classList.toggle('active', bvAtivo);
+  if (nfRow) nfRow.classList.toggle('active', nfAtivo);
+  ['bv-tipo', 'bv-valor'].forEach((id) => {
+    const campo = document.getElementById(id);
+    if (campo) campo.disabled = !bvAtivo;
+  });
+  const nfValor = document.getElementById('nf-valor');
+  if (nfValor) nfValor.disabled = !nfAtivo;
 }
 
 function showApp() {
@@ -556,29 +572,11 @@ function exibirResultado(resultado) {
   document.getElementById('bd-musicos').textContent = 'R$ ' + formatarMoeda(custos.totalEquipe || 0);
   document.getElementById('bd-terceirizados').textContent = 'R$ ' + formatarMoeda(custos.totalCustos || 0);
 
-  const bvRow = document.getElementById('bd-bv-row');
-  if ((ideal.valorBv || 0) > 0) {
-    bvRow.style.display = 'flex';
-    document.getElementById('bd-bv').textContent = 'R$ ' + formatarMoeda(ideal.valorBv || 0);
-  } else {
-    bvRow.style.display = 'none';
-  }
-
-  const nfRow = document.getElementById('bd-nf-row');
-  if ((ideal.valorNf || 0) > 0) {
-    nfRow.style.display = 'flex';
-    document.getElementById('bd-nf').textContent =
-      'R$ ' + formatarMoeda(ideal.valorNf || 0);
-  } else {
-    nfRow.style.display = 'none';
-  }
-
   const detalhamento = document.getElementById('breakdown-operacional');
   if (detalhamento) detalhamento.classList.toggle('hidden', frontend.exibirDetalhamentoComercial === false);
 
   const destaqueFernando = document.getElementById('destaque-fernando');
   destaqueFernando.classList.toggle('hidden', frontend.exibirDestaqueVendedor === false);
-  document.getElementById('destaque-label').textContent = '💰 Comissão do Vendedor';
   document.getElementById('margem-negociacao').classList.toggle('hidden', frontend.exibirFaixasNegociacao === false);
   selecionarFaixa('ideal');
 
@@ -593,13 +591,35 @@ function selecionarFaixa(faixa) {
   faixaSelecionada = faixa;
   const dados = ultimoResultado.faixas[faixa];
   const label = faixa === 'excelente' && Number(dados.bonusVendedor || 0) > 0
-    ? '💰 Comissão do Vendedor · inclui bônus'
-    : '💰 Comissão do Vendedor';
-  document.getElementById('destaque-label').textContent = label;
+    ? 'Comissão do Vendedor · inclui bônus'
+    : 'Comissão do Vendedor';
+  const labelEl = document.getElementById('destaque-label');
+  if (labelEl) {
+    labelEl.innerHTML = '<i data-lucide="badge-dollar-sign"></i><span>' + label + '</span>';
+  }
   document.getElementById('destaque-valor').textContent = 'R$ ' + formatarMoeda(dados.comissaoVendedor || 0);
+  atualizarDetalhamentoDaFaixa_(dados);
   document.querySelectorAll('[data-faixa-resultado]').forEach((item) => {
-    item.classList.toggle('selected', item.dataset.faixaResultado === faixa);
+    const selecionado = item.dataset.faixaResultado === faixa;
+    item.classList.toggle('selected', selecionado);
+    item.setAttribute('aria-pressed', String(selecionado));
   });
+  if (window.lucide) window.lucide.createIcons();
+}
+
+function atualizarDetalhamentoDaFaixa_(dados) {
+  const bvRow = document.getElementById('bd-bv-row');
+  const nfRow = document.getElementById('bd-nf-row');
+  if (bvRow) {
+    bvRow.style.display = (dados.valorBv || 0) > 0 ? 'flex' : 'none';
+    const bvValor = document.getElementById('bd-bv');
+    if (bvValor) bvValor.textContent = 'R$ ' + formatarMoeda(dados.valorBv || 0);
+  }
+  if (nfRow) {
+    nfRow.style.display = (dados.valorNf || 0) > 0 ? 'flex' : 'none';
+    const nfValor = document.getElementById('bd-nf');
+    if (nfValor) nfValor.textContent = 'R$ ' + formatarMoeda(dados.valorNf || 0);
+  }
 }
 
 async function salvarHistorico() {
@@ -648,6 +668,7 @@ function novaSimulacao() {
 
   document.getElementById('bv-ativo').checked = false;
   document.getElementById('nf-ativo').checked = false;
+  atualizarEstadoComercial_();
 
   document.querySelectorAll('.checkbox-item, .input-item, .option-row').forEach((item) => {
     item.classList.remove('active', 'has-value');

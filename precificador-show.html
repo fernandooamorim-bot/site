@@ -24,7 +24,7 @@
   <script src="auth.js?v=20260311b" defer></script>
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js" defer></script>
 
-  <link rel="stylesheet" href="precificador-show.css?v=20260831e">
+  <link rel="stylesheet" href="precificador-show.css?v=20260901a">
   <style>
     :root {
       --navy-800: #0f1a2e;
@@ -256,16 +256,16 @@
         <div class="content">
           <div class="section section-producao">
             <div class="section-kicker">FORMAÇÃO DO SHOW</div>
-            <div class="section-title">👥 Produção do Show</div>
+            <div class="section-title"><i data-lucide="users-round"></i>Produção do Show</div>
             <div class="section-subtitle">Monte a equipe e ative os adicionais que este evento realmente precisa.</div>
 
             <div class="selection-buttons">
-              <button class="btn-selection" onclick="selecionarTodos()">Selecionar Todos</button>
-              <button class="btn-selection" onclick="selecionarBandaCompleta()">Banda Completa</button>
-              <button class="btn-selection" onclick="selecionarBandaReduzida()">Banda Reduzida</button>
-              <button class="btn-selection" onclick="limparSelecao()">Limpar Seleção</button>
+              <button type="button" class="btn-selection" onclick="selecionarTodos()"><i data-lucide="list-checks"></i>Selecionar Todos</button>
+              <button type="button" class="btn-selection" onclick="selecionarBandaCompleta()"><i data-lucide="users-round"></i>Banda Completa</button>
+              <button type="button" class="btn-selection" onclick="selecionarBandaReduzida()"><i data-lucide="users"></i>Banda Reduzida</button>
+              <button type="button" class="btn-selection" onclick="limparSelecao()"><i data-lucide="eraser"></i>Limpar Seleção</button>
               <button class="btn-selection btn-edit-values" id="btn-editar-producao" type="button">
-                Ajustar valores
+                <i data-lucide="sliders-horizontal"></i>Ajustar cachês deste cálculo
               </button>
             </div>
 
@@ -297,7 +297,7 @@
           <div class="section section-terceirizados">
             <div class="section-heading-row">
               <div>
-                <div class="section-title">🚐 Custos Terceirizados</div>
+            <div class="section-title"><i data-lucide="truck"></i>Custos Terceirizados</div>
                 <div class="section-subtitle">Digite os valores específicos deste evento</div>
               </div>
               <button type="button" class="btn-add-manual" onclick="adicionarItemManual()">
@@ -310,7 +310,7 @@
           </div>
 
           <div class="section section-comercial">
-            <div class="section-title">💼 Configurações Comerciais</div>
+            <div class="section-title"><i data-lucide="briefcase-business"></i>Configurações Comerciais</div>
             <div class="comercial-options">
 
               <div class="option-row" id="bv-row">
@@ -349,7 +349,7 @@
           </div>
 
           <button class="btn-primary" onclick="calcular()" id="btn-calcular">
-            🧮 CALCULAR PREÇO MÍNIMO
+            <i data-lucide="calculator"></i>Calcular preço mínimo
           </button>
 
           <div class="loading" id="loading" role="status" aria-live="polite">
@@ -363,7 +363,7 @@
 
           <div class="resultado" id="resultado">
             <div class="resultado-header">
-              <div class="resultado-titulo">💰 Valor Mínimo do Show</div>
+              <div class="resultado-titulo"><i data-lucide="badge-dollar-sign"></i>Valor Mínimo do Show</div>
               <div class="resultado-valor-principal" id="valor-final">R$ 0,00</div>
               <div class="resultado-alerta">
                 ⚠️ Não ofereça abaixo deste valor.
@@ -371,22 +371,22 @@
             </div>
 
             <div class="margem-negociacao" id="margem-negociacao">
-              <div class="margem-titulo">🎯 Faixas de Negociação</div>
+              <div class="margem-titulo"><i data-lucide="target"></i>Faixas de Negociação</div>
               <div class="margem-barra">
-                <div class="margem-indicador minimo" data-faixa-resultado="minimo" role="button" tabindex="0" onclick="selecionarFaixa('minimo')">
+                <button type="button" class="margem-indicador minimo" data-faixa-resultado="minimo" aria-pressed="false" onclick="selecionarFaixa('minimo')">
                   <div class="margem-label">Mínimo</div>
                   <div class="margem-valor" id="margem-valor-minimo">R$ 0</div>
-                </div>
-                <div class="margem-indicador bom" data-faixa-resultado="ideal" role="button" tabindex="0" onclick="selecionarFaixa('ideal')">
+                </button>
+                <button type="button" class="margem-indicador bom" data-faixa-resultado="ideal" aria-pressed="false" onclick="selecionarFaixa('ideal')">
                   <div class="margem-label">Ideal</div>
                   <div class="margem-valor" id="margem-valor-bom">R$ 0</div>
                   <div class="margem-percentual" id="margem-percent-bom">+0%</div>
-                </div>
-                <div class="margem-indicador otimo" data-faixa-resultado="excelente" role="button" tabindex="0" onclick="selecionarFaixa('excelente')">
+                </button>
+                <button type="button" class="margem-indicador otimo" data-faixa-resultado="excelente" aria-pressed="false" onclick="selecionarFaixa('excelente')">
                   <div class="margem-label">Excelente</div>
                   <div class="margem-valor" id="margem-valor-otimo">R$ 0</div>
                   <div class="margem-percentual" id="margem-percent-otimo">+0%</div>
-                </div>
+                </button>
               </div>
               <div class="margem-linha">
                 <div class="margem-track"></div>
@@ -397,7 +397,7 @@
             </div>
 
             <div class="breakdown" id="breakdown-comissoes">
-              <div class="breakdown-titulo">💵 Comissões sobre o Valor Bruto</div>
+              <div class="breakdown-titulo"><i data-lucide="hand-coins"></i>Comissões sobre o Valor Bruto</div>
               <div class="breakdown-item">
                 <span class="breakdown-label">Comissão Fernando</span>
                 <span class="breakdown-valor" id="bd-comissao-fernando">R$ 0,00</span>
@@ -413,7 +413,7 @@
             </div>
 
             <div class="breakdown" id="breakdown-operacional">
-              <div class="breakdown-titulo">🎵 Custos Operacionais</div>
+              <div class="breakdown-titulo"><i data-lucide="receipt-text"></i>Custos Operacionais</div>
               <div class="breakdown-item">
                 <span class="breakdown-label">Custos Produção</span>
                 <span class="breakdown-valor" id="bd-musicos">R$ 0,00</span>
@@ -433,13 +433,13 @@
             </div>
 
             <div class="destaque-fernando" id="destaque-fernando">
-              <div class="destaque-fernando-label" id="destaque-label">✨ Comissão Fernando</div>
+              <div class="destaque-fernando-label" id="destaque-label"><i data-lucide="badge-dollar-sign"></i>Comissão do Vendedor</div>
               <div class="destaque-fernando-valor" id="destaque-valor">R$ 0,00</div>
             </div>
 
             <div class="acoes">
-              <button class="btn-secondary" onclick="salvarHistorico()">💾 Salvar no Histórico</button>
-              <button class="btn-secondary" onclick="novaSimulacao()">🔄 Nova Simulação</button>
+              <button type="button" class="btn-secondary" onclick="salvarHistorico()"><i data-lucide="save"></i>Salvar no Histórico</button>
+              <button type="button" class="btn-secondary" onclick="novaSimulacao()"><i data-lucide="rotate-ccw"></i>Nova Simulação</button>
             </div>
           </div>
         </div>
@@ -466,6 +466,6 @@
     </button>
   </nav>
 
-  <script src="precificador-show-app.js?v=20260831i"></script>
+  <script src="precificador-show-app.js?v=20260901a"></script>
 </body>
 </html>

@@ -1345,9 +1345,38 @@ body { background: #f3f6fa; }
 .section-terceirizados { background: #fff; }
 .section-comercial { background: linear-gradient(145deg, #fffdf8 0%, #fff 76%); }
 
+/* Componentes visuais do precificador: camada única para preservar consistência. */
+.section-title i,
+.section-title svg,
+.margem-titulo i,
+.margem-titulo svg,
+.resultado-titulo i,
+.resultado-titulo svg,
+.breakdown-titulo i,
+.breakdown-titulo svg,
+.destaque-fernando-label i,
+.destaque-fernando-label svg {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+  stroke: currentColor;
+}
+
+.section-title,
+.margem-titulo,
+.resultado-titulo,
+.breakdown-titulo,
+.destaque-fernando-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .selection-buttons { gap: 9px; margin-bottom: 18px; }
-.btn-selection { min-width: 108px; border: 1px solid #ccd7e5; border-radius: 9px; background: #fff; font-size: .8rem; }
+.btn-selection { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-width: 108px; border: 1px solid #ccd7e5; border-radius: 9px; background: #fff; font-size: .8rem; }
+.btn-selection i, .btn-selection svg { width: 16px; height: 16px; stroke: currentColor; }
 .btn-selection:hover { border-color: #19345a; background: #19345a; }
+.btn-selection.btn-edit-values { font-size: .79rem; }
 .equipe-group-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin: 2px 2px 10px; }
 .equipe-group-head span { color: #20395e; font-size: .86rem; font-weight: 800; }
 .equipe-group-head small { color: #8794a7; font-size: .75rem; }
@@ -1367,8 +1396,12 @@ body { background: #f3f6fa; }
 
 .section-heading-row { margin-bottom: 15px; }
 .btn-add-manual { border-radius: 9px; }
+.option-row { transition: border-color .2s ease, background .2s ease, opacity .2s ease; }
+.option-row:not(.active) .input-group { opacity: .42; }
+.option-row .input-group :disabled { cursor: not-allowed; background: #f4f6f8; color: #94a3b8; }
 .option-row { border-radius: 11px; }
-.btn-primary { min-height: 54px; border-radius: 12px; letter-spacing: .02em; box-shadow: 0 8px 18px rgba(17, 24, 39, .16); }
+.btn-primary { display: inline-flex; align-items: center; justify-content: center; gap: 9px; min-height: 54px; border-radius: 12px; letter-spacing: .02em; box-shadow: 0 8px 18px rgba(17, 24, 39, .16); text-transform: uppercase; }
+.btn-primary i, .btn-primary svg { width: 19px; height: 19px; stroke: currentColor; }
 .btn-primary.is-loading { color: transparent; position: relative; pointer-events: none; }
 .btn-primary.is-loading::after { content: ''; position: absolute; width: 18px; height: 18px; border: 2px solid rgba(255,255,255,.4); border-top-color: #fff; border-radius: 50%; animation: spin .7s linear infinite; }
 .loading { padding: 14px 16px; border: 1px solid #dce7f2; border-radius: 12px; background: #f7fbff; color: #315276; }
@@ -1376,6 +1409,8 @@ body { background: #f3f6fa; }
 .loading .spinner { flex: 0 0 auto; width: 25px; height: 25px; margin: 0; border-width: 3px; }
 .loading strong { display: block; color: #1d3d60; font-size: .86rem; }
 .loading p { margin: 2px 0 0; color: #6f849a; font-size: .75rem; }
+.btn-secondary { display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+.btn-secondary i, .btn-secondary svg { width: 17px; height: 17px; stroke: currentColor; }
 
 @media (min-width: 720px) {
   .section { padding: 24px; }
@@ -1444,6 +1479,15 @@ body { background: #f3f6fa; }
   border-radius: 8px;
   transition: all 0.3s;
   cursor: pointer;
+  font: inherit;
+}
+
+.margem-indicador:focus-visible,
+.btn-selection:focus-visible,
+.btn-primary:focus-visible,
+.btn-secondary:focus-visible {
+  outline: 3px solid rgba(49, 99, 157, .35);
+  outline-offset: 3px;
 }
 
 .margem-indicador.selected {
@@ -1453,7 +1497,7 @@ body { background: #f3f6fa; }
 
 .margem-indicador.minimo {
   background: #fff;
-  border: 2px solid #dc3545;
+  border: 2px solid #64748b;
 }
 
 .margem-indicador.bom {
@@ -1474,11 +1518,11 @@ body { background: #f3f6fa; }
 }
 
 .margem-indicador.minimo .margem-label {
-  color: #dc3545;
+  color: #475569;
 }
 
 .margem-indicador.bom .margem-label {
-  color: #ffc107;
+  color: #9a6900;
 }
 
 .margem-indicador.otimo .margem-label {
@@ -1516,7 +1560,7 @@ body { background: #f3f6fa; }
 .margem-zona.zona-minimo {
   left: 0;
   width: 33.33%;
-  background: #dc3545;
+  background: #64748b;
 }
 
 .margem-zona.zona-bom {
