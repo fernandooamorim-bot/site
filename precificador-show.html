@@ -26,36 +26,55 @@
   <script id="lucide-script" src="https://unpkg.com/lucide@1.39.0/dist/umd/lucide.min.js" async></script>
 
   <link rel="stylesheet" href="precificador-show.css?v=20260901e">
+  <link rel="stylesheet" href="app-loading.css?v=20260901b">
   <style>
-    /* Boot autônomo: não depende de CSS, ícones ou scripts externos. */
+    /*
+      Boot autônomo do mesmo componente compartilhado em app-loading.css.
+      Estas regras críticas são mantidas aqui para o primeiro desenho no Safari:
+      a abertura não pode depender de CSS ou ícones externos.
+    */
     html, body { min-height: 100%; background: #0f1a2e; }
     html.precificador-pronto, body.precificador-pronto { background: #f3f6fa; }
-    #precificador-loading-inicial {
+    #precificador-loading-inicial.app-loading {
       position: fixed;
       inset: 0;
       z-index: 2147483647;
-      display: flex;
-      align-items: center;
-      justify-content: center;
+      display: grid;
+      place-content: center;
       min-height: 100vh;
       min-height: 100dvh;
       padding: 28px;
       box-sizing: border-box;
       overflow: hidden;
       color: #fff;
-      background: #0f1a2e;
+      background: radial-gradient(circle at 50% 0%, #233d68 0%, #101d33 48%, #0a1324 100%);
       text-align: center;
+      opacity: 1;
+      visibility: visible;
+      transition: opacity .26s ease, visibility .26s ease;
     }
-    #precificador-loading-inicial.is-hidden { display: none; }
-    .precificador-loading__content { display: flex; flex-direction: column; align-items: center; gap: 12px; }
-    .precificador-loading__marca {
+    #precificador-loading-inicial.app-loading.is-hidden {
+      display: grid !important;
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+    }
+    #precificador-loading-inicial .app-loading__content { display: grid; justify-items: center; gap: 10px; }
+    #precificador-loading-inicial .app-loading__content strong { font: 700 1.05rem/1.25 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; letter-spacing: -.01em; }
+    #precificador-loading-inicial .app-loading__content p { max-width: 300px; margin: 0; color: rgba(255,255,255,.7); font: 500 .86rem/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    #precificador-loading-inicial .app-loading__content small { color: rgba(255,255,255,.32); font: 600 .72rem/1.25 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; letter-spacing: .02em; }
+    #precificador-loading-inicial .app-loading__logo {
       display: flex; align-items: center; justify-content: center;
-      width: 64px; height: 64px; border-radius: 12px;
+      width: 64px; height: 64px; margin-bottom: 9px; border-radius: 12px;
       color: #0a1628; background: linear-gradient(135deg, #d4a853, #e0bc6a);
-      font: 700 31px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      animation: app-loading-pulse 2s ease-in-out infinite;
     }
-    .precificador-loading__titulo { margin: 3px 0 0; font: 700 17px/1.25 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
-    .precificador-loading__detalhe { max-width: 300px; margin: 0; color: rgba(255,255,255,.72); font: 500 14px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    #precificador-loading-inicial .app-loading__logo svg { width: 28px; height: 28px; stroke: currentColor; }
+    @keyframes app-loading-pulse {
+      0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(212, 168, 83, .3); }
+      50% { transform: scale(1.05); box-shadow: 0 0 0 16px rgba(212, 168, 83, 0); }
+    }
+    @media (prefers-reduced-motion: reduce) { #precificador-loading-inicial .app-loading__logo { animation-duration: 1.8s; } }
   </style>
   <style>
     :root {
@@ -254,11 +273,14 @@
   <script src="header-profile.js?v=20260728c" defer></script>
 </head>
 <body>
-  <div id="precificador-loading-inicial" role="status" aria-live="polite" aria-label="Carregando precificador">
-    <div class="precificador-loading__content">
-      <div class="precificador-loading__marca" aria-hidden="true">♫</div>
-      <strong class="precificador-loading__titulo" id="precificador-loading-titulo">Preparando o precificador</strong>
-      <p class="precificador-loading__detalhe" id="precificador-loading-detalhe">Verificando seu acesso e as configurações atuais…</p>
+  <div id="precificador-loading-inicial" class="app-loading" role="status" aria-live="polite" aria-label="Carregando precificador">
+    <div class="app-loading__content">
+      <div class="app-loading__logo" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+      </div>
+      <strong id="precificador-loading-titulo">Preparando o precificador</strong>
+      <p id="precificador-loading-detalhe">Verificando seu acesso e as configurações atuais…</p>
+      <small>FA Produções • Sistema</small>
     </div>
   </div>
 
