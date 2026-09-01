@@ -35,7 +35,7 @@ document.addEventListener('DOMContentLoaded', async function () {
     if (!auth || !auth.ok || !auth.user) throw new Error('NOT_AUTH');
 
     if (!perfilPermitido(auth.user.perfil)) {
-      alert('Área disponível apenas para Proprietário e Administrador.');
+      alert('Área disponível para Proprietário, Sócio e Administrador.');
       window.location.href = 'index.html';
       return;
     }
@@ -169,12 +169,12 @@ function aplicarConfiguracoes_(cfg) {
   const terceirizados = Array.isArray(configuracoes.custosPadrao) ? configuracoes.custosPadrao : [];
   const parametros = configuracoes.padroesComerciais || {};
 
-  renderizarMusicos(musicos);
+  renderizarMusicos(musicos, configuracoes.frontend || {});
   renderizarTerceirizados(terceirizados);
   carregarParametrosPadrao(parametros);
 }
 
-function renderizarMusicos(musicos) {
+function renderizarMusicos(musicos, opcoesFrontend = {}) {
   const container = document.getElementById('musicos-list');
   if (!container) return;
   container.innerHTML = '';
@@ -182,6 +182,11 @@ function renderizarMusicos(musicos) {
   musicos.forEach((musico, index) => {
     const item = document.createElement('div');
     item.className = 'checkbox-item';
+
+    const valorVisivel = opcoesFrontend.exibirValoresEquipe && Number.isFinite(Number(musico.valor));
+    const valorTexto = valorVisivel
+      ? `<span class="musico-valor-base">R$ ${formatarMoeda(musico.valor)}</span>`
+      : '';
 
     item.innerHTML = `
       <label class="checkbox-label">
@@ -191,7 +196,8 @@ function renderizarMusicos(musicos) {
                data-banda-completa="${musico.bandaCompleta}"
                data-banda-reduzida="${musico.bandaReduzida}"
                onchange="toggleCheckbox(this)">
-        ${musico.nome}
+        <span>${escaparAttr_(musico.nome)}</span>
+        ${valorTexto}
       </label>
       <div class="production-value-wrap">
         <input type="number"
@@ -503,6 +509,7 @@ function exibirResultado(resultado) {
   document.getElementById('margem-valor-otimo').textContent = 'R$ ' + formatarMoeda(excelente.valor || 0);
   document.getElementById('margem-percent-bom').textContent = '+' + Number(ideal.percentualAumento || 0).toFixed(0) + '%';
   document.getElementById('margem-percent-otimo').textContent = '+' + Number(excelente.percentualAumento || 0).toFixed(0) + '%';
+  const frontend = (configuracoes && configuracoes.frontend) || {};
   document.getElementById('breakdown-comissoes').classList.add('hidden');
   document.getElementById('bd-musicos').textContent = 'R$ ' + formatarMoeda(custos.totalEquipe || 0);
   document.getElementById('bd-terceirizados').textContent = 'R$ ' + formatarMoeda(custos.totalCustos || 0);
@@ -524,10 +531,13 @@ function exibirResultado(resultado) {
     nfRow.style.display = 'none';
   }
 
+  const detalhamento = document.getElementById('breakdown-operacional');
+  if (detalhamento) detalhamento.classList.toggle('hidden', frontend.exibirDetalhamentoComercial === false);
+
   const destaqueFernando = document.getElementById('destaque-fernando');
-  destaqueFernando.classList.remove('hidden');
+  destaqueFernando.classList.toggle('hidden', frontend.exibirDestaqueVendedor === false);
   document.getElementById('destaque-label').textContent = '💰 Comissão do Vendedor';
-  document.getElementById('margem-negociacao').classList.remove('hidden');
+  document.getElementById('margem-negociacao').classList.toggle('hidden', frontend.exibirFaixasNegociacao === false);
   selecionarFaixa('ideal');
 
   document.getElementById('resultado').classList.add('show');

@@ -1451,7 +1451,7 @@
           <div class="nav-card-footer">
             <span class="access-badge restricted">
               <i data-lucide="shield"></i>
-              Proprietário e Administrador
+              Proprietário e Sócio
             </span>
           </div>
         </div>
@@ -2352,7 +2352,7 @@
       ocultar('cardFolhaCustos');
     }
 
-    // Card de Precificador de Show é para Proprietário e Administrador/Sócio.
+    // A calculadora é comercial: Sócio consulta, sem acesso ao financeiro do evento.
     const podePrecificador = (perfilNorm === 'proprietario') || isPerfilSocioOuAdmin(user.perfil);
     if (!podePrecificador) {
       ocultar('cardPrecificadorShow');

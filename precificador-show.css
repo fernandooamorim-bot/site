@@ -424,8 +424,20 @@
       flex: 1;
       display: flex;
       align-items: center;
+      gap: 8px;
       font-size: 0.95rem;
       color: var(--cor-texto);
+    }
+
+    .musico-valor-base {
+      margin-left: auto;
+      padding: 4px 8px;
+      border-radius: 999px;
+      background: #fff4cf;
+      color: #876615;
+      font-size: 0.78rem;
+      font-weight: 700;
+      white-space: nowrap;
     }
     
     .checkbox-value {
