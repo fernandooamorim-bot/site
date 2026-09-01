@@ -1295,10 +1295,108 @@
         font-size: 1.4rem;
       }
       
-      .destaque-fernando-valor {
-        font-size: 1.2rem;
-      }
+    .destaque-fernando-valor {
+      font-size: 1.2rem;
     }
+    }
+
+/* ===== REFINO VISUAL — PRECIFICADOR ===== */
+.precificador-loading-inicial {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-content: center;
+  gap: 10px;
+  padding: 28px;
+  text-align: center;
+  color: #fff;
+  background: radial-gradient(circle at 50% 0%, #233d68 0%, #101d33 48%, #0a1324 100%);
+  transition: opacity .26s ease, visibility .26s ease;
+}
+
+.precificador-loading-inicial.is-hidden {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.precificador-loading-inicial strong { font-size: 1.05rem; letter-spacing: -.01em; }
+.precificador-loading-inicial p { max-width: 300px; color: rgba(255,255,255,.7); font-size: .86rem; line-height: 1.45; }
+.precificador-loading-mark { display: flex; justify-content: center; align-items: end; gap: 6px; height: 34px; margin-bottom: 7px; }
+.precificador-loading-mark span { width: 7px; border-radius: 999px; background: #e0bc6a; animation: loading-bars .8s ease-in-out infinite alternate; }
+.precificador-loading-mark span:nth-child(1) { height: 14px; }
+.precificador-loading-mark span:nth-child(2) { height: 28px; animation-delay: .16s; }
+.precificador-loading-mark span:nth-child(3) { height: 19px; animation-delay: .32s; }
+
+@keyframes loading-bars { to { transform: translateY(-5px); opacity: .58; } }
+
+body { background: #f3f6fa; }
+.app-main { padding: 22px 16px 40px; }
+.container { max-width: 860px; background: transparent; box-shadow: none; overflow: visible; }
+.page-head { margin: 0 0 18px; padding: 2px 2px 8px; }
+.page-head h1 { font-size: clamp(1.35rem, 3vw, 1.7rem); letter-spacing: -.035em; }
+.page-head p { color: #667085; font-size: .92rem; }
+.content { padding: 0; display: grid; gap: 16px; }
+.section { margin: 0; padding: 22px; border: 1px solid #e1e8f1; border-radius: 16px; box-shadow: 0 8px 24px rgba(19, 43, 73, .06); }
+.section-kicker { margin-bottom: 7px; color: #927128; font-size: .7rem; font-weight: 800; letter-spacing: .1em; }
+.section-title { margin-bottom: 6px; font-size: 1.08rem; }
+.section-subtitle { margin: 0 0 16px; font-style: normal; line-height: 1.45; }
+.section-producao { background: linear-gradient(145deg, #fff 0%, #fbfcfe 100%); }
+.section-terceirizados { background: #fff; }
+.section-comercial { background: linear-gradient(145deg, #fffdf8 0%, #fff 76%); }
+
+.selection-buttons { gap: 9px; margin-bottom: 18px; }
+.btn-selection { min-width: 108px; border: 1px solid #ccd7e5; border-radius: 9px; background: #fff; font-size: .8rem; }
+.btn-selection:hover { border-color: #19345a; background: #19345a; }
+.equipe-group-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin: 2px 2px 10px; }
+.equipe-group-head span { color: #20395e; font-size: .86rem; font-weight: 800; }
+.equipe-group-head small { color: #8794a7; font-size: .75rem; }
+.checkbox-group { gap: 9px; }
+.checkbox-item { min-height: 58px; padding: 12px 14px; border: 1px solid #dce5ef; border-radius: 11px; background: #fff; box-shadow: 0 1px 0 rgba(16, 24, 40, .02); }
+.checkbox-item:hover { border-color: #c3a24e; background: #fffdf8; }
+.checkbox-item.active { border-color: #d4af37; background: #fff9e7; box-shadow: 0 0 0 3px rgba(212, 175, 55, .12); }
+.checkbox-item--adicional { border-color: #cadcf1; background: #f7fbff; }
+.checkbox-item--adicional.active { border-color: #5d92cf; background: #edf6ff; box-shadow: 0 0 0 3px rgba(93, 146, 207, .13); }
+.checkbox-item--adicional .checkbox-label::before { content: '⚙'; display: inline-grid; place-items: center; width: 25px; height: 25px; border-radius: 8px; background: #dbeafb; color: #356ca9; font-size: .78rem; }
+
+.adicionais-equipe { margin-top: 18px; padding: 14px; border: 1px solid #cfe0f3; border-radius: 13px; background: linear-gradient(145deg, #f2f8ff, #fbfdff); }
+.adicionais-equipe-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 11px; }
+.adicionais-equipe-head span:first-child { display: block; color: #28537f; font-size: .85rem; font-weight: 800; }
+.adicionais-equipe-head small { display: block; margin-top: 2px; color: #68819a; font-size: .74rem; }
+.adicionais-equipe-badge { padding: 4px 8px; border-radius: 999px; color: #356ca9; background: #dbeafb; font-size: .7rem; font-weight: 800; }
+
+.section-heading-row { margin-bottom: 15px; }
+.btn-add-manual { border-radius: 9px; }
+.option-row { border-radius: 11px; }
+.btn-primary { min-height: 54px; border-radius: 12px; letter-spacing: .02em; box-shadow: 0 8px 18px rgba(17, 24, 39, .16); }
+.btn-primary.is-loading { color: transparent; position: relative; pointer-events: none; }
+.btn-primary.is-loading::after { content: ''; position: absolute; width: 18px; height: 18px; border: 2px solid rgba(255,255,255,.4); border-top-color: #fff; border-radius: 50%; animation: spin .7s linear infinite; }
+.loading { padding: 14px 16px; border: 1px solid #dce7f2; border-radius: 12px; background: #f7fbff; color: #315276; }
+.loading.show { display: flex; align-items: center; justify-content: center; gap: 12px; text-align: left; }
+.loading .spinner { flex: 0 0 auto; width: 25px; height: 25px; margin: 0; border-width: 3px; }
+.loading strong { display: block; color: #1d3d60; font-size: .86rem; }
+.loading p { margin: 2px 0 0; color: #6f849a; font-size: .75rem; }
+
+@media (min-width: 720px) {
+  .content { grid-template-columns: minmax(0, 1.25fr) minmax(280px, .75fr); align-items: start; }
+  .section-producao, .resultado, .btn-primary, .loading, .erro { grid-column: 1 / -1; }
+  .section { padding: 24px; }
+}
+
+@media (max-width: 520px) {
+  .app-main { padding-inline: 12px; }
+  .section { padding: 18px 15px; border-radius: 14px; }
+  .selection-buttons { display: grid; grid-template-columns: 1fr 1fr; }
+  .btn-selection { min-width: 0; }
+  .btn-selection.btn-edit-values { grid-column: 1 / -1; }
+  .equipe-group-head small { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .precificador-loading-mark span, .btn-primary.is-loading::after { animation-duration: 1.8s; }
+  .precificador-loading-inicial { transition: none; }
+}
 
 /* ═══════════════════════════════════════════════════════════
    MARGEM VISUAL DE NEGOCIAÇÃO

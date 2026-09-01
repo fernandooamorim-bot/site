@@ -10,6 +10,8 @@ let faixaSelecionada = 'ideal';
 let CURRENT_USER_EMAIL = '';
 let manualCostCounter = 0;
 let edicaoProducaoAtiva = false;
+const ABERTURA_INICIADA_EM = Date.now();
+const ABERTURA_MINIMA_MS = 320;
 
 function normalizarPerfil(perfil) {
   return String(perfil || '')
@@ -27,6 +29,7 @@ function perfilPermitido(perfil) {
 document.addEventListener('DOMContentLoaded', async function () {
   setupEventListeners();
   if (window.lucide) window.lucide.createIcons();
+  atualizarLoadingInicial_('Verificando seu acesso', 'Só um instante enquanto validamos sua sessão…');
 
   try {
     if (!window.Auth) throw new Error('AUTH_NOT_LOADED');
@@ -43,9 +46,10 @@ document.addEventListener('DOMContentLoaded', async function () {
     CURRENT_USER_EMAIL = String(auth.user.email || localStorage.getItem('auth_email') || '').trim();
     if (auth.user.nome) localStorage.setItem('auth_nome', String(auth.user.nome));
 
-    showApp();
+    atualizarLoadingInicial_('Preparando o precificador', 'Carregando equipe, custos e condições atuais…');
     await carregarConfiguracoes();
     showApp();
+    finalizarLoadingInicial_();
   } catch (error) {
     console.error('❌ Erro na inicialização:', error);
     if (error && (error.name === 'AuthSessionError' || error.message === 'NOT_AUTH' || error.message === 'AUTH_NOT_LOADED')) {
@@ -54,9 +58,27 @@ document.addEventListener('DOMContentLoaded', async function () {
       return;
     }
     showApp();
+    finalizarLoadingInicial_();
     mostrarErro('Não foi possível carregar as configurações do precificador. Tente novamente em instantes.');
   }
 });
+
+function atualizarLoadingInicial_(titulo, detalhe) {
+  const tituloEl = document.getElementById('precificador-loading-titulo');
+  const detalheEl = document.getElementById('precificador-loading-detalhe');
+  if (tituloEl) tituloEl.textContent = titulo;
+  if (detalheEl) detalheEl.textContent = detalhe;
+}
+
+function finalizarLoadingInicial_() {
+  const loading = document.getElementById('precificador-loading-inicial');
+  const app = document.getElementById('app-screen');
+  const aguardar = Math.max(0, ABERTURA_MINIMA_MS - (Date.now() - ABERTURA_INICIADA_EM));
+  window.setTimeout(() => {
+    if (app) app.setAttribute('aria-busy', 'false');
+    if (loading) loading.classList.add('is-hidden');
+  }, aguardar);
+}
 
 function setupEventListeners() {
   const btnLogout = document.getElementById('btn-logout');
@@ -175,13 +197,17 @@ function aplicarConfiguracoes_(cfg) {
 }
 
 function renderizarMusicos(musicos, opcoesFrontend = {}) {
-  const container = document.getElementById('musicos-list');
-  if (!container) return;
-  container.innerHTML = '';
+  const integrantesContainer = document.getElementById('musicos-list');
+  const adicionaisContainer = document.getElementById('adicionais-equipe-list');
+  const adicionaisSection = document.getElementById('adicionais-equipe-section');
+  if (!integrantesContainer || !adicionaisContainer) return;
+  integrantesContainer.innerHTML = '';
+  adicionaisContainer.innerHTML = '';
 
   musicos.forEach((musico, index) => {
     const item = document.createElement('div');
-    item.className = 'checkbox-item';
+    const adicional = adicionalDaEquipe_(musico);
+    item.className = 'checkbox-item' + (adicional ? ' checkbox-item--adicional' : '');
 
     const valorVisivel = opcoesFrontend.exibirValoresEquipe && Number.isFinite(Number(musico.valor));
     const valorTexto = valorVisivel
@@ -210,13 +236,20 @@ function renderizarMusicos(musicos, opcoesFrontend = {}) {
                oninput="atualizarValorMusicoManual(this)">
       </div>
     `;
-    container.appendChild(item);
+    (adicional ? adicionaisContainer : integrantesContainer).appendChild(item);
   });
+
+  if (adicionaisSection) adicionaisSection.classList.toggle('hidden', adicionaisContainer.children.length === 0);
 
   aplicarEstadoEdicaoProducao_();
 
   const loading = document.getElementById('musicos-loading');
   if (loading) loading.classList.add('hidden');
+}
+
+function adicionalDaEquipe_(item) {
+  const nome = normalizarPerfil(item && item.nome);
+  return nome.includes('passagem de som') || nome.includes('evento fora da cidade') || nome.includes('evento fora de fortaleza');
 }
 
 function toggleEdicaoProducao() {
@@ -415,7 +448,9 @@ async function calcular() {
   document.getElementById('resultado').classList.remove('show');
   document.getElementById('erro').classList.remove('show');
   document.getElementById('loading').classList.add('show');
-  document.getElementById('btn-calcular').disabled = true;
+  const botao = document.getElementById('btn-calcular');
+  botao.disabled = true;
+  botao.classList.add('is-loading');
 
   const dadosEvento = coletarDadosEvento();
 
@@ -423,7 +458,8 @@ async function calcular() {
     const response = await apiPost('simularPrecificadorShow', { simulacaoJson: JSON.stringify(dadosEvento) });
 
     document.getElementById('loading').classList.remove('show');
-    document.getElementById('btn-calcular').disabled = false;
+    botao.disabled = false;
+    botao.classList.remove('is-loading');
 
     if (response.sucesso) {
       ultimoResultado = response;
@@ -433,7 +469,8 @@ async function calcular() {
     }
   } catch (error) {
     document.getElementById('loading').classList.remove('show');
-    document.getElementById('btn-calcular').disabled = false;
+    botao.disabled = false;
+    botao.classList.remove('is-loading');
     mostrarErro('Erro ao calcular: ' + String(error.message || error));
   }
 }

@@ -24,7 +24,7 @@
   <script src="auth.js?v=20260311b" defer></script>
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js" defer></script>
 
-  <link rel="stylesheet" href="precificador-show.css?v=20260831c">
+  <link rel="stylesheet" href="precificador-show.css?v=20260831d">
   <style>
     :root {
       --navy-800: #0f1a2e;
@@ -222,6 +222,11 @@
   <script src="header-profile.js?v=20260728c" defer></script>
 </head>
 <body>
+  <div class="precificador-loading-inicial" id="precificador-loading-inicial" role="status" aria-live="polite" aria-label="Carregando precificador">
+    <div class="precificador-loading-mark" aria-hidden="true"><span></span><span></span><span></span></div>
+    <strong id="precificador-loading-titulo">Preparando o precificador</strong>
+    <p id="precificador-loading-detalhe">Verificando seu acesso e as configurações atuais…</p>
+  </div>
   <div class="global-header">
     <a class="global-header-brand" onclick="window.location.href='index.html?menu=1'" title="Voltar ao Início">
       <div class="global-header-back"><i data-lucide="arrow-left"></i></div>
@@ -238,7 +243,7 @@
     </div>
   </div>
 
-  <div id="app-screen" class="app-screen">
+  <div id="app-screen" class="app-screen hidden" aria-busy="true">
     <main class="app-main">
       <div class="container">
         <div class="page-head">
@@ -249,9 +254,10 @@
         <span id="user-email" class="hidden"></span>
 
         <div class="content">
-          <div class="section">
+          <div class="section section-producao">
+            <div class="section-kicker">FORMAÇÃO DO SHOW</div>
             <div class="section-title">👥 Produção do Show</div>
-            <div class="section-subtitle">Selecione os músicos necessários para o show</div>
+            <div class="section-subtitle">Monte a equipe e ative os adicionais que este evento realmente precisa.</div>
 
             <div class="selection-buttons">
               <button class="btn-selection" onclick="selecionarTodos()">Selecionar Todos</button>
@@ -268,18 +274,27 @@
               <span>Use apenas quando o cachê deste evento for diferente do valor padrão. A planilha não será alterada.</span>
             </div>
 
+            <div class="equipe-group-head">
+              <span>Integrantes da banda</span>
+              <small>Selecione quem toca no show</small>
+            </div>
             <div class="checkbox-group" id="musicos-list">
-              <div class="loading-skeleton" id="musicos-loading">
-                <div class="skeleton-item"></div>
-                <div class="skeleton-item"></div>
-                <div class="skeleton-item"></div>
-                <div class="skeleton-item"></div>
+              <div class="loading-skeleton" id="musicos-loading" aria-label="Carregando integrantes">
+                <div class="skeleton-item"></div><div class="skeleton-item"></div><div class="skeleton-item"></div>
               </div>
+            </div>
+
+            <div class="adicionais-equipe hidden" id="adicionais-equipe-section">
+              <div class="adicionais-equipe-head">
+                <div><span>Configurações do evento</span><small>Não são integrantes da banda</small></div>
+                <span class="adicionais-equipe-badge">Adicionais</span>
+              </div>
+              <div class="checkbox-group" id="adicionais-equipe-list"></div>
             </div>
 
           </div>
 
-          <div class="section">
+          <div class="section section-terceirizados">
             <div class="section-heading-row">
               <div>
                 <div class="section-title">🚐 Custos Terceirizados</div>
@@ -294,7 +309,7 @@
             <div class="manual-costs-list" id="manual-costs-list"></div>
           </div>
 
-          <div class="section">
+          <div class="section section-comercial">
             <div class="section-title">💼 Configurações Comerciais</div>
             <div class="comercial-options">
 
@@ -337,9 +352,9 @@
             🧮 CALCULAR PREÇO MÍNIMO
           </button>
 
-          <div class="loading" id="loading">
+          <div class="loading" id="loading" role="status" aria-live="polite">
             <div class="spinner"></div>
-            <p>Calculando...</p>
+            <div><strong>Calculando a melhor faixa</strong><p>Considerando equipe, custos e condições comerciais.</p></div>
           </div>
 
           <div class="erro" id="erro">
@@ -451,6 +466,6 @@
     </button>
   </nav>
 
-  <script src="precificador-show-app.js?v=20260831g"></script>
+  <script src="precificador-show-app.js?v=20260831h"></script>
 </body>
 </html>
