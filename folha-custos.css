@@ -1659,6 +1659,6 @@ body { background: var(--color-bg); line-height: 1.5; }
   .quick-actions .btn-quick { min-width: 0; }
   .musico-card { min-height: 0; }
   .resumo-total { grid-column: auto; }
-  .card-actions .btn-primary { width: 100%; flex-basis: 100%; }
+  .card-actions .btn-primary { width: 100%; flex: 0 0 auto; min-height: 52px; }
   .info-badge { margin-left: 0; }
 }
