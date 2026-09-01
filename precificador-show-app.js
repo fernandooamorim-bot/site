@@ -213,6 +213,7 @@ function renderizarMusicos(musicos, opcoesFrontend = {}) {
     const valorTexto = valorVisivel
       ? `<span class="musico-valor-base">R$ ${formatarMoeda(musico.valor)}</span>`
       : '';
+    const nomeMusico = textoEquipe_(musico.nome);
 
     item.innerHTML = `
       <label class="checkbox-label">
@@ -222,7 +223,7 @@ function renderizarMusicos(musicos, opcoesFrontend = {}) {
                data-banda-completa="${musico.bandaCompleta}"
                data-banda-reduzida="${musico.bandaReduzida}"
                onchange="toggleCheckbox(this)">
-        <span>${escaparAttr_(musico.nome)}</span>
+        <span>${escaparAttr_(nomeMusico)}</span>
         ${valorTexto}
       </label>
       <div class="production-value-wrap">
@@ -250,6 +251,10 @@ function renderizarMusicos(musicos, opcoesFrontend = {}) {
 function adicionalDaEquipe_(item) {
   const nome = normalizarPerfil(item && item.nome);
   return nome.includes('passagem de som') || nome.includes('evento fora da cidade') || nome.includes('evento fora de fortaleza');
+}
+
+function textoEquipe_(valor) {
+  return String(valor || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
 }
 
 function toggleEdicaoProducao() {
