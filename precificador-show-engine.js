@@ -68,6 +68,18 @@ function precificadorShowAcrescimosFaixa_(config) {
   return { ideal: ideal, excelente: excelente };
 }
 
+function precificadorShowPisoComercial_(config) {
+  const origem = (config && config.pisoComercial) || {};
+  const ativoNormalizado = precificadorShowNormalizarChave_(origem.ativo);
+  const ativo = origem.ativo === true || ['SIM', 'TRUE', 'ATIVO', '1'].indexOf(ativoNormalizado) !== -1;
+  const valor = precificadorShowDinheiro_(precificadorShowNumero_(origem.valor, 0));
+
+  // Um piso desligado não participa do cálculo. Quando ligado, valor nulo ou
+  // negativo seria uma configuração ambígua e deve falhar antes de precificar.
+  if (ativo && valor <= 0) throw new Error('PRECIFICADOR_PISO_COMERCIAL_INVALIDO');
+  return { ativo: ativo, valor: valor };
+}
+
 function precificadorShowSomarCustos_(entrada, config) {
   const equipeSelecionada = Array.isArray(entrada && entrada.equipe) ? entrada.equipe : [];
   const custosInformados = Array.isArray(entrada && entrada.custos) ? entrada.custos : [];
@@ -207,6 +219,7 @@ function precificadorShowSimular_(entrada, config) {
   const perfil = precificadorShowPerfil_(entrada || {}, config || {});
   const margemMinima = precificadorShowMargemMinima_(perfil, config || {});
   const acrescimos = precificadorShowAcrescimosFaixa_(config || {});
+  const pisoComercial = precificadorShowPisoComercial_(config || {});
   const comercial = (entrada && entrada.comercial) || {};
   const bonusExcelente = precificadorShowNumero_(config && config.bonusVendedorExcelente, 0);
   const base = {
@@ -216,7 +229,11 @@ function precificadorShowSimular_(entrada, config) {
     nf: comercial.nf || { ativo: false },
     taxasPercentuais: comercial.taxasPercentuais
   };
-  const minimo = precificadorShowCalcularMinimo_(Object.assign({}, base, { margem: margemMinima, bonusVendedor: 0 }));
+  const minimoFinanceiro = precificadorShowCalcularMinimo_(Object.assign({}, base, { margem: margemMinima, bonusVendedor: 0 }));
+  const pisoAplicado = pisoComercial.ativo && pisoComercial.valor > minimoFinanceiro.valor;
+  const minimo = pisoAplicado
+    ? precificadorShowDetalharPreco_(Object.assign({}, base, { preco: pisoComercial.valor, bonusVendedor: 0 }))
+    : minimoFinanceiro;
   const ideal = precificadorShowDetalharPreco_(Object.assign({}, base, {
     preco: minimo.valor * (1 + (acrescimos.ideal / 100)),
     bonusVendedor: 0
@@ -232,6 +249,16 @@ function precificadorShowSimular_(entrada, config) {
     faixas: { minimo: minimo, ideal: ideal, excelente: excelente },
     custos: custos,
     alertas: custos.alertas,
-    interno: { perfil: perfil, margemMinima: margemMinima, acrescimos: acrescimos }
+    interno: {
+      perfil: perfil,
+      margemMinima: margemMinima,
+      acrescimos: acrescimos,
+      pisoComercial: {
+        ativo: pisoComercial.ativo,
+        valorConfigurado: pisoComercial.valor,
+        aplicado: pisoAplicado,
+        minimoFinanceiro: minimoFinanceiro.valor
+      }
+    }
   };
 }

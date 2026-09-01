@@ -110,6 +110,10 @@ function precificadorShowLerConfiguracao_() {
       ideal: precificadorShowValorParametro_(parametros, ['Acréscimo Ideal (%)', 'Acrescimo Ideal (%)', 'Margem Bom (%)'], 40),
       excelente: precificadorShowValorParametro_(parametros, ['Acréscimo Excelente (%)', 'Acrescimo Excelente (%)', 'Margem Ótimo (%)', 'Margem Otimo (%)'], 70)
     },
+    pisoComercial: {
+      ativo: precificadorShowBooleanoParametro_(parametros, ['Ativar Piso Comercial'], false),
+      valor: precificadorShowValorParametro_(parametros, ['Piso Comercial (R$)'], 0)
+    },
     bonusVendedorExcelente: precificadorShowValorParametro_(parametros, ['Bônus Vendedor Excelente (p.p.)', 'Bonus Vendedor Excelente (p.p.)'], 2),
     frontend: {
       exibirValoresEquipe: precificadorShowBooleanoParametro_(parametrosFrontend, ['Exibir Valores da Equipe', 'Exibir Valores dos Músicos'], false),
