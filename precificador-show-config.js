@@ -30,12 +30,25 @@ function precificadorShowValorParametro_(mapa, chaves, fallback) {
   return fallback;
 }
 
+function precificadorShowBooleanoParametro_(mapa, chaves, fallback) {
+  for (let i = 0; i < chaves.length; i++) {
+    const chave = precificadorShowNormalizarChave_(chaves[i]);
+    if (!Object.prototype.hasOwnProperty.call(mapa, chave)) continue;
+    const valor = precificadorShowNormalizarChave_(mapa[chave]);
+    if (['SIM', 'TRUE', 'ATIVO', '1'].indexOf(valor) !== -1) return true;
+    if (['NAO', 'FALSE', 'INATIVO', '0', ''].indexOf(valor) !== -1) return false;
+  }
+  return !!fallback;
+}
+
 function precificadorShowLerConfiguracao_() {
   const planilha = SpreadsheetApp.openById(precificadorShowIdPlanilha_());
   const linhasEquipe = precificadorShowLerAba_(planilha, 'Config_Musicos', 5);
   const linhasParametros = precificadorShowLerAba_(planilha, 'Config_Parametros', 2);
+  const linhasFrontend = precificadorShowLerAba_(planilha, 'Config_Frontend', 2);
   const linhasTerceirizados = precificadorShowLerAba_(planilha, 'Config_Terceirizados', 3);
   const parametros = {};
+  const parametrosFrontend = {};
   const equipePorId = {};
   const equipe = [];
   const custosPadrao = [];
@@ -43,6 +56,10 @@ function precificadorShowLerConfiguracao_() {
   for (let i = 1; i < linhasParametros.length; i++) {
     const chave = precificadorShowTexto_(linhasParametros[i][0]);
     if (chave) parametros[precificadorShowNormalizarChave_(chave)] = linhasParametros[i][1];
+  }
+  for (let i = 1; i < linhasFrontend.length; i++) {
+    const chave = precificadorShowTexto_(linhasFrontend[i][0]);
+    if (chave) parametrosFrontend[precificadorShowNormalizarChave_(chave)] = linhasFrontend[i][1];
   }
   for (let i = 1; i < linhasEquipe.length; i++) {
     const nome = precificadorShowTexto_(linhasEquipe[i][0]);
@@ -94,6 +111,12 @@ function precificadorShowLerConfiguracao_() {
       excelente: precificadorShowValorParametro_(parametros, ['Acréscimo Excelente (%)', 'Acrescimo Excelente (%)', 'Margem Ótimo (%)', 'Margem Otimo (%)'], 70)
     },
     bonusVendedorExcelente: precificadorShowValorParametro_(parametros, ['Bônus Vendedor Excelente (p.p.)', 'Bonus Vendedor Excelente (p.p.)'], 2),
+    frontend: {
+      exibirValoresEquipe: precificadorShowBooleanoParametro_(parametrosFrontend, ['Exibir Valores da Equipe', 'Exibir Valores dos Músicos'], false),
+      exibirDetalhamentoComercial: precificadorShowBooleanoParametro_(parametrosFrontend, ['Exibir Breakdown Comissões', 'Exibir Detalhamento Comercial', 'Exibir Custos Operacionais'], true),
+      exibirDestaqueVendedor: precificadorShowBooleanoParametro_(parametrosFrontend, ['Exibir Destaque do Vendedor', 'Exibir Destaque Fernando'], true),
+      exibirFaixasNegociacao: precificadorShowBooleanoParametro_(parametrosFrontend, ['Exibir Faixas de Negociação', 'Exibir Margem Negociação'], true)
+    },
     padroesComerciais: {
       bvPercentual: precificadorShowValorParametro_(parametros, ['BV Padrão (%)'], 0),
       nfPercentual: precificadorShowValorParametro_(parametros, ['NF Simples Nacional (%)'], 0),
@@ -107,10 +130,13 @@ function precificadorShowObterFormulario_() {
   return {
     sucesso: true,
     equipe: config.equipe.map(function (item) {
-      return { id: item.id, nome: item.nome, bandaCompleta: item.bandaCompleta, bandaReduzida: item.bandaReduzida };
+      const retorno = { id: item.id, nome: item.nome, bandaCompleta: item.bandaCompleta, bandaReduzida: item.bandaReduzida };
+      if (config.frontend.exibirValoresEquipe) retorno.valor = item.valor;
+      return retorno;
     }),
     custosPadrao: config.custosPadrao,
-    padroesComerciais: config.padroesComerciais
+    padroesComerciais: config.padroesComerciais,
+    frontend: config.frontend
   };
 }
 

@@ -991,24 +991,10 @@ if (action === 'aprovarPendenciaFolhaCusto') {
 }
 
 // ======================================================
-// 15. PRECIFICADOR DE SHOW (CALCULADORA COM CONFIGURAÇÃO EXTERNA)
+// 15. PRECIFICADOR DE SHOW (CALCULADORA NO SISTEMA PRINCIPAL)
 // ======================================================
 if (action === 'obterPrecificadorShowFormulario' || action === 'simularPrecificadorShow' || action === 'salvarPrecificadorShowSimulacao') {
-  const usuario = exigirAcao('eventos:visualizarFinanceiro');
-  const perfilNorm = String((usuario && usuario.PERFIL) || '')
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .trim()
-    .toLowerCase();
-  const permitido = (
-    perfilNorm === 'proprietario' ||
-    perfilNorm === 'administrador' ||
-    perfilNorm === 'admin' ||
-    perfilNorm === 'socio'
-  );
-  if (!permitido) {
-    throw new Error('FORBIDDEN_ACTION: precificadorShow:acessar');
-  }
+  exigirAcao('precificador:acessar');
   return json(
     action === 'obterPrecificadorShowFormulario'
       ? precificadorShowObterFormulario_()
@@ -1720,6 +1706,7 @@ const SOCIO_RULES = [
   'eventos:cancelar',
   'eventos:listar',
   'eventos:visualizarFinanceiro',
+  'precificador:acessar',
   'eventos:registrarSaidaBV',
   'agenda:gerarSemanal',
   'orcamento:gerar',
