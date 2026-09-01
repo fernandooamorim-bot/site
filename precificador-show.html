@@ -24,8 +24,37 @@
   <script src="auth.js?v=20260311b" defer></script>
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js" defer></script>
 
-  <link rel="stylesheet" href="precificador-show.css?v=20260901b">
-  <link rel="stylesheet" href="app-loading.css?v=20260901b">
+  <!-- Camada crítica: evita que o Safari mostre a página parcialmente antes do CSS externo. -->
+  <style>
+    html { background: #0a1324; }
+    body { margin: 0; background: #0a1324; }
+    #precificador-loading-inicial {
+      position: fixed;
+      inset: 0;
+      z-index: 2147483647;
+      display: grid;
+      place-content: center;
+      min-height: 100vh;
+      min-height: 100svh;
+      width: 100%;
+      padding: 28px;
+      box-sizing: border-box;
+      overflow: hidden;
+      text-align: center;
+      color: #fff;
+      background: radial-gradient(circle at 50% 0%, #233d68 0%, #101d33 48%, #0a1324 100%);
+      opacity: 1;
+      visibility: visible;
+      transition: opacity .26s ease, visibility .26s ease;
+    }
+    #precificador-loading-inicial.is-hidden {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+    }
+  </style>
+  <link rel="stylesheet" href="precificador-show.css?v=20260901c">
+  <link rel="stylesheet" href="app-loading.css?v=20260901c">
   <style>
     :root {
       --navy-800: #0f1a2e;
