@@ -86,6 +86,8 @@ function finalizarLoadingInicial_() {
       app.classList.remove('hidden');
       app.setAttribute('aria-busy', 'false');
     }
+    document.documentElement.classList.add('precificador-pronto');
+    document.body.classList.add('precificador-pronto');
     if (loading) loading.classList.add('is-hidden');
   }, aguardar);
 }
