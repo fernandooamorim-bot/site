@@ -12,8 +12,6 @@ let manualCostCounter = 0;
 let edicaoProducaoAtiva = false;
 const ABERTURA_INICIADA_EM = Date.now();
 const ABERTURA_MINIMA_MS = 320;
-const PRECIFICADOR_FORM_CACHE_PREFIX = 'precificadorShow:formulario:v2:';
-const PRECIFICADOR_FORM_CACHE_TTL_MS = 10 * 60 * 1000;
 
 function normalizarPerfil(perfil) {
   return String(perfil || '')
@@ -48,19 +46,10 @@ document.addEventListener('DOMContentLoaded', async function () {
     CURRENT_USER_EMAIL = String(auth.user.email || localStorage.getItem('auth_email') || '').trim();
     if (auth.user.nome) localStorage.setItem('auth_nome', String(auth.user.nome));
 
-    const cache = lerCacheFormulario_();
-    if (cache) {
-      aplicarConfiguracoes_(cache.formulario);
-      showApp();
-      finalizarLoadingInicial_();
-      await sincronizarFormularioEmSegundoPlano_(cache.formulario);
-    } else {
-      atualizarLoadingInicial_('Preparando o precificador', 'Carregando equipe, custos e condições atuais…');
-      const formulario = await carregarConfiguracoes();
-      salvarCacheFormulario_(formulario);
-      showApp();
-      finalizarLoadingInicial_();
-    }
+    atualizarLoadingInicial_('Preparando o precificador', 'Carregando equipe, custos e condições atuais…');
+    await carregarConfiguracoes();
+    showApp();
+    finalizarLoadingInicial_();
   } catch (error) {
     console.error('❌ Erro na inicialização:', error);
     if (error && (error.name === 'AuthSessionError' || error.message === 'NOT_AUTH' || error.message === 'AUTH_NOT_LOADED')) {
@@ -86,80 +75,13 @@ function finalizarLoadingInicial_() {
   const app = document.getElementById('app-screen');
   const aguardar = Math.max(0, ABERTURA_MINIMA_MS - (Date.now() - ABERTURA_INICIADA_EM));
   window.setTimeout(() => {
-    if (app) app.setAttribute('aria-busy', 'false');
+    if (app) {
+      // Invariante de abertura: o loading nunca sai antes da tela principal.
+      app.classList.remove('hidden');
+      app.setAttribute('aria-busy', 'false');
+    }
     if (loading) loading.classList.add('is-hidden');
   }, aguardar);
-}
-
-function chaveCacheFormulario_() {
-  const email = String(CURRENT_USER_EMAIL || '').trim().toLowerCase();
-  return email ? PRECIFICADOR_FORM_CACHE_PREFIX + encodeURIComponent(email) : '';
-}
-
-function lerCacheFormulario_() {
-  const chave = chaveCacheFormulario_();
-  if (!chave) return null;
-  try {
-    const cache = JSON.parse(localStorage.getItem(chave) || 'null');
-    if (!cache || !cache.ts || !cache.formulario || cache.formulario.sucesso !== true) return null;
-    if ((Date.now() - Number(cache.ts)) > PRECIFICADOR_FORM_CACHE_TTL_MS) return null;
-    return cache;
-  } catch (_) {
-    return null;
-  }
-}
-
-function salvarCacheFormulario_(formulario) {
-  const chave = chaveCacheFormulario_();
-  if (!chave || !formulario || formulario.sucesso !== true) return;
-  try {
-    localStorage.setItem(chave, JSON.stringify({ ts: Date.now(), formulario: formulario }));
-  } catch (_) {
-    // Sem espaço local, a abertura continua pela leitura remota normal.
-  }
-}
-
-function atualizarDisponibilidadeCalculo_(sincronizando) {
-  const botao = document.getElementById('btn-calcular');
-  if (!botao) return;
-  botao.disabled = !!sincronizando;
-  botao.classList.toggle('is-loading', !!sincronizando);
-  botao.setAttribute('aria-busy', sincronizando ? 'true' : 'false');
-}
-
-function assinaturaFormulario_(formulario) {
-  return JSON.stringify({
-    equipe: formulario && formulario.equipe,
-    custosPadrao: formulario && formulario.custosPadrao,
-    padroesComerciais: formulario && formulario.padroesComerciais,
-    frontend: formulario && formulario.frontend
-  });
-}
-
-async function sincronizarFormularioEmSegundoPlano_(formularioCache) {
-  atualizarDisponibilidadeCalculo_(true);
-  let confirmado = false;
-  try {
-    const formularioAtual = await carregarConfiguracoes();
-    if (assinaturaFormulario_(formularioAtual) !== assinaturaFormulario_(formularioCache)) {
-      aplicarConfiguracoes_(formularioAtual);
-    }
-    salvarCacheFormulario_(formularioAtual);
-    confirmado = true;
-  } catch (error) {
-    console.error('❌ Erro ao sincronizar configurações:', error);
-    mostrarErro('Não foi possível confirmar as configurações atuais. Recarregue a página antes de calcular.');
-  } finally {
-    if (confirmado) {
-      atualizarDisponibilidadeCalculo_(false);
-    } else {
-      const botao = document.getElementById('btn-calcular');
-      if (botao) {
-        botao.classList.remove('is-loading');
-        botao.setAttribute('aria-busy', 'false');
-      }
-    }
-  }
 }
 
 function setupEventListeners() {
