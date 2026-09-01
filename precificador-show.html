@@ -25,6 +25,7 @@
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js" defer></script>
 
   <link rel="stylesheet" href="precificador-show.css?v=20260901a">
+  <link rel="stylesheet" href="app-loading.css?v=20260901a">
   <style>
     :root {
       --navy-800: #0f1a2e;
@@ -222,8 +223,9 @@
   <script src="header-profile.js?v=20260728c" defer></script>
 </head>
 <body>
-  <div class="precificador-loading-inicial" id="precificador-loading-inicial" role="status" aria-live="polite" aria-label="Carregando precificador">
-    <div class="precificador-loading-logo" aria-hidden="true"><i data-lucide="music"></i></div>
+  <div class="app-loading" id="precificador-loading-inicial" role="status" aria-live="polite" aria-label="Carregando precificador">
+    <div class="app-loading__content">
+      <div class="app-loading__logo" aria-hidden="true"><i data-lucide="music"></i></div>
     <strong id="precificador-loading-titulo">Preparando o precificador</strong>
     <p id="precificador-loading-detalhe">Verificando seu acesso e as configurações atuais…</p>
   </div>
@@ -255,7 +257,6 @@
 
         <div class="content">
           <div class="section section-producao">
-            <div class="section-kicker">FORMAÇÃO DO SHOW</div>
             <div class="section-title"><i data-lucide="users-round"></i>Produção do Show</div>
             <div class="section-subtitle">Monte a equipe e ative os adicionais que este evento realmente precisa.</div>
 
