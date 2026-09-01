@@ -250,6 +250,25 @@ function normalizarTextoTituloEvento_(valor) {
   return String(valor || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
 }
 
+function normalizarSeparadoresTituloEvento_(valor) {
+  return String(valor || '')
+    .replace(/\s*[-–—:|/]\s*/g, ' - ')
+    .replace(/(?:\s*-\s*){2,}/g, ' - ')
+    .replace(/^\s*-\s*|\s*-\s*$/g, '')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+}
+
+function removerPrefixoTituloEvento_(valor, prefixo) {
+  const base = String(valor || '').trim();
+  const tipo = String(prefixo || '').trim();
+  if (!base || !tipo) return base;
+  const tipoEscapado = tipo.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return normalizarSeparadoresTituloEvento_(
+    base.replace(new RegExp('^' + tipoEscapado + '\\b\\s*[-–—:|/]?\\s*', 'i'), '')
+  );
+}
+
 function comporTituloEventoComTipo_(tipoEvento, nomeBase) {
   const tipo = String(tipoEvento || '').trim();
   let base = String(nomeBase || '').trim();
@@ -258,13 +277,39 @@ function comporTituloEventoComTipo_(tipoEvento, nomeBase) {
 
   const tipoEscapado = tipo.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const regexTipo = new RegExp('\\b' + tipoEscapado + '\\b', 'ig');
-  base = base.replace(regexTipo, ' ')
-    .replace(/\s*[-–—:|/]\s*/g, ' - ')
-    .replace(/(?:\s*-\s*){2,}/g, ' - ')
-    .replace(/^\s*-\s*|\s*-\s*$/g, '')
-    .replace(/\s{2,}/g, ' ')
-    .trim();
+  // Em Evento/Reserva, o tipo é uma categoria e deve aparecer uma única vez,
+  // inclusive quando foi digitado entre nomes (ex.: "Ana Casamento Bruno").
+  base = normalizarSeparadoresTituloEvento_(base.replace(regexTipo, ' '));
   return base ? tipo + ' - ' + base : tipo;
+}
+
+function comporTituloComPrefixoInicial_(prefixo, nomeBase) {
+  const tipo = String(prefixo || '').trim();
+  const base = String(nomeBase || '').trim();
+  if (!base) return tipo;
+  if (!tipo) return base;
+  const semPrefixo = removerPrefixoTituloEvento_(base, tipo);
+  // Compromissos preservam frases naturais como "Ensaio da banda".
+  if (semPrefixo !== base) return normalizarSeparadoresTituloEvento_(base);
+  return tipo + ' - ' + base;
+}
+
+function comporTituloReuniao_(motivo, nomeEvento) {
+  const motivoBruto = String(motivo || '').trim();
+  const assuntoBruto = String(nomeEvento || '').trim();
+  let tituloMotivo = motivoBruto || 'Reunião';
+  if (!/^reuni[aã]o\b/i.test(tituloMotivo)) tituloMotivo = 'Reunião - ' + tituloMotivo;
+  tituloMotivo = normalizarSeparadoresTituloEvento_(tituloMotivo);
+
+  const assunto = removerPrefixoTituloEvento_(assuntoBruto, 'Reunião');
+  if (!assunto) return tituloMotivo;
+  const motivoNormalizado = normalizarTextoTituloEvento_(tituloMotivo);
+  const assuntoNormalizado = normalizarTextoTituloEvento_(assunto);
+  if (motivoNormalizado.indexOf(assuntoNormalizado) !== -1 ||
+      assuntoNormalizado.indexOf(motivoNormalizado) !== -1) {
+    return tituloMotivo;
+  }
+  return tituloMotivo + ' - ' + assunto;
 }
 
 function prefixoTituloRegistro_(tipoRegistro, tipoEvento) {
@@ -278,20 +323,26 @@ function prefixoTituloRegistro_(tipoRegistro, tipoEvento) {
   return registro || tipo;
 }
 
-function comporTituloRegistroNovo_(tipoRegistro, tipoEvento, nomeEvento) {
-  return comporTituloEventoComTipo_(prefixoTituloRegistro_(tipoRegistro, tipoEvento), nomeEvento);
+function comporTituloRegistroNovo_(tipoRegistro, tipoEvento, nomeEvento, motivo) {
+  const registro = String(tipoRegistro || 'Evento').trim();
+  if (registro === 'Reunião') return comporTituloReuniao_(motivo, nomeEvento);
+  const prefixo = prefixoTituloRegistro_(registro, tipoEvento);
+  if (registro === 'Compromisso') {
+    return comporTituloComPrefixoInicial_(prefixo, nomeEvento);
+  }
+  return comporTituloEventoComTipo_(prefixo, nomeEvento);
 }
 
 function obterNomeEventoExibicao_(linhaOuEvento) {
   if (Array.isArray(linhaOuEvento)) {
     const nomeProprio = String(linhaOuEvento[COL.NOME_EVENTO] || '').trim();
-    if (nomeProprio) return comporTituloRegistroNovo_(linhaOuEvento[COL.TIPO_REGISTRO], linhaOuEvento[COL.TIPO_EVENTO], nomeProprio);
+    if (nomeProprio) return comporTituloRegistroNovo_(linhaOuEvento[COL.TIPO_REGISTRO], linhaOuEvento[COL.TIPO_EVENTO], nomeProprio, linhaOuEvento[COL.OBSERVACOES]);
     return String(linhaOuEvento[COL.NOME_CONTRATANTE] || '').trim();
   }
   const evento = linhaOuEvento || {};
   const nomeProprio = String(evento.nomeEventoProprio || evento.NOME_EVENTO || '').trim();
   if (nomeProprio) {
-    return comporTituloRegistroNovo_(evento.tipoRegistro || evento.tipo || evento.TIPO_REGISTRO, evento.tipoEvento || evento.TIPO_EVENTO, nomeProprio);
+    return comporTituloRegistroNovo_(evento.tipoRegistro || evento.tipo || evento.TIPO_REGISTRO, evento.tipoEvento || evento.TIPO_EVENTO, nomeProprio, evento.observacoes || evento.OBSERVACOES);
   }
   // Objetos de leitura normalmente já trazem `nomeEvento` como título final.
   // Não recompomos aqui para não transformar inadvertidamente um legado.

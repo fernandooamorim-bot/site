@@ -133,6 +133,8 @@ function sanitizarCompromissoPessoalAgenda_(evento, user, textoOcupado) {
     saida = Object.assign({}, evento, {
       tipoEvento: 'Pessoal',
       contratante: rotuloOcupado,
+      nomeEvento: rotuloOcupado,
+      nomeEventoProprio: '',
       local: '',
       observacoes: '',
       criadoPor: '',
@@ -455,7 +457,7 @@ const horaInicio = dados.horaInicio
       nomeEvento: nomeEvento,
       tituloEvento: isCompromissoPessoal
         ? 'Compromisso pessoal'
-        : comporTituloRegistroNovo_(tipoRegistro, dados.tipoEvento, nomeEvento)
+        : comporTituloRegistroNovo_(tipoRegistro, dados.tipoEvento, nomeEvento, observacoes)
     };
     registrarLog('CRIAR', 'EVENTOS', idEvento, JSON.stringify(payloadLogCriacao));
 
