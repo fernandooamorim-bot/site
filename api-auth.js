@@ -993,13 +993,11 @@ if (action === 'aprovarPendenciaFolhaCusto') {
 // ======================================================
 // 15. PRECIFICADOR DE SHOW (CALCULADORA NO SISTEMA PRINCIPAL)
 // ======================================================
-if (action === 'obterPrecificadorShowFormulario' || action === 'obterPrecificadorShowEstado' || action === 'simularPrecificadorShow' || action === 'salvarPrecificadorShowSimulacao') {
+if (action === 'obterPrecificadorShowFormulario' || action === 'simularPrecificadorShow' || action === 'salvarPrecificadorShowSimulacao') {
   exigirAcao('precificador:acessar');
   return json(
     action === 'obterPrecificadorShowFormulario'
       ? precificadorShowObterFormulario_()
-      : action === 'obterPrecificadorShowEstado'
-        ? precificadorShowObterEstadoFormulario_()
       : action === 'salvarPrecificadorShowSimulacao'
         ? precificadorShowSalvarSimulacao(params, emailAutenticado)
         : precificadorShowSimular(params)
