@@ -27,7 +27,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:wght@400;600;700&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
   
   <!-- Styles -->
-  <link rel="stylesheet" href="folha-custos.css?v=20260831a">
+  <link rel="stylesheet" href="folha-custos.css?v=20260901b">
   <link rel="stylesheet" href="app-loading.css?v=20260901a">
   <style>
     :root {
@@ -271,7 +271,7 @@
         <!-- DADOS DO EVENTO -->
         <section class="card">
           <div class="card-header">
-            <div class="card-icon">📋</div>
+            <div class="card-icon"><i data-lucide="calendar-check-2"></i></div>
             <div class="card-title">
               <h2>Dados do Evento</h2>
               <p>Informações principais do show realizado</p>
@@ -302,7 +302,7 @@
                 <label class="switch-label">
                   <input type="checkbox" id="evento-fora-cidade" class="switch-input">
                   <span class="switch-slider"></span>
-                  <span class="switch-text">📍 Evento fora da cidade</span>
+                  <span class="switch-text"><i data-lucide="map-pin"></i>Evento fora da cidade</span>
                 </label>
                 <div id="adicional-info" class="info-badge hidden">
                   +R$ <span id="adicional-valor">50</span> por músico
@@ -313,7 +313,7 @@
                 <label class="switch-label">
                   <input type="checkbox" id="passagem-de-som-checkbox" class="switch-input">
                   <span class="switch-slider"></span>
-                  <span class="switch-text">🎵 Evento tem Passagem de Som</span>
+                  <span class="switch-text"><i data-lucide="music-2"></i>Evento tem Passagem de Som</span>
                 </label>
                 <div id="passagem-info" class="info-badge hidden">
                   +R$ <span id="passagem-valor">30</span> por músico participante
@@ -327,7 +327,7 @@
         <!-- MÚSICOS -->
         <section class="card">
           <div class="card-header">
-            <div class="card-icon">👥</div>
+            <div class="card-icon"><i data-lucide="users-round"></i></div>
             <div class="card-title">
               <h2>Músicos do Evento</h2>
               <p>Selecione músicos individualmente ou use pacotes pré-configurados</p>
@@ -360,7 +360,7 @@
         <!-- CUSTOS TERCEIRIZADOS -->
         <section class="card">
           <div class="card-header">
-            <div class="card-icon">🚐</div>
+            <div class="card-icon"><i data-lucide="truck"></i></div>
             <div class="card-title">
               <h2>Custos Terceirizados</h2>
               <p>Som, luz, transporte, alimentação e outros</p>
@@ -389,7 +389,7 @@
                 
                 <div class="form-group" style="display: flex; align-items: flex-end;">
                   <button class="btn-add" onclick="adicionarServicoSelecionado()">
-                    ➕ Adicionar Custo
+                    <i data-lucide="plus"></i>Adicionar custo
                   </button>
                 </div>
               </div>
@@ -400,7 +400,7 @@
         <!-- RESUMO E CÁLCULO -->
         <section class="card card-resultado">
           <div class="card-header">
-            <div class="card-icon">💰</div>
+            <div class="card-icon"><i data-lucide="receipt-text"></i></div>
             <div class="card-title">
               <h2>Resumo de Custos</h2>
               <p>Totalização automática do evento</p>
@@ -442,10 +442,10 @@
             <!-- Ações -->
             <div class="card-actions">
               <button id="btn-enviar-aprovacao" class="btn-primary" onclick="enviarFolhaParaAprovacaoAgenda()">
-                ✅ Registrar Folha e Enviar para Aprovação
+                <i data-lucide="circle-check-big"></i>Registrar folha e enviar para aprovação
               </button>
               <button class="btn-primary" onclick="abrirGerarRelatorio()">
-  📊 Gerar Relatório
+  <i data-lucide="chart-no-axes-combined"></i>Gerar relatório
 </button>
             </div>
           </div>
