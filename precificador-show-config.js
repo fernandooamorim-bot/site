@@ -5,11 +5,64 @@
  */
 
 const PRECIFICADOR_SHOW_CONFIG_ID_CHAVE_ = 'PRECIFICADOR_SHOW_SPREADSHEET_ID';
+const PRECIFICADOR_SHOW_REVISAO_CHAVE_ = 'PRECIFICADOR_SHOW_CONFIG_REVISION_V1';
+const PRECIFICADOR_SHOW_TRIGGER_CONFIG_HANDLER_ = 'precificadorShowAoEditarConfiguracao_';
+const PRECIFICADOR_SHOW_ABAS_CONFIGURACAO_ = [
+  'Config_Musicos',
+  'Config_Parametros',
+  'Config_Frontend',
+  'Config_Terceirizados'
+];
 
 function precificadorShowIdPlanilha_() {
   const id = String(obterConfigSeguro(PRECIFICADOR_SHOW_CONFIG_ID_CHAVE_) || '').trim();
   if (!id) throw new Error('PRECIFICADOR_SHOW_CONFIG_INCOMPLETA: ' + PRECIFICADOR_SHOW_CONFIG_ID_CHAVE_);
   return id;
+}
+
+function precificadorShowObterRevisaoConfiguracao_() {
+  const valor = String(PropertiesService.getScriptProperties().getProperty(PRECIFICADOR_SHOW_REVISAO_CHAVE_) || '1').trim();
+  return /^\d+$/.test(valor) ? valor : '1';
+}
+
+function precificadorShowRegistrarAlteracaoConfiguracao_() {
+  const properties = PropertiesService.getScriptProperties();
+  const atual = Number(precificadorShowObterRevisaoConfiguracao_()) || 1;
+  const proxima = String(atual + 1);
+  properties.setProperty(PRECIFICADOR_SHOW_REVISAO_CHAVE_, proxima);
+  return proxima;
+}
+
+function precificadorShowObterEstadoFormulario_() {
+  return { sucesso: true, revisao: precificadorShowObterRevisaoConfiguracao_() };
+}
+
+function precificadorShowAoEditarConfiguracao_(evento) {
+  const aba = evento && evento.range && evento.range.getSheet ? evento.range.getSheet() : null;
+  const planilha = aba && aba.getParent ? aba.getParent() : null;
+  if (!aba || !planilha) return;
+  if (planilha.getId() !== precificadorShowIdPlanilha_()) return;
+  if (PRECIFICADOR_SHOW_ABAS_CONFIGURACAO_.indexOf(aba.getName()) === -1) return;
+  precificadorShowRegistrarAlteracaoConfiguracao_();
+}
+
+function precificadorShowConfigurarMonitoramentoConfiguracao_() {
+  const planilhaId = precificadorShowIdPlanilha_();
+  const handler = PRECIFICADOR_SHOW_TRIGGER_CONFIG_HANDLER_;
+  let removidos = 0;
+  ScriptApp.getProjectTriggers().forEach(function (trigger) {
+    if (trigger.getHandlerFunction && trigger.getHandlerFunction() === handler) {
+      ScriptApp.deleteTrigger(trigger);
+      removidos++;
+    }
+  });
+  ScriptApp.newTrigger(handler).forSpreadsheet(planilhaId).onEdit().create();
+  return {
+    sucesso: true,
+    handler: handler,
+    removidos: removidos,
+    revisao: precificadorShowObterRevisaoConfiguracao_()
+  };
 }
 
 function precificadorShowLerAba_(planilha, nome, colunas) {
@@ -129,6 +182,7 @@ function precificadorShowObterFormulario_() {
   const config = precificadorShowLerConfiguracao_();
   return {
     sucesso: true,
+    revisao: precificadorShowObterRevisaoConfiguracao_(),
     equipe: config.equipe.map(function (item) {
       const retorno = { id: item.id, nome: item.nome, bandaCompleta: item.bandaCompleta, bandaReduzida: item.bandaReduzida };
       if (config.frontend.exibirValoresEquipe) retorno.valor = item.valor;
