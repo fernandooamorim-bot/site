@@ -24,7 +24,7 @@
   <script src="auth.js?v=20260311b" defer></script>
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js" defer></script>
 
-  <link rel="stylesheet" href="precificador-show.css?v=20260831e">
+  <link rel="stylesheet" href="precificador-show.css?v=20260831d">
   <style>
     :root {
       --navy-800: #0f1a2e;
@@ -222,6 +222,11 @@
   <script src="header-profile.js?v=20260728c" defer></script>
 </head>
 <body>
+  <div class="precificador-loading-inicial" id="precificador-loading-inicial" role="status" aria-live="polite" aria-label="Carregando precificador">
+    <div class="precificador-loading-mark" aria-hidden="true"><span></span><span></span><span></span></div>
+    <strong id="precificador-loading-titulo">Preparando o precificador</strong>
+    <p id="precificador-loading-detalhe">Verificando seu acesso e as configurações atuais…</p>
+  </div>
   <div class="global-header">
     <a class="global-header-brand" onclick="window.location.href='index.html?menu=1'" title="Voltar ao Início">
       <div class="global-header-back"><i data-lucide="arrow-left"></i></div>
@@ -238,7 +243,7 @@
     </div>
   </div>
 
-  <div id="app-screen" class="app-screen">
+  <div id="app-screen" class="app-screen hidden" aria-busy="true">
     <main class="app-main">
       <div class="container">
         <div class="page-head">
@@ -461,6 +466,6 @@
     </button>
   </nav>
 
-  <script src="precificador-show-app.js?v=20260831j"></script>
+  <script src="precificador-show-app.js?v=20260831i"></script>
 </body>
 </html>

@@ -10,6 +10,8 @@ let faixaSelecionada = 'ideal';
 let CURRENT_USER_EMAIL = '';
 let manualCostCounter = 0;
 let edicaoProducaoAtiva = false;
+const ABERTURA_INICIADA_EM = Date.now();
+const ABERTURA_MINIMA_MS = 320;
 
 function normalizarPerfil(perfil) {
   return String(perfil || '')
@@ -27,6 +29,7 @@ function perfilPermitido(perfil) {
 document.addEventListener('DOMContentLoaded', async function () {
   setupEventListeners();
   if (window.lucide) window.lucide.createIcons();
+  atualizarLoadingInicial_('Verificando seu acesso', 'Só um instante enquanto validamos sua sessão…');
 
   try {
     if (!window.Auth) throw new Error('AUTH_NOT_LOADED');
@@ -43,8 +46,10 @@ document.addEventListener('DOMContentLoaded', async function () {
     CURRENT_USER_EMAIL = String(auth.user.email || localStorage.getItem('auth_email') || '').trim();
     if (auth.user.nome) localStorage.setItem('auth_nome', String(auth.user.nome));
 
+    atualizarLoadingInicial_('Preparando o precificador', 'Carregando equipe, custos e condições atuais…');
     await carregarConfiguracoes();
     showApp();
+    finalizarLoadingInicial_();
   } catch (error) {
     console.error('❌ Erro na inicialização:', error);
     if (error && (error.name === 'AuthSessionError' || error.message === 'NOT_AUTH' || error.message === 'AUTH_NOT_LOADED')) {
@@ -53,9 +58,27 @@ document.addEventListener('DOMContentLoaded', async function () {
       return;
     }
     showApp();
+    finalizarLoadingInicial_();
     mostrarErro('Não foi possível carregar as configurações do precificador. Tente novamente em instantes.');
   }
 });
+
+function atualizarLoadingInicial_(titulo, detalhe) {
+  const tituloEl = document.getElementById('precificador-loading-titulo');
+  const detalheEl = document.getElementById('precificador-loading-detalhe');
+  if (tituloEl) tituloEl.textContent = titulo;
+  if (detalheEl) detalheEl.textContent = detalhe;
+}
+
+function finalizarLoadingInicial_() {
+  const loading = document.getElementById('precificador-loading-inicial');
+  const app = document.getElementById('app-screen');
+  const aguardar = Math.max(0, ABERTURA_MINIMA_MS - (Date.now() - ABERTURA_INICIADA_EM));
+  window.setTimeout(() => {
+    if (app) app.setAttribute('aria-busy', 'false');
+    if (loading) loading.classList.add('is-hidden');
+  }, aguardar);
+}
 
 function setupEventListeners() {
   const btnLogout = document.getElementById('btn-logout');
