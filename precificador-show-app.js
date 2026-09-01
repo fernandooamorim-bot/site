@@ -29,6 +29,12 @@ function perfilPermitido(perfil) {
 document.addEventListener('DOMContentLoaded', async function () {
   setupEventListeners();
   if (window.lucide) window.lucide.createIcons();
+  const lucideScript = document.getElementById('lucide-script');
+  if (lucideScript && !window.lucide) {
+    lucideScript.addEventListener('load', function () {
+      if (window.lucide) window.lucide.createIcons();
+    }, { once: true });
+  }
   atualizarLoadingInicial_('Verificando seu acesso', 'Só um instante enquanto validamos sua sessão…');
 
   try {

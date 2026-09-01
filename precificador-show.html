@@ -22,10 +22,40 @@
   <meta name="description" content="Sistema de precificação para shows da Banda Fernando Amorim">
 
   <script src="auth.js?v=20260311b" defer></script>
-  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js" defer></script>
+  <!-- Ícones são progressivos: nunca podem atrasar a abertura do Precificador. -->
+  <script id="lucide-script" src="https://unpkg.com/lucide@1.39.0/dist/umd/lucide.min.js" async></script>
 
-  <link rel="stylesheet" href="precificador-show.css?v=20260901d">
-  <link rel="stylesheet" href="app-loading.css?v=20260901d">
+  <link rel="stylesheet" href="precificador-show.css?v=20260901e">
+  <style>
+    /* Boot autônomo: não depende de CSS, ícones ou scripts externos. */
+    html, body { min-height: 100%; background: #0f1a2e; }
+    #precificador-loading-inicial {
+      position: fixed;
+      inset: 0;
+      z-index: 2147483647;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      min-height: 100dvh;
+      padding: 28px;
+      box-sizing: border-box;
+      overflow: hidden;
+      color: #fff;
+      background: #0f1a2e;
+      text-align: center;
+    }
+    #precificador-loading-inicial.is-hidden { display: none; }
+    .precificador-loading__content { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+    .precificador-loading__marca {
+      display: flex; align-items: center; justify-content: center;
+      width: 64px; height: 64px; border-radius: 12px;
+      color: #0a1628; background: linear-gradient(135deg, #d4a853, #e0bc6a);
+      font: 700 31px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    .precificador-loading__titulo { margin: 3px 0 0; font: 700 17px/1.25 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    .precificador-loading__detalhe { max-width: 300px; margin: 0; color: rgba(255,255,255,.72); font: 500 14px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+  </style>
   <style>
     :root {
       --navy-800: #0f1a2e;
@@ -223,15 +253,16 @@
   <script src="header-profile.js?v=20260728c" defer></script>
 </head>
 <body>
-  <div class="app-loading" id="precificador-loading-inicial" role="status" aria-live="polite" aria-label="Carregando precificador">
-    <div class="app-loading__content">
-      <div class="app-loading__logo" aria-hidden="true"><i data-lucide="music"></i></div>
-    <strong id="precificador-loading-titulo">Preparando o precificador</strong>
-    <p id="precificador-loading-detalhe">Verificando seu acesso e as configurações atuais…</p>
+  <div id="precificador-loading-inicial" role="status" aria-live="polite" aria-label="Carregando precificador">
+    <div class="precificador-loading__content">
+      <div class="precificador-loading__marca" aria-hidden="true">♫</div>
+      <strong class="precificador-loading__titulo" id="precificador-loading-titulo">Preparando o precificador</strong>
+      <p class="precificador-loading__detalhe" id="precificador-loading-detalhe">Verificando seu acesso e as configurações atuais…</p>
+    </div>
   </div>
-</div>
 
-  <div class="global-header">
+  <div id="app-screen" class="app-screen hidden" aria-busy="true">
+    <div class="global-header">
     <a class="global-header-brand" onclick="window.location.href='index.html?menu=1'" title="Voltar ao Início">
       <div class="global-header-back"><i data-lucide="arrow-left"></i></div>
       <div class="global-header-title"><i data-lucide="calculator"></i><span>Precificador de Show</span></div>
@@ -245,9 +276,8 @@
         <i data-lucide="log-out"></i>
       </button>
     </div>
-  </div>
+    </div>
 
-  <div id="app-screen" class="app-screen hidden" aria-busy="true">
     <main class="app-main">
       <div class="container">
         <div class="page-head">
@@ -448,9 +478,7 @@
         </div>
       </div>
     </main>
-  </div>
-
-  <nav class="bottom-nav">
+    <nav class="bottom-nav">
     <button class="bnav-item" onclick="window.location.href='index.html?menu=1'">
       <i data-lucide="layout-grid"></i>
       <span>Início</span>
@@ -467,8 +495,9 @@
       <i data-lucide="wallet"></i>
       <span>Financeiro</span>
     </button>
-  </nav>
+    </nav>
+  </div>
 
-  <script src="precificador-show-app.js?v=20260901d"></script>
+  <script src="precificador-show-app.js?v=20260901e"></script>
 </body>
 </html>
