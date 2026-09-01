@@ -27,7 +27,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:wght@400;600;700&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
   
   <!-- Styles -->
-  <link rel="stylesheet" href="folha-custos.css?v=20260311b">
+  <link rel="stylesheet" href="folha-custos.css?v=20260831a">
   <style>
     :root {
       --navy-800: #0f1a2e;
@@ -249,16 +249,12 @@
   <!-- ═══════════════════════════════════════════════════════ -->
   <!-- LOADING SCREEN -->
   <!-- ═══════════════════════════════════════════════════════ -->
-  <div id="loading-screen" class="loading-screen">
-    <div class="loading-container">
-      <div class="loading-icon">
-        <i data-lucide="music-2"></i>
-      </div>
-      <div class="loading-content">
-        <div class="loading-spinner"></div>
-        <div class="loading-text" id="loading-message">Iniciando...</div>
-        <div class="loading-subtext">FA Produções • Sistema</div>
-      </div>
+  <div id="loading-screen" class="loading-screen" role="status" aria-live="polite" aria-label="Carregando folha de custos">
+    <div class="folha-loading-container">
+      <div class="folha-loading-logo" aria-hidden="true"><i data-lucide="music"></i></div>
+      <strong>Preparando a folha de custos</strong>
+      <p id="loading-message">Verificando seu acesso e os dados atuais…</p>
+      <small>FA Produções • Sistema</small>
     </div>
   </div>
 
