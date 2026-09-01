@@ -922,14 +922,19 @@ function atualizarBotaoAcaoFolha_() {
   if (!btn) return;
   if (btn.dataset.enviando === '1') return;
   if (propostaPendenteAtual && propostaPendenteAtual.id) {
-    btn.textContent = '♻️ Atualizar Proposta Pendente';
+    definirRotuloBotaoFolha_(btn, 'refresh-cw', 'Atualizar proposta pendente');
     return;
   }
   if (eventoSelecionadoTemFolhaAtiva) {
-    btn.textContent = '📝 Enviar Revisão para Aprovação';
+    definirRotuloBotaoFolha_(btn, 'file-pen-line', 'Enviar revisão para aprovação');
     return;
   }
-  btn.textContent = '✅ Registrar Folha e Enviar para Aprovação';
+  definirRotuloBotaoFolha_(btn, 'circle-check-big', 'Registrar folha e enviar para aprovação');
+}
+
+function definirRotuloBotaoFolha_(botao, icone, texto) {
+  botao.innerHTML = '<i data-lucide="' + icone + '"></i>' + texto;
+  if (window.lucide) window.lucide.createIcons();
 }
 
 function setEstadoEnvioFolha_(ativo, texto) {
@@ -939,7 +944,7 @@ function setEstadoEnvioFolha_(ativo, texto) {
     if (!btn.dataset.labelOriginal) btn.dataset.labelOriginal = btn.textContent || '';
     btn.dataset.enviando = '1';
     btn.disabled = true;
-    btn.textContent = texto || '⏳ Processando...';
+    definirRotuloBotaoFolha_(btn, 'loader-circle', texto || 'Processando…');
     return;
   }
   btn.disabled = false;
