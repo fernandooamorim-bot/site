@@ -12,6 +12,8 @@ let manualCostCounter = 0;
 let edicaoProducaoAtiva = false;
 const ABERTURA_INICIADA_EM = Date.now();
 const ABERTURA_MINIMA_MS = 320;
+const PRECIFICADOR_FORM_CACHE_PREFIX = 'precificadorShow:formulario:v1:';
+const PRECIFICADOR_FORM_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
 
 function normalizarPerfil(perfil) {
   return String(perfil || '')
@@ -46,10 +48,19 @@ document.addEventListener('DOMContentLoaded', async function () {
     CURRENT_USER_EMAIL = String(auth.user.email || localStorage.getItem('auth_email') || '').trim();
     if (auth.user.nome) localStorage.setItem('auth_nome', String(auth.user.nome));
 
-    atualizarLoadingInicial_('Preparando o precificador', 'Carregando equipe, custos e condições atuais…');
-    await carregarConfiguracoes();
-    showApp();
-    finalizarLoadingInicial_();
+    const cache = lerCacheFormulario_();
+    if (cache) {
+      aplicarConfiguracoes_(cache.formulario);
+      showApp();
+      finalizarLoadingInicial_();
+      await sincronizarFormularioEmSegundoPlano_(cache);
+    } else {
+      atualizarLoadingInicial_('Preparando o precificador', 'Carregando equipe, custos e condições atuais…');
+      const formulario = await carregarConfiguracoes();
+      salvarCacheFormulario_(formulario);
+      showApp();
+      finalizarLoadingInicial_();
+    }
   } catch (error) {
     console.error('❌ Erro na inicialização:', error);
     if (error && (error.name === 'AuthSessionError' || error.message === 'NOT_AUTH' || error.message === 'AUTH_NOT_LOADED')) {
@@ -78,6 +89,72 @@ function finalizarLoadingInicial_() {
     if (app) app.setAttribute('aria-busy', 'false');
     if (loading) loading.classList.add('is-hidden');
   }, aguardar);
+}
+
+function chaveCacheFormulario_() {
+  const email = String(CURRENT_USER_EMAIL || '').trim().toLowerCase();
+  return email ? PRECIFICADOR_FORM_CACHE_PREFIX + encodeURIComponent(email) : '';
+}
+
+function lerCacheFormulario_() {
+  const chave = chaveCacheFormulario_();
+  if (!chave) return null;
+  try {
+    const cache = JSON.parse(localStorage.getItem(chave) || 'null');
+    const valido = cache && cache.ts && cache.formulario && cache.formulario.sucesso === true && cache.revisao;
+    if (!valido || (Date.now() - Number(cache.ts)) > PRECIFICADOR_FORM_CACHE_TTL_MS) return null;
+    return cache;
+  } catch (_) {
+    return null;
+  }
+}
+
+function salvarCacheFormulario_(formulario) {
+  const chave = chaveCacheFormulario_();
+  if (!chave || !formulario || formulario.sucesso !== true || !formulario.revisao) return;
+  try {
+    localStorage.setItem(chave, JSON.stringify({
+      ts: Date.now(),
+      revisao: String(formulario.revisao),
+      formulario: formulario
+    }));
+  } catch (_) {
+    // Sem espaço local: a página continua usando a leitura remota normalmente.
+  }
+}
+
+function atualizarEstadoSincronizacao_(ativo, mensagem) {
+  const status = document.getElementById('config-sync-status');
+  const botao = document.getElementById('btn-calcular');
+  if (status) {
+    status.classList.toggle('hidden', !ativo);
+    const texto = status.querySelector('span');
+    if (texto && mensagem) texto.textContent = mensagem;
+  }
+  if (botao) botao.disabled = !!ativo;
+}
+
+async function sincronizarFormularioEmSegundoPlano_(cache) {
+  atualizarEstadoSincronizacao_(true, 'Verificando configurações atuais…');
+  try {
+    const estado = await apiPost('obterPrecificadorShowEstado', {});
+    if (!estado || estado.sucesso !== true || !estado.revisao) throw new Error('Não foi possível confirmar as configurações atuais.');
+    if (String(estado.revisao) !== String(cache.revisao)) {
+      atualizarEstadoSincronizacao_(true, 'Atualizando configurações…');
+      const formulario = await carregarConfiguracoes();
+      salvarCacheFormulario_(formulario);
+    }
+    atualizarEstadoSincronizacao_(false);
+  } catch (error) {
+    console.error('❌ Erro ao sincronizar configurações:', error);
+    mostrarErro('Não foi possível confirmar as configurações atuais. Recarregue a página antes de calcular.');
+    const status = document.getElementById('config-sync-status');
+    if (status) {
+      status.classList.remove('hidden');
+      const texto = status.querySelector('span');
+      if (texto) texto.textContent = 'Atualização necessária antes de calcular.';
+    }
+  }
 }
 
 function setupEventListeners() {
@@ -194,6 +271,7 @@ async function carregarConfiguracoes() {
     const response = await apiPost('obterPrecificadorShowFormulario', {});
     if (!response || response.sucesso !== true) throw new Error(response?.error || 'Resposta inválida ao carregar configurações');
     aplicarConfiguracoes_(response);
+    return response;
   } catch (error) {
     console.error('❌ Erro ao carregar configurações:', error);
     mostrarErro('Erro ao carregar configurações: ' + String(error.message || error));
