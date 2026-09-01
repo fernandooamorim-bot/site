@@ -3166,17 +3166,12 @@ criarCardEvento(evento) {
   );
 
   let tituloEventoRaw = '-';
-  if (nomeEventoProprioGeral) {
-    const prefixoNovo = isEvento
-      ? (tipoEventoGenerico ? '' : tipoEvento)
-      : isCompromisso
-        ? ((tipoEvento && !/^outro$/i.test(tipoEvento)) ? tipoEvento : 'Compromisso')
-        : (tipoRegistro || tipoEvento);
-    const nomeSemPrefixo = limparDuplicacaoPrefixo(nomeEventoProprioGeral, prefixoNovo);
-    const nomeSemDuplicacao = limparDuplicacaoTermoNoTexto(nomeSemPrefixo, prefixoNovo) || nomeSemPrefixo;
-    tituloEventoRaw = prefixoNovo
-      ? (nomeSemDuplicacao ? `${prefixoNovo} - ${nomeSemDuplicacao}` : prefixoNovo)
-      : nomeEventoProprioGeral;
+  if (evento.compromissoPessoalOcupado) {
+    tituloEventoRaw = String(evento.nomeEvento || contratante || 'Ocupado').trim();
+  } else if (nomeEventoProprioGeral) {
+    // Registros novos já chegam com o título canônico resolvido pelo backend.
+    // Evita uma segunda composição no navegador e mantém card, push e conflitos iguais.
+    tituloEventoRaw = String(evento.nomeEvento || nomeEventoProprioGeral).trim();
   } else if (isReuniao) {
     tituloEventoRaw = `${motivoReuniao}${pessoaDiferenteDoMotivo ? ' - ' + pessoaReuniao : ''}`;
   } else if (isBloqueio) {
