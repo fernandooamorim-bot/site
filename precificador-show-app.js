@@ -570,14 +570,11 @@ function exibirResultado(resultado) {
   const ideal = faixas.ideal || {};
   const excelente = faixas.excelente || {};
   const custos = resultado.custos || {};
-  const alertas = Array.isArray(resultado.alertas) ? resultado.alertas : [];
 
-  document.getElementById('valor-final').textContent = 'R$ ' + formatarMoeda(minimo.valor || 0);
+  document.getElementById('valor-final').textContent = 'R$ ' + formatarMoeda(ideal.valor || 0);
   const avisoPrincipal = document.querySelector('.resultado-alerta');
   if (avisoPrincipal) {
-    avisoPrincipal.textContent = alertas.length
-      ? '⚠️ ' + alertas[0]
-      : '⚠️ Não ofereça abaixo deste valor.';
+    avisoPrincipal.textContent = '⚠️ Valor mínimo de segurança: R$ ' + formatarMoeda(minimo.valor || 0) + '. Não ofereça abaixo dele.';
   }
   document.getElementById('margem-valor-minimo').textContent = 'R$ ' + formatarMoeda(minimo.valor || 0);
   document.getElementById('margem-valor-bom').textContent = 'R$ ' + formatarMoeda(ideal.valor || 0);
