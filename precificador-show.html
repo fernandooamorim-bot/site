@@ -25,7 +25,7 @@
   <!-- Ícones são progressivos: nunca podem atrasar a abertura do Precificador. -->
   <script id="lucide-script" src="https://unpkg.com/lucide@1.39.0/dist/umd/lucide.min.js" async></script>
 
-  <link rel="stylesheet" href="precificador-show.css?v=20260901e">
+  <link rel="stylesheet" href="precificador-show.css?v=20260902a">
   <link rel="stylesheet" href="app-loading.css?v=20260901b">
   <style>
     /*
@@ -494,9 +494,10 @@
             </div>
 
             <div class="acoes">
-              <button type="button" class="btn-secondary" onclick="salvarHistorico()"><i data-lucide="save"></i>Salvar no Histórico</button>
+              <button type="button" class="btn-secondary" id="btn-salvar-historico" onclick="salvarHistorico()"><i data-lucide="save"></i><span>Salvar no Histórico</span></button>
               <button type="button" class="btn-secondary" onclick="novaSimulacao()"><i data-lucide="rotate-ccw"></i>Nova Simulação</button>
             </div>
+            <p class="save-feedback" id="save-feedback" role="status" aria-live="polite"></p>
           </div>
         </div>
       </div>

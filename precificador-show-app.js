@@ -10,6 +10,7 @@ let faixaSelecionada = 'ideal';
 let CURRENT_USER_EMAIL = '';
 let manualCostCounter = 0;
 let edicaoProducaoAtiva = false;
+let salvamentoEmAndamento = false;
 const ABERTURA_INICIADA_EM = Date.now();
 const ABERTURA_MINIMA_MS = 320;
 
@@ -642,6 +643,34 @@ async function salvarHistorico() {
     return;
   }
 
+  if (salvamentoEmAndamento) return;
+
+  const botao = document.getElementById('btn-salvar-historico');
+  const feedback = document.getElementById('save-feedback');
+  const restaurarBotao = function () {
+    if (!botao) return;
+    botao.disabled = false;
+    botao.classList.remove('is-saving', 'is-success', 'is-error');
+    botao.setAttribute('aria-busy', 'false');
+    botao.innerHTML = '<i data-lucide="save"></i><span>Salvar no Histórico</span>';
+    if (window.lucide) window.lucide.createIcons();
+  };
+  const mostrarFeedback = function (mensagem, tipo) {
+    if (!feedback) return;
+    feedback.textContent = mensagem;
+    feedback.className = 'save-feedback' + (tipo ? ' ' + tipo : '');
+  };
+
+  salvamentoEmAndamento = true;
+  if (botao) {
+    botao.disabled = true;
+    botao.classList.remove('is-success', 'is-error');
+    botao.classList.add('is-saving');
+    botao.setAttribute('aria-busy', 'true');
+    botao.innerHTML = '<span class="button-spinner" aria-hidden="true"></span><span>Salvando no histórico…</span>';
+  }
+  mostrarFeedback('A simulação está sendo registrada. Aguarde um instante…');
+
   const dadosEvento = coletarDadosEvento();
 
   try {
@@ -651,12 +680,36 @@ async function salvarHistorico() {
     });
 
     if (response.sucesso) {
-      alert('✅ ' + (response.mensagem || 'Simulação salva!'));
+      if (botao) {
+        botao.classList.remove('is-saving');
+        botao.classList.add('is-success');
+        botao.setAttribute('aria-busy', 'false');
+        botao.innerHTML = '<i data-lucide="check"></i><span>Salvo no Histórico</span>';
+        if (window.lucide) window.lucide.createIcons();
+      }
+      mostrarFeedback('✓ ' + (response.mensagem || 'Simulação salva no histórico.'), 'success');
+      window.setTimeout(restaurarBotao, 4500);
     } else {
-      alert('❌ Erro ao salvar: ' + (response.error || 'Erro desconhecido'));
+      if (botao) {
+        botao.classList.remove('is-saving');
+        botao.classList.add('is-error');
+        botao.setAttribute('aria-busy', 'false');
+        botao.innerHTML = '<i data-lucide="rotate-cw"></i><span>Tentar novamente</span>';
+        if (window.lucide) window.lucide.createIcons();
+      }
+      mostrarFeedback('Não foi possível salvar: ' + (response.error || 'erro desconhecido') + '.', 'error');
     }
   } catch (error) {
-    alert('❌ Erro ao salvar: ' + String(error.message || error));
+    if (botao) {
+      botao.classList.remove('is-saving');
+      botao.classList.add('is-error');
+      botao.setAttribute('aria-busy', 'false');
+      botao.innerHTML = '<i data-lucide="rotate-cw"></i><span>Tentar novamente</span>';
+      if (window.lucide) window.lucide.createIcons();
+    }
+    mostrarFeedback('Não foi possível salvar: ' + String(error.message || error) + '.', 'error');
+  } finally {
+    salvamentoEmAndamento = false;
   }
 }
 

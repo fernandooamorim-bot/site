@@ -1384,6 +1384,14 @@ body { background: #f3f6fa; }
 .loading p { margin: 2px 0 0; color: #6f849a; font-size: .75rem; }
 .btn-secondary { display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
 .btn-secondary i, .btn-secondary svg { width: 17px; height: 17px; stroke: currentColor; }
+.btn-secondary:disabled { cursor: wait; opacity: .72; }
+.btn-secondary.is-saving { border-color: #64748b; color: #475569; background: #f8fafc; }
+.btn-secondary.is-success { border-color: #198754; color: #146c43; background: #f0fdf4; }
+.btn-secondary.is-error { border-color: #c2413b; color: #a62f2a; background: #fff7f6; }
+.button-spinner { width: 16px; height: 16px; border: 2px solid rgba(71, 85, 105, .25); border-top-color: #475569; border-radius: 50%; animation: spin .7s linear infinite; }
+.save-feedback { min-height: 20px; margin: 10px 0 0; color: #5c7188; font-size: .82rem; line-height: 1.4; text-align: center; }
+.save-feedback.success { color: #14703e; }
+.save-feedback.error { color: #a62f2a; }
 
 @media (min-width: 720px) {
   .section { padding: 24px; }
