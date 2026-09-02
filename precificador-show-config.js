@@ -114,6 +114,10 @@ function precificadorShowLerConfiguracao_() {
       ativo: precificadorShowBooleanoParametro_(parametros, ['Ativar Piso Comercial'], false),
       valor: precificadorShowValorParametro_(parametros, ['Piso Comercial (R$)'], 0)
     },
+    arredondamentoComercial: {
+      ativo: precificadorShowBooleanoParametro_(parametros, ['Ativar Arredondamento Comercial'], false),
+      multiplo: precificadorShowValorParametro_(parametros, ['Múltiplo de Arredondamento (R$)', 'Multiplo de Arredondamento (R$)'], 0)
+    },
     bonusVendedorExcelente: precificadorShowValorParametro_(parametros, ['Bônus Vendedor Excelente (p.p.)', 'Bonus Vendedor Excelente (p.p.)'], 2),
     frontend: {
       exibirValoresEquipe: precificadorShowBooleanoParametro_(parametrosFrontend, ['Exibir Valores da Equipe', 'Exibir Valores dos Músicos'], false),

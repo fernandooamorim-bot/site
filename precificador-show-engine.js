@@ -80,6 +80,31 @@ function precificadorShowPisoComercial_(config) {
   return { ativo: ativo, valor: valor };
 }
 
+function precificadorShowArredondamentoComercial_(config) {
+  const origem = (config && config.arredondamentoComercial) || {};
+  const ativoNormalizado = precificadorShowNormalizarChave_(origem.ativo);
+  const ativo = origem.ativo === true || ['SIM', 'TRUE', 'ATIVO', '1'].indexOf(ativoNormalizado) !== -1;
+  const multiplo = precificadorShowDinheiro_(precificadorShowNumero_(origem.multiplo, 0));
+
+  if (ativo && multiplo <= 0) throw new Error('PRECIFICADOR_ARREDONDAMENTO_COMERCIAL_INVALIDO');
+  return { ativo: ativo, multiplo: multiplo };
+}
+
+function precificadorShowArredondarParaCima_(valor, multiplo) {
+  const valorSeguro = precificadorShowDinheiro_(valor);
+  const multiploSeguro = precificadorShowDinheiro_(multiplo);
+  if (multiploSeguro <= 0) return valorSeguro;
+  // A pequena tolerância evita que 12.000,00 seja elevado indevidamente por
+  // imprecisão de ponto flutuante; nunca reduz o valor calculado.
+  return precificadorShowDinheiro_(Math.ceil((valorSeguro / multiploSeguro) - 1e-9) * multiploSeguro);
+}
+
+function precificadorShowPercentualAumento_(base, valor) {
+  const baseSegura = precificadorShowNumero_(base, 0);
+  if (baseSegura <= 0) return 0;
+  return Number((((precificadorShowNumero_(valor, 0) / baseSegura) - 1) * 100).toFixed(2));
+}
+
 function precificadorShowSomarCustos_(entrada, config) {
   const equipeSelecionada = Array.isArray(entrada && entrada.equipe) ? entrada.equipe : [];
   const custosInformados = Array.isArray(entrada && entrada.custos) ? entrada.custos : [];
@@ -220,6 +245,7 @@ function precificadorShowSimular_(entrada, config) {
   const margemMinima = precificadorShowMargemMinima_(perfil, config || {});
   const acrescimos = precificadorShowAcrescimosFaixa_(config || {});
   const pisoComercial = precificadorShowPisoComercial_(config || {});
+  const arredondamentoComercial = precificadorShowArredondamentoComercial_(config || {});
   const comercial = (entrada && entrada.comercial) || {};
   const bonusExcelente = precificadorShowNumero_(config && config.bonusVendedorExcelente, 0);
   const base = {
@@ -231,19 +257,33 @@ function precificadorShowSimular_(entrada, config) {
   };
   const minimoFinanceiro = precificadorShowCalcularMinimo_(Object.assign({}, base, { margem: margemMinima, bonusVendedor: 0 }));
   const pisoAplicado = pisoComercial.ativo && pisoComercial.valor > minimoFinanceiro.valor;
-  const minimo = pisoAplicado
+  const minimoAntesArredondamento = pisoAplicado
     ? precificadorShowDetalharPreco_(Object.assign({}, base, { preco: pisoComercial.valor, bonusVendedor: 0 }))
     : minimoFinanceiro;
+  const valorMinimoFinal = arredondamentoComercial.ativo
+    ? precificadorShowArredondarParaCima_(minimoAntesArredondamento.valor, arredondamentoComercial.multiplo)
+    : minimoAntesArredondamento.valor;
+  const minimo = valorMinimoFinal !== minimoAntesArredondamento.valor
+    ? precificadorShowDetalharPreco_(Object.assign({}, base, { preco: valorMinimoFinal, bonusVendedor: 0 }))
+    : minimoAntesArredondamento;
+  const valorIdealBase = minimo.valor * (1 + (acrescimos.ideal / 100));
+  const valorIdealFinal = arredondamentoComercial.ativo
+    ? precificadorShowArredondarParaCima_(valorIdealBase, arredondamentoComercial.multiplo)
+    : valorIdealBase;
   const ideal = precificadorShowDetalharPreco_(Object.assign({}, base, {
-    preco: minimo.valor * (1 + (acrescimos.ideal / 100)),
+    preco: valorIdealFinal,
     bonusVendedor: 0
   }));
+  const valorExcelenteBase = minimo.valor * (1 + (acrescimos.excelente / 100));
+  const valorExcelenteFinal = arredondamentoComercial.ativo
+    ? precificadorShowArredondarParaCima_(valorExcelenteBase, arredondamentoComercial.multiplo)
+    : valorExcelenteBase;
   const excelente = precificadorShowDetalharPreco_(Object.assign({}, base, {
-    preco: minimo.valor * (1 + (acrescimos.excelente / 100)),
+    preco: valorExcelenteFinal,
     bonusVendedor: bonusExcelente
   }));
-  ideal.percentualAumento = acrescimos.ideal;
-  excelente.percentualAumento = acrescimos.excelente;
+  ideal.percentualAumento = precificadorShowPercentualAumento_(minimo.valor, ideal.valor);
+  excelente.percentualAumento = precificadorShowPercentualAumento_(minimo.valor, excelente.valor);
   return {
     sucesso: true,
     faixas: { minimo: minimo, ideal: ideal, excelente: excelente },
@@ -258,6 +298,11 @@ function precificadorShowSimular_(entrada, config) {
         valorConfigurado: pisoComercial.valor,
         aplicado: pisoAplicado,
         minimoFinanceiro: minimoFinanceiro.valor
+      },
+      arredondamentoComercial: {
+        ativo: arredondamentoComercial.ativo,
+        multiplo: arredondamentoComercial.multiplo,
+        aplicado: minimo.valor !== minimoAntesArredondamento.valor || ideal.valor !== precificadorShowDinheiro_(valorIdealBase) || excelente.valor !== precificadorShowDinheiro_(valorExcelenteBase)
       }
     }
   };
