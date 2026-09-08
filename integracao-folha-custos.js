@@ -446,21 +446,18 @@ function construirIndiceFolhasFinanceiro_() {
 
 /**
  * Fonte segura para relatório de pagamento: uma folha só entra quando sua
- * referência ainda está PROCESSADA no livro financeiro. Isso exclui propostas
- * pendentes e versões substituídas, mesmo se o utilitário externo mantiver o
- * registro histórico como APROVADO.
+ * referência ainda está PROCESSADA no livro financeiro. O fluxo atual exige
+ * aprovação na folha; folhas legadas (anteriores a esse fluxo), que ficaram
+ * como PENDENTE_APROVACAO apesar de já terem sido aplicadas no financeiro,
+ * entram pelo vínculo financeiro exato. Isso exclui propostas novas sem
+ * lançamento e versões substituídas/canceladas.
  */
 function listarFolhasCustoAprovadasParaPagamento(params, email) {
   const resp = folhaCustosProxy({ externalAction: 'getFolhasCusto', payload: {} }, email);
   const indice = construirIndiceFolhasFinanceiro_();
   const folhas = normalizarListaFolhasCusto_(resp && resp.data);
   const aprovadas = folhas.filter(function (folha) {
-    const meta = extrairMetaAgendaFolha_(folha);
-    const idFolha = String((folha && folha.id) || '').trim();
-    const idEvento = String((meta.idEvento || folha.idEvento || folha.idEventoAgenda) || '').trim();
-    const status = String((meta.statusAprovacao || folha.statusAprovacao) || '').trim().toUpperCase();
-    if (!idFolha || !idEvento || status !== 'APROVADO') return false;
-    return folhaJaAplicadaNoIndice_(indice, idEvento, idFolha);
+    return folhaCustoElegivelParaRelatorioFinanceiro_(folha, indice);
   }).map(function (folha) {
     const meta = extrairMetaAgendaFolha_(folha);
     const totais = extrairTotaisFolha_(folha);
@@ -488,13 +485,26 @@ function analisarCustosFolhaPorPeriodo(params, email) {
   const resp = folhaCustosProxy({ externalAction: 'getFolhasCusto', payload: {} }, email);
   const indice = construirIndiceFolhasFinanceiro_();
   const folhas = normalizarListaFolhasCusto_(resp && resp.data).filter(function (folha) {
-    const meta = extrairMetaAgendaFolha_(folha);
-    const idFolha = String((folha && folha.id) || '').trim();
-    const idEvento = String((meta.idEvento || folha.idEvento || folha.idEventoAgenda) || '').trim();
-    const status = String((meta.statusAprovacao || folha.statusAprovacao) || '').trim().toUpperCase();
-    return idFolha && idEvento && status === 'APROVADO' && folhaJaAplicadaNoIndice_(indice, idEvento, idFolha);
+    return folhaCustoElegivelParaRelatorioFinanceiro_(folha, indice);
   });
   return construirAnaliseCustosFolhas_(folhas, p);
+}
+
+/**
+ * A referência financeira exata é a evidência autoritativa de que uma folha
+ * foi aplicada. Antes da implantação de aprovação, algumas folhas ficaram
+ * registradas como pendentes no utilitário externo; elas são legadas, não
+ * solicitações novas. Status explicitamente cancelados/rejeitados nunca entram.
+ */
+function folhaCustoElegivelParaRelatorioFinanceiro_(folha, indice) {
+  const meta = extrairMetaAgendaFolha_(folha);
+  const idFolha = String((folha && folha.id) || '').trim();
+  const idEvento = String((meta.idEvento || folha.idEvento || folha.idEventoAgenda) || '').trim();
+  const status = String((meta.statusAprovacao || folha.statusAprovacao) || '').trim().toUpperCase();
+  if (!idFolha || !idEvento) return false;
+  if (status === 'CANCELADO' || status === 'REJEITADO') return false;
+  if (!folhaJaAplicadaNoIndice_(indice, idEvento, idFolha)) return false;
+  return status === 'APROVADO' || status === 'PENDENTE_APROVACAO' || !status;
 }
 
 function construirAnaliseCustosFolhas_(folhas, params) {
