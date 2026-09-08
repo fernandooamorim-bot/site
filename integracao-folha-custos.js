@@ -27,6 +27,7 @@ function folhaCustosProxy(params, email) {
   const payloadEntrada = extrairPayloadFolhaCustos_(params);
   const payload = Object.assign({}, payloadEntrada);
   normalizarPayloadRelatorioFolhaCustos_(externalAction, payload);
+  anexarEscopoSeguroRelatorioFolhaCustos_(externalAction, payload, endpoint, usuario);
   payload.action = externalAction;
 
   // Mantém rastreabilidade e compatibilidade com "verificarUsuario" do utilitário.
@@ -146,6 +147,39 @@ function normalizarPayloadRelatorioFolhaCustos_(action, payload) {
   if (!acaoRelatorioFolhaCustos_(action)) return;
   payload.dataInicio = normalizarDataIsoOuBr_(payload.dataInicio);
   payload.dataFim = normalizarDataIsoOuBr_(payload.dataFim);
+}
+
+/**
+ * O frontend nunca escolhe quais folhas entram em um relatório. Para ações de
+ * relatório, a seleção é recalculada no backend a partir do livro financeiro:
+ * apenas referências FOLHA_PROP que seguem PROCESSADAS são encaminhadas ao
+ * formatador externo. Isso preserva o histórico cancelado sem que ele possa
+ * voltar a compor valores ou contagens.
+ */
+function anexarEscopoSeguroRelatorioFolhaCustos_(action, payload, endpoint, usuario) {
+  if (!acaoRelatorioFolhaCustos_(action)) return;
+
+  const respostaFolhas = chamarEndpointFolhaCustos_(endpoint, {
+    action: 'getFolhasCusto',
+    email: String((usuario && usuario.EMAIL) || '')
+  });
+  if (respostaFolhas.status < 200 || respostaFolhas.status >= 300 || !respostaFolhas.data) {
+    throw new Error('FOLHA_CUSTOS_NAO_FOI_POSSIVEL_VALIDAR_RELATORIO');
+  }
+
+  const indice = construirIndiceFolhasFinanceiro_();
+  const idsAutorizados = normalizarListaFolhasCusto_(respostaFolhas.data)
+    .filter(function (folha) {
+      const meta = extrairMetaAgendaFolha_(folha);
+      const idFolha = String((folha && folha.id) || '').trim();
+      const idEvento = String((meta.idEvento || folha.idEvento || folha.idEventoAgenda) || '').trim();
+      const status = String((meta.statusAprovacao || folha.statusAprovacao) || '').trim().toUpperCase();
+      return idFolha && idEvento && status === 'APROVADO' && folhaJaAplicadaNoIndice_(indice, idEvento, idFolha);
+    })
+    .map(function (folha) { return String(folha.id || '').trim(); });
+
+  // Sobrescreve qualquer valor recebido do cliente.
+  payload.idsFolhasAutorizadas = idsAutorizados;
 }
 
 function normalizarDataIsoOuBr_(valor) {
