@@ -390,7 +390,8 @@ function construirIndiceFolhasFinanceiro_() {
   const indice = {
     valorProcessadoPorEvento: Object.create(null),
     referenciasProcessadas: Object.create(null),
-    textosReferenciaPorEvento: Object.create(null)
+    textosReferenciaPorEvento: Object.create(null),
+    movimentosLegadosProcessados: []
   };
 
   try {
@@ -436,6 +437,15 @@ function construirIndiceFolhasFinanceiro_() {
       for (var j = 0; j < refs.length; j++) {
         indice.referenciasProcessadas[idEvento + '|' + refs[j]] = true;
       }
+      if (!refs.length) {
+        indice.movimentosLegadosProcessados.push({
+          idMovimentacao: String(row[0] || '').trim(),
+          idEvento: idEvento,
+          nomeEvento: String(row[head.indexOf('NOME_EVENTO')] || '').trim(),
+          data: head.indexOf('DATA_MOVIMENTACAO') !== -1 ? row[head.indexOf('DATA_MOVIMENTACAO')] : '',
+          valor: valorSeguro
+        });
+      }
     }
   } catch (e) {
     Logger.log('Falha ao construir índice financeiro de folhas: ' + e.message);
@@ -456,9 +466,7 @@ function listarFolhasCustoAprovadasParaPagamento(params, email) {
   const resp = folhaCustosProxy({ externalAction: 'getFolhasCusto', payload: {} }, email);
   const indice = construirIndiceFolhasFinanceiro_();
   const folhas = normalizarListaFolhasCusto_(resp && resp.data);
-  const aprovadas = folhas.filter(function (folha) {
-    return folhaCustoElegivelParaRelatorioFinanceiro_(folha, indice);
-  }).map(function (folha) {
+  const aprovadas = normalizarFolhasElegiveisParaRelatorio_(folhas, indice).map(function (folha) {
     const meta = extrairMetaAgendaFolha_(folha);
     const totais = extrairTotaisFolha_(folha);
     return {
@@ -484,9 +492,7 @@ function analisarCustosFolhaPorPeriodo(params, email) {
   const p = params && typeof params === 'object' ? params : {};
   const resp = folhaCustosProxy({ externalAction: 'getFolhasCusto', payload: {} }, email);
   const indice = construirIndiceFolhasFinanceiro_();
-  const folhas = normalizarListaFolhasCusto_(resp && resp.data).filter(function (folha) {
-    return folhaCustoElegivelParaRelatorioFinanceiro_(folha, indice);
-  });
+  const folhas = normalizarFolhasElegiveisParaRelatorio_(normalizarListaFolhasCusto_(resp && resp.data), indice);
   return construirAnaliseCustosFolhas_(folhas, p);
 }
 
@@ -505,6 +511,132 @@ function folhaCustoElegivelParaRelatorioFinanceiro_(folha, indice) {
   if (status === 'CANCELADO' || status === 'REJEITADO') return false;
   if (!folhaJaAplicadaNoIndice_(indice, idEvento, idFolha)) return false;
   return status === 'APROVADO' || status === 'PENDENTE_APROVACAO' || !status;
+}
+
+/**
+ * Concilia o fluxo atual e o legado. No legado, não há ID_EVENTO gravado na
+ * folha: só aceita uma correspondência única por data, total financeiro e
+ * similaridade de título, depois de validar o resumo detalhado contra os
+ * totais da própria folha. Nenhum item é criado a partir de total agregado.
+ */
+function normalizarFolhasElegiveisParaRelatorio_(folhas, indice) {
+  const saida = [];
+  const movimentosUsados = Object.create(null);
+  (Array.isArray(folhas) ? folhas : []).forEach(function (folha) {
+    if (folhaCustoElegivelParaRelatorioFinanceiro_(folha, indice)) {
+      saida.push(folha);
+      return;
+    }
+    const legado = adaptarFolhaLegadaProcessada_(folha, indice, movimentosUsados);
+    if (legado) saida.push(legado);
+  });
+  return saida;
+}
+
+function adaptarFolhaLegadaProcessada_(folha, indice, movimentosUsados) {
+  const meta = extrairMetaAgendaFolha_(folha);
+  const idExistente = String((meta.idEvento || folha.idEvento || folha.idEventoAgenda) || '').trim();
+  if (idExistente) return null;
+  const detalhe = extrairDetalheResumoFolhaLegada_(folha);
+  if (!detalhe) return null;
+
+  const dataFolha = normalizarDataChaveAnaliseFolha_(folha.data);
+  const tituloFolha = String(folha.nomeEvento || '').trim();
+  const candidatos = (indice && indice.movimentosLegadosProcessados || []).filter(function (mov) {
+    if (movimentosUsados[mov.idMovimentacao]) return false;
+    if (normalizarDataChaveAnaliseFolha_(mov.data) !== dataFolha) return false;
+    if (Math.abs(Number(mov.valor || 0) - detalhe.totalGeral) > 0.02) return false;
+    return similaridadeTituloFolhaLegada_(tituloFolha, mov.nomeEvento) >= 0.5;
+  });
+  if (candidatos.length !== 1) return null;
+
+  const mov = candidatos[0];
+  movimentosUsados[mov.idMovimentacao] = true;
+  const adaptada = Object.assign({}, folha, {
+    idEvento: mov.idEvento,
+    idEventoAgenda: mov.idEvento,
+    statusAprovacao: 'LEGADO_PROCESSADO',
+    agendaSincronizado: true,
+    agendaReferencia: 'LEGADO:' + mov.idMovimentacao,
+    agendaMovimentacao: mov.idMovimentacao,
+    musicos: detalhe.musicos,
+    terceirizados: detalhe.terceirizados,
+    totais: {
+      musicos: Number(folha.totalMusicos || 0) || 0,
+      adicionais: Number(folha.totalAdicionais || 0) || 0,
+      terceirizados: Number(folha.totalTerceirizados || 0) || 0,
+      geral: detalhe.totalGeral
+    }
+  });
+  adaptada.Folhas_Custo = Object.assign({}, folha.Folhas_Custo || {}, {
+    agenda: Object.assign({}, meta, { idEvento: mov.idEvento, statusAprovacao: 'LEGADO_PROCESSADO' })
+  });
+  return adaptada;
+}
+
+function extrairDetalheResumoFolhaLegada_(folha) {
+  const resumo = String((folha && (folha.resumo || folha.resumoCompacto)) || '');
+  if (!resumo) return null;
+  const musicos = extrairItensResumoFolhaLegada_(resumo, /(?:👥\s*)?MÚSICOS\s*\(\s*\d+\s*\)\s*:?/gi, /\n(?:CUSTOS TERCEIRIZADOS|CUSTOS OPERACIONAIS|━━━━━━━━)/i, 'musico');
+  const terceirizados = extrairItensResumoFolhaLegada_(resumo, /(?:CUSTOS TERCEIRIZADOS|CUSTOS OPERACIONAIS)(?:\s*\(\s*\d+\s*\))?\s*:?/gi, /\n━━━━━━━━/i, 'terceirizado');
+  const totalMusicos = Number(folha.totalMusicos || 0) || 0;
+  const totalAdicionais = Number(folha.totalAdicionais || 0) || 0;
+  const totalTerceiros = Number(folha.totalTerceirizados || 0) || 0;
+  const totalGeral = Number(folha.custoTotal || (totalMusicos + totalAdicionais + totalTerceiros)) || 0;
+  const somaMusicos = musicos.reduce(function (s, item) { return s + Number(item.total || 0); }, 0);
+  const somaTerceiros = terceirizados.reduce(function (s, item) { return s + Number(item.valor || 0); }, 0);
+  if (!musicos.length || Math.abs(somaMusicos - (totalMusicos + totalAdicionais)) > 0.02) return null;
+  if (Math.abs(somaTerceiros - totalTerceiros) > 0.02) return null;
+  if (Math.abs((somaMusicos + somaTerceiros) - totalGeral) > 0.02) return null;
+  return { musicos: musicos, terceirizados: terceirizados, totalGeral: totalGeral };
+}
+
+function extrairItensResumoFolhaLegada_(resumo, marcador, fim, tipo) {
+  let achado = null;
+  let match;
+  marcador.lastIndex = 0;
+  while ((match = marcador.exec(resumo)) !== null) achado = match;
+  if (!achado) return [];
+  let bloco = resumo.slice(achado.index + achado[0].length);
+  const fimMatch = fim.exec(bloco);
+  if (fimMatch) bloco = bloco.slice(0, fimMatch.index);
+  const itens = [];
+  const linha = /^[•-]\s*(.+?)\s+\(([^)]+)\)\s*(?:–|:)\s*R\$\s*([\d.,]+)/gm;
+  let item;
+  while ((item = linha.exec(bloco)) !== null) {
+    const valor = numeroResumoFolhaLegada_(item[3]);
+    if (!(valor >= 0)) return [];
+    if (tipo === 'musico') {
+      itens.push({ nome: String(item[1] || '').trim(), funcao: String(item[2] || '').trim(), total: valor });
+    } else {
+      itens.push({ nome: String(item[1] || '').trim(), categoria: String(item[2] || '').trim(), valor: valor });
+    }
+  }
+  return itens;
+}
+
+function numeroResumoFolhaLegada_(valor) {
+  const raw = String(valor || '').trim();
+  if (!raw) return 0;
+  if (raw.indexOf(',') !== -1 && raw.indexOf('.') !== -1) return Number(raw.replace(/\./g, '').replace(',', '.')) || 0;
+  return Number(raw.replace(',', '.')) || 0;
+}
+
+function similaridadeTituloFolhaLegada_(a, b) {
+  const limpar = function (valor) {
+    return normalizarTextoAnaliseFolha_(valor)
+      .replace(/\b(evento|casamento|aniversario|15 anos|xv anos)\b/g, ' ')
+      .replace(/[^a-z0-9 ]/g, ' ')
+      .split(/\s+/).filter(function (token) { return token.length > 2; });
+  };
+  const ta = limpar(a);
+  const tb = limpar(b);
+  if (!ta.length || !tb.length) return 0;
+  const indice = Object.create(null);
+  tb.forEach(function (token) { indice[token] = true; });
+  let comum = 0;
+  ta.forEach(function (token) { if (indice[token]) comum++; });
+  return comum / Math.max(ta.length, tb.length);
 }
 
 function construirAnaliseCustosFolhas_(folhas, params) {
