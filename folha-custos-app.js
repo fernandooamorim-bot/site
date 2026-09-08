@@ -405,12 +405,11 @@ async function carregarDados() {
       updateLoadingMessage('Validando atualizações...');
     }
 
-    const [configAtual, musicosData, pacotesData, servicosData] = await Promise.all([
-      apiPost('getConfiguracoes', {}),
-      apiPost('getMusicos', {}),
-      apiPost('getPacotes', {}),
-      apiPost('getServicos', {})
-    ]);
+    const dadosBase = await apiPost('getDadosBaseFolha', {});
+    const configAtual = dadosBase?.configuracoes || {};
+    const musicosData = Array.isArray(dadosBase?.musicos) ? dadosBase.musicos : [];
+    const pacotesData = Array.isArray(dadosBase?.pacotes) ? dadosBase.pacotes : [];
+    const servicosData = Array.isArray(dadosBase?.servicos) ? dadosBase.servicos : [];
 
     const assinaturaAtualConfig = assinaturaConfig_(configAtual);
     const assinaturaAtualMusicos = assinaturaConfig_(musicosData);
@@ -860,7 +859,7 @@ async function carregarEventosComPropostaFolha_() {
     return;
   }
   try {
-    const lista = await apiPost('getFolhasCusto', {});
+    const lista = await apiPost('getResumoFolhasCusto', {});
     const arr = Array.isArray(lista) ? lista : [];
     const pendentes = new Set();
     const mapaPendentes = new Map();
@@ -1257,13 +1256,8 @@ async function carregarUltimaFolhaAprovadaParaRevisao_(idEvento) {
   const idEvt = String(idEvento || '').trim();
   if (!idEvt) return false;
   try {
-    const listaResp = await apiPost('getFolhasCusto', {});
-    const lista = Array.isArray(listaResp) ? listaResp : [];
-    const doEvento = lista.filter((f) => {
-      const meta = extrairMetaAgendaDaFolhaLocal_(f);
-      const idEventoFolha = String(meta.idEvento || '').trim();
-      return idEventoFolha === idEvt;
-    });
+    const listaResp = await apiPost('getFolhasCustoPorEvento', { idEvento: idEvt });
+    const doEvento = Array.isArray(listaResp) ? listaResp : [];
     if (!doEvento.length) return false;
 
     const ordenadas = doEvento.slice().sort((a, b) => {
