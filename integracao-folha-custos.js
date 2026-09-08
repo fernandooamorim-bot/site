@@ -533,6 +533,14 @@ function normalizarFolhasElegiveisParaRelatorio_(folhas, indice) {
   return saida;
 }
 
+// Equivalências revisadas manualmente para folhas criadas antes do vínculo por
+// ID_EVENTO. Elas não substituem a conciliação: ainda exigem data e total
+// financeiro exatos, além do resumo detalhado validado abaixo.
+const EQUIVALENCIAS_FOLHAS_LEGADAS_CONFIRMADAS_ = {
+  '1770488353898': 'LG-2026-AGENDA2026-0013', // 15 ANOS MARIA BEATRIZ → Erika Figueiredo
+  '1772990143011': 'LG-2026-AGENDA2026-0026'  // Aniversário taís sombra → Niver Thais Sombra
+};
+
 function adaptarFolhaLegadaProcessada_(folha, indice, movimentosUsados) {
   const meta = extrairMetaAgendaFolha_(folha);
   const idExistente = String((meta.idEvento || folha.idEvento || folha.idEventoAgenda) || '').trim();
@@ -542,10 +550,13 @@ function adaptarFolhaLegadaProcessada_(folha, indice, movimentosUsados) {
 
   const dataFolha = normalizarDataChaveAnaliseFolha_(folha.data);
   const tituloFolha = String(folha.nomeEvento || '').trim();
+  const idFolha = String((folha && folha.id) || '').trim();
+  const idEventoConfirmado = EQUIVALENCIAS_FOLHAS_LEGADAS_CONFIRMADAS_[idFolha] || '';
   const candidatos = (indice && indice.movimentosLegadosProcessados || []).filter(function (mov) {
     if (movimentosUsados[mov.idMovimentacao]) return false;
     if (normalizarDataChaveAnaliseFolha_(mov.data) !== dataFolha) return false;
     if (Math.abs(Number(mov.valor || 0) - detalhe.totalGeral) > 0.02) return false;
+    if (idEventoConfirmado) return mov.idEvento === idEventoConfirmado;
     return similaridadeTituloFolhaLegada_(tituloFolha, mov.nomeEvento) >= 0.5;
   });
   if (candidatos.length !== 1) return null;
@@ -578,7 +589,7 @@ function extrairDetalheResumoFolhaLegada_(folha) {
   const resumo = String((folha && (folha.resumo || folha.resumoCompacto)) || '');
   if (!resumo) return null;
   const musicos = extrairItensResumoFolhaLegada_(resumo, /(?:👥\s*)?MÚSICOS\s*\(\s*\d+\s*\)\s*:?/gi, /\n(?:CUSTOS TERCEIRIZADOS|CUSTOS OPERACIONAIS|━━━━━━━━)/i, 'musico');
-  const terceirizados = extrairItensResumoFolhaLegada_(resumo, /(?:CUSTOS TERCEIRIZADOS|CUSTOS OPERACIONAIS)(?:\s*\(\s*\d+\s*\))?\s*:?/gi, /\n━━━━━━━━/i, 'terceirizado');
+  const terceirizados = extrairItensResumoFolhaLegada_(resumo, /(?:CUSTOS TERCEIRIZADOS|CUSTOS OPERACIONAIS)(?:\s*\(\s*\d+\s*\))?\s*:?/gi, /\n(?:CUSTO TOTAL|👥\s*MÚSICOS|━━━━━━━━)/i, 'terceirizado');
   const totalMusicos = Number(folha.totalMusicos || 0) || 0;
   const totalAdicionais = Number(folha.totalAdicionais || 0) || 0;
   const totalTerceiros = Number(folha.totalTerceirizados || 0) || 0;
