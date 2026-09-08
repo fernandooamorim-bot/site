@@ -2793,19 +2793,21 @@ async function gerarRelatorio() {
     fecharModal('modal-gerar-relatorio');
     showLoading('Gerando relatório...');
     
-    const resultado = await Auth.apiCall('listarFolhasCustoAprovadasParaPagamento', {});
+    const resultado = await apiPost('gerarPreviewPDF', {
+      dataInicio: dataInicio,
+      dataFim: dataFim,
+      tipo: tipo
+    });
     
     hideLoading();
     
-    if (resultado && resultado.sucesso === true) {
-      const folhas = filtrarFolhasPagamentoPorPeriodo_(resultado.folhas, dataInicio, dataFim);
+    if (resultado && resultado.success === true) {
       relatorioAtual = {
         dataInicio: dataInicio,
         dataFim: dataFim,
         tipo: tipo,
-        resumo: montarRelatorioPagamentoSeguro_(folhas, dataInicio, dataFim, tipo),
-        totalEventos: folhas.length,
-        seguroParaPagamento: true
+        resumo: resultado.resumo,
+        totalEventos: resultado.totalEventos
       };
       
       // Mostrar relatório
@@ -2905,8 +2907,8 @@ function exibirRelatorio() {
   conteudo.textContent = relatorioAtual.resumo;
   const botaoDownload = document.querySelector('#modal-exibir-relatorio button[onclick="baixarRelatorioPDF()"]');
   const botaoDrive = document.querySelector('#modal-exibir-relatorio button[onclick="abrirRelatorioDrive()"]');
-  if (botaoDownload) botaoDownload.textContent = relatorioAtual.seguroParaPagamento ? '📥 Baixar relatório' : '📥 Baixar PDF';
-  if (botaoDrive) botaoDrive.classList.toggle('hidden', relatorioAtual.seguroParaPagamento === true);
+  if (botaoDownload) botaoDownload.textContent = '📥 Baixar PDF';
+  if (botaoDrive) botaoDrive.classList.remove('hidden');
   
   // Abrir modal
   abrirModal('modal-exibir-relatorio');
@@ -2968,18 +2970,6 @@ async function baixarRelatorioPDF() {
     alert('Nenhum relatório gerado');
     return;
   }
-  if (relatorioAtual.seguroParaPagamento === true) {
-    const blob = new Blob([relatorioAtual.resumo], { type: 'text/plain;charset=utf-8' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = `relatorio-pagamento-aprovado-${relatorioAtual.dataInicio}-${relatorioAtual.dataFim}.txt`;
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    URL.revokeObjectURL(link.href);
-    return;
-  }
-  
   try {
     showLoading('Gerando PDF para download...');
     
