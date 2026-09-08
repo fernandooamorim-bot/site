@@ -478,6 +478,156 @@ function listarFolhasCustoAprovadasParaPagamento(params, email) {
   return { sucesso: true, folhas: aprovadas, geradoEm: new Date().toISOString() };
 }
 
+/**
+ * Consulta somente leitura para análise de custos/ganhos. Reusa o mesmo
+ * critério financeiro dos relatórios: versões canceladas ou substituídas não
+ * chegam ao resultado, ainda que existam no histórico da folha externa.
+ */
+function analisarCustosFolhaPorPeriodo(params, email) {
+  const p = params && typeof params === 'object' ? params : {};
+  const resp = folhaCustosProxy({ externalAction: 'getFolhasCusto', payload: {} }, email);
+  const indice = construirIndiceFolhasFinanceiro_();
+  const folhas = normalizarListaFolhasCusto_(resp && resp.data).filter(function (folha) {
+    const meta = extrairMetaAgendaFolha_(folha);
+    const idFolha = String((folha && folha.id) || '').trim();
+    const idEvento = String((meta.idEvento || folha.idEvento || folha.idEventoAgenda) || '').trim();
+    const status = String((meta.statusAprovacao || folha.statusAprovacao) || '').trim().toUpperCase();
+    return idFolha && idEvento && status === 'APROVADO' && folhaJaAplicadaNoIndice_(indice, idEvento, idFolha);
+  });
+  return construirAnaliseCustosFolhas_(folhas, p);
+}
+
+function construirAnaliseCustosFolhas_(folhas, params) {
+  const p = params && typeof params === 'object' ? params : {};
+  const visao = ['INTEGRANTES', 'SERVICOS', 'EVENTOS'].indexOf(String(p.visao || '').toUpperCase()) >= 0
+    ? String(p.visao).toUpperCase()
+    : 'INTEGRANTES';
+  const baseData = String(p.baseData || '').toUpperCase() === 'APROVACAO' ? 'APROVACAO' : 'EVENTO';
+  const inicio = normalizarDataChaveAnaliseFolha_(p.dataInicio);
+  const fim = normalizarDataChaveAnaliseFolha_(p.dataFim);
+  const filtro = normalizarTextoAnaliseFolha_(p.filtro || '');
+  const filtroServico = normalizarTextoAnaliseFolha_(p.filtroServico || '');
+  const grupos = Object.create(null);
+  const eventos = [];
+  let total = 0;
+  let folhasIncluidas = 0;
+
+  (Array.isArray(folhas) ? folhas : []).forEach(function (folha) {
+    const dataRef = baseData === 'APROVACAO' ? (folha.aprovadoEm || folha.criadoEm) : folha.data;
+    const dataChave = normalizarDataChaveAnaliseFolha_(dataRef);
+    if ((inicio && (!dataChave || dataChave < inicio)) || (fim && (!dataChave || dataChave > fim))) return;
+
+    const musicos = normalizarItensAnaliseFolha_(folha.musicos);
+    const servicos = normalizarItensAnaliseFolha_(folha.terceirizados);
+    let linhas = [];
+    if (visao === 'INTEGRANTES') {
+      linhas = musicos.filter(function (item) {
+        return !filtro || normalizarTextoAnaliseFolha_(item.nome || item.funcao || '').indexOf(filtro) !== -1;
+      }).map(function (item) {
+        return {
+          chave: String(item.nome || 'Sem nome').trim() || 'Sem nome',
+          rotulo: String(item.nome || 'Sem nome').trim() || 'Sem nome',
+          categoria: String(item.funcao || 'Integrante').trim() || 'Integrante',
+          valor: valorIntegranteAnaliseFolha_(item)
+        };
+      });
+    } else if (visao === 'SERVICOS') {
+      linhas = servicos.filter(function (item) {
+        const texto = [item.nome, item.servico, item.descricao, item.categoria].join(' ');
+        return !filtroServico || normalizarTextoAnaliseFolha_(texto).indexOf(filtroServico) !== -1;
+      }).map(function (item) {
+        const nome = String(item.nome || item.servico || item.descricao || item.categoria || 'Serviço não identificado').trim();
+        return {
+          chave: nome,
+          rotulo: nome,
+          categoria: String(item.categoria || 'Terceirizado').trim() || 'Terceirizado',
+          valor: Number(item.valor || item.total || 0) || 0
+        };
+      });
+    } else {
+      const atendeIntegrante = !filtro || musicos.some(function (item) {
+        return normalizarTextoAnaliseFolha_(item.nome || item.funcao || '').indexOf(filtro) !== -1;
+      });
+      const atendeServico = !filtroServico || servicos.some(function (item) {
+        return normalizarTextoAnaliseFolha_([item.nome, item.servico, item.descricao, item.categoria].join(' ')).indexOf(filtroServico) !== -1;
+      });
+      if (!atendeIntegrante || !atendeServico) return;
+      linhas = [{
+        chave: String(folha.idEvento || folha.id || ''),
+        rotulo: String(folha.nomeEvento || 'Evento').trim() || 'Evento',
+        categoria: formatarDataPendenciaFolha_(folha.data),
+        valor: Number(extrairTotaisFolha_(folha).geral || 0) || 0
+      }];
+    }
+
+    if (!linhas.length) return;
+    folhasIncluidas++;
+    linhas.forEach(function (linha) {
+      const chave = linha.chave + '|' + linha.categoria;
+      if (!grupos[chave]) {
+        grupos[chave] = { nome: linha.rotulo, categoria: linha.categoria, valor: 0, quantidade: 0 };
+      }
+      grupos[chave].valor += Number(linha.valor || 0) || 0;
+      grupos[chave].quantidade++;
+      total += Number(linha.valor || 0) || 0;
+      eventos.push({
+        evento: String(folha.nomeEvento || 'Evento').trim() || 'Evento',
+        data: formatarDataPendenciaFolha_(folha.data),
+        item: linha.rotulo,
+        categoria: linha.categoria,
+        valor: Number(linha.valor || 0) || 0
+      });
+    });
+  });
+
+  const gruposOrdenados = Object.keys(grupos).map(function (chave) {
+    const grupo = grupos[chave];
+    return { nome: grupo.nome, categoria: grupo.categoria, valor: Number(grupo.valor.toFixed(2)), quantidade: grupo.quantidade };
+  }).sort(function (a, b) { return b.valor - a.valor || a.nome.localeCompare(b.nome); });
+
+  return {
+    sucesso: true,
+    visao: visao,
+    baseData: baseData,
+    total: Number(total.toFixed(2)),
+    folhasIncluidas: folhasIncluidas,
+    grupos: gruposOrdenados,
+    detalhes: eventos.sort(function (a, b) { return b.valor - a.valor; }),
+    geradoEm: new Date().toISOString()
+  };
+}
+
+function normalizarItensAnaliseFolha_(valor) {
+  if (Array.isArray(valor)) return valor;
+  if (typeof valor === 'string' && valor.trim()) {
+    try { return JSON.parse(valor); } catch (_) {}
+  }
+  return [];
+}
+
+function valorIntegranteAnaliseFolha_(item) {
+  const i = item && typeof item === 'object' ? item : {};
+  if (Number(i.total || 0) > 0) return Number(i.total || 0);
+  return Number(i.valorBase || 0) + Number(i.adicionalAutomatico || 0) +
+    Number(i.ajusteLiquido || i.adicionalExtra || 0) + Number(i.adicionalPassagem || 0);
+}
+
+function normalizarTextoAnaliseFolha_(valor) {
+  return String(valor || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+}
+
+function normalizarDataChaveAnaliseFolha_(valor) {
+  const raw = String(valor || '').trim();
+  if (!raw) return '';
+  const iso = raw.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (iso) return iso[1] + '-' + iso[2] + '-' + iso[3];
+  const br = raw.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
+  if (br) return br[3] + '-' + br[2] + '-' + br[1];
+  const d = new Date(raw);
+  if (isNaN(d.getTime())) return '';
+  return Utilities.formatDate(d, Session.getScriptTimeZone(), 'yyyy-MM-dd');
+}
+
 function extrairReferenciasFolhaProcessada_(referencia, observacoes) {
   const encontrados = [];
   const vistos = Object.create(null);
