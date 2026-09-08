@@ -537,6 +537,7 @@ function normalizarFolhasElegiveisParaRelatorio_(folhas, indice) {
 // ID_EVENTO. Elas não substituem a conciliação: ainda exigem data e total
 // financeiro exatos, além do resumo detalhado validado abaixo.
 const EQUIVALENCIAS_FOLHAS_LEGADAS_CONFIRMADAS_ = {
+  '1769958695875': 'LG-2026-AGENDA2026-0011', // 15 anos NERISSA ESPAÇO LÔ → Filha Nelida Cervantes
   '1770488353898': 'LG-2026-AGENDA2026-0013', // 15 ANOS MARIA BEATRIZ → Erika Figueiredo
   '1772990143011': 'LG-2026-AGENDA2026-0026'  // Aniversário taís sombra → Niver Thais Sombra
 };
@@ -612,11 +613,13 @@ function extrairItensResumoFolhaLegada_(resumo, marcador, fim, tipo) {
   const fimMatch = fim.exec(bloco);
   if (fimMatch) bloco = bloco.slice(0, fimMatch.index);
   const itens = [];
-  const linha = /^[•-]\s*(.+?)\s+\(([^)]+)\)\s*(?:–|:)\s*R\$\s*([\d.,]+)/gm;
+  const linha = /^[•-]\s*(.+?)\s+\(([^)]+)\)\s*(?:–|:)\s*R\$\s*(-?[\d.,]+)/gm;
   let item;
   while ((item = linha.exec(bloco)) !== null) {
     const valor = numeroResumoFolhaLegada_(item[3]);
-    if (!(valor >= 0)) return [];
+    // O legado pode registrar ajuste operacional negativo para reconciliar o
+    // total histórico à movimentação financeira, sem alterar cachês pagos.
+    if (!isFinite(valor) || (tipo === 'musico' && valor < 0)) return [];
     if (tipo === 'musico') {
       itens.push({ nome: String(item[1] || '').trim(), funcao: String(item[2] || '').trim(), total: valor });
     } else {
