@@ -1018,6 +1018,70 @@ input, textarea, select {
   margin-bottom: var(--space-lg);
 }
 
+.btn-analise-custos {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.analise-ajuda,
+.analise-metadados {
+  color: var(--color-text-secondary);
+  font-size: var(--text-sm);
+  margin: 0 0 var(--space-lg);
+}
+
+.analise-resultado {
+  margin-top: var(--space-lg);
+}
+
+.analise-total {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-md);
+  align-items: center;
+  padding: var(--space-lg);
+  border-radius: var(--radius-md);
+  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-light));
+  color: #fff;
+}
+
+.analise-total strong {
+  font-size: var(--text-xl);
+  white-space: nowrap;
+}
+
+.analise-tabela-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.analise-tabela {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 460px;
+}
+
+.analise-tabela th,
+.analise-tabela td {
+  padding: var(--space-sm) var(--space-md);
+  text-align: left;
+  border-bottom: 1px solid var(--color-border);
+  font-size: var(--text-sm);
+}
+
+.analise-tabela th {
+  background: var(--color-bg);
+  color: var(--color-text-secondary);
+}
+
+.analise-tabela tr:last-child td { border-bottom: 0; }
+.analise-tabela td small { display: block; color: var(--color-text-secondary); margin-top: 2px; }
+.analise-valor { text-align: right !important; font-weight: var(--font-weight-semibold); white-space: nowrap; }
+.analise-detalhes { margin-top: var(--space-lg); }
+.analise-detalhes summary { cursor: pointer; font-weight: var(--font-weight-semibold); margin-bottom: var(--space-sm); }
+
 .info-row {
   display: flex;
   justify-content: space-between;

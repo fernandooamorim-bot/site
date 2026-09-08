@@ -2760,6 +2760,85 @@ function abrirGerarRelatorio() {
   abrirModal('modal-gerar-relatorio');
 }
 
+function abrirAnaliseCustosFolha() {
+  const hoje = new Date();
+  const inicio = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+  document.getElementById('analise-data-inicio').value = inicio.toISOString().split('T')[0];
+  document.getElementById('analise-data-fim').value = hoje.toISOString().split('T')[0];
+  document.getElementById('analise-custos-resultado').textContent = 'Escolha os filtros e solicite a análise.';
+  atualizarRotulosFiltrosAnaliseFolha();
+  abrirModal('modal-analise-custos');
+}
+
+function atualizarRotulosFiltrosAnaliseFolha() {
+  const visao = String(document.getElementById('analise-visao')?.value || 'INTEGRANTES').toUpperCase();
+  const grupoIntegrante = document.getElementById('analise-integrante-grupo');
+  const grupoServico = document.getElementById('analise-servico-grupo');
+  const label = document.getElementById('analise-filtro-label');
+  if (grupoIntegrante) grupoIntegrante.classList.toggle('hidden', visao === 'SERVICOS');
+  if (grupoServico) grupoServico.classList.toggle('hidden', visao === 'INTEGRANTES');
+  if (label) label.textContent = visao === 'EVENTOS' ? 'Evento com integrante' : 'Filtrar integrante';
+}
+
+function escaparHtmlAnaliseFolha_(valor) {
+  return String(valor ?? '').replace(/[&<>'"]/g, (ch) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
+  })[ch]);
+}
+
+function formatarMoedaAnaliseFolha_(valor) {
+  return `R$ ${(Number(valor || 0) || 0).toFixed(2).replace('.', ',')}`;
+}
+
+async function gerarAnaliseCustosFolha() {
+  const dataInicio = String(document.getElementById('analise-data-inicio')?.value || '');
+  const dataFim = String(document.getElementById('analise-data-fim')?.value || '');
+  if (!dataInicio || !dataFim || dataInicio > dataFim) {
+    alert('Informe um período válido para a análise.');
+    return;
+  }
+
+  const resultadoBox = document.getElementById('analise-custos-resultado');
+  if (resultadoBox) resultadoBox.innerHTML = '<span class="mini-loader"><span class="mini-loader-dot"></span>Calculando análise...</span>';
+  try {
+    const resultado = await Auth.apiCall('analisarCustosFolhaPorPeriodo', {
+      dataInicio,
+      dataFim,
+      baseData: document.getElementById('analise-base-data')?.value || 'EVENTO',
+      visao: document.getElementById('analise-visao')?.value || 'INTEGRANTES',
+      filtro: document.getElementById('analise-filtro')?.value || '',
+      filtroServico: document.getElementById('analise-filtro-servico')?.value || ''
+    });
+    if (!resultado || resultado.sucesso !== true) throw new Error(resultado?.mensagem || 'Não foi possível calcular a análise.');
+    renderizarAnaliseCustosFolha_(resultado);
+  } catch (erro) {
+    console.error('Erro na análise de custos:', erro);
+    if (resultadoBox) resultadoBox.textContent = erro?.message || 'Não foi possível calcular a análise.';
+  }
+}
+
+function renderizarAnaliseCustosFolha_(resultado) {
+  const box = document.getElementById('analise-custos-resultado');
+  if (!box) return;
+  const grupos = Array.isArray(resultado?.grupos) ? resultado.grupos : [];
+  const detalhes = Array.isArray(resultado?.detalhes) ? resultado.detalhes : [];
+  const titulo = resultado.visao === 'SERVICOS' ? 'Gastos filtrados em serviços'
+    : (resultado.visao === 'EVENTOS' ? 'Custos filtrados por evento' : 'Ganhos autorizados por integrante');
+  const linhas = grupos.length ? grupos.map((grupo) => `
+    <tr>
+      <td><strong>${escaparHtmlAnaliseFolha_(grupo.nome)}</strong><small>${escaparHtmlAnaliseFolha_(grupo.categoria || '')}</small></td>
+      <td>${Number(grupo.quantidade || 0)}</td>
+      <td class="analise-valor">${formatarMoedaAnaliseFolha_(grupo.valor)}</td>
+    </tr>`).join('') : '<tr><td colspan="3">Nenhum registro corresponde aos filtros.</td></tr>';
+  const detalhesHtml = detalhes.slice(0, 80).map((item) => `
+    <tr><td>${escaparHtmlAnaliseFolha_(item.data)}</td><td>${escaparHtmlAnaliseFolha_(item.evento)}</td><td>${escaparHtmlAnaliseFolha_(item.item)}</td><td class="analise-valor">${formatarMoedaAnaliseFolha_(item.valor)}</td></tr>`).join('');
+  box.innerHTML = `
+    <div class="analise-total"><span>${titulo}</span><strong>${formatarMoedaAnaliseFolha_(resultado.total)}</strong></div>
+    <p class="analise-metadados">${Number(resultado.folhasIncluidas || 0)} folha(s) incluída(s), após validação financeira.</p>
+    <div class="analise-tabela-wrap"><table class="analise-tabela"><thead><tr><th>Item</th><th>Lançamentos</th><th>Valor</th></tr></thead><tbody>${linhas}</tbody></table></div>
+    ${detalhes.length ? `<details class="analise-detalhes"><summary>Ver detalhamento por evento (${detalhes.length})</summary><div class="analise-tabela-wrap"><table class="analise-tabela"><thead><tr><th>Data</th><th>Evento</th><th>Item</th><th>Valor</th></tr></thead><tbody>${detalhesHtml}</tbody></table></div>${detalhes.length > 80 ? '<p class="analise-metadados">Exibindo os 80 maiores lançamentos.</p>' : ''}</details>` : ''}`;
+}
+
 /**
  * Gera relatório (chama API)
  */
