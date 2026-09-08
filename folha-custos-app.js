@@ -203,6 +203,11 @@ function setupEventListeners() {
   if (btnLogout) {
     btnLogout.addEventListener('click', () => Auth.logout());
   }
+
+  ['select-nome-servico', 'input-valor-servico'].forEach((id) => {
+    const campo = document.getElementById(id);
+    if (campo) campo.addEventListener('change', () => incorporarCustoTerceirizadoRascunho_({ silencioso: true }));
+  });
   
   const eventoForaCidade = document.getElementById('evento-fora-cidade');
   if (eventoForaCidade) {
@@ -375,6 +380,9 @@ function showApp() {
   }
 
   if (window.lucide) window.lucide.createIcons();
+  abrirFolhaDaNavegacaoDireta_().catch((erro) => {
+    console.warn('Falha ao abrir folha indicada pela navegação:', erro);
+  });
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -919,6 +927,12 @@ function classificarStatusEventoAutocompleteRapido_(ev) {
 
 function atualizarBotaoAcaoFolha_() {
   const btn = document.getElementById('btn-enviar-aprovacao');
+  const btnAprovar = document.getElementById('btn-aprovar-folha');
+  const podeAprovar = perfilFolhaNormalizado_() === 'proprietario' && !!(propostaPendenteAtual && propostaPendenteAtual.id);
+  if (btnAprovar) {
+    btnAprovar.classList.toggle('hidden', !podeAprovar);
+    btnAprovar.disabled = salvandoFolhaCusto;
+  }
   if (!btn) return;
   if (btn.dataset.enviando === '1') return;
   if (propostaPendenteAtual && propostaPendenteAtual.id) {
@@ -939,6 +953,8 @@ function definirRotuloBotaoFolha_(botao, icone, texto) {
 
 function setEstadoEnvioFolha_(ativo, texto) {
   const btn = document.getElementById('btn-enviar-aprovacao');
+  const btnAprovar = document.getElementById('btn-aprovar-folha');
+  if (btnAprovar) btnAprovar.disabled = ativo;
   if (!btn) return;
   if (ativo) {
     if (!btn.dataset.labelOriginal) btn.dataset.labelOriginal = btn.textContent || '';
@@ -1117,7 +1133,8 @@ function preencherFormularioComFolha_(detalhe, modo) {
   musicosSelecionados = mSelecionados;
 
   const listaTerceirizados = parseArrayMaybeJson_(detalhe.terceirizados);
-  terceirizadosAtivos = listaTerceirizados.map(t => ({
+  terceirizadosAtivos = listaTerceirizados.map((t, indice) => ({
+    id: String(t.id || `${Date.now()}-${indice}`),
     nome: String(t.nome || ''),
     categoria: String(t.categoria || ''),
     valor: Number(t.valor || 0)
@@ -1173,6 +1190,66 @@ async function carregarPropostaPendenteParaEdicao_(idFolha) {
   } catch (e) {
     console.warn('Falha ao carregar proposta pendente para edição:', e);
     return false;
+  }
+}
+
+async function abrirFolhaDaNavegacaoDireta_() {
+  const params = new URLSearchParams(window.location.search || '');
+  const idEvento = String(params.get('idEvento') || '').trim();
+  const idFolha = String(params.get('idFolha') || '').trim();
+  if (!idEvento && !idFolha) return;
+
+  showLoading('Abrindo folha para análise...');
+  try {
+    await carregarEventosAgendaFolha_({ force: true });
+    const evento = (eventosAgendaFolhaCache || []).find((item) => String(item?.id || '').trim() === idEvento);
+    if (!evento) throw new Error('EVENTO_NAO_ENCONTRADO_NA_AGENDA');
+    await selecionarEventoAgendaFolha_(idEvento, { idFolha: idFolha, semConfirmacaoRevisao: true });
+  } finally {
+    hideLoading();
+  }
+}
+
+async function aprovarFolhaPendenteNaPagina() {
+  if (perfilFolhaNormalizado_() !== 'proprietario') {
+    alert('Ação restrita ao proprietário.');
+    return;
+  }
+  const idFolha = String(propostaPendenteAtual?.id || '').trim();
+  const idEvento = String(document.getElementById('agenda-evento-id')?.value || '').trim();
+  if (!idFolha || !idEvento) {
+    alert('Carregue uma proposta pendente antes de aprovar.');
+    return;
+  }
+  const totalTexto = String(document.getElementById('custo-total')?.textContent || '');
+  const total = Number(totalTexto.replace(/[^\d,.-]/g, '').replace(/\./g, '').replace(',', '.')) || 0;
+  const mensagem = `Aprovar a folha deste evento${total > 0 ? ` no valor de R$ ${total.toFixed(2)}` : ''}? ` +
+    'Se houver uma folha ativa, a versão anterior será cancelada no financeiro e preservada no histórico.';
+  if (!confirm(mensagem)) return;
+
+  salvandoFolhaCusto = true;
+  setEstadoEnvioFolha_(true, 'Aprovando...');
+  showLoading('Aprovando folha de custos...');
+  try {
+    const resposta = await Auth.apiCall('aprovarPendenciaFolhaCusto', {
+      idFolha: idFolha,
+      operationKey: `aprovarFolhaPagina:${idFolha}:${Date.now()}`
+    });
+    if (!resposta || resposta.sucesso !== true) throw new Error(resposta?.mensagem || 'Não foi possível aprovar a folha.');
+    alert('Folha aprovada e lançada no financeiro.');
+    propostaPendenteAtual = null;
+    eventosComPropostaFolhaCache.delete(idEvento);
+    propostasPendentesPorEvento.delete(idEvento);
+    resumoFolhaEventoCache.set(idEvento, true);
+    eventoSelecionadoTemFolhaAtiva = true;
+    revisaoFolhaAtivaAtual = false;
+  } catch (erro) {
+    console.error('Erro ao aprovar folha na página:', erro);
+    alert(erro?.message || 'Não foi possível aprovar a folha.');
+  } finally {
+    hideLoading();
+    salvandoFolhaCusto = false;
+    setEstadoEnvioFolha_(false);
   }
 }
 
@@ -1397,7 +1474,8 @@ async function refinarEventosAgendaRecomendadosComResumo_(ids) {
   renderEventosAgendaRecomendados_().catch(() => {});
 }
 
-async function selecionarEventoAgendaFolha_(idEvento) {
+async function selecionarEventoAgendaFolha_(idEvento, options) {
+  const opts = options && typeof options === 'object' ? options : {};
   const id = String(idEvento || '').trim();
   const ev = (eventosAgendaFolhaCache || []).find(e => String(e.id || '').trim() === id);
   if (!ev) return;
@@ -1424,13 +1502,17 @@ async function selecionarEventoAgendaFolha_(idEvento) {
     } catch (_) {}
   }
   const pendenteEhRevisao = String(pendenteBruto?.tipoSolicitacao || '').trim().toUpperCase() === 'REVISAO_FOLHA_ATIVA';
-  const pendente = eventoSelecionadoTemFolhaAtiva && !pendenteEhRevisao ? null : pendenteBruto;
+  const idFolhaSolicitada = String(opts.idFolha || '').trim();
+  const pendenteSolicitada = idFolhaSolicitada
+    ? { id: idFolhaSolicitada, idEvento: idNormalizado, tipoSolicitacao: pendenteBruto?.tipoSolicitacao || '' }
+    : null;
+  const pendente = pendenteSolicitada || (eventoSelecionadoTemFolhaAtiva && !pendenteEhRevisao ? null : pendenteBruto);
   if (eventoSelecionadoTemFolhaAtiva && pendenteEhRevisao) {
     revisaoFolhaAtivaAtual = true;
   }
 
   if (eventoSelecionadoTemFolhaAtiva && !pendente) {
-    const okRevisao = confirm('Este evento já possui folha ativa. Deseja carregar a última folha para revisão?');
+    const okRevisao = opts.semConfirmacaoRevisao === true || confirm('Este evento já possui folha ativa. Deseja carregar a última folha para revisão?');
     if (!okRevisao) {
       if (inpBusca) inpBusca.value = '';
       if (inpId) inpId.value = '';
@@ -2013,21 +2095,23 @@ async function salvarNovoServico(categoria, nome) {
   }
 }
 
-function adicionarServicoSelecionado() {
+function incorporarCustoTerceirizadoRascunho_(opts) {
+  const options = opts && typeof opts === 'object' ? opts : {};
   const selectNome = document.getElementById('select-nome-servico');
   const inputValor = document.getElementById('input-valor-servico');
+  if (!selectNome || !inputValor) return false;
   
   const nome = selectNome.value;
   const valor = parseFloat(inputValor.value) || 0;
   
   if (!nome || nome === '__NOVO__') {
-    alert('⚠️ Selecione o serviço');
-    return;
+    if (!options.silencioso && (nome || String(inputValor.value || '').trim())) alert('⚠️ Selecione o serviço');
+    return false;
   }
   
   if (valor <= 0) {
-    alert('⚠️ Informe um valor válido');
-    return;
+    if (!options.silencioso) alert('⚠️ Informe um valor válido');
+    return false;
   }
   
   // Buscar categoria do serviço selecionado
@@ -2047,6 +2131,11 @@ function adicionarServicoSelecionado() {
   
   renderTerceirizados();
   recalcular();
+  return true;
+}
+
+function adicionarServicoSelecionado() {
+  return incorporarCustoTerceirizadoRascunho_({ silencioso: false });
 }
 
 function recalcular() {
@@ -2306,6 +2395,9 @@ async function salvarFolhaCusto(opts) {
   showLoading(loadingMsg);
 
   try {
+    // Evita que um custo válido digitado no formulário rápido fique fora da folha
+    // por depender de um clique adicional em “Adicionar custo”.
+    incorporarCustoTerceirizadoRascunho_({ silencioso: true });
     await carregarEventosComPropostaFolha_();
     const pendenciaExistente = propostasPendentesPorEvento.get(idEventoAgenda);
     if (
@@ -2701,24 +2793,19 @@ async function gerarRelatorio() {
     fecharModal('modal-gerar-relatorio');
     showLoading('Gerando relatório...');
     
-    // CORREÇÃO: Enviar tipo junto com as datas
-    const resultado = await apiPost('gerarPreviewPDF', {
-      dataInicio: dataInicio,
-      dataFim: dataFim,
-      tipo: tipo  // ← NOVO PARÂMETRO!
-    });
+    const resultado = await Auth.apiCall('listarFolhasCustoAprovadasParaPagamento', {});
     
     hideLoading();
     
-    if (resultado.success && resultado.resumo) {
-      // Armazenar dados do relatório
+    if (resultado && resultado.sucesso === true) {
+      const folhas = filtrarFolhasPagamentoPorPeriodo_(resultado.folhas, dataInicio, dataFim);
       relatorioAtual = {
         dataInicio: dataInicio,
         dataFim: dataFim,
-        tipo: tipo,  // ← ARMAZENAR TIPO
-        resumo: resultado.resumo,
-        totalEventos: resultado.totalEventos,
-        endpoint: resultado.__debugEndpoint || ''
+        tipo: tipo,
+        resumo: montarRelatorioPagamentoSeguro_(folhas, dataInicio, dataFim, tipo),
+        totalEventos: folhas.length,
+        seguroParaPagamento: true
       };
       
       // Mostrar relatório
@@ -2758,6 +2845,49 @@ async function gerarRelatorio() {
   }
 }
 
+function filtrarFolhasPagamentoPorPeriodo_(folhas, dataInicio, dataFim) {
+  const inicio = parseDataFolhaLocal_(dataInicio);
+  const fim = parseDataFolhaLocal_(dataFim);
+  if (fim) fim.setHours(23, 59, 59, 999);
+  return (Array.isArray(folhas) ? folhas : []).filter((folha) => {
+    const data = parseDataFolhaLocal_(folha?.data);
+    return data && (!inicio || data >= inicio) && (!fim || data <= fim);
+  }).sort((a, b) => String(a?.data || '').localeCompare(String(b?.data || '')));
+}
+
+function montarRelatorioPagamentoSeguro_(folhas, dataInicio, dataFim, tipo) {
+  const moeda = (valor) => `R$ ${(Number(valor || 0) || 0).toFixed(2).replace('.', ',')}`;
+  const linhas = [
+    'RELATÓRIO SEGURO DE PAGAMENTO — FOLHAS APROVADAS',
+    `Período: ${dataInicio} a ${dataFim}`,
+    'Critério: apenas folhas cuja referência permanece PROCESSADA no financeiro.',
+    ''
+  ];
+  let total = 0;
+  folhas.forEach((folha, indice) => {
+    const totais = folha?.totais || {};
+    const valorFolha = Number(totais.geral || 0) || 0;
+    total += valorFolha;
+    linhas.push(`${indice + 1}. ${folha.nomeEvento || 'Evento'} (${folha.data || 'sem data'})`);
+    linhas.push(`   Evento: ${folha.idEvento || '—'} | Folha: ${folha.id || '—'} | Total: ${moeda(valorFolha)}`);
+    const musicos = parseArrayMaybeJson_(folha?.musicos);
+    if (musicos.length) {
+      linhas.push('   Músicos:');
+      musicos.forEach((musico) => linhas.push(`   - ${musico.nome || 'Sem nome'}: ${moeda(musico.total || (Number(musico.valorBase || 0) + Number(musico.adicionalAutomatico || 0) + Number(musico.ajusteLiquido || musico.adicionalExtra || 0) + Number(musico.adicionalPassagem || 0)))}`));
+    }
+    const terceiros = parseArrayMaybeJson_(folha?.terceirizados);
+    if (terceiros.length) {
+      linhas.push('   Terceirizados:');
+      terceiros.forEach((item) => linhas.push(`   - ${item.nome || 'Sem descrição'}: ${moeda(item.valor)}`));
+    }
+    if (tipo === 'detalhado') linhas.push(`   Composição: músicos ${moeda(totais.musicos)} | adicionais ${moeda(totais.adicionais)} | terceirizados ${moeda(totais.terceirizados)}`);
+    linhas.push('');
+  });
+  linhas.push(`TOTAL AUTORIZADO PARA PAGAMENTO: ${moeda(total)}`);
+  linhas.push(`Folhas incluídas: ${folhas.length}`);
+  return linhas.join('\n');
+}
+
 /**
  * Exibe relatório no modal
  */
@@ -2773,6 +2903,10 @@ function exibirRelatorio() {
   
   // Atualizar conteúdo
   conteudo.textContent = relatorioAtual.resumo;
+  const botaoDownload = document.querySelector('#modal-exibir-relatorio button[onclick="baixarRelatorioPDF()"]');
+  const botaoDrive = document.querySelector('#modal-exibir-relatorio button[onclick="abrirRelatorioDrive()"]');
+  if (botaoDownload) botaoDownload.textContent = relatorioAtual.seguroParaPagamento ? '📥 Baixar relatório' : '📥 Baixar PDF';
+  if (botaoDrive) botaoDrive.classList.toggle('hidden', relatorioAtual.seguroParaPagamento === true);
   
   // Abrir modal
   abrirModal('modal-exibir-relatorio');
@@ -2832,6 +2966,17 @@ async function copiarRelatorio() {
 async function baixarRelatorioPDF() {
   if (!relatorioAtual) {
     alert('Nenhum relatório gerado');
+    return;
+  }
+  if (relatorioAtual.seguroParaPagamento === true) {
+    const blob = new Blob([relatorioAtual.resumo], { type: 'text/plain;charset=utf-8' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `relatorio-pagamento-aprovado-${relatorioAtual.dataInicio}-${relatorioAtual.dataFim}.txt`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(link.href);
     return;
   }
   

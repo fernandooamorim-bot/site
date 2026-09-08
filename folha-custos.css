@@ -1649,6 +1649,7 @@ body { background: var(--color-bg); line-height: 1.5; }
 .card-actions .btn-primary:first-child { flex: 1 1 330px; }
 .card-actions .btn-primary:last-child { flex: 0 1 auto; background: #fff; color: #344054; border: 1px solid #d0d9e5; box-shadow: none; }
 .card-actions .btn-primary:last-child:hover { background: #f8fafc; border-color: #aebfd2; }
+.card-actions .btn-aprovar-folha { flex: 0 1 auto; background: linear-gradient(135deg, #1d6b46, #15563a); }
 
 @media (max-width: 760px) {
   .container { padding: 0 14px; }
@@ -1659,6 +1660,6 @@ body { background: var(--color-bg); line-height: 1.5; }
   .quick-actions .btn-quick { min-width: 0; }
   .musico-card { min-height: 0; }
   .resumo-total { grid-column: auto; }
-  .card-actions .btn-primary { width: 100%; flex: 0 0 auto; min-height: 52px; }
+  .card-actions .btn-primary { width: 100%; flex: 0 0 52px; min-height: 52px; max-height: 52px; padding: 10px 14px; }
   .info-badge { margin-left: 0; }
 }

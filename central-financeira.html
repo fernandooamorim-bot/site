@@ -2929,7 +2929,9 @@ async function carregarPendenciasFolhaCustosAprovacao_(opts) {
           Valor: <strong>R$ ${Number(p.valorTotal || 0).toFixed(2)}</strong> • Data: ${escaparHtml_(String(p.data || ''))}
         </div>
         <div class="muted" style="font-size:12px;margin-top:3px">${escaparHtml_(String(p.resumoCompacto || '').slice(0, 220))}</div>
+        ${renderDetalhesPendenciaFolha_(p)}
         <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">
+          <button type="button" class="btn secondary" onclick="abrirFolhaPendenteParaAnalise_('${escaparAttr_(String(p.idEvento || ''))}', '${escaparAttr_(String(p.id || ''))}')">Analisar folha</button>
           <button type="button" class="btn secondary" onclick="selecionarEventoPorIdNoModo_('${escaparAttr_(String(p.idEvento || ''))}')">Abrir evento</button>
           <button type="button" class="btn primary" onclick="aprovarPendenciaFolhaCusto_('${escaparAttr_(String(p.id || ''))}')">Aprovar</button>
         </div>
@@ -2983,12 +2985,43 @@ function renderPendenciasFolhaCustosHtml_(lista) {
         Valor: <strong>R$ ${Number(p.valorTotal || 0).toFixed(2)}</strong> • Data: ${escaparHtml_(String(p.data || ''))}
       </div>
       <div class="muted" style="font-size:12px;margin-top:3px">${escaparHtml_(String(p.resumoCompacto || '').slice(0, 220))}</div>
+      ${renderDetalhesPendenciaFolha_(p)}
       <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">
+        <button type="button" class="btn secondary" onclick="abrirFolhaPendenteParaAnalise_('${escaparAttr_(String(p.idEvento || ''))}', '${escaparAttr_(String(p.id || ''))}')">Analisar folha</button>
         <button type="button" class="btn secondary" onclick="selecionarEventoPorIdNoModo_('${escaparAttr_(String(p.idEvento || ''))}')">Abrir evento</button>
         <button type="button" class="btn primary" onclick="aprovarPendenciaFolhaCusto_('${escaparAttr_(String(p.id || ''))}')">Aprovar</button>
       </div>
     </div>
   `).join('');
+}
+
+function listaDetalheFolha_(valor) {
+  if (Array.isArray(valor)) return valor;
+  if (typeof valor !== 'string' || !valor.trim()) return [];
+  try {
+    const lista = JSON.parse(valor);
+    return Array.isArray(lista) ? lista : [];
+  } catch (_) {
+    return [];
+  }
+}
+
+function renderDetalhesPendenciaFolha_(pendencia) {
+  const musicos = listaDetalheFolha_(pendencia?.musicos);
+  const terceiros = listaDetalheFolha_(pendencia?.terceirizados);
+  if (!musicos.length && !terceiros.length) return '';
+  const moeda = (valor) => `R$ ${Number(valor || 0).toFixed(2)}`;
+  const linhasMusicos = musicos.map((item) => `<li>${escaparHtml_(String(item?.nome || 'Sem nome'))} — ${moeda(item?.total || (Number(item?.valorBase || 0) + Number(item?.adicionalAutomatico || 0) + Number(item?.ajusteLiquido || item?.adicionalExtra || 0) + Number(item?.adicionalPassagem || 0)))}</li>`).join('');
+  const linhasTerceiros = terceiros.map((item) => `<li>${escaparHtml_(String(item?.nome || 'Sem descrição'))} — ${moeda(item?.valor)}</li>`).join('');
+  return `<details style="margin-top:7px;font-size:12px"><summary style="cursor:pointer;color:#475467">Ver composição para aprovação</summary>${linhasMusicos ? `<div style="margin-top:5px"><strong>Músicos</strong><ul style="margin:3px 0 0;padding-left:18px">${linhasMusicos}</ul></div>` : ''}${linhasTerceiros ? `<div style="margin-top:5px"><strong>Terceirizados</strong><ul style="margin:3px 0 0;padding-left:18px">${linhasTerceiros}</ul></div>` : ''}</details>`;
+}
+
+function abrirFolhaPendenteParaAnalise_(idEvento, idFolha) {
+  const evento = String(idEvento || '').trim();
+  const folha = String(idFolha || '').trim();
+  if (!evento || !folha) return alert('Não foi possível identificar a folha para análise.');
+  const destino = `folha-custos.html?idEvento=${encodeURIComponent(evento)}&idFolha=${encodeURIComponent(folha)}&modo=aprovar`;
+  window.location.href = destino;
 }
 
 async function aprovarPendenciaFolhaCusto_(idFolha) {
