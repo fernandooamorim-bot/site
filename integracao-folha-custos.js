@@ -283,7 +283,9 @@ function listarPendenciasFolhaCustoAprovacao(params, email) {
         statusAprovacao: String((meta.statusAprovacao || f.statusAprovacao || 'PENDENTE_APROVACAO')).trim(),
         tipoSolicitacao: String((meta.tipoSolicitacao || f.tipoSolicitacao || '')).trim().toUpperCase(),
         criadoPor: String((f && f.criadoPor) || '').trim(),
-        criadoEm: String((f && f.criadoEm) || '').trim()
+        criadoEm: String((f && f.criadoEm) || '').trim(),
+        musicos: (f && f.musicos) || [],
+        terceirizados: (f && f.terceirizados) || []
       };
     });
 
@@ -403,6 +405,40 @@ function construirIndiceFolhasFinanceiro_() {
   }
 
   return indice;
+}
+
+/**
+ * Fonte segura para relatório de pagamento: uma folha só entra quando sua
+ * referência ainda está PROCESSADA no livro financeiro. Isso exclui propostas
+ * pendentes e versões substituídas, mesmo se o utilitário externo mantiver o
+ * registro histórico como APROVADO.
+ */
+function listarFolhasCustoAprovadasParaPagamento(params, email) {
+  const resp = folhaCustosProxy({ externalAction: 'getFolhasCusto', payload: {} }, email);
+  const indice = construirIndiceFolhasFinanceiro_();
+  const folhas = normalizarListaFolhasCusto_(resp && resp.data);
+  const aprovadas = folhas.filter(function (folha) {
+    const meta = extrairMetaAgendaFolha_(folha);
+    const idFolha = String((folha && folha.id) || '').trim();
+    const idEvento = String((meta.idEvento || folha.idEvento || folha.idEventoAgenda) || '').trim();
+    const status = String((meta.statusAprovacao || folha.statusAprovacao) || '').trim().toUpperCase();
+    if (!idFolha || !idEvento || status !== 'APROVADO') return false;
+    return folhaJaAplicadaNoIndice_(indice, idEvento, idFolha);
+  }).map(function (folha) {
+    const meta = extrairMetaAgendaFolha_(folha);
+    const totais = extrairTotaisFolha_(folha);
+    return {
+      id: String(folha.id || '').trim(),
+      idEvento: String((meta.idEvento || folha.idEvento || folha.idEventoAgenda) || '').trim(),
+      nomeEvento: String(folha.nomeEvento || '').trim(),
+      data: String(folha.data || '').trim(),
+      aprovadoEm: String(folha.aprovadoEm || '').trim(),
+      totais: totais,
+      musicos: folha.musicos || [],
+      terceirizados: folha.terceirizados || []
+    };
+  });
+  return { sucesso: true, folhas: aprovadas, geradoEm: new Date().toISOString() };
 }
 
 function extrairReferenciasFolhaProcessada_(referencia, observacoes) {

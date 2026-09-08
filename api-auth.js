@@ -964,6 +964,19 @@ if (action === 'listarPendenciasFolhaCustoAprovacao') {
   return json(listarPendenciasFolhaCustoAprovacao(params, emailAutenticado));
 }
 
+if (action === 'listarFolhasCustoAprovadasParaPagamento') {
+  const usuario = exigirAcao('eventos:visualizarFinanceiro');
+  const perfilNorm = String((usuario && usuario.PERFIL) || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .toLowerCase();
+  if (perfilNorm !== 'proprietario') {
+    throw new Error('FORBIDDEN_ACTION: folhaCustos:relatorioPagamento');
+  }
+  return json(listarFolhasCustoAprovadasParaPagamento(params, emailAutenticado));
+}
+
 if (action === 'aprovarPendenciaFolhaCusto') {
   const usuario = exigirAcao('eventos:registrarSaida');
   const perfilNorm = String((usuario && usuario.PERFIL) || '')
