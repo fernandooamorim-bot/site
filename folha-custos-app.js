@@ -890,6 +890,52 @@ async function carregarEventosComPropostaFolha_() {
   }
 }
 
+function propostaPendenteMaisRecenteDoEvento_(folhas, idEvento) {
+  const idNormalizado = String(idEvento || '').trim();
+  if (!idNormalizado) return null;
+  return (Array.isArray(folhas) ? folhas : [])
+    .map((folha) => ({ folha: folha, meta: extrairMetaAgendaDaFolhaLocal_(folha) }))
+    .filter(({ folha, meta }) => {
+      const status = String(meta.status || '').trim().toUpperCase();
+      return String(meta.idEvento || '').trim() === idNormalizado &&
+        String(folha?.id || '').trim() &&
+        (status === 'PENDENTE_APROVACAO' || status === 'PENDENTE' || status === 'SOLICITADO');
+    })
+    .sort((a, b) => {
+      const dataB = new Date(String(b.folha?.ultimaAtualizacao || b.folha?.criadoEm || '')).getTime() || 0;
+      const dataA = new Date(String(a.folha?.ultimaAtualizacao || a.folha?.criadoEm || '')).getTime() || 0;
+      return dataB - dataA;
+    })
+    .map(({ folha, meta }) => ({
+      id: String(folha.id || '').trim(),
+      idEvento: idNormalizado,
+      criadoEm: String(folha.criadoEm || '').trim(),
+      nomeEvento: String(folha.nomeEvento || '').trim(),
+      tipoSolicitacao: String(meta.tipoSolicitacao || '').trim().toUpperCase()
+    }))[0] || null;
+}
+
+async function localizarPropostaPendenteDoEvento_(idEvento) {
+  const idNormalizado = String(idEvento || '').trim();
+  if (!idNormalizado) return null;
+
+  const pendenteEmCache = propostasPendentesPorEvento.get(idNormalizado);
+  if (pendenteEmCache?.id) return pendenteEmCache;
+
+  try {
+    const folhas = await apiPost('getFolhasCustoPorEvento', { idEvento: idNormalizado });
+    const pendente = propostaPendenteMaisRecenteDoEvento_(folhas, idNormalizado);
+    if (pendente) {
+      eventosComPropostaFolhaCache.add(idNormalizado);
+      propostasPendentesPorEvento.set(idNormalizado, pendente);
+    }
+    return pendente;
+  } catch (e) {
+    console.warn('Falha ao localizar proposta pendente do evento:', e);
+    return null;
+  }
+}
+
 async function reconciliarPendenciasComFinanceiro_() {
   if (!podeConsultarResumoFinanceiroFolha_()) return;
   if (reconciliandoPendenciasCache) return;
@@ -1473,7 +1519,9 @@ async function selecionarEventoAgendaFolha_(idEvento, options) {
   const id = String(idEvento || '').trim();
   const ev = (eventosAgendaFolhaCache || []).find(e => String(e.id || '').trim() === id);
   if (!ev) return;
-  await carregarEventosComPropostaFolha_();
+  // Uma sugestão pode ter sido renderizada antes do envio da proposta. Atualiza
+  // a fonte e consulta o evento diretamente para nunca iniciar uma segunda folha.
+  await carregarEventosComPropostaFolha_(true);
 
   const inpBusca = document.getElementById('agenda-evento-busca');
   const inpId = document.getElementById('agenda-evento-id');
@@ -1483,7 +1531,7 @@ async function selecionarEventoAgendaFolha_(idEvento, options) {
   const eventoData = document.getElementById('evento-data');
   const eventoNome = document.getElementById('evento-nome');
   const idNormalizado = String(ev.id || '').trim();
-  const pendenteBruto = idNormalizado ? propostasPendentesPorEvento.get(idNormalizado) : null;
+  const pendenteBruto = await localizarPropostaPendenteDoEvento_(idNormalizado);
   propostaPendenteAtual = null;
   eventoSelecionadoTemFolhaAtiva = false;
   revisaoFolhaAtivaAtual = false;
@@ -2392,8 +2440,8 @@ async function salvarFolhaCusto(opts) {
     // Evita que um custo válido digitado no formulário rápido fique fora da folha
     // por depender de um clique adicional em “Adicionar custo”.
     incorporarCustoTerceirizadoRascunho_({ silencioso: true });
-    await carregarEventosComPropostaFolha_();
-    const pendenciaExistente = propostasPendentesPorEvento.get(idEventoAgenda);
+    await carregarEventosComPropostaFolha_(true);
+    const pendenciaExistente = await localizarPropostaPendenteDoEvento_(idEventoAgenda);
     if (
       !eventoSelecionadoTemFolhaAtiva &&
       pendenciaExistente &&
