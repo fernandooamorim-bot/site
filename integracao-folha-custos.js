@@ -151,10 +151,9 @@ function normalizarPayloadRelatorioFolhaCustos_(action, payload) {
 
 /**
  * O frontend nunca escolhe quais folhas entram em um relatório. Para ações de
- * relatório, a seleção é recalculada no backend a partir do livro financeiro:
- * apenas referências FOLHA_PROP que seguem PROCESSADAS são encaminhadas ao
- * formatador externo. Isso preserva o histórico cancelado sem que ele possa
- * voltar a compor valores ou contagens.
+ * relatório histórico, a seleção é recalculada no backend: inclui toda folha
+ * ativa do período e exclui canceladas, rejeitadas ou substituídas. A situação
+ * financeira é exposta como cobertura, nunca usada para ocultar estatística.
  */
 function anexarEscopoSeguroRelatorioFolhaCustos_(action, payload, endpoint, usuario) {
   if (!acaoRelatorioFolhaCustos_(action)) return;
@@ -168,17 +167,33 @@ function anexarEscopoSeguroRelatorioFolhaCustos_(action, payload, endpoint, usua
   }
 
   const indice = construirIndiceFolhasFinanceiro_();
-  // Relatórios clássicos e análise usam o mesmo conjunto financeiro seguro.
-  // Assim, o legado conciliado não desaparece do PDF, mas canceladas,
-  // substituídas e pendências novas continuam fora.
-  const idsAutorizados = normalizarFolhasElegiveisParaRelatorio_(
-    normalizarListaFolhasCusto_(respostaFolhas.data),
-    indice
-  )
-    .map(function (folha) { return String(folha.id || '').trim(); });
+  const todas = normalizarListaFolhasCusto_(respostaFolhas.data).filter(function (folha) {
+    return folhaDentroDoPeriodoRelatorio_(folha, payload.dataInicio, payload.dataFim);
+  });
+  const folhasAuditoria = todas.filter(function (folha) {
+    return folhaCustoAtivaParaAuditoria_(folha, indice);
+  });
+  const idsAutorizados = folhasAuditoria.map(function (folha) { return String(folha.id || '').trim(); });
+  const idsFinanceiros = Object.create(null);
+  normalizarFolhasElegiveisParaRelatorio_(todas, indice).forEach(function (folha) {
+    idsFinanceiros[String(folha.id || '').trim()] = true;
+  });
 
   // Sobrescreve qualquer valor recebido do cliente.
   payload.idsFolhasAutorizadas = idsAutorizados;
+  payload.coberturaRelatorio = {
+    registrosNoPeriodo: todas.length,
+    folhasIncluidas: folhasAuditoria.length,
+    excluidasCanceladasOuSubstituidas: todas.length - folhasAuditoria.length,
+    pendentesConciliacaoFinanceira: folhasAuditoria.filter(function (folha) {
+      return !idsFinanceiros[String(folha.id || '').trim()];
+    }).length
+  };
+}
+
+function folhaDentroDoPeriodoRelatorio_(folha, dataInicio, dataFim) {
+  const data = normalizarDataChaveAnaliseFolha_(folha && folha.data);
+  return !!data && (!dataInicio || data >= dataInicio) && (!dataFim || data <= dataFim);
 }
 
 function normalizarDataIsoOuBr_(valor) {
@@ -389,6 +404,7 @@ function construirIndiceFolhasFinanceiro_() {
   const indice = {
     valorProcessadoPorEvento: Object.create(null),
     referenciasProcessadas: Object.create(null),
+    referenciasCanceladas: Object.create(null),
     textosReferenciaPorEvento: Object.create(null),
     movimentosLegadosProcessados: []
   };
@@ -413,10 +429,21 @@ function construirIndiceFolhasFinanceiro_() {
     for (var i = 1; i < data.length; i++) {
       var row = data[i];
       if (String(row[idxTipo] || '').trim() !== 'FOLHA_EVENTO') continue;
-      if (statusFinanceiroNormalizado_(row[idxStatus]) !== 'PROCESSADO') continue;
 
       var idEvento = String(row[idxIdEvento] || '').trim();
       if (!idEvento) continue;
+
+      var statusMovimento = statusFinanceiroNormalizado_(row[idxStatus]);
+      var refMov = idxRef !== -1 ? String(row[idxRef] || '').trim() : '';
+      var obsMov = idxObs !== -1 ? String(row[idxObs] || '') : '';
+      var refs = extrairReferenciasFolhaProcessada_(refMov, obsMov);
+      if (statusMovimento === 'CANCELADO') {
+        for (var c = 0; c < refs.length; c++) {
+          indice.referenciasCanceladas[idEvento + '|' + refs[c]] = true;
+        }
+        continue;
+      }
+      if (statusMovimento !== 'PROCESSADO') continue;
 
       var rawValor = idxValor !== -1 ? row[idxValor] : 0;
       var valor = typeof rawValor === 'string'
@@ -426,13 +453,10 @@ function construirIndiceFolhasFinanceiro_() {
       indice.valorProcessadoPorEvento[idEvento] =
         Number(indice.valorProcessadoPorEvento[idEvento] || 0) + valorSeguro;
 
-      var refMov = idxRef !== -1 ? String(row[idxRef] || '').trim() : '';
-      var obsMov = idxObs !== -1 ? String(row[idxObs] || '') : '';
       if (!indice.textosReferenciaPorEvento[idEvento]) {
         indice.textosReferenciaPorEvento[idEvento] = [];
       }
       indice.textosReferenciaPorEvento[idEvento].push(refMov + '\n' + obsMov);
-      var refs = extrairReferenciasFolhaProcessada_(refMov, obsMov);
       for (var j = 0; j < refs.length; j++) {
         indice.referenciasProcessadas[idEvento + '|' + refs[j]] = true;
       }
@@ -491,7 +515,9 @@ function analisarCustosFolhaPorPeriodo(params, email) {
   const p = params && typeof params === 'object' ? params : {};
   const resp = folhaCustosProxy({ externalAction: 'getFolhasCusto', payload: {} }, email);
   const indice = construirIndiceFolhasFinanceiro_();
-  const folhas = normalizarFolhasElegiveisParaRelatorio_(normalizarListaFolhasCusto_(resp && resp.data), indice);
+  const folhas = normalizarListaFolhasCusto_(resp && resp.data).filter(function (folha) {
+    return folhaCustoAtivaParaAuditoria_(folha, indice);
+  });
   return construirAnaliseCustosFolhas_(folhas, p);
 }
 
@@ -510,6 +536,15 @@ function folhaCustoElegivelParaRelatorioFinanceiro_(folha, indice) {
   if (status === 'CANCELADO' || status === 'REJEITADO') return false;
   if (!folhaJaAplicadaNoIndice_(indice, idEvento, idFolha)) return false;
   return status === 'APROVADO' || status === 'PENDENTE_APROVACAO' || !status;
+}
+
+function folhaCustoAtivaParaAuditoria_(folha, indice) {
+  const meta = extrairMetaAgendaFolha_(folha);
+  const idFolha = String((folha && folha.id) || '').trim();
+  const idEvento = String((meta.idEvento || folha.idEvento || folha.idEventoAgenda) || '').trim();
+  const status = String((meta.statusAprovacao || folha.statusAprovacao) || '').trim().toUpperCase();
+  if (!idFolha || status === 'CANCELADO' || status === 'REJEITADO') return false;
+  return !(idEvento && indice && indice.referenciasCanceladas[idEvento + '|' + idFolha]);
 }
 
 /**
