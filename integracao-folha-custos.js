@@ -168,14 +168,13 @@ function anexarEscopoSeguroRelatorioFolhaCustos_(action, payload, endpoint, usua
   }
 
   const indice = construirIndiceFolhasFinanceiro_();
-  const idsAutorizados = normalizarListaFolhasCusto_(respostaFolhas.data)
-    .filter(function (folha) {
-      const meta = extrairMetaAgendaFolha_(folha);
-      const idFolha = String((folha && folha.id) || '').trim();
-      const idEvento = String((meta.idEvento || folha.idEvento || folha.idEventoAgenda) || '').trim();
-      const status = String((meta.statusAprovacao || folha.statusAprovacao) || '').trim().toUpperCase();
-      return idFolha && idEvento && status === 'APROVADO' && folhaJaAplicadaNoIndice_(indice, idEvento, idFolha);
-    })
+  // Relatórios clássicos e análise usam o mesmo conjunto financeiro seguro.
+  // Assim, o legado conciliado não desaparece do PDF, mas canceladas,
+  // substituídas e pendências novas continuam fora.
+  const idsAutorizados = normalizarFolhasElegiveisParaRelatorio_(
+    normalizarListaFolhasCusto_(respostaFolhas.data),
+    indice
+  )
     .map(function (folha) { return String(folha.id || '').trim(); });
 
   // Sobrescreve qualquer valor recebido do cliente.
