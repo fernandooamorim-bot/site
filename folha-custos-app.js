@@ -1934,11 +1934,18 @@ function renderTerceirizados() {
   terceirizadosAtivos.forEach(item => {
     const div = document.createElement('div');
     div.className = 'terceirizado-item';
+    const categoriasPadrao = ['Som', 'Luz', 'Transporte', 'Alimentação', 'Hospedagem', 'Outros'];
+    const categoriaAtual = String(item.categoria || '').trim();
+    // Folhas antigas podem possuir categorias hoje não oferecidas no cadastro.
+    // Mantém a opção visível para que uma revisão não pareça ter perdido dados.
+    const categoriaLegada = categoriaAtual && categoriasPadrao.indexOf(categoriaAtual) === -1
+      ? `<option value="${escaparHtmlAnaliseFolha_(categoriaAtual)}" selected>${escaparHtmlAnaliseFolha_(categoriaAtual)}</option>`
+      : '';
     div.innerHTML = `
       <div class="form-group">
         <label>Serviço</label>
         <input type="text" 
-               value="${item.nome}" 
+               value="${escaparHtmlAnaliseFolha_(item.nome)}"
                oninput="atualizarTerceirizado('${item.id}', 'nome', this.value)"
                placeholder="Ex: Transporte">
       </div>
@@ -1947,6 +1954,7 @@ function renderTerceirizados() {
         <label>Categoria</label>
         <select onchange="atualizarTerceirizado('${item.id}', 'categoria', this.value)">
           <option value="">Selecione...</option>
+          ${categoriaLegada}
           <option value="Som" ${item.categoria === 'Som' ? 'selected' : ''}>Som</option>
           <option value="Luz" ${item.categoria === 'Luz' ? 'selected' : ''}>Luz</option>
           <option value="Transporte" ${item.categoria === 'Transporte' ? 'selected' : ''}>Transporte</option>
