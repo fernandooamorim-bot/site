@@ -2834,7 +2834,7 @@ function renderizarAnaliseCustosFolha_(resultado) {
     <tr><td>${escaparHtmlAnaliseFolha_(item.data)}</td><td>${escaparHtmlAnaliseFolha_(item.evento)}</td><td>${escaparHtmlAnaliseFolha_(item.item)}</td><td class="analise-valor">${formatarMoedaAnaliseFolha_(item.valor)}</td></tr>`).join('');
   box.innerHTML = `
     <div class="analise-total"><span>${titulo}</span><strong>${formatarMoedaAnaliseFolha_(resultado.total)}</strong></div>
-    <p class="analise-metadados">${Number(resultado.folhasIncluidas || 0)} folha(s) incluída(s), após validação financeira.</p>
+    <p class="analise-metadados">${Number(resultado.folhasIncluidas || 0)} folha(s) ativa(s) incluída(s) na visão histórica.</p>
     <div class="analise-tabela-wrap"><table class="analise-tabela"><thead><tr><th>Item</th><th>Lançamentos</th><th>Valor</th></tr></thead><tbody>${linhas}</tbody></table></div>
     ${detalhes.length ? `<details class="analise-detalhes"><summary>Ver detalhamento por evento (${detalhes.length})</summary><div class="analise-tabela-wrap"><table class="analise-tabela"><thead><tr><th>Data</th><th>Evento</th><th>Item</th><th>Valor</th></tr></thead><tbody>${detalhesHtml}</tbody></table></div>${detalhes.length > 80 ? '<p class="analise-metadados">Exibindo os 80 maiores lançamentos.</p>' : ''}</details>` : ''}`;
 }
