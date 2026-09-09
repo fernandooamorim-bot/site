@@ -1162,12 +1162,21 @@ function preencherFormularioComFolha_(detalhe, modo) {
   const mSelecionados = new Map();
   const listaMusicos = parseArrayMaybeJson_(detalhe.musicos);
   listaMusicos.forEach((m) => {
-    const base = (musicos || []).find(mm => String(mm.id || '') === String(m.id || '')) || {
-      id: String(m.id || ''),
-      nome: String(m.nome || ''),
-      funcao: String(m.funcao || ''),
-      valorBase: Number(m.valorBase || 0)
-    };
+    const cadastroAtual = (musicos || []).find(mm => String(mm.id || '') === String(m.id || '')) || {};
+    // A folha é o retrato financeiro do envio original. O cadastro pode mudar
+    // depois, mas não pode trocar silenciosamente o cachê-base ao editar uma
+    // pendência ou preparar uma revisão. Campos ausentes em folhas legadas
+    // continuam recorrendo ao cadastro atual.
+    const possuiValorBaseSalvo = Object.prototype.hasOwnProperty.call(m || {}, 'valorBase') &&
+      String(m.valorBase == null ? '' : m.valorBase).trim() !== '';
+    const base = Object.assign({}, cadastroAtual, {
+      id: String(m.id || cadastroAtual.id || ''),
+      nome: String(m.nome || cadastroAtual.nome || ''),
+      funcao: String(m.funcao || cadastroAtual.funcao || ''),
+      valorBase: possuiValorBaseSalvo
+        ? normalizarNumeroMonetarioLocal_(m.valorBase)
+        : normalizarNumeroMonetarioLocal_(cadastroAtual.valorBase)
+    });
     const ajusteNormalizado = normalizarAjusteMusicoLocal_(m.ajuste || null, m);
     const temAjuste = Math.abs(Number(ajusteNormalizado.ajusteLiquido || 0)) > 0.0001 || !!ajusteNormalizado.justificativa;
     mSelecionados.set(base.id, {
