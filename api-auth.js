@@ -565,6 +565,16 @@ if (action === 'listarEventosFinanceiros') {
   return json(listarEventosFinanceiros());
 }
 
+// Auditoria unitária e sob demanda da Agenda. A autorização também é
+// revalidada no módulo de domínio; esconder o botão no frontend não basta.
+if (action === 'obterAuditoriaEventoAgenda') {
+  return json(obterAuditoriaEventoAgenda(params));
+}
+
+if (action === 'obterProjecaoFolhaAuditoriaEventoAgenda') {
+  return json(obterProjecaoFolhaAuditoriaEventoAgenda(params));
+}
+
 if (action === 'pixAsaasCriarCobranca') {
   const usuario = exigirAcao('eventos:visualizarFinanceiro');
   const perfilNorm = String((usuario && usuario.PERFIL) || '')
