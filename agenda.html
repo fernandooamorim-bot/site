@@ -5216,6 +5216,7 @@ renderizarEventosDentro(evento) {
       if (!confirm('Confirmar cancelamento deste registro?')) return;
 
       try {
+        UI.showToast('Cancelando registro...', 'info', 2200);
         let res = await Auth.apiCall('cancelarEvento', { idEvento: id, motivo });
         if (res && res.requerConfirmacaoFiscal) {
           const confirmouFiscal = confirm(
