@@ -6,8 +6,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <meta name="theme-color" content="#0f1a2e"/>
-  <meta name="application-name" content="Sistema FA Produções"/>
-  <meta name="apple-mobile-web-app-title" content="FA Produções"/>
+  <meta name="application-name" content="Agenda FA — Gestão de Eventos"/>
+  <meta name="apple-mobile-web-app-title" content="Agenda FA"/>
   <meta name="apple-mobile-web-app-capable" content="yes"/>
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
   <meta name="mobile-web-app-capable" content="yes"/>
@@ -5789,10 +5789,22 @@ function formatarValorResumoAlteracao_(campo, valor, origem) {
       mostrarLoadingGlobal('Cancelando registro...');
       travarAcoes(true);
       try {
-        const resp = await Auth.apiCall('cancelarEvento', {
+        let resp = await Auth.apiCall('cancelarEvento', {
           idEvento: eventoOriginal.id,
           motivo: motivo
         });
+
+        if (resp && resp.requerConfirmacaoFiscal) {
+          const confirmouFiscal = confirm(
+            'Há NF registrada. Se a nota fiscal foi emitida, ela precisa ser cancelada no sistema fiscal antes de continuar.\n\nConfirme que a situação fiscal foi tratada para cancelar o evento.'
+          );
+          if (!confirmouFiscal) return;
+          resp = await Auth.apiCall('cancelarEvento', {
+            idEvento: eventoOriginal.id,
+            motivo: motivo,
+            confirmarSituacaoFiscal: true
+          });
+        }
 
         if (!resp || !resp.sucesso) {
           throw new Error(resp?.mensagem || 'Não foi possível cancelar o registro.');
