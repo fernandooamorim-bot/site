@@ -169,6 +169,18 @@ function auditoriaAgendaResumo_(eventoDados, movimentosDados) {
   const custosPagos = mov.comissaoPaga + mov.bvPago + mov.nfPaga + mov.folhaPaga + mov.outrosPagos;
   const alertas = [];
   const pendenteReceber = Math.max(valorContrato - recebido, 0);
+  const lucroAposCustosConhecidos = valorContrato - comissaoComprometida - bvComprometido - nfComprometido - folhaConhecida - mov.outrosPagos;
+  const margemAposCustosConhecidos = valorContrato > 0
+    ? Number(((lucroAposCustosConhecidos / valorContrato) * 100).toFixed(1))
+    : null;
+  const eventoExecutado = !!dataEvento && dataEvento < hoje;
+  const resultadoConsolidado = eventoExecutado
+    && pendenteReceber <= 0.01
+    && mov.comissaoPaga >= comissaoComprometida - 0.01
+    && mov.bvPago >= bvComprometido - 0.01
+    && mov.nfPaga >= nfComprometido - 0.01
+    && mov.folhaPendente <= 0.01
+    && mov.folhaPaga > 0;
   if (recebido > valorContrato + 0.01) alertas.push('Recebido acima do contrato');
   if (dataEvento && dataEvento < hoje && pendenteReceber > 0) alertas.push(recebido > 0 ? 'Evento realizado com recebimento parcial' : 'Evento realizado sem recebimento');
   if (mov.comissaoPaga > comissaoSnapshot + 0.01 || mov.comissaoGerada > comissaoSnapshot + 0.01) alertas.push('Comissão acima do snapshot previsto');
@@ -181,7 +193,7 @@ function auditoriaAgendaResumo_(eventoDados, movimentosDados) {
     idEvento: idEvento,
     evento: { nome: auditoriaAgendaTexto_(auditoriaAgendaValor_(evento, e, 'NOME_EVENTO', '')) || idEvento, tipo: auditoriaAgendaTexto_(auditoriaAgendaValor_(evento, e, 'TIPO_EVENTO', '')), projeto: auditoriaAgendaTexto_(auditoriaAgendaValor_(evento, e, 'PROJETO', '')), local: auditoriaAgendaTexto_(auditoriaAgendaValor_(evento, e, 'LOCAL', '')), dataEvento: dataEvento ? dataEvento.getTime() : null, status: auditoriaAgendaTexto_(auditoriaAgendaValor_(evento, e, 'STATUS_GERAL', 'ATIVO')), vendedor: auditoriaAgendaTexto_(auditoriaAgendaValor_(evento, e, 'NOME_VENDEDOR', '')) || 'Sem vendedor' },
     registro: { criadoEm: criadoEm, criadoPor: auditoriaAgendaTexto_(auditoriaAgendaValor_(evento, e, 'CRIADO_POR', '')), ultimaEdicao: auditoriaAgendaTimestamp_(auditoriaAgendaValor_(evento, e, 'ULTIMA_EDICAO', '')), editadoPor: auditoriaAgendaTexto_(auditoriaAgendaValor_(evento, e, 'EDITADO_POR', '')), diasAntecedencia: diasAntecedencia, fonte: 'DATA_CRIACAO' },
-    financeiro: { contrato: auditoriaAgendaDinheiro_(valorContrato), recebido: auditoriaAgendaDinheiro_(recebido), aReceber: auditoriaAgendaDinheiro_(pendenteReceber), caixaLiquidoAtual: auditoriaAgendaDinheiro_(recebido - custosPagos), custosPagos: auditoriaAgendaDinheiro_(custosPagos), comissao: { prevista: auditoriaAgendaDinheiro_(comissaoComprometida), gerada: auditoriaAgendaDinheiro_(mov.comissaoGerada), paga: auditoriaAgendaDinheiro_(mov.comissaoPaga), pendente: auditoriaAgendaDinheiro_(Math.max(comissaoComprometida - mov.comissaoPaga, 0)) }, bv: { prevista: auditoriaAgendaDinheiro_(bvComprometido), paga: auditoriaAgendaDinheiro_(mov.bvPago) }, nf: { prevista: auditoriaAgendaDinheiro_(nfComprometido), paga: auditoriaAgendaDinheiro_(mov.nfPaga) }, folha: { paga: auditoriaAgendaDinheiro_(mov.folhaPaga), pendente: auditoriaAgendaDinheiro_(mov.folhaPendente), conhecida: auditoriaAgendaDinheiro_(folhaConhecida) }, outrosCustosPagos: auditoriaAgendaDinheiro_(mov.outrosPagos), lucroAntesFolha: auditoriaAgendaDinheiro_(valorContrato - comissaoComprometida - bvComprometido - nfComprometido - mov.outrosPagos), margemAntesFolha: valorContrato > 0 ? Number((((valorContrato - comissaoComprometida - bvComprometido - nfComprometido - mov.outrosPagos) / valorContrato) * 100).toFixed(1)) : null },
+    financeiro: { contrato: auditoriaAgendaDinheiro_(valorContrato), recebido: auditoriaAgendaDinheiro_(recebido), aReceber: auditoriaAgendaDinheiro_(pendenteReceber), caixaLiquidoAtual: auditoriaAgendaDinheiro_(recebido - custosPagos), custosPagos: auditoriaAgendaDinheiro_(custosPagos), comissao: { prevista: auditoriaAgendaDinheiro_(comissaoComprometida), gerada: auditoriaAgendaDinheiro_(mov.comissaoGerada), paga: auditoriaAgendaDinheiro_(mov.comissaoPaga), pendente: auditoriaAgendaDinheiro_(Math.max(comissaoComprometida - mov.comissaoPaga, 0)) }, bv: { prevista: auditoriaAgendaDinheiro_(bvComprometido), paga: auditoriaAgendaDinheiro_(mov.bvPago) }, nf: { prevista: auditoriaAgendaDinheiro_(nfComprometido), paga: auditoriaAgendaDinheiro_(mov.nfPaga) }, folha: { paga: auditoriaAgendaDinheiro_(mov.folhaPaga), pendente: auditoriaAgendaDinheiro_(mov.folhaPendente), conhecida: auditoriaAgendaDinheiro_(folhaConhecida) }, outrosCustosPagos: auditoriaAgendaDinheiro_(mov.outrosPagos), lucroAntesFolha: auditoriaAgendaDinheiro_(valorContrato - comissaoComprometida - bvComprometido - nfComprometido - mov.outrosPagos), margemAntesFolha: valorContrato > 0 ? Number((((valorContrato - comissaoComprometida - bvComprometido - nfComprometido - mov.outrosPagos) / valorContrato) * 100).toFixed(1)) : null, resultado: { lucroAposCustosConhecidos: auditoriaAgendaDinheiro_(lucroAposCustosConhecidos), margemAposCustosConhecidos: margemAposCustosConhecidos, consolidado: resultadoConsolidado, situacao: resultadoConsolidado ? 'CONSOLIDADO' : (eventoExecutado ? 'EM_APURACAO' : 'PROJECAO') } },
     alertas: alertas,
     movimentos: mov.ultimos.slice(0, 8),
     geradoEm: Date.now()
