@@ -2281,14 +2281,14 @@ if (!AUTH.email || !AUTH.session) {
       }
     }
 
-    function acionarAuditoriaEventoAgenda(event, botao, idEvento) {
+    window.acionarAuditoriaEventoAgenda = function (event, botao, idEvento) {
       if (event) {
         event.preventDefault();
         event.stopPropagation();
       }
       abrirAuditoriaEventoAgenda(idEvento, botao && botao.closest('.evento-card'), false);
       return false;
-    }
+    };
 
     function ehPerfilGestorAgenda_(perfil) {
       const p = normalizarPerfilAgenda_(perfil);
