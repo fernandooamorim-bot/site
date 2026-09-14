@@ -3477,7 +3477,7 @@ criarCardEvento(evento) {
         ${conflitosHtml}
         ${isProprietarioAgenda() && isEvento ? `
           <div class="evento-actions">
-            <button class="btn-action audit-action" type="button" data-audit-open onclick="return acionarAuditoriaEventoAgenda(event, this, ${JSON.stringify(String(evento.id || ''))});">
+            <button class="btn-action audit-action" type="button" data-audit-open data-audit-event-id="${encodeURIComponent(String(evento.id || ''))}" onclick="return acionarAuditoriaEventoAgenda(event, this, decodeURIComponent(this.dataset.auditEventId || ''));">
               🔎 Auditar evento
             </button>
           </div>
