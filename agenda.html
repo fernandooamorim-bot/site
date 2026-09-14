@@ -1260,6 +1260,17 @@
       padding-top: 10px;
       border-top: 1px solid #e7edf5;
     }
+    .evento-actions.audit-actions .audit-action {
+      width: 100%;
+      min-height: 38px;
+    }
+    .evento-actions.record-actions {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(112px, 1fr));
+    }
+    .evento-actions.record-actions .btn-action {
+      min-height: 38px;
+    }
     .evento-actions .btn-action {
       padding: 6px 10px;
       border-width: 1px;
@@ -1321,12 +1332,20 @@
     .agenda-audit-metric small, .agenda-audit-section h4 { display: block; margin: 0 0 3px; color: #64748b; font-size: 10px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
     .agenda-audit-metric strong { font-size: 13px; color: #1f2937; }
     .agenda-audit-section { border-top: 1px solid #e2e8f0; padding-top: 10px; }
+    .agenda-audit-section-intro { display: grid; gap: 3px; margin-bottom: 9px; }
     .agenda-audit-list { display: grid; gap: 5px; margin: 0; padding-left: 18px; font-size: 12px; }
     .agenda-audit-mov { display: grid; grid-template-columns: 82px minmax(0, 1fr) auto; gap: 8px; font-size: 11px; padding: 5px 0; border-bottom: 1px solid #edf2f7; }
     .agenda-audit-warning { color: #9a3412; background: #fff7ed; border: 1px solid #fed7aa; border-radius: 8px; padding: 7px 9px; font-size: 12px; }
-    .agenda-audit-projection { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 9px; padding: 10px; }
-    .agenda-audit-projection.manual { background: #fff7ed; border-color: #fed7aa; }
-    .agenda-audit-input { width: 132px; padding: 7px 8px; border: 1px solid #cbd5e1; border-radius: 7px; font: inherit; }
+    .agenda-audit-projection-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
+    .agenda-audit-projection-option { display: grid; align-content: start; gap: 8px; padding: 10px; border: 1px solid #d9e3f0; border-radius: 10px; background: #fff; }
+    .agenda-audit-projection-option h5 { margin: 0; color: #1e3a5f; font-size: 12px; }
+    .agenda-audit-projection-option .btn-action { width: 100%; min-height: 36px; }
+    .agenda-audit-manual-form { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 7px; align-items: end; }
+    .agenda-audit-manual-label { display: grid; gap: 4px; color: #526275; font-size: 11px; font-weight: 700; }
+    .agenda-audit-input { width: 100%; min-width: 0; padding: 8px 9px; border: 1px solid #cbd5e1; border-radius: 7px; background: #fff; color: #26364d; font: inherit; }
+    .agenda-audit-projection { display: grid; gap: 7px; margin-top: 9px; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 10px; padding: 10px; }
+    .agenda-audit-projection.manual { background: #fffbeb; border-color: #fde68a; }
+    .agenda-audit-projection h4 { margin: 0; }
     .agenda-audit-muted { color: #64748b; font-size: 12px; margin: 0; }
     .agenda-audit-loading { display: grid; grid-template-columns: 34px 1fr; gap: 10px; align-items: center; padding: 14px; border: 1px solid #cfe0f5; border-radius: 12px; background: linear-gradient(135deg, #f8fbff, #edf5ff); color: #1e3a5f; }
     .agenda-audit-loading-spinner { width: 26px; height: 26px; border: 3px solid #c7d9f3; border-top-color: #2563a7; border-radius: 50%; animation: agenda-audit-spin .8s linear infinite; }
@@ -1334,7 +1353,15 @@
     .agenda-audit-loading strong { font-size: 12px; }
     .agenda-audit-loading span { margin-top: 2px; color: #64748b; font-size: 11px; }
     @keyframes agenda-audit-spin { to { transform: rotate(360deg); } }
-    @media (max-width: 520px) { .agenda-audit-mov { grid-template-columns: 72px minmax(0, 1fr); } .agenda-audit-mov span:last-child { grid-column: 2; } }
+    @media (max-width: 520px) {
+      .agenda-audit-mov { grid-template-columns: 72px minmax(0, 1fr); }
+      .agenda-audit-mov span:last-child { grid-column: 2; }
+      .agenda-audit-panel { padding: 10px; gap: 10px; }
+      .agenda-audit-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
+      .agenda-audit-projection-options { grid-template-columns: 1fr; }
+      .agenda-audit-manual-form { grid-template-columns: 1fr; }
+      .evento-actions.record-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
 
     .btn-action {
       padding: 7px 10px;
@@ -2232,7 +2259,7 @@ if (!AUTH.email || !AUTH.session) {
       const lucro = antesFolha - (Number(folha) || 0);
       const margem = contrato > 0 ? lucro / contrato * 100 : null;
       return `<div class="agenda-audit-projection ${origem === 'MANUAL' ? 'manual' : ''}">
-        <h4>${origem === 'MANUAL' ? 'Simulação manual — Plano B' : 'Projeção com folha estimada'}</h4>
+        <h4>${origem === 'MANUAL' ? 'Cenário com estimativa informada' : 'Cenário com referência histórica'}</h4>
         <div class="agenda-audit-grid"><div class="agenda-audit-metric"><small>Folha usada</small><strong>${moedaAuditoriaAgenda_(folha)}</strong></div><div class="agenda-audit-metric"><small>Lucro projetado</small><strong>${moedaAuditoriaAgenda_(lucro)}</strong></div><div class="agenda-audit-metric"><small>Margem projetada</small><strong>${margem === null ? '—' : margem.toFixed(1).replace('.', ',') + '%'}</strong></div></div>
         <p class="agenda-audit-muted">${escaparHtmlAuditoriaAgenda_(detalhe || 'Simulação não registrada no financeiro.')}</p>
       </div>`;
@@ -2256,7 +2283,7 @@ if (!AUTH.email || !AUTH.session) {
         <div class="agenda-audit-section"><h4>Caixa e contrato</h4><div class="agenda-audit-grid"><div class="agenda-audit-metric"><small>Contrato</small><strong>${moedaAuditoriaAgenda_(f.contrato)}</strong></div><div class="agenda-audit-metric"><small>Recebido processado</small><strong>${moedaAuditoriaAgenda_(f.recebido)}</strong></div><div class="agenda-audit-metric"><small>A receber</small><strong>${moedaAuditoriaAgenda_(f.aReceber)}</strong></div><div class="agenda-audit-metric"><small>Caixa líquido atual</small><strong>${moedaAuditoriaAgenda_(f.caixaLiquidoAtual)}</strong></div></div><p class="agenda-audit-muted">Caixa = recebido processado menos saídas já pagas; compromissos pendentes não são descontados aqui.</p></div>
         <div class="agenda-audit-section"><h4>Resultado e margem</h4><div class="agenda-audit-grid"><div class="agenda-audit-metric"><small>Lucro após custos conhecidos</small><strong>${moedaAuditoriaAgenda_(resultado.lucroAposCustosConhecidos)}</strong></div><div class="agenda-audit-metric"><small>Margem após custos conhecidos</small><strong>${percentualAuditoriaAgenda_(resultado.margemAposCustosConhecidos)}</strong></div><div class="agenda-audit-metric"><small>Situação</small><strong>${situacaoResultado}</strong></div></div><p class="agenda-audit-muted">Considera comissão, BV, NF, folha registrada e outras saídas. Só fica consolidado quando o evento ocorreu e não há pendências.</p></div>
         <div class="agenda-audit-section"><h4>Compromissos definidos no evento</h4><div class="agenda-audit-grid"><div class="agenda-audit-metric"><small>Comissão (prev./paga)</small><strong>${moedaAuditoriaAgenda_(f.comissao?.prevista)} / ${moedaAuditoriaAgenda_(f.comissao?.paga)}</strong></div><div class="agenda-audit-metric"><small>Comissão pendente</small><strong>${moedaAuditoriaAgenda_(f.comissao?.pendente)}</strong></div><div class="agenda-audit-metric"><small>BV (prev./pago)</small><strong>${moedaAuditoriaAgenda_(f.bv?.prevista)} / ${moedaAuditoriaAgenda_(f.bv?.paga)}</strong></div><div class="agenda-audit-metric"><small>NF (prev./paga)</small><strong>${moedaAuditoriaAgenda_(f.nf?.prevista)} / ${moedaAuditoriaAgenda_(f.nf?.paga)}</strong></div><div class="agenda-audit-metric"><small>Folha registrada</small><strong>${moedaAuditoriaAgenda_(f.folha?.conhecida)}</strong></div></div></div>
-        <div class="agenda-audit-section"><h4>Projeção de lucro</h4><p class="agenda-audit-muted">Antes da folha: ${moedaAuditoriaAgenda_(f.lucroAntesFolha)} · regras do próprio evento; não usa a configuração atual do Precificador.</p><div data-audit-projection-controls><button type="button" class="btn-action primary" data-audit-history>Estimar folha pela base histórica</button><label class="agenda-audit-muted">Plano B: <input class="agenda-audit-input" data-audit-manual type="number" min="0" step="0.01" inputmode="decimal" placeholder="Valor da folha"></label><button type="button" class="btn-action" data-audit-manual-button>Simular valor manual</button><div data-audit-projection-result></div></div></div>
+        <div class="agenda-audit-section"><div class="agenda-audit-section-intro"><h4>Simular cenário de lucro</h4><p class="agenda-audit-muted">Resultado antes da folha: ${moedaAuditoriaAgenda_(f.lucroAntesFolha)}. A simulação usa os compromissos deste evento e nunca altera a folha ou o financeiro.</p></div><div class="agenda-audit-projection-options" data-audit-projection-controls><section class="agenda-audit-projection-option"><h5>Referência histórica</h5><p class="agenda-audit-muted">Busca somente eventos realmente comparáveis, com folha já processada.</p><button type="button" class="btn-action primary" data-audit-history>Usar referência histórica</button></section><section class="agenda-audit-projection-option"><h5>Estimativa informada</h5><p class="agenda-audit-muted">Use quando você já tem uma previsão específica de custo.</p><div class="agenda-audit-manual-form"><label class="agenda-audit-manual-label">Folha estimada<input class="agenda-audit-input" data-audit-manual type="number" min="0" step="0.01" inputmode="decimal" placeholder="R$ 0,00"></label><button type="button" class="btn-action" data-audit-manual-button>Simular</button></div></section></div><div data-audit-projection-result aria-live="polite"></div></div>
         ${alertas.length ? `<div class="agenda-audit-section"><h4>Alertas</h4>${alertas.map(function (alerta) { return `<div class="agenda-audit-warning">⚠ ${escaparHtmlAuditoriaAgenda_(alerta)}</div>`; }).join('')}</div>` : ''}
         <div class="agenda-audit-section"><h4>Últimas movimentações</h4>${movimentos.length ? movimentos.map(function (movimento) { return `<div class="agenda-audit-mov"><span>${dataAuditoriaAgenda_(movimento.data)}</span><span>${escaparHtmlAuditoriaAgenda_(movimento.tipo)}</span><span>${moedaAuditoriaAgenda_(movimento.valor)} · ${escaparHtmlAuditoriaAgenda_(movimento.status)}</span></div>`; }).join('') : '<p class="agenda-audit-muted">Sem movimentações vinculadas.</p>'}</div>`;
       painel.querySelector('[data-audit-refresh]').addEventListener('click', function () { abrirAuditoriaEventoAgenda(dados.idEvento, painel.closest('.evento-card'), true); });
@@ -2276,7 +2303,7 @@ if (!AUTH.email || !AUTH.session) {
           if (!base || base.sucesso === false || !base.disponivel) { resultado.innerHTML = `<p class="agenda-audit-muted">${escaparHtmlAuditoriaAgenda_(base?.motivo || 'Base histórica indisponível para este evento.')}</p>`; return; }
           resultado.innerHTML = projetarAuditoriaAgenda_(dados, base.mediana, 'HISTORICO', `${base.amostra} eventos comparáveis · faixa ${moedaAuditoriaAgenda_(base.p25)}–${moedaAuditoriaAgenda_(base.p75)} · confiança ${String(base.confianca || '').toLowerCase()}. ${base.criterio || ''}`);
         } catch (erro) { resultado.innerHTML = `<p class="agenda-audit-muted">Não foi possível calcular a projeção: ${escaparHtmlAuditoriaAgenda_(erro.message || erro)}</p>`; }
-        finally { botao.disabled = false; botao.textContent = 'Estimar folha pela base histórica'; }
+        finally { botao.disabled = false; botao.textContent = 'Usar referência histórica'; }
       });
     }
 
@@ -3495,15 +3522,16 @@ criarCardEvento(evento) {
         ${detalhesFinanceiros.length ? `<section class="evento-detail-section"><div class="evento-detail-section-title">Financeiro do evento</div><div class="evento-detail-grid">${detalhesFinanceiros.join('')}</div></section>` : ''}
         ${conflitosHtml}
         ${isProprietarioAgenda() && isEvento ? `
-          <div class="evento-actions">
+          <div class="evento-actions audit-actions">
             <button class="btn-action audit-action" type="button" data-audit-open data-audit-event-id="${encodeURIComponent(String(evento.id || ''))}" onclick="return acionarAuditoriaEventoAgenda(event, this, decodeURIComponent(this.dataset.auditEventId || ''));">
-              🔎 Auditar evento
+              <i data-lucide="search" style="width:14px;height:14px"></i>
+              Auditar evento
             </button>
           </div>
           <div class="agenda-audit-panel" data-agenda-audit hidden></div>
         ` : ''}
         ${podeEditarRegistro ? `
-          <div class="evento-actions">
+          <div class="evento-actions record-actions">
             <button class="btn-action primary" onclick="editarEvento('${evento.id}'); event.stopPropagation();">
               <i data-lucide="pencil" style="width:13px;height:13px"></i>
               Editar
