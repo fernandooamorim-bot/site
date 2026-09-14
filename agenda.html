@@ -1199,9 +1199,11 @@
     .evento-details {
       display: none;
       grid-column: 1 / -1;
-      margin-top: 8px;
-      padding-top: 8px;
+      margin-top: 10px;
+      padding: 12px;
       border-top: 1px solid var(--gray-200);
+      background: linear-gradient(180deg, #fbfdff 0%, #f8fafc 100%);
+      border-radius: 10px;
     }
 
     .evento-card.open .evento-details {
@@ -1213,13 +1215,18 @@
     .evento-detail-grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-      gap: 6px 12px;
+      gap: 8px 12px;
     }
+
+    .evento-detail-section { display: grid; gap: 8px; }
+    .evento-detail-section + .evento-detail-section { padding-top: 10px; border-top: 1px solid #e7edf5; }
+    .evento-detail-section-title { display: flex; align-items: center; gap: 6px; color: #64748b; font-size: 10px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
 
     .evento-detail-item {
       font-size: 12px;
       color: var(--gray-700);
       line-height: 1.35;
+      min-width: 0;
     }
 
     .evento-detail-label {
@@ -1246,8 +1253,12 @@
 
     .evento-actions {
       display: flex;
+      flex-wrap: wrap;
+      align-items: center;
       gap: 8px;
-      margin-top: 2px;
+      margin-top: 4px;
+      padding-top: 10px;
+      border-top: 1px solid #e7edf5;
     }
     .evento-actions .btn-action {
       padding: 6px 10px;
@@ -1269,6 +1280,15 @@
       background: #eaf0ff;
       color: #1f3a8a;
       border-color: #bfdbfe;
+    }
+    .evento-actions .btn-action.audit-action {
+      background: #17375e;
+      color: #fff;
+      border-color: #17375e;
+    }
+    .evento-actions .btn-action.audit-action:hover {
+      background: #0f2745;
+      border-color: #0f2745;
     }
     .evento-actions .btn-action.primary:hover {
       background: #dbeafe;
@@ -2259,6 +2279,15 @@ if (!AUTH.email || !AUTH.session) {
         painel.dataset.loading = '0';
         if (botao) { botao.disabled = false; botao.textContent = '🔎 Auditar evento'; }
       }
+    }
+
+    function acionarAuditoriaEventoAgenda(event, botao, idEvento) {
+      if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+      abrirAuditoriaEventoAgenda(idEvento, botao && botao.closest('.evento-card'), false);
+      return false;
     }
 
     function ehPerfilGestorAgenda_(perfil) {
@@ -3345,10 +3374,11 @@ criarCardEvento(evento) {
   const temConflitos = Array.isArray(evento.eventosDentro) && evento.eventosDentro.length > 0;
   const ehHoje = classificacao === 'hoje';
 
-  const detalhes = [];
-  const addDetalhe = (label, valor) => {
+  const detalhesOperacionais = [];
+  const detalhesFinanceiros = [];
+  const addDetalhe = (grupo, label, valor) => {
     if (valor === null || typeof valor === 'undefined' || String(valor).trim() === '') return;
-    detalhes.push(`
+    grupo.push(`
       <div class="evento-detail-item">
         <span class="evento-detail-label">${label}:</span> ${valor}
       </div>
@@ -3368,35 +3398,35 @@ criarCardEvento(evento) {
     return status;
   };
 
-  addDetalhe('Tipo de Evento', evento.tipoEvento || evento.tipo || '-');
-  addDetalhe('Projeto / Formação', evento.projeto);
-  addDetalhe('Data', dataResumo);
-  addDetalhe('Horário', horarioResumo);
-  addDetalhe('Contratante', evento.contratante);
-  addDetalhe('Local', evento.local);
-  addDetalhe('Cerimonialista', evento.cerimonialista);
-  addDetalhe('Look', evento.look);
-  addDetalhe('Som Responsável', evento.somResponsavel);
+  addDetalhe(detalhesOperacionais, 'Tipo de Evento', evento.tipoEvento || evento.tipo || '-');
+  addDetalhe(detalhesOperacionais, 'Projeto / Formação', evento.projeto);
+  addDetalhe(detalhesOperacionais, 'Data', dataResumo);
+  addDetalhe(detalhesOperacionais, 'Horário', horarioResumo);
+  addDetalhe(detalhesOperacionais, 'Contratante', evento.contratante);
+  addDetalhe(detalhesOperacionais, 'Local', evento.local);
+  addDetalhe(detalhesOperacionais, 'Cerimonialista', evento.cerimonialista);
+  addDetalhe(detalhesOperacionais, 'Look', evento.look);
+  addDetalhe(detalhesOperacionais, 'Som Responsável', evento.somResponsavel);
   if (podeVerObservacaoInterna) {
-    addDetalhe('Observações', evento.observacoes);
+    addDetalhe(detalhesOperacionais, 'Observações', evento.observacoes);
   }
 
   if (podeVerValor && evento.tipo === 'Evento') {
-    addDetalhe('Valor Total', evento.valor ? Utils.formatarMoeda(evento.valor) : '-');
+    addDetalhe(detalhesFinanceiros, 'Valor Total', evento.valor ? Utils.formatarMoeda(evento.valor) : '-');
     if (numeroFinanceiroValido(evento.valorRecebido)) {
-      addDetalhe('Valor Já Pago', formatarValorFinanceiro(evento.valorRecebido));
+      addDetalhe(detalhesFinanceiros, 'Valor Já Pago', formatarValorFinanceiro(evento.valorRecebido));
     }
     if (numeroFinanceiroValido(evento.valorPendente)) {
-      addDetalhe('Valor Pendente', formatarValorFinanceiro(evento.valorPendente));
+      addDetalhe(detalhesFinanceiros, 'Valor Pendente', formatarValorFinanceiro(evento.valorPendente));
     }
-    addDetalhe('Status Financeiro', Utils.getStatusLabel(evento.status || '-'));
+    addDetalhe(detalhesFinanceiros, 'Status Financeiro', Utils.getStatusLabel(evento.status || '-'));
     if (numeroFinanceiroValido(evento.valorNF)) {
       const statusNF = statusObrigacaoFinanceira(evento.statusNF) || 'Pago';
-      addDetalhe('Nota Fiscal', `${formatarValorFinanceiro(evento.valorNF)} • ${statusNF}`);
+      addDetalhe(detalhesFinanceiros, 'Nota Fiscal', `${formatarValorFinanceiro(evento.valorNF)} • ${statusNF}`);
     }
     if (numeroFinanceiroValido(evento.valorBV)) {
       const statusBV = statusObrigacaoFinanceira(evento.statusBV) || 'Pendente';
-      addDetalhe('BV', `${formatarValorFinanceiro(evento.valorBV)} • ${statusBV}`);
+      addDetalhe(detalhesFinanceiros, 'BV', `${formatarValorFinanceiro(evento.valorBV)} • ${statusBV}`);
     }
   }
 
@@ -3413,7 +3443,7 @@ criarCardEvento(evento) {
     : '';
 
   return `
-    <article class="evento-card ${classificacao} ${classeExtra}" data-evento-id="${evento.id}" onclick="UI.toggleDetalhesCard(this)">
+    <article class="evento-card ${classificacao} ${classeExtra}" data-evento-id="${evento.id}" onclick="if (!event.target.closest('button, a, input, select, textarea, label, [data-no-card-toggle]')) UI.toggleDetalhesCard(this)">
       <div class="evento-icon"><i data-lucide="${iconeLucide}" class="evento-icon-glyph"></i></div>
 
       <div class="evento-main">
@@ -3442,11 +3472,12 @@ criarCardEvento(evento) {
       <button class="evento-expand-toggle" type="button" onclick="event.stopPropagation(); UI.toggleDetalhesCard(this.closest('.evento-card'))">▼</button>
 
       <div class="evento-details">
-        ${detalhes.length ? `<div class="evento-detail-grid">${detalhes.join('')}</div>` : ''}
+        ${detalhesOperacionais.length ? `<section class="evento-detail-section"><div class="evento-detail-section-title">Informações do evento</div><div class="evento-detail-grid">${detalhesOperacionais.join('')}</div></section>` : ''}
+        ${detalhesFinanceiros.length ? `<section class="evento-detail-section"><div class="evento-detail-section-title">Financeiro do evento</div><div class="evento-detail-grid">${detalhesFinanceiros.join('')}</div></section>` : ''}
         ${conflitosHtml}
         ${isProprietarioAgenda() && isEvento ? `
           <div class="evento-actions">
-            <button class="btn-action" type="button" data-audit-open onclick="event.stopPropagation(); abrirAuditoriaEventoAgenda(${JSON.stringify(String(evento.id || ''))}, this.closest('.evento-card'), false);">
+            <button class="btn-action audit-action" type="button" data-audit-open onclick="return acionarAuditoriaEventoAgenda(event, this, ${JSON.stringify(String(evento.id || ''))});">
               🔎 Auditar evento
             </button>
           </div>
