@@ -1328,6 +1328,12 @@
     .agenda-audit-projection.manual { background: #fff7ed; border-color: #fed7aa; }
     .agenda-audit-input { width: 132px; padding: 7px 8px; border: 1px solid #cbd5e1; border-radius: 7px; font: inherit; }
     .agenda-audit-muted { color: #64748b; font-size: 12px; margin: 0; }
+    .agenda-audit-loading { display: grid; grid-template-columns: 34px 1fr; gap: 10px; align-items: center; padding: 14px; border: 1px solid #cfe0f5; border-radius: 12px; background: linear-gradient(135deg, #f8fbff, #edf5ff); color: #1e3a5f; }
+    .agenda-audit-loading-spinner { width: 26px; height: 26px; border: 3px solid #c7d9f3; border-top-color: #2563a7; border-radius: 50%; animation: agenda-audit-spin .8s linear infinite; }
+    .agenda-audit-loading strong, .agenda-audit-loading span { display: block; }
+    .agenda-audit-loading strong { font-size: 12px; }
+    .agenda-audit-loading span { margin-top: 2px; color: #64748b; font-size: 11px; }
+    @keyframes agenda-audit-spin { to { transform: rotate(360deg); } }
     @media (max-width: 520px) { .agenda-audit-mov { grid-template-columns: 72px minmax(0, 1fr); } .agenda-audit-mov span:last-child { grid-column: 2; } }
 
     .btn-action {
@@ -2211,6 +2217,14 @@ if (!AUTH.email || !AUTH.session) {
       return isNaN(data.getTime()) ? 'Não informado' : data.toLocaleDateString('pt-BR');
     }
 
+    function percentualAuditoriaAgenda_(valor) {
+      return Number.isFinite(Number(valor)) ? `${Number(valor).toFixed(1).replace('.', ',')}%` : '—';
+    }
+
+    function carregamentoAuditoriaAgenda_() {
+      return `<div class="agenda-audit-loading" role="status" aria-live="polite"><div class="agenda-audit-loading-spinner" aria-hidden="true"></div><div><strong>Preparando auditoria</strong><span>Consultando somente os dados deste evento…</span></div></div>`;
+    }
+
     function projetarAuditoriaAgenda_(dados, folha, origem, detalhe) {
       const financeiro = dados.financeiro || {};
       const contrato = Number(financeiro.contrato) || 0;
@@ -2229,13 +2243,18 @@ if (!AUTH.email || !AUTH.session) {
       const registro = dados.registro || {};
       const movimentos = Array.isArray(dados.movimentos) ? dados.movimentos : [];
       const alertas = Array.isArray(dados.alertas) ? dados.alertas : [];
+      const resultado = f.resultado || {};
+      const situacaoResultado = resultado.consolidado
+        ? 'Consolidado após execução'
+        : resultado.situacao === 'EM_APURACAO' ? 'Em apuração após execução' : 'Projeção em andamento';
       const antecedencia = Number.isFinite(Number(registro.diasAntecedencia))
         ? `${Number(registro.diasAntecedencia)} dias antes da execução`
         : 'Antecedência indisponível';
       painel.hidden = false;
       painel.innerHTML = `<div class="agenda-audit-head"><strong>🔎 AUDITORIA DO EVENTO</strong><button type="button" class="btn-action" data-audit-refresh>Atualizar</button></div>
         <div class="agenda-audit-section"><h4>Registro do evento</h4><div class="agenda-audit-grid"><div class="agenda-audit-metric"><small>Registrado em</small><strong>${dataAuditoriaAgenda_(registro.criadoEm)}</strong></div><div class="agenda-audit-metric"><small>Antecedência</small><strong>${antecedencia}</strong></div><div class="agenda-audit-metric"><small>Criado por</small><strong>${escaparHtmlAuditoriaAgenda_(registro.criadoPor || 'Não informado')}</strong></div><div class="agenda-audit-metric"><small>Última edição</small><strong>${dataAuditoriaAgenda_(registro.ultimaEdicao)}</strong></div></div></div>
-        <div class="agenda-audit-section"><h4>Caixa e contrato</h4><div class="agenda-audit-grid"><div class="agenda-audit-metric"><small>Contrato</small><strong>${moedaAuditoriaAgenda_(f.contrato)}</strong></div><div class="agenda-audit-metric"><small>Recebido processado</small><strong>${moedaAuditoriaAgenda_(f.recebido)}</strong></div><div class="agenda-audit-metric"><small>A receber</small><strong>${moedaAuditoriaAgenda_(f.aReceber)}</strong></div><div class="agenda-audit-metric"><small>Caixa líquido atual</small><strong>${moedaAuditoriaAgenda_(f.caixaLiquidoAtual)}</strong></div></div></div>
+        <div class="agenda-audit-section"><h4>Caixa e contrato</h4><div class="agenda-audit-grid"><div class="agenda-audit-metric"><small>Contrato</small><strong>${moedaAuditoriaAgenda_(f.contrato)}</strong></div><div class="agenda-audit-metric"><small>Recebido processado</small><strong>${moedaAuditoriaAgenda_(f.recebido)}</strong></div><div class="agenda-audit-metric"><small>A receber</small><strong>${moedaAuditoriaAgenda_(f.aReceber)}</strong></div><div class="agenda-audit-metric"><small>Caixa líquido atual</small><strong>${moedaAuditoriaAgenda_(f.caixaLiquidoAtual)}</strong></div></div><p class="agenda-audit-muted">Caixa = recebido processado menos saídas já pagas; compromissos pendentes não são descontados aqui.</p></div>
+        <div class="agenda-audit-section"><h4>Resultado e margem</h4><div class="agenda-audit-grid"><div class="agenda-audit-metric"><small>Lucro após custos conhecidos</small><strong>${moedaAuditoriaAgenda_(resultado.lucroAposCustosConhecidos)}</strong></div><div class="agenda-audit-metric"><small>Margem após custos conhecidos</small><strong>${percentualAuditoriaAgenda_(resultado.margemAposCustosConhecidos)}</strong></div><div class="agenda-audit-metric"><small>Situação</small><strong>${situacaoResultado}</strong></div></div><p class="agenda-audit-muted">Considera comissão, BV, NF, folha registrada e outras saídas. Só fica consolidado quando o evento ocorreu e não há pendências.</p></div>
         <div class="agenda-audit-section"><h4>Compromissos definidos no evento</h4><div class="agenda-audit-grid"><div class="agenda-audit-metric"><small>Comissão (prev./paga)</small><strong>${moedaAuditoriaAgenda_(f.comissao?.prevista)} / ${moedaAuditoriaAgenda_(f.comissao?.paga)}</strong></div><div class="agenda-audit-metric"><small>Comissão pendente</small><strong>${moedaAuditoriaAgenda_(f.comissao?.pendente)}</strong></div><div class="agenda-audit-metric"><small>BV (prev./pago)</small><strong>${moedaAuditoriaAgenda_(f.bv?.prevista)} / ${moedaAuditoriaAgenda_(f.bv?.paga)}</strong></div><div class="agenda-audit-metric"><small>NF (prev./paga)</small><strong>${moedaAuditoriaAgenda_(f.nf?.prevista)} / ${moedaAuditoriaAgenda_(f.nf?.paga)}</strong></div><div class="agenda-audit-metric"><small>Folha registrada</small><strong>${moedaAuditoriaAgenda_(f.folha?.conhecida)}</strong></div></div></div>
         <div class="agenda-audit-section"><h4>Projeção de lucro</h4><p class="agenda-audit-muted">Antes da folha: ${moedaAuditoriaAgenda_(f.lucroAntesFolha)} · regras do próprio evento; não usa a configuração atual do Precificador.</p><div data-audit-projection-controls><button type="button" class="btn-action primary" data-audit-history>Estimar folha pela base histórica</button><label class="agenda-audit-muted">Plano B: <input class="agenda-audit-input" data-audit-manual type="number" min="0" step="0.01" inputmode="decimal" placeholder="Valor da folha"></label><button type="button" class="btn-action" data-audit-manual-button>Simular valor manual</button><div data-audit-projection-result></div></div></div>
         ${alertas.length ? `<div class="agenda-audit-section"><h4>Alertas</h4>${alertas.map(function (alerta) { return `<div class="agenda-audit-warning">⚠ ${escaparHtmlAuditoriaAgenda_(alerta)}</div>`; }).join('')}</div>` : ''}
@@ -2267,7 +2286,7 @@ if (!AUTH.email || !AUTH.session) {
       const botao = cardEl.querySelector('[data-audit-open]');
       if (!painel || painel.dataset.loading === '1') return;
       if (!forcarAtualizacao && painel.dataset.loaded === '1') { painel.hidden = !painel.hidden; return; }
-      painel.hidden = false; painel.dataset.loading = '1'; painel.innerHTML = '<p class="agenda-audit-muted">Carregando auditoria sob demanda…</p>';
+      painel.hidden = false; painel.dataset.loading = '1'; painel.innerHTML = carregamentoAuditoriaAgenda_();
       if (botao) { botao.disabled = true; botao.textContent = 'Carregando…'; }
       try {
         const dados = await Auth.apiCall('obterAuditoriaEventoAgenda', { idEvento: idEvento });
