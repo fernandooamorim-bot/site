@@ -4,8 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <meta name="theme-color" content="#0f1a2e"/>
-  <meta name="application-name" content="Sistema FA Produções"/>
-  <meta name="apple-mobile-web-app-title" content="FA Produções"/>
+  <meta name="application-name" content="Agenda FA — Gestão de Eventos"/>
+  <meta name="apple-mobile-web-app-title" content="Agenda FA"/>
   <meta name="apple-mobile-web-app-capable" content="yes"/>
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
   <meta name="mobile-web-app-capable" content="yes"/>
@@ -20,6 +20,7 @@
 
   <script src="https://accounts.google.com/gsi/client" async defer></script>
   <script src="auth.js"></script>
+  <script src="dashboard-formacao-agenda.js?v=20260915a" defer></script>
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js" defer></script>
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
@@ -381,24 +382,55 @@
     .dash-rank-title{font-size:12px;font-weight:800;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .dash-rank-meta{font-size:11px;color:var(--muted);margin-top:2px}
     .dash-rank-val{font-size:12px;font-weight:800}
-    .future-agenda-shell{margin-top:10px;border:1px solid var(--line);border-radius:12px;background:linear-gradient(135deg,#ffffff 0%,#f7fbff 100%);overflow:hidden}
+    .future-agenda-shell{margin-top:10px;border:1px solid var(--line);border-radius:8px;background:#fff;overflow:hidden}
     .future-agenda-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:12px;border-bottom:1px solid var(--line)}
     .future-agenda-title{display:grid;gap:3px}
     .future-agenda-title strong{font-size:14px;color:var(--navy-2)}
     .future-agenda-title span{font-size:12px;color:var(--muted)}
     .future-agenda-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
     .future-agenda-content{padding:12px;display:grid;gap:12px}
-    .future-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;min-width:0}
-    .future-card{border:1px solid var(--line);border-radius:10px;background:#fff;padding:10px;min-width:0}
-    .future-card .k{font-size:10px;color:var(--muted);font-weight:800;text-transform:uppercase;letter-spacing:.45px}
-    .future-card .v{font-size:18px;font-weight:850;color:var(--text);margin-top:5px;letter-spacing:-.25px}
-    .future-card .s{font-size:11px;color:var(--muted);margin-top:4px;line-height:1.25}
-    .future-card.good .v{color:#0d8a5d}
-    .future-card.warn .v{color:#9a6d08}
-    .future-card.bad .v{color:#9f1d1d}
-    .future-columns{display:grid;grid-template-columns:1fr 1fr;gap:10px;min-width:0}
-    .future-panel{border:1px solid var(--line);border-radius:10px;background:#fff;padding:10px;min-width:0}
-    .future-panel h3{font-size:12px;color:var(--navy-2);text-transform:uppercase;letter-spacing:.45px;margin-bottom:8px}
+    .future-metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));border:1px solid var(--line);border-radius:8px;overflow:hidden;min-width:0}
+    .future-metric{padding:12px;min-width:0;background:#fbfcff;border-right:1px solid var(--line)}
+    .future-metric:last-child{border-right:0}
+    .future-metric .k{font-size:10px;color:var(--muted);font-weight:800;text-transform:uppercase;letter-spacing:.45px}
+    .future-metric .v{font-size:18px;font-weight:850;color:var(--text);margin-top:5px;overflow-wrap:anywhere}
+    .future-metric .s{font-size:11px;color:var(--muted);margin-top:4px;line-height:1.35}
+    .future-metric.good .v{color:#0d8a5d}
+    .future-metric.warn .v{color:#9a6d08}
+    .future-metric.bad .v{color:#9f1d1d}
+    .future-metrics.future-secondary .future-metric{background:#fff;padding:10px 12px}
+    .future-metrics.future-secondary .future-metric .v{font-size:16px}
+    .future-details{border-top:1px solid var(--line);border-bottom:1px solid var(--line);padding:0}
+    .future-details > summary{list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 2px;color:var(--navy-2);font-size:12px;font-weight:800}
+    .future-details > summary::-webkit-details-marker{display:none}
+    .future-details > summary::after{content:'+';font-size:18px;line-height:1;color:var(--muted)}
+    .future-details[open] > summary::after{content:'−'}
+    .future-details-copy{display:grid;gap:2px}
+    .future-details-copy small{font-size:10px;font-weight:500;color:var(--muted);line-height:1.35}
+    .future-details .future-metrics{margin-bottom:10px}
+    .future-metrics.future-technical .future-metric{background:#fff}
+    .future-metrics.future-technical .future-metric .v{font-size:15px}
+    .future-comparison{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:14px;align-items:center;padding:12px;border:1px solid var(--line);border-radius:8px;background:#f7f9fd}
+    .future-comparison-copy{display:grid;gap:5px;min-width:0}
+    .future-comparison-copy strong{font-size:13px;color:var(--navy-2)}
+    .future-comparison-copy span{font-size:11px;color:var(--muted);line-height:1.4}
+    .future-progress{height:8px;background:#e8edf5;border-radius:999px;overflow:hidden;margin-top:3px}
+    .future-progress i{display:block;height:100%;background:#1e3a5f;border-radius:999px}
+    .future-comparison-delta{text-align:right;min-width:132px}
+    .future-comparison-delta strong{display:block;font-size:17px}
+    .future-comparison-delta span{font-size:10px;color:var(--muted)}
+    .future-reading{display:grid;grid-template-columns:auto 1fr;gap:10px;align-items:start;padding:11px 12px;border-left:4px solid #7c879e;background:#f6f8fc;border-radius:0 8px 8px 0}
+    .future-reading i{width:18px;height:18px;color:#526079}
+    .future-reading-label{font-size:9px;font-weight:800;text-transform:uppercase;color:var(--muted);margin-bottom:3px}
+    .future-reading strong{display:block;font-size:13px;color:var(--text)}
+    .future-reading p{font-size:11px;color:var(--muted);line-height:1.45;margin-top:3px}
+    .future-reading.positivo{border-color:#10b981;background:#effcf5}.future-reading.positivo i{color:#0d8a5d}
+    .future-reading.atencao{border-color:#f59e0b;background:#fff7e8}.future-reading.atencao i{color:#9a6d08}
+    .future-reading.estavel{border-color:#3b82f6;background:#eff6ff}.future-reading.estavel i{color:#2563eb}
+    .future-columns{display:grid;grid-template-columns:1fr 1fr;gap:18px;min-width:0;padding-top:2px}
+    .future-panel{min-width:0;padding-top:10px;border-top:1px solid var(--line)}
+    .future-panel h3{font-size:12px;color:var(--navy-2);text-transform:uppercase;letter-spacing:.45px;margin-bottom:3px}
+    .future-panel-sub{font-size:11px;color:var(--muted);line-height:1.35;margin-bottom:10px}
     .future-list{display:grid;gap:7px}
     .future-row{display:grid;grid-template-columns:92px 1fr 120px;gap:8px;align-items:center}
     .future-row .m{font-size:12px;color:var(--muted);font-weight:800}
@@ -411,6 +443,31 @@
     .future-alert.warn{background:#fff7e8;border-color:#f3ddb2;color:#9a6d08}
     .future-alert.bad{background:#fff1f2;border-color:#fecaca;color:#9f1d1d}
     .future-note{font-size:11px;color:var(--muted);line-height:1.35}
+    .future-window-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}
+    .future-window{border:1px solid var(--line);border-radius:8px;padding:9px;background:#fff;min-width:0}
+    .future-window-head{display:flex;align-items:center;justify-content:space-between;gap:6px}
+    .future-window-head strong{font-size:12px;color:var(--text)}
+    .future-window-status{font-size:9px;font-weight:800;text-transform:uppercase;color:#526079;background:#edf1f7;border-radius:999px;padding:3px 6px;white-space:nowrap}
+    .future-window.atencao{border-color:#f3c86f;background:#fffaf0}.future-window.atencao .future-window-status{color:#8a5b00;background:#ffedc2}
+    .future-window.em-curso{border-color:#abdcc9;background:#f3fbf7}.future-window.em-curso .future-window-status{color:#08734c;background:#dff6eb}
+    .future-window.proxima{border-color:#b8d2fa;background:#f4f8ff}.future-window.proxima .future-window-status{color:#1d5fae;background:#e2edff}
+    .future-window-main{font-size:14px;font-weight:800;margin-top:7px;color:var(--text)}
+    .future-window-meta{font-size:10px;color:var(--muted);line-height:1.4;margin-top:3px}
+    .future-quality{display:flex;gap:8px 14px;align-items:center;flex-wrap:wrap;padding-top:9px;border-top:1px dashed var(--line);font-size:10px;color:var(--muted)}
+    .future-quality strong{color:var(--text)}
+    .future-loading{display:grid;gap:12px;padding:2px}
+    .future-loading-status{display:flex;align-items:center;gap:9px;font-size:12px;font-weight:700;color:var(--navy-2)}
+    .future-loading-status > .spinner{width:17px;height:17px;flex:0 0 17px;border:2px solid #d7deea;border-top-color:var(--navy-2);border-radius:50%;animation:spin .8s linear infinite}
+    .future-loading-status div{display:grid;gap:2px}
+    .future-loading-status span:not(.spinner){font-size:10px;font-weight:500;color:var(--muted)}
+    .future-skeleton-metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+    .future-skeleton-metrics i{display:block;height:82px;border-radius:8px;background:#edf1f7;animation:futurePulse 1.15s ease-in-out infinite alternate}
+    .future-skeleton-charts{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+    .future-skeleton-charts i{display:block;height:150px;border-radius:8px;background:#f1f4f9;animation:futurePulse 1.15s ease-in-out infinite alternate}
+    .future-load-error{display:grid;justify-items:start;gap:8px;padding:14px;border:1px solid #fecaca;border-radius:8px;background:#fff7f7;color:#8f1d1d}
+    .future-load-error svg{width:18px;height:18px}
+    .future-load-error strong{font-size:13px}.future-load-error span{font-size:11px;line-height:1.4}
+    @keyframes futurePulse{from{opacity:.55}to{opacity:1}}
 
     @keyframes spin{to{transform:rotate(360deg)}}
 
@@ -456,9 +513,23 @@
       .insights-kpis{grid-template-columns:1fr}
       .split{grid-template-columns:1fr}
       .ticket-grid{grid-template-columns:1fr}
-      .future-grid{grid-template-columns:1fr 1fr}
+      .future-metrics{grid-template-columns:1fr 1fr}
+      .future-metric:nth-child(2){border-right:0}
+      .future-metric:nth-child(-n+2){border-bottom:1px solid var(--line)}
       .future-columns{grid-template-columns:1fr}
       .future-row{grid-template-columns:72px 1fr 96px}
+      .future-window-grid{grid-template-columns:1fr 1fr}
+      .future-comparison{grid-template-columns:1fr}
+      .future-comparison-delta{text-align:left}
+      .future-skeleton-metrics{grid-template-columns:1fr 1fr}
+      .future-skeleton-charts{grid-template-columns:1fr}
+    }
+    @media (max-width:430px){
+      .future-metrics{grid-template-columns:1fr}
+      .future-metric{border-right:0;border-bottom:1px solid var(--line)}
+      .future-metric:last-child{border-bottom:0}
+      .future-window-grid{grid-template-columns:1fr}
+      .future-row{grid-template-columns:68px 1fr 88px;gap:6px}
     }
     @media (min-width:768px){.bottom-nav{display:none}.container{padding-bottom:20px}}
     .hidden{display:none !important}
@@ -718,20 +789,20 @@
 
       <div class="section-label">Planejamento futuro</div>
       <div class="card" id="cardFormacaoAgendaFutura" style="grid-column:1/-1">
-        <h2><i data-lucide="calendar-plus"></i><span class="title-tip">Formação da Agenda Futura <span class="info-dot tiny aud-tip" data-tip="Análise sob demanda sobre como a agenda futura está sendo formada: antecedência, ritmo de fechamento e meses mais fortes de captação.">i</span></span></h2>
-        <div class="sub">Complemento comercial: acompanhe como o próximo ano está sendo formado pela data de cadastro dos eventos.</div>
+        <h2><i data-lucide="calendar-plus"></i><span class="title-tip">Previsibilidade da Agenda Futura <span class="info-dot tiny aud-tip" data-tip="Compara a agenda do próximo ano com o vendido no ano atual e, quando há histórico confiável, com o mesmo estágio de formação do ano anterior.">i</span></span></h2>
+        <div class="sub">Acompanhe o ritmo de contratação do próximo ano e as janelas em que a equipe comercial costuma fechar eventos.</div>
         <div class="future-agenda-shell">
           <div class="future-agenda-head">
             <div class="future-agenda-title">
-              <strong>Visão sob demanda</strong>
-              <span>Carrega apenas quando você quiser analisar antecedência, meses de fechamento e ritmo da agenda futura.</span>
+              <strong>Análise comercial por data de entrada</strong>
+              <span>A data de criação aproxima o momento do fechamento. Registros migrados ficam fora das análises de prazo.</span>
             </div>
             <div class="future-agenda-actions">
               <button id="btnFormacaoFutura" class="btn primary" onclick="carregarFormacaoAgendaFutura(false)">Carregar análise futura</button>
               <button id="btnRefreshFormacaoFutura" class="btn outline hidden" onclick="carregarFormacaoAgendaFutura(true)">Atualizar análise</button>
             </div>
           </div>
-          <div id="formacaoFuturaContent" class="future-agenda-content hidden"></div>
+          <div id="formacaoFuturaContent" class="future-agenda-content hidden" aria-live="polite"></div>
         </div>
       </div>
 
@@ -820,7 +891,7 @@
     const INSIGHTS_CACHE_TTL_MS = 10 * 60 * 1000;
     const TICKET_CACHE_KEY = 'dashboard:ticketMedio:v2';
     const TICKET_CACHE_TTL_MS = 10 * 60 * 1000;
-    const FORMACAO_FUTURA_CACHE_KEY = 'dashboard:formacaoFutura:v1';
+    const FORMACAO_FUTURA_CACHE_KEY = 'dashboard:formacaoFutura:v2';
     const FORMACAO_FUTURA_CACHE_TTL_MS = 10 * 60 * 1000;
     const ORDENACAO_GRAFICOS_MENSAIS_KEY = 'dashboard:ordenacaoGraficosMensais';
     const auditoriaState = {
@@ -2296,124 +2367,19 @@
       const meses = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
       return `${meses[dt.getMonth()]}/${dt.getFullYear()}`;
     }
-    function adicionarBucketFormacao_(map, chave, label, valor) {
-      if (!map[chave]) map[chave] = { chave, label, eventos: 0, valor: 0 };
-      map[chave].eventos += 1;
-      map[chave].valor += num(valor);
-    }
     function calcularFormacaoAgendaFutura_(eventosRaw, anoBase) {
-      const hoje = new Date();
-      const corteAtual = new Date(Number(anoBase), hoje.getMonth(), hoje.getDate());
-      corteAtual.setHours(23, 59, 59, 999);
-      const corteHistorico = new Date(Number(anoBase) - 1, hoje.getMonth(), hoje.getDate());
-      corteHistorico.setHours(23, 59, 59, 999);
-      const anoFuturo = Number(anoBase) + 1;
+      if (!window.DashboardFormacaoAgenda?.calcular) {
+        throw new Error('Módulo de formação da agenda indisponível');
+      }
       const eventos = (Array.isArray(eventosRaw) ? eventosRaw : [])
         .filter(ehEventoAtivoCadastro_)
-        .map(ev => {
-          const dataEvento = getDataEventoDate_(ev);
-          const dataCadastro = getDataCadastroEvento_(ev);
-          const valor = getValorEventoCadastro_(ev);
-          const nome = String(ev?.nomeEvento || ev?.contratante || ev?.nomeContratante || ev?.NOME_CONTRATANTE || 'Evento').trim();
-          return {
-            raw: ev,
-            nome,
-            dataEvento,
-            dataCadastro,
-            anoEvento: dataEvento ? dataEvento.getFullYear() : null,
-            valor,
-            antecedenciaMeses: dataEvento && dataCadastro ? mesesEntreDatas_(dataCadastro, dataEvento) : null,
-            criadoPor: String(ev?.criadoPor || ev?.CRIADO_POR || '').trim()
-          };
-        })
-        .filter(ev => ev.dataEvento && ev.dataCadastro);
-
-      const baseAno = eventos.filter(ev => ev.anoEvento === Number(anoBase));
-      const futuro = eventos.filter(ev => ev.anoEvento === anoFuturo && ev.dataCadastro <= corteAtual);
-      const historicoEquivalente = eventos.filter(ev => ev.anoEvento === Number(anoBase) && ev.dataCadastro <= corteHistorico);
-      const importados = futuro.filter(ev => /migracao|import/i.test(ev.criadoPor || '')).length;
-
-      const soma = (lista, campo = 'valor') => lista.reduce((s, x) => s + num(x?.[campo]), 0);
-      const mediaAntecedencia = (lista) => {
-        const vals = lista.map(x => x.antecedenciaMeses).filter(v => Number.isFinite(Number(v)));
-        return vals.length ? vals.reduce((s, v) => s + Number(v), 0) / vals.length : null;
-      };
-
-      const valorFuturo = soma(futuro);
-      const valorBase = soma(baseAno);
-      const valorHistorico = soma(historicoEquivalente);
-      const deltaHistorico = valorHistorico > 0 ? ((valorFuturo - valorHistorico) / valorHistorico) * 100 : null;
-      const cobertura = valorBase > 0 ? (valorFuturo / valorBase) * 100 : null;
-      const corte60 = new Date(corteAtual);
-      corte60.setDate(corte60.getDate() - 60);
-      const ultimos60 = futuro.filter(ev => ev.dataCadastro >= corte60);
-
-      const porMes = {};
-      futuro.forEach(ev => {
-        const chave = `${ev.dataCadastro.getFullYear()}-${String(ev.dataCadastro.getMonth() + 1).padStart(2, '0')}`;
-        adicionarBucketFormacao_(porMes, chave, rotuloMesAno_(ev.dataCadastro), ev.valor);
-      });
-      const mesesFechamento = Object.values(porMes).sort((a, b) => a.chave.localeCompare(b.chave));
-      const rankingMeses = [...mesesFechamento].sort((a, b) => num(b.valor) - num(a.valor) || b.eventos - a.eventos).slice(0, 6);
-
-      const faixas = {
-        'ate30': { label: 'Até 30 dias', eventos: 0, valor: 0 },
-        '1a3': { label: '1 a 3 meses', eventos: 0, valor: 0 },
-        '3a6': { label: '3 a 6 meses', eventos: 0, valor: 0 },
-        '6a12': { label: '6 a 12 meses', eventos: 0, valor: 0 },
-        '12mais': { label: '12+ meses', eventos: 0, valor: 0 }
-      };
-      futuro.forEach(ev => {
-        const m = Number(ev.antecedenciaMeses);
-        const k = m <= 1 ? 'ate30' : (m <= 3 ? '1a3' : (m <= 6 ? '3a6' : (m <= 12 ? '6a12' : '12mais')));
-        faixas[k].eventos += 1;
-        faixas[k].valor += ev.valor;
-      });
-
-      const alertas = [];
-      if (deltaHistorico === null) {
-        alertas.push({ tipo: 'warn', texto: `Sem base histórica suficiente para comparar ${anoFuturo} com ${anoBase} na mesma data de corte.` });
-      } else if (deltaHistorico < -15) {
-        alertas.push({ tipo: 'bad', texto: `${anoFuturo} está ${Math.abs(deltaHistorico).toFixed(1).replace('.', ',')}% abaixo do ritmo equivalente de ${anoBase}.` });
-      } else if (deltaHistorico > 15) {
-        alertas.push({ tipo: 'good', texto: `${anoFuturo} está ${deltaHistorico.toFixed(1).replace('.', ',')}% acima do ritmo equivalente de ${anoBase}.` });
-      } else {
-        alertas.push({ tipo: 'good', texto: `${anoFuturo} está próximo do ritmo equivalente de ${anoBase}.` });
-      }
-      if (futuro.length === 0) {
-        alertas.push({ tipo: 'warn', texto: `Ainda não há eventos ativos cadastrados para ${anoFuturo} até ${corteAtual.toLocaleDateString('pt-BR')}.` });
-      } else if (num(cobertura) < 35) {
-        alertas.push({ tipo: 'warn', texto: `Cobertura futura ainda baixa: ${fmtPct(cobertura)} do valor contratado de ${anoBase}.` });
-      }
-      if (ultimos60.length === 0 && futuro.length > 0) {
-        alertas.push({ tipo: 'warn', texto: 'Nenhum evento futuro foi cadastrado nos últimos 60 dias da data de corte.' });
-      }
-      if (importados > 0) {
-        alertas.push({ tipo: 'warn', texto: `${importados} evento(s) futuro(s) parecem vir de migração/importação; a antecedência pode não representar a data real de fechamento.` });
-      }
-
-      return {
-        anoBase: Number(anoBase),
-        anoFuturo,
-        corteAtual: dataIsoLocal_(corteAtual),
-        corteHistorico: dataIsoLocal_(corteHistorico),
-        resumo: {
-          eventosFuturos: futuro.length,
-          valorFuturo,
-          ticketMedio: futuro.length ? valorFuturo / futuro.length : 0,
-          antecedenciaMedia: mediaAntecedencia(futuro),
-          cobertura,
-          eventosUltimos60: ultimos60.length,
-          valorUltimos60: soma(ultimos60),
-          eventosHistorico: historicoEquivalente.length,
-          valorHistorico,
-          deltaHistorico
-        },
-        mesesFechamento,
-        rankingMeses,
-        faixas: Object.values(faixas),
-        alertas
-      };
+        .map(ev => ({
+          dataEvento: getDataEventoDate_(ev),
+          dataCadastro: getDataCadastroEvento_(ev),
+          valor: getValorEventoCadastro_(ev),
+          importado: /migracao|import/i.test(String(ev?.criadoPor || ev?.CRIADO_POR || ''))
+        }));
+      return window.DashboardFormacaoAgenda.calcular(eventos, anoBase, new Date());
     }
     function montarFutureBars_(lista, valorCampo = 'valor') {
       const dados = Array.isArray(lista) ? lista : [];
@@ -2421,7 +2387,7 @@
       const max = Math.max(1, ...dados.map(x => num(x?.[valorCampo])));
       return dados.map(x => {
         const v = num(x?.[valorCampo]);
-        const p = Math.max(3, Math.min(100, (v / max) * 100));
+        const p = v > 0 ? Math.max(3, Math.min(100, (v / max) * 100)) : 0;
         return `
           <div class="future-row">
             <div class="m">${escaparHtml(x.label)}</div>
@@ -2431,84 +2397,228 @@
         `;
       }).join('');
     }
+    function formatarPrazoDias_(dias) {
+      if (!Number.isFinite(Number(dias))) return 'Sem base';
+      const valor = Math.max(0, Number(dias));
+      if (valor < 60) return `${Math.round(valor)} dias`;
+      return `${(valor / 30.4375).toFixed(1).replace('.', ',')} meses`;
+    }
+    function fmtPctFormacao_(valor) {
+      if (!Number.isFinite(Number(valor))) return 'N/A';
+      return `${Number(valor).toFixed(1).replace('.', ',')}%`;
+    }
+    function montarLeituraFormacao_(data) {
+      const r = data.resumo || {};
+      if (!r.baseComparavelSuficiente) {
+        return `Não é possível afirmar se a equipe precisa acelerar: há apenas ${Number(r.eventosHistorico || 0)} evento(s) confiável(is) de ${data.anoBase} no mesmo corte histórico. A cobertura sobre o vendido continua válida, mas a comparação de ritmo fica indisponível.`;
+      }
+      const diferenca = fmt(Math.abs(num(r.deltaHistoricoValor)));
+      if (num(r.deltaHistoricoPct) < -10) {
+        return `${data.anoFuturo} está ${fmtPctFormacao_(Math.abs(r.deltaHistoricoPct))} abaixo do mesmo estágio de ${data.anoBase}, uma diferença de ${diferenca}. Este é um sinal objetivo para reforçar a prospecção da agenda futura.`;
+      }
+      if (num(r.deltaHistoricoPct) > 10) {
+        return `${data.anoFuturo} está ${fmtPctFormacao_(r.deltaHistoricoPct)} acima do mesmo estágio de ${data.anoBase}, com ${diferenca} a mais já contratado.`;
+      }
+      return `${data.anoFuturo} está próximo do mesmo estágio de ${data.anoBase}. A diferença atual é de ${diferenca}, dentro da faixa de 10% usada para indicar estabilidade.`;
+    }
+    function montarJanelasComerciais_(janelas) {
+      const rotulos = {
+        'sem-base': 'Sem base',
+        'atencao': 'Atenção',
+        'em-curso': 'Em curso',
+        'proxima': 'Próxima',
+        'planejada': 'Mais adiante'
+      };
+      return (Array.isArray(janelas) ? janelas : []).map(item => {
+        const prazo = Number.isFinite(Number(item.antecedenciaMedianaDias))
+          ? `prazo típico ${formatarPrazoDias_(item.antecedenciaMedianaDias)}`
+          : 'histórico insuficiente';
+        const abertura = item.aberturaTipica
+          ? `janela estimada a partir de ${dataIsoParaPtBr_(item.aberturaTipica)}`
+          : `${Number(item.amostraHistorica || 0)} caso(s) histórico(s)`;
+        return `
+          <div class="future-window ${escaparHtml(item.status || 'sem-base')}">
+            <div class="future-window-head">
+              <strong>${escaparHtml(item.label)}</strong>
+              <span class="future-window-status">${escaparHtml(rotulos[item.status] || 'Sem base')}</span>
+            </div>
+            <div class="future-window-main">${Number(item.eventosAtuais || 0)} eventos · ${fmt(item.valorAtual)}</div>
+            <div class="future-window-meta">${escaparHtml(prazo)}<br>${escaparHtml(abertura)}</div>
+          </div>
+        `;
+      }).join('');
+    }
+    function formatarAtualizacaoFormacao_(valor) {
+      const data = new Date(Number(valor));
+      if (Number.isNaN(data.getTime())) return '';
+      return data.toLocaleString('pt-BR', {
+        day: '2-digit', month: '2-digit', year: 'numeric',
+        hour: '2-digit', minute: '2-digit'
+      });
+    }
+    function renderFormacaoLoading_(box, ano, etapa) {
+      if (!box) return;
+      box.classList.remove('hidden');
+      box.setAttribute('aria-busy', 'true');
+      box.innerHTML = `
+        <div class="future-loading" role="status">
+          <div class="future-loading-status">
+            <span class="spinner" aria-hidden="true"></span>
+            <div><strong>Preparando a análise de ${Number(ano) + 1}</strong><span id="futureLoadingLabel">${escaparHtml(etapa)}</span></div>
+          </div>
+          <div class="future-skeleton-metrics" aria-hidden="true">
+            <i></i><i></i><i></i><i></i>
+          </div>
+          <div class="future-skeleton-charts" aria-hidden="true">
+            <i></i><i></i>
+          </div>
+        </div>
+      `;
+    }
+    function atualizarEtapaFormacao_(etapa) {
+      const label = document.getElementById('futureLoadingLabel');
+      if (label) label.textContent = etapa;
+    }
     function renderFormacaoAgendaFutura(data) {
       const box = document.getElementById('formacaoFuturaContent');
+      const btn = document.getElementById('btnFormacaoFutura');
       const btnRefresh = document.getElementById('btnRefreshFormacaoFutura');
       if (!box || !data) return;
       const r = data.resumo || {};
-      const delta = r.deltaHistorico;
-      const deltaCls = delta === null ? 'warn' : (delta < -15 ? 'bad' : (delta > 0 ? 'good' : 'warn'));
-      const deltaTxt = delta === null ? 'Sem base' : `${delta >= 0 ? '+' : ''}${Number(delta).toFixed(1).replace('.', ',')}%`;
-      const coberturaCls = Number(r.cobertura || 0) >= 60 ? 'good' : (Number(r.cobertura || 0) >= 35 ? 'warn' : 'bad');
+      const q = data.qualidade || {};
+      const leitura = data.leitura || { tipo: 'neutro', titulo: 'Leitura indisponível' };
+      const ritmoTxt = r.baseComparavelSuficiente
+        ? `${num(r.deltaHistoricoPct) >= 0 ? '+' : ''}${fmtPctFormacao_(r.deltaHistoricoPct)}`
+        : 'Sem base';
+      const ritmoCls = !r.baseComparavelSuficiente ? '' : (num(r.deltaHistoricoPct) < -10 ? 'bad' : (num(r.deltaHistoricoPct) > 10 ? 'good' : 'warn'));
+      const saldoCarteira = num(r.valorFuturo) - num(r.valorBaseTotal);
+      const diferencaCarteira = Math.abs(saldoCarteira);
+      const larguraCobertura = Math.max(0, Math.min(100, num(r.coberturaCarteira)));
+      const atualizadoEm = formatarAtualizacaoFormacao_(data.geradoEm);
       box.classList.remove('hidden');
+      box.setAttribute('aria-busy', 'false');
+      if (btn) btn.classList.add('hidden');
       if (btnRefresh) btnRefresh.classList.remove('hidden');
       box.innerHTML = `
-        <div class="future-grid">
-          <div class="future-card">
-            <div class="k">Agenda ${data.anoFuturo}</div>
+        <div class="future-metrics">
+          <div class="future-metric">
+            <div class="k">Contratado para ${data.anoFuturo}</div>
             <div class="v">${Number(r.eventosFuturos || 0)} eventos</div>
-            <div class="s">Contratado: ${fmt(r.valorFuturo)}</div>
+            <div class="s">${fmt(r.valorFuturo)} em contratos ativos</div>
           </div>
-          <div class="future-card">
-            <div class="k">Ticket médio futuro</div>
+          <div class="future-metric">
+            <div class="k">Cobertura do vendido de ${data.anoBase}</div>
+            <div class="v">${fmtPctFormacao_(r.coberturaCarteira)}</div>
+            <div class="s">${fmt(r.valorFuturo)} de ${fmt(r.valorBaseTotal)} vendido em ${data.anoBase}</div>
+          </div>
+          <div class="future-metric ${ritmoCls}">
+            <div class="k">Ritmo de formação da agenda</div>
+            <div class="v">${ritmoTxt}</div>
+            <div class="s">${r.baseComparavelSuficiente ? `${fmt(r.valorFuturoComparavel)} no corte vs. ${fmt(r.valorHistorico)} no corte equivalente` : 'Sem histórico confiável para classificar o ritmo'}</div>
+          </div>
+          <div class="future-metric">
+            <div class="k">Valor para alcançar o vendido de ${data.anoBase}</div>
+            <div class="v">${fmt(diferencaCarteira)}</div>
+            <div class="s">${saldoCarteira < 0 ? `ainda para igualar o total de ${data.anoBase}` : `acima do total de ${data.anoBase}`}</div>
+          </div>
+        </div>
+        <div class="future-comparison">
+          <div class="future-comparison-copy">
+            <strong>${data.anoFuturo} já representa ${fmtPctFormacao_(r.coberturaCarteira)} do total vendido em ${data.anoBase}</strong>
+            <div class="future-progress" role="img" aria-label="Cobertura de ${fmtPctFormacao_(r.coberturaCarteira)}"><i style="width:${larguraCobertura}%"></i></div>
+            <span>Esta cobertura usa todos os eventos ativos dos dois anos. Ela não depende da data de criação.</span>
+          </div>
+          <div class="future-comparison-delta"><strong>${fmt(diferencaCarteira)}</strong><span>${saldoCarteira < 0 ? 'para alcançar o vendido atual' : 'acima do vendido atual'}</span></div>
+        </div>
+        <div class="future-reading ${escaparHtml(leitura.tipo)}">
+          <i data-lucide="${leitura.tipo === 'atencao' ? 'triangle-alert' : (leitura.tipo === 'positivo' ? 'trending-up' : 'info')}"></i>
+          <div><div class="future-reading-label">Leitura comercial</div><strong>${escaparHtml(leitura.titulo)}</strong><p>${escaparHtml(montarLeituraFormacao_(data))}</p></div>
+        </div>
+        <div class="future-columns">
+          <div class="future-panel">
+            <h3>Captação mês a mês da agenda ${data.anoFuturo}</h3>
+            <div class="future-panel-sub">Evolução cronológica dos contratos pela data em que entraram no sistema.</div>
+            <div class="future-list">${montarFutureBars_(data.captacaoMensal || [])}</div>
+          </div>
+          <div class="future-panel">
+            <h3>Meses com maior captação da agenda ${data.anoFuturo}</h3>
+            <div class="future-panel-sub">Ranking pela data de entrada no sistema e pelo valor contratado.</div>
+            <div class="future-list">${montarFutureBars_(data.rankingCaptacao || [])}</div>
+          </div>
+        </div>
+        <div class="future-metrics future-secondary">
+          <div class="future-metric">
+            <div class="k">Ticket médio de ${data.anoFuturo}</div>
             <div class="v">${fmt(r.ticketMedio)}</div>
-            <div class="s">Média dos eventos ativos de ${data.anoFuturo}</div>
+            <div class="s">Média dos contratos ativos do próximo ano</div>
           </div>
-          <div class="future-card ${coberturaCls}">
-            <div class="k">Cobertura futura</div>
-            <div class="v">${fmtPct(r.cobertura)}</div>
-            <div class="s">Vs. valor contratado de ${data.anoBase}</div>
+          <div class="future-metric">
+            <div class="k">Prazo típico de ${data.anoFuturo}</div>
+            <div class="v">${formatarPrazoDias_(r.prazoTipicoFuturoDias)}</div>
+            <div class="s">Mediana entre entrada no sistema e evento; migrações excluídas</div>
           </div>
-          <div class="future-card ${deltaCls}">
-            <div class="k">Ritmo equivalente</div>
-            <div class="v">${deltaTxt}</div>
-            <div class="s">${data.anoFuturo} até ${dataIsoParaPtBr_(data.corteAtual)} vs. ${data.anoBase} até ${dataIsoParaPtBr_(data.corteHistorico)}</div>
+          <div class="future-metric">
+            <div class="k">Prazo típico de ${data.anoBase}</div>
+            <div class="v">${formatarPrazoDias_(r.prazoTipicoBaseDias)}</div>
+            <div class="s">Referência da agenda atual com cadastro confiável</div>
           </div>
-        </div>
-        <div class="future-grid">
-          <div class="future-card">
-            <div class="k">Antecedência média</div>
-            <div class="v">${formatMeses_(r.antecedenciaMedia)}</div>
-            <div class="s">Entre cadastro e data do evento</div>
-          </div>
-          <div class="future-card">
-            <div class="k">Últimos 60 dias</div>
+          <div class="future-metric">
+            <div class="k">Entradas nos últimos 60 dias</div>
             <div class="v">${Number(r.eventosUltimos60 || 0)} eventos</div>
-            <div class="s">${fmt(r.valorUltimos60)} cadastrados no período</div>
-          </div>
-          <div class="future-card">
-            <div class="k">Base comparativa</div>
-            <div class="v">${Number(r.eventosHistorico || 0)} eventos</div>
-            <div class="s">${fmt(r.valorHistorico)} no mesmo corte do ano anterior</div>
-          </div>
-          <div class="future-card">
-            <div class="k">Maior mês de fechamento</div>
-            <div class="v">${escaparHtml(data.rankingMeses?.[0]?.label || 'N/A')}</div>
-            <div class="s">${data.rankingMeses?.[0] ? `${fmt(data.rankingMeses[0].valor)} • ${data.rankingMeses[0].eventos} ev.` : 'Sem dados'}</div>
+            <div class="s">${fmt(r.valorUltimos60)} adicionados à agenda de ${data.anoFuturo}</div>
           </div>
         </div>
-        <div class="future-columns">
-          <div class="future-panel">
-            <h3>Meses que mais fecharam eventos futuros</h3>
-            <div class="future-list">${montarFutureBars_(data.rankingMeses || [])}</div>
-          </div>
-          <div class="future-panel">
-            <h3>Faixas de antecedência</h3>
-            <div class="future-list">${montarFutureBars_(data.faixas || [])}</div>
-          </div>
-        </div>
-        <div class="future-columns">
-          <div class="future-panel">
-            <h3>Captação por mês de cadastro</h3>
-            <div class="future-list">${montarFutureBars_(data.mesesFechamento || [])}</div>
-          </div>
-          <div class="future-panel">
-            <h3>Leitura comercial</h3>
-            <div class="future-alerts">
-              ${(data.alertas || []).map(a => `<div class="future-alert ${a.tipo || ''}">${escaparHtml(a.texto)}</div>`).join('')}
+        <details class="future-details">
+          <summary>
+            <span class="future-details-copy"><strong>Detalhes da comparação</strong><small>Média, amostra temporal, corte histórico e mês de maior captação.</small></span>
+          </summary>
+          <div class="future-metrics future-technical">
+            <div class="future-metric">
+              <div class="k">Antecedência média de ${data.anoFuturo}</div>
+              <div class="v">${formatarPrazoDias_(r.prazoMedioFuturoDias)}</div>
+              <div class="s">Média entre entrada e evento; compare com o prazo típico acima</div>
             </div>
-            <div class="future-note" style="margin-top:10px">A análise usa a data em que o evento entrou no sistema. Eventos migrados podem distorcer a antecedência histórica.</div>
+            <div class="future-metric">
+              <div class="k">Cobertura da amostra com data de criação</div>
+              <div class="v">${fmtPctFormacao_(r.coberturaAmostraTemporal)}</div>
+              <div class="s">${fmt(r.valorFuturoAmostra)} de ${fmt(r.valorBaseAmostra)} entre eventos com data de criação. Não é a cobertura total.</div>
+            </div>
+            <div class="future-metric">
+              <div class="k">Como estava ${data.anoBase} nesta mesma data</div>
+              <div class="v">${Number(r.eventosHistorico || 0)} eventos</div>
+              <div class="s">${fmt(r.valorHistorico)} já registrado em ${dataIsoParaPtBr_(data.corteHistorico)}</div>
+            </div>
+            <div class="future-metric">
+              <div class="k">Mês com maior valor captado</div>
+              <div class="v">${escaparHtml(data.rankingCaptacao?.[0]?.label || 'Sem base')}</div>
+              <div class="s">${data.rankingCaptacao?.[0] ? `${fmt(data.rankingCaptacao[0].valor)} · ${Number(data.rankingCaptacao[0].eventos || 0)} eventos` : 'Nenhum cadastro confiável no período'}</div>
+            </div>
           </div>
+        </details>
+        <div class="future-columns">
+          <div class="future-panel">
+            <h3>Antecedência dos contratos de ${data.anoFuturo}</h3>
+            <div class="future-panel-sub">Quando os eventos do próximo ano entraram no sistema antes da data de realização.</div>
+            <div class="future-list">${montarFutureBars_(data.faixasFuturo || [])}</div>
+          </div>
+          <div class="future-panel">
+            <h3>Antecedência dos contratos de ${data.anoBase}</h3>
+            <div class="future-panel-sub">Referência da agenda atual para comparar o comportamento de contratação.</div>
+            <div class="future-list">${montarFutureBars_(data.faixasBase || [])}</div>
+          </div>
+        </div>
+        <div class="future-panel">
+          <h3>Janelas comerciais por mês do evento</h3>
+          <div class="future-panel-sub">A janela estimada usa a mediana dos eventos de ${data.anoBase} no mesmo mês. “Atenção” significa que a janela típica já começou e ainda não há evento contratado naquele mês.</div>
+          <div class="future-window-grid">${montarJanelasComerciais_(data.janelasMensais || [])}</div>
+        </div>
+        <div class="future-quality">
+          <span><strong>Qualidade da análise de prazo:</strong> ${Number(q.eventosFuturosConfiaveis || 0)} de ${Number(q.eventosFuturos || 0)} eventos de ${data.anoFuturo}</span>
+          <span>${Number(q.importadosFuturo || 0)} importado(s) excluído(s) dos prazos</span>
+          <span>${Number(q.semDataCadastroFuturo || 0)} sem data de criação</span>
+          <span>${Number(q.datasPrazoInvalidasFuturo || 0)} com prazo inválido</span>
+          <span>Data de criação é uma aproximação do fechamento comercial</span>
+          ${atualizadoEm ? `<span>Atualizado em ${escaparHtml(atualizadoEm)}</span>` : ''}
         </div>
       `;
       if (window.lucide) lucide.createIcons();
@@ -2521,31 +2631,32 @@
       if (!box || formacaoFuturaState.loading) return;
       let versaoAgenda = '';
       try {
-        versaoAgenda = await obterAgendaVersion(force);
-      } catch (_) {
-        versaoAgenda = '';
-      }
-      if (!force && versaoAgenda && formacaoFuturaState.loaded && formacaoFuturaState.ano === ano && formacaoFuturaState.syncVersion === versaoAgenda && formacaoFuturaState.data) {
-        renderFormacaoAgendaFutura(formacaoFuturaState.data);
-        return;
-      }
-      const cache = !force && versaoAgenda ? carregarCacheFormacaoFutura(ano, versaoAgenda) : null;
-      if (cache) {
-        formacaoFuturaState.loaded = true;
-        formacaoFuturaState.ano = ano;
-        formacaoFuturaState.syncVersion = versaoAgenda;
-        formacaoFuturaState.data = cache;
-        renderFormacaoAgendaFutura(cache);
-        return;
-      }
-      try {
         formacaoFuturaState.loading = true;
         setButtonLoading(btn, true, 'Carregando...');
         setButtonLoading(btnRefresh, true, 'Atualizando...');
-        box.classList.remove('hidden');
-        box.innerHTML = `<div class="empty" style="margin-top:0">Montando análise da formação da agenda futura...</div>`;
+        renderFormacaoLoading_(box, ano, 'Verificando a atualização da agenda...');
+        try {
+          versaoAgenda = await obterAgendaVersion(force);
+        } catch (_) {
+          versaoAgenda = '';
+        }
+        if (!force && versaoAgenda && formacaoFuturaState.loaded && formacaoFuturaState.ano === ano && formacaoFuturaState.syncVersion === versaoAgenda && formacaoFuturaState.data) {
+          renderFormacaoAgendaFutura(formacaoFuturaState.data);
+          return;
+        }
+        const cache = !force && versaoAgenda ? carregarCacheFormacaoFutura(ano, versaoAgenda) : null;
+        if (cache) {
+          formacaoFuturaState.loaded = true;
+          formacaoFuturaState.ano = ano;
+          formacaoFuturaState.syncVersion = versaoAgenda;
+          formacaoFuturaState.data = cache;
+          renderFormacaoAgendaFutura(cache);
+          return;
+        }
+        atualizarEtapaFormacao_('Buscando os eventos ativos...');
         const resp = await Auth.apiCall('listarEventos');
         const eventos = Array.isArray(resp?.eventos) ? resp.eventos : (Array.isArray(resp) ? resp : []);
+        atualizarEtapaFormacao_('Comparando anos, valores e prazos...');
         const data = calcularFormacaoAgendaFutura_(eventos, ano);
         formacaoFuturaState.loaded = true;
         formacaoFuturaState.ano = ano;
@@ -2556,7 +2667,17 @@
       } catch (e) {
         console.error('Erro ao carregar formação da agenda futura:', e);
         box.classList.remove('hidden');
-        box.innerHTML = `<div class="empty" style="margin-top:0">Falha ao carregar formação da agenda futura.</div>`;
+        box.setAttribute('aria-busy', 'false');
+        if (btn) btn.classList.remove('hidden');
+        if (btnRefresh) btnRefresh.classList.add('hidden');
+        box.innerHTML = `
+          <div class="future-load-error" role="alert">
+            <i data-lucide="circle-alert"></i>
+            <div><strong>Não foi possível carregar a análise</strong><span>Confira sua conexão e tente novamente. Nenhum valor anterior foi usado como se fosse atual.</span></div>
+            <button class="btn outline" type="button" onclick="carregarFormacaoAgendaFutura(true)">Tentar novamente</button>
+          </div>
+        `;
+        if (window.lucide) lucide.createIcons();
       } finally {
         formacaoFuturaState.loading = false;
         setButtonLoading(btn, false);

@@ -1,6 +1,6 @@
 {
-  "name": "Sistema FA Produções",
-  "short_name": "FA Produções",
+  "name": "Agenda FA — Gestão de Eventos",
+  "short_name": "Agenda FA",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
