@@ -1061,7 +1061,7 @@ function normalizarValorAuditoriaEdicao_(valor) {
   return txt.length > 180 ? (txt.slice(0, 177) + '...') : txt;
 }
 
-function cancelarEvento(idEvento, motivo) {
+function cancelarEvento(idEvento, motivo, opcoes) {
   exigirAcao('eventos:cancelar');
 
   const alvo = String(idEvento || '').trim();
@@ -1074,7 +1074,17 @@ function cancelarEvento(idEvento, motivo) {
     return { sucesso: false, mensagem: 'Informe o motivo do cancelamento.' };
   }
 
+  let lock = null;
+  let lockAdquirido = false;
   try {
+    // A decisão e a baixa das pendências precisam ocorrer sob o mesmo lock,
+    // para não cancelar um evento enquanto outro fluxo acaba de processar um valor.
+    lock = LockService.getDocumentLock();
+    if (!lock.tryLock(30000)) {
+      return { sucesso: false, mensagem: 'Não foi possível obter lock financeiro. Tente novamente em instantes.' };
+    }
+    lockAdquirido = true;
+
     const ss = SpreadsheetApp.getActive();
     const sheet = ss.getSheetByName('EVENTOS');
     if (!sheet) return { sucesso: false, mensagem: 'Planilha EVENTOS não encontrada' };
@@ -1102,18 +1112,65 @@ function cancelarEvento(idEvento, motivo) {
       return { sucesso: true, jaCancelado: true, mensagem: 'Registro já está cancelado.' };
     }
 
-    if (tipoRegistro === 'Evento' && temMovimentacaoFinanceiraAtivaPorEvento_(alvo)) {
-      return {
-        sucesso: false,
-        bloqueio: 'EVENTO_COM_MOVIMENTACAO_FINANCEIRA',
-        mensagem: 'Não é possível cancelar evento com movimentações financeiras. Use fluxo financeiro (estorno/ajustes).'
-      };
+    let pendenciasCanceladas = [];
+    let confirmouSituacaoFiscal = false;
+    if (tipoRegistro === 'Evento') {
+      const sheetMov = ss.getSheetByName('MOVIMENTACOES_FINANCEIRAS');
+      const dadosMov = sheetMov ? sheetMov.getDataRange().getValues() : [];
+      const analiseFinanceira = analisarMovimentacoesParaCancelamentoEvento_(dadosMov, alvo);
+
+      if (analiseFinanceira.bloqueadas.length) {
+        return {
+          sucesso: false,
+          bloqueio: 'EVENTO_COM_MOVIMENTACAO_PROCESSADA',
+          mensagem: 'Não é possível cancelar evento com valores já processados. Use o fluxo financeiro de estorno/ajustes.'
+        };
+      }
+
+      if (analiseFinanceira.nfsProcessadas.length) {
+        const usuarioAtual = getUsuarioAtual();
+        const ehProprietario = normalizarPerfilComissaoEdicao_((usuarioAtual && usuarioAtual.PERFIL) || '') === 'proprietario';
+        if (!ehProprietario) {
+          return {
+            sucesso: false,
+            bloqueio: 'NF_REQUER_PROPRIETARIO',
+            mensagem: 'Há NF registrada. O cancelamento com NF é exclusivo do Proprietário.'
+          };
+        }
+        if (!(opcoes && opcoes.confirmarSituacaoFiscal === true)) {
+          return {
+            sucesso: false,
+            bloqueio: 'NF_REQUER_CONFIRMACAO_FISCAL',
+            requerConfirmacaoFiscal: true,
+            mensagem: 'Há NF registrada. Se a nota fiscal foi emitida, ela precisa ser cancelada no sistema fiscal antes de continuar. Confirme que a situação fiscal foi tratada.'
+          };
+        }
+        confirmouSituacaoFiscal = true;
+      }
+
+      pendenciasCanceladas = cancelarPendenciasFinanceirasDoEvento_(
+        sheetMov,
+        dadosMov,
+        analiseFinanceira,
+        motivoLimpo,
+        confirmouSituacaoFiscal
+      );
+
+      if (pendenciasCanceladas.length || confirmouSituacaoFiscal) {
+        sincronizarStatusFinanceiroNoEventoCancelado_(linha, pendenciasCanceladas, confirmouSituacaoFiscal);
+      }
     }
 
     const usuario = (getUsuarioAtual() && getUsuarioAtual().email) || 'SISTEMA';
     const dataTxt = Utilities.formatDate(new Date(), Session.getScriptTimeZone() || 'America/Fortaleza', 'dd/MM/yyyy HH:mm:ss');
+    const resumoPendencias = pendenciasCanceladas.length
+      ? ` Pendências financeiras canceladas: ${pendenciasCanceladas.length}.`
+      : '';
+    const resumoFiscal = confirmouSituacaoFiscal
+      ? ' Situação fiscal da NF confirmada pelo Proprietário.'
+      : '';
     const blocoCancelamento =
-      `[CANCELADO ${dataTxt} por ${usuario}] Motivo: ${motivoLimpo}`;
+      `[CANCELADO ${dataTxt} por ${usuario}] Motivo: ${motivoLimpo}.${resumoPendencias}${resumoFiscal}`;
     const obsAtual = String(linha[COL.OBSERVACOES] || '').trim();
 
     linha[COL.STATUS_GERAL] = 'CANCELADO';
@@ -1129,44 +1186,94 @@ function cancelarEvento(idEvento, motivo) {
       alvo,
       linhaEhCompromissoPessoal_(linha)
         ? `tipo=Compromisso pessoal; status_anterior=${statusAtual}; usuario=${usuario}`
-        : `tipo=${tipoRegistro}; motivo=${motivoLimpo}; status_anterior=${statusAtual}; usuario=${usuario}`
+        : `tipo=${tipoRegistro}; motivo=${motivoLimpo}; status_anterior=${statusAtual}; pendencias_canceladas=${pendenciasCanceladas.length}; confirmacao_fiscal=${confirmouSituacaoFiscal}; usuario=${usuario}`
     );
 
     return {
       sucesso: true,
       mensagem: 'Registro cancelado com sucesso.',
       idEvento: alvo,
-      tipoRegistro: tipoRegistro
+      tipoRegistro: tipoRegistro,
+      pendenciasCanceladas: pendenciasCanceladas.length,
+      confirmouSituacaoFiscal: confirmouSituacaoFiscal
     };
   } catch (err) {
     return {
       sucesso: false,
       mensagem: String(err && err.message ? err.message : err)
     };
+  } finally {
+    if (lockAdquirido) lock.releaseLock();
   }
 }
 
-function temMovimentacaoFinanceiraAtivaPorEvento_(idEvento) {
-  const shMov = SpreadsheetApp.getActive().getSheetByName('MOVIMENTACOES_FINANCEIRAS');
-  if (!shMov) return false;
+function analisarMovimentacoesParaCancelamentoEvento_(dadosMov, idEvento) {
+  const resultado = { pendentes: [], nfsProcessadas: [], bloqueadas: [] };
+  if (!dadosMov || dadosMov.length < 2) return resultado;
 
-  const data = shMov.getDataRange().getValues();
-  if (!data || data.length < 2) return false;
-
-  const head = data[0];
-  const idx = function (nome) { return head.indexOf(nome); };
-  const iEvento = idx('ID_EVENTO');
-  const iStatus = idx('STATUS');
-  if (iEvento === -1) return false;
-
-  const alvo = String(idEvento || '').trim();
-  for (let i = 1; i < data.length; i++) {
-    if (String(data[i][iEvento] || '').trim() !== alvo) continue;
-    const st = iStatus >= 0 ? String(data[i][iStatus] || '').trim().toUpperCase() : 'PROCESSADO';
-    if (st !== 'CANCELADO') return true;
+  const cabecalho = dadosMov[0];
+  const indice = function (nome) { return cabecalho.indexOf(nome); };
+  const iEvento = indice('ID_EVENTO');
+  const iStatus = indice('STATUS');
+  const iTipo = indice('TIPO_MOVIMENTACAO');
+  const iId = indice('ID_MOVIMENTACAO');
+  if (iEvento === -1 || iStatus === -1 || iTipo === -1) {
+    resultado.bloqueadas.push({ motivo: 'COLUNAS_FINANCEIRAS_INCOMPLETAS' });
+    return resultado;
   }
 
-  return false;
+  const alvo = String(idEvento || '').trim();
+  for (let i = 1; i < dadosMov.length; i++) {
+    const linha = dadosMov[i];
+    if (String(linha[iEvento] || '').trim() !== alvo) continue;
+    const status = String(linha[iStatus] || '').trim().toUpperCase();
+    if (status === 'CANCELADO') continue;
+    const tipo = String(linha[iTipo] || '').trim().toUpperCase();
+    const movimento = { linhaIndex: i, id: iId >= 0 ? String(linha[iId] || '').trim() : '', tipo: tipo };
+
+    if (status === 'PENDENTE') {
+      resultado.pendentes.push(movimento);
+    } else if (tipo === 'NF_EVENTO' && status === 'PROCESSADO') {
+      resultado.nfsProcessadas.push(movimento);
+    } else {
+      resultado.bloqueadas.push(movimento);
+    }
+  }
+  return resultado;
+}
+
+function cancelarPendenciasFinanceirasDoEvento_(sheetMov, dadosMov, analise, motivo, incluirNFProcessada) {
+  if (!sheetMov || !dadosMov || dadosMov.length < 2) return [];
+  const cabecalho = dadosMov[0];
+  const iStatus = cabecalho.indexOf('STATUS');
+  const iObs = cabecalho.indexOf('OBSERVACOES');
+  if (iStatus === -1 || iObs === -1) throw new Error('Colunas financeiras obrigatórias não encontradas para cancelar pendências.');
+
+  const movimentos = analise.pendentes.slice();
+  if (incluirNFProcessada) movimentos.push.apply(movimentos, analise.nfsProcessadas);
+  const dataTxt = Utilities.formatDate(new Date(), Session.getScriptTimeZone() || 'America/Fortaleza', 'dd/MM/yyyy HH:mm:ss');
+  for (let i = 0; i < movimentos.length; i++) {
+    const mov = movimentos[i];
+    const linha = dadosMov[mov.linhaIndex];
+    const obsAtual = String(linha[iObs] || '').trim();
+    const marcador = `[CANCELAMENTO_EVENTO ${dataTxt}] ${mov.tipo === 'NF_EVENTO' ? 'Situação fiscal confirmada pelo Proprietário; ' : ''}pendência cancelada. Motivo: ${motivo}`;
+    setValueComVerificacao_(sheetMov, mov.linhaIndex + 1, iStatus + 1, 'CANCELADO', 'MOVIMENTACOES_FINANCEIRAS/CANCELAMENTO_EVENTO_STATUS');
+    setValueComVerificacao_(sheetMov, mov.linhaIndex + 1, iObs + 1, (obsAtual ? `${obsAtual} | ${marcador}` : marcador).slice(0, 1000), 'MOVIMENTACOES_FINANCEIRAS/CANCELAMENTO_EVENTO_OBS');
+  }
+  return movimentos;
+}
+
+function sincronizarStatusFinanceiroNoEventoCancelado_(linhaEvento, movimentosCancelados, confirmouSituacaoFiscal) {
+  let cancelouBV = false;
+  let cancelouComissao = false;
+  for (let i = 0; i < movimentosCancelados.length; i++) {
+    const tipo = movimentosCancelados[i].tipo;
+    if (tipo === 'BV_EVENTO') cancelouBV = true;
+    if (tipo === 'COMISSAO_GERADA') cancelouComissao = true;
+  }
+  if (cancelouBV) linhaEvento[COL.STATUS_BV] = 'CANCELADO';
+  if (cancelouComissao) linhaEvento[COL.STATUS_COMISSAO] = 'CANCELADO';
+  if (confirmouSituacaoFiscal) linhaEvento[COL.STATUS_NF] = 'CANCELADO';
 }
 
 function referenciaExisteNaAbaPorId_(nomeAba, id) {

@@ -96,6 +96,13 @@ function precificadorShowLerConfiguracao_() {
   ).split(';');
   const categoriasLogistica = categoriasLogisticaTexto.map(precificadorShowNormalizarChave_).filter(Boolean);
 
+  const margemEncargos = precificadorShowValorParametro_(parametros, [
+    'Margem Mínima com Encargos (%)',
+    'Margem Minima com Encargos (%)',
+    'Margem Mínima com BV e NF (%)',
+    'Margem Minima com BV e NF (%)'
+  ], NaN);
+
   return {
     equipe: equipe,
     equipePorId: equipePorId,
@@ -104,7 +111,9 @@ function precificadorShowLerConfiguracao_() {
     categoriasLogistica: categoriasLogistica,
     margensMinimas: {
       usual: precificadorShowValorParametro_(parametros, ['Margem Mínima (%)', 'Lucro Mínimo Usual (%)', 'Comissão Fernando (%)'], 65),
-      logistica: precificadorShowValorParametro_(parametros, ['Margem Mínima com Logística (%)', 'Margem Mínima com Logistica (%)', 'Lucro Mínimo Logística (%)', 'Lucro Mínimo Logistica (%)'], 60)
+      logistica: precificadorShowValorParametro_(parametros, ['Margem Mínima com Logística (%)', 'Margem Mínima com Logistica (%)', 'Lucro Mínimo Logística (%)', 'Lucro Mínimo Logistica (%)'], 60),
+      // Ausente em planilhas legadas: não ativa uma nova regra por fallback.
+      encargos: margemEncargos
     },
     acrescimosFaixa: {
       ideal: precificadorShowValorParametro_(parametros, ['Acréscimo Ideal (%)', 'Acrescimo Ideal (%)', 'Margem Bom (%)'], 40),

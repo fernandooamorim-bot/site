@@ -412,7 +412,9 @@ function paramBool_(v) {
 
     if (action === 'cancelarEvento') {
       exigirAcao('eventos:cancelar');
-      const resultadoCancelamento = cancelarEvento(params.idEvento, params.motivo || '');
+      const resultadoCancelamento = cancelarEvento(params.idEvento, params.motivo || '', {
+        confirmarSituacaoFiscal: paramBool_(params.confirmarSituacaoFiscal)
+      });
       if (resultadoCancelamento && resultadoCancelamento.sucesso && !resultadoCancelamento.jaCancelado) {
         resultadoCancelamento.vinculoProposta = sincronizarCancelamentoPropostaEvento_(
           params.idEvento,

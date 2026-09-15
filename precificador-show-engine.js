@@ -60,6 +60,54 @@ function precificadorShowMargemMinima_(perfil, config) {
   return margem;
 }
 
+function precificadorShowEncargosComerciaisAtivos_(entrada) {
+  const comercial = (entrada && entrada.comercial) || {};
+  return !!(
+    comercial.bv && comercial.bv.ativo ||
+    comercial.nf && comercial.nf.ativo
+  );
+}
+
+function precificadorShowResolverMargemMinima_(entrada, config) {
+  const perfilOperacional = precificadorShowPerfil_(entrada || {}, config || {});
+  const margens = [];
+
+  if (perfilOperacional === 'logistica') {
+    margens.push({ origem: 'logistica', valor: precificadorShowMargemMinima_('logistica', config || {}) });
+  }
+
+  if (precificadorShowEncargosComerciaisAtivos_(entrada)) {
+    const margemEncargos = precificadorShowNumero_(
+      config && config.margensMinimas && config.margensMinimas.encargos,
+      NaN
+    );
+    if (Number.isFinite(margemEncargos)) {
+      if (margemEncargos < 0 || margemEncargos >= 100) throw new Error('PRECIFICADOR_MARGEM_MINIMA_INVALIDA');
+      margens.push({ origem: 'encargos', valor: margemEncargos });
+    }
+  }
+
+  if (!margens.length) {
+    return {
+      perfil: 'usual',
+      margem: precificadorShowMargemMinima_('usual', config || {}),
+      aplicadas: ['usual']
+    };
+  }
+
+  // As condições coexistem, mas as concessões nunca se acumulam. Entre as
+  // margens aplicáveis, usamos a maior: é a proteção mais conservadora.
+  const margem = margens.reduce(function (maior, item) {
+    return Math.max(maior, item.valor);
+  }, 0);
+  const aplicadas = margens.map(function (item) { return item.origem; });
+  return {
+    perfil: aplicadas.join('_'),
+    margem: margem,
+    aplicadas: aplicadas
+  };
+}
+
 function precificadorShowAcrescimosFaixa_(config) {
   const origem = (config && config.acrescimosFaixa) || {};
   const ideal = precificadorShowNumero_(origem.ideal, PRECIFICADOR_SHOW_ACRESCIMOS_PADRAO_.ideal);
@@ -241,8 +289,9 @@ function precificadorShowDetalharPreco_(dados) {
 function precificadorShowSimular_(entrada, config) {
   const custos = precificadorShowSomarCustos_(entrada || {}, config || {});
   if (custos.totalOperacional <= 0) throw new Error('PRECIFICADOR_SEM_CUSTOS');
-  const perfil = precificadorShowPerfil_(entrada || {}, config || {});
-  const margemMinima = precificadorShowMargemMinima_(perfil, config || {});
+  const decisaoMargem = precificadorShowResolverMargemMinima_(entrada || {}, config || {});
+  const perfil = decisaoMargem.perfil;
+  const margemMinima = decisaoMargem.margem;
   const acrescimos = precificadorShowAcrescimosFaixa_(config || {});
   const pisoComercial = precificadorShowPisoComercial_(config || {});
   const arredondamentoComercial = precificadorShowArredondamentoComercial_(config || {});
@@ -292,6 +341,7 @@ function precificadorShowSimular_(entrada, config) {
     interno: {
       perfil: perfil,
       margemMinima: margemMinima,
+      margensAplicadas: decisaoMargem.aplicadas,
       acrescimos: acrescimos,
       pisoComercial: {
         ativo: pisoComercial.ativo,
