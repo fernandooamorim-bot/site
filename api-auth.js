@@ -699,6 +699,11 @@ if (action === 'obterDashboardGestao') {
   return json(obterDashboardGestao(params));
 }
 
+if (action === 'obterFormacaoAgendaFutura') {
+  exigirPerfilProprietario_();
+  return json(obterFormacaoAgendaFutura(params));
+}
+
 if (action === 'obterDashboardGestaoV2') {
   dashboardV2ExigirPerfilProprietario_();
   return json(obterDashboardGestaoV2(params));
