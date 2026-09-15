@@ -2337,6 +2337,14 @@
       return dt;
     }
     function getDataEventoDate_(ev) {
+      const ms = Number(ev?.dataEventoMs || ev?.DATA_EVENTO_MS || 0);
+      if (ms > 0) {
+        const dtMs = new Date(ms);
+        if (!isNaN(dtMs.getTime())) {
+          dtMs.setHours(0, 0, 0, 0);
+          return dtMs;
+        }
+      }
       const info = parseDataEventoInfo(ev?.data || ev?.dataEvento || ev?.DATA_EVENTO);
       if (!info) return null;
       const dt = new Date(info.ano, info.mes - 1, info.dia);
@@ -2377,7 +2385,7 @@
           dataEvento: getDataEventoDate_(ev),
           dataCadastro: getDataCadastroEvento_(ev),
           valor: getValorEventoCadastro_(ev),
-          importado: /migracao|import/i.test(String(ev?.criadoPor || ev?.CRIADO_POR || ''))
+          importado: ev?.importado === true || /migracao|import/i.test(String(ev?.criadoPor || ev?.CRIADO_POR || ''))
         }));
       return window.DashboardFormacaoAgenda.calcular(eventos, anoBase, new Date());
     }
@@ -2653,8 +2661,8 @@
           renderFormacaoAgendaFutura(cache);
           return;
         }
-        atualizarEtapaFormacao_('Buscando os eventos ativos...');
-        const resp = await Auth.apiCall('listarEventos');
+        atualizarEtapaFormacao_('Buscando os anos completos...');
+        const resp = await Auth.apiCall('obterFormacaoAgendaFutura', { ano });
         const eventos = Array.isArray(resp?.eventos) ? resp.eventos : (Array.isArray(resp) ? resp : []);
         atualizarEtapaFormacao_('Comparando anos, valores e prazos...');
         const data = calcularFormacaoAgendaFutura_(eventos, ano);
