@@ -71,12 +71,14 @@
     return Object.values(faixas);
   }
 
-  function montarJanelasMensais(baseConfiavel, agendaFutura, anoFuturo, hoje) {
+  function montarJanelasMensais(baseConfiavel, futuroConfiavel, agendaFutura, anoFuturo, hoje) {
     return MESES.map((mes, indice) => {
       const mesNumero = indice + 1;
       const historico = baseConfiavel.filter((evento) => evento.dataEvento.getMonth() === indice);
+      const atuaisConfiaveis = futuroConfiavel.filter((evento) => evento.dataEvento.getMonth() === indice);
       const atuais = agendaFutura.filter((evento) => evento.dataEvento.getMonth() === indice);
       const antecedenciaMedianaDias = mediana(historico.map((evento) => evento.antecedenciaDias));
+      const antecedenciaAtualMedianaDias = mediana(atuaisConfiaveis.map((evento) => evento.antecedenciaDias));
       let aberturaTipica = null;
       let status = 'sem-base';
       if (historico.length >= 3 && antecedenciaMedianaDias !== null) {
@@ -92,6 +94,8 @@
         label: `${mes}/${anoFuturo}`,
         eventosAtuais: atuais.length,
         valorAtual: soma(atuais, 'valor'),
+        amostraAtualConfiavel: atuaisConfiaveis.length,
+        antecedenciaAtualMedianaDias,
         amostraHistorica: historico.length,
         antecedenciaMedianaDias,
         aberturaTipica: isoLocal(aberturaTipica),
@@ -221,7 +225,7 @@
       rankingCaptacao,
       faixasFuturo: montarFaixas(futuroTemporal),
       faixasBase: montarFaixas(baseTemporal),
-      janelasMensais: montarJanelasMensais(baseTemporal, agendaFutura, anoFuturo, hoje),
+      janelasMensais: montarJanelasMensais(baseTemporal, futuroTemporal, agendaFutura, anoFuturo, hoje),
       leitura
     };
   }

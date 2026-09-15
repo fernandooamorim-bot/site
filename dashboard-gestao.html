@@ -20,7 +20,7 @@
 
   <script src="https://accounts.google.com/gsi/client" async defer></script>
   <script src="auth.js"></script>
-  <script src="dashboard-formacao-agenda.js?v=20260915a" defer></script>
+  <script src="dashboard-formacao-agenda.js?v=20260915b" defer></script>
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js" defer></script>
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
@@ -891,7 +891,7 @@
     const INSIGHTS_CACHE_TTL_MS = 10 * 60 * 1000;
     const TICKET_CACHE_KEY = 'dashboard:ticketMedio:v2';
     const TICKET_CACHE_TTL_MS = 10 * 60 * 1000;
-    const FORMACAO_FUTURA_CACHE_KEY = 'dashboard:formacaoFutura:v3';
+    const FORMACAO_FUTURA_CACHE_KEY = 'dashboard:formacaoFutura:v4';
     const FORMACAO_FUTURA_CACHE_TTL_MS = 10 * 60 * 1000;
     const ORDENACAO_GRAFICOS_MENSAIS_KEY = 'dashboard:ordenacaoGraficosMensais';
     const auditoriaState = {
@@ -2431,27 +2431,37 @@
     }
     function montarJanelasComerciais_(janelas) {
       const rotulos = {
-        'sem-base': 'Sem base',
+        'sem-base': 'Sem referência',
         'atencao': 'Atenção',
         'em-curso': 'Em curso',
         'proxima': 'Próxima',
         'planejada': 'Mais adiante'
       };
       return (Array.isArray(janelas) ? janelas : []).map(item => {
-        const prazo = Number.isFinite(Number(item.antecedenciaMedianaDias))
-          ? `prazo típico ${formatarPrazoDias_(item.antecedenciaMedianaDias)}`
-          : 'histórico insuficiente';
+        const amostraAtual = Number(item.amostraAtualConfiavel || 0);
+        const amostraHistorica = Number(item.amostraHistorica || 0);
+        const temPrazoAtual = item.antecedenciaAtualMedianaDias !== null && Number.isFinite(Number(item.antecedenciaAtualMedianaDias));
+        const temPrazoHistorico = item.antecedenciaMedianaDias !== null && Number.isFinite(Number(item.antecedenciaMedianaDias));
+        const prazoAtual = temPrazoAtual
+          ? `Contratos de ${String(item.label || '').split('/')[1]} já registrados: antecedência mediana ${formatarPrazoDias_(item.antecedenciaAtualMedianaDias)} (${amostraAtual} de ${Number(item.eventosAtuais || 0)} com data confiável)`
+          : `Contratos de ${String(item.label || '').split('/')[1]} já registrados: antecedência indisponível`;
+        let referenciaHistorica = 'Referência histórica: nenhum caso confiável no mesmo mês';
+        if (amostraHistorica >= 3 && temPrazoHistorico) {
+          referenciaHistorica = `Referência histórica: prazo típico ${formatarPrazoDias_(item.antecedenciaMedianaDias)} (${amostraHistorica} casos)`;
+        } else if (amostraHistorica > 0 && temPrazoHistorico) {
+          referenciaHistorica = `Referência preliminar: ${formatarPrazoDias_(item.antecedenciaMedianaDias)} (${amostraHistorica} de 3 casos mínimos)`;
+        }
         const abertura = item.aberturaTipica
-          ? `janela estimada a partir de ${dataIsoParaPtBr_(item.aberturaTipica)}`
-          : `${Number(item.amostraHistorica || 0)} caso(s) histórico(s)`;
+          ? `Janela histórica estimada a partir de ${dataIsoParaPtBr_(item.aberturaTipica)}`
+          : 'Sem janela histórica confiável';
         return `
           <div class="future-window ${escaparHtml(item.status || 'sem-base')}">
             <div class="future-window-head">
               <strong>${escaparHtml(item.label)}</strong>
-              <span class="future-window-status">${escaparHtml(rotulos[item.status] || 'Sem base')}</span>
+              <span class="future-window-status">${escaparHtml(rotulos[item.status] || 'Sem referência')}</span>
             </div>
             <div class="future-window-main">${Number(item.eventosAtuais || 0)} eventos · ${fmt(item.valorAtual)}</div>
-            <div class="future-window-meta">${escaparHtml(prazo)}<br>${escaparHtml(abertura)}</div>
+            <div class="future-window-meta">${escaparHtml(prazoAtual)}<br>${escaparHtml(referenciaHistorica)}<br>${escaparHtml(abertura)}</div>
           </div>
         `;
       }).join('');
@@ -2617,7 +2627,7 @@
         </div>
         <div class="future-panel">
           <h3>Janelas comerciais por mês do evento</h3>
-          <div class="future-panel-sub">A janela estimada usa a mediana dos eventos de ${data.anoBase} no mesmo mês. “Atenção” significa que a janela típica já começou e ainda não há evento contratado naquele mês.</div>
+          <div class="future-panel-sub">Cada mês separa os contratos atuais de ${data.anoFuturo}, fechados em ${data.anoBase}, da referência dos eventos de ${data.anoBase}. A janela histórica só é classificada com pelo menos 3 casos confiáveis.</div>
           <div class="future-window-grid">${montarJanelasComerciais_(data.janelasMensais || [])}</div>
         </div>
         <div class="future-quality">
