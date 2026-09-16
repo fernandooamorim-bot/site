@@ -48,10 +48,14 @@
     return dias >= 0 && dias <= 1461 ? dias : null;
   }
 
-  function adicionarBucket(mapa, chave, label, valor) {
-    if (!mapa[chave]) mapa[chave] = { chave, label, eventos: 0, valor: 0 };
+  function adicionarBucket(mapa, chave, label, valor, importado) {
+    if (!mapa[chave]) mapa[chave] = { chave, label, eventos: 0, valor: 0, importados: 0, valorImportados: 0 };
     mapa[chave].eventos += 1;
     mapa[chave].valor += numero(valor);
+    if (importado) {
+      mapa[chave].importados += 1;
+      mapa[chave].valorImportados += numero(valor);
+    }
   }
 
   function montarFaixas(lista) {
@@ -148,9 +152,11 @@
     const prazoMedioFuturoDias = media(futuroTemporal.map((evento) => evento.antecedenciaDias));
 
     const porMesCadastro = {};
-    futuroTemporal.forEach((evento) => {
+    // Captação registra a entrada de todos os contratos na agenda. Importações
+    // continuam identificadas no bucket, mas só ficam fora de métricas de prazo.
+    futuroComDataNoCorte.forEach((evento) => {
       const chave = `${evento.dataCadastro.getFullYear()}-${String(evento.dataCadastro.getMonth() + 1).padStart(2, '0')}`;
-      adicionarBucket(porMesCadastro, chave, `${MESES[evento.dataCadastro.getMonth()]}/${evento.dataCadastro.getFullYear()}`, evento.valor);
+      adicionarBucket(porMesCadastro, chave, `${MESES[evento.dataCadastro.getMonth()]}/${evento.dataCadastro.getFullYear()}`, evento.valor, evento.importado);
     });
     const captacaoMensal = Object.values(porMesCadastro).sort((a, b) => a.chave.localeCompare(b.chave));
     const rankingCaptacao = [...captacaoMensal].sort((a, b) => b.valor - a.valor || b.eventos - a.eventos).slice(0, 6);
