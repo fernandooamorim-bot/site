@@ -2553,6 +2553,11 @@
             <div class="s">${fmt(r.valorFuturo)} em contratos ativos</div>
           </div>
           <div class="future-metric">
+            <div class="k">Ticket médio futuro</div>
+            <div class="v">${fmt(r.ticketMedio)}</div>
+            <div class="s">Média dos contratos ativos de ${data.anoFuturo}</div>
+          </div>
+          <div class="future-metric">
             <div class="k">Cobertura da agenda futura</div>
             <div class="v">${fmtPctFormacao_(r.coberturaCarteira)}</div>
             <div class="s">${fmt(r.valorFuturo)} de ${fmt(r.valorBaseTotal)} vendido em ${data.anoBase} · ${saldoCarteira < 0 ? `faltam ${fmt(diferencaCarteira)}` : `${fmt(diferencaCarteira)} acima da referência`}</div>
@@ -2562,15 +2567,32 @@
             <div class="v">${ritmoTxt}</div>
             <div class="s">${r.baseComparavelSuficiente ? `${fmt(r.valorFuturoComparavel)} no corte vs. ${fmt(r.valorHistorico)} no corte equivalente` : 'Sem histórico confiável para classificar o ritmo'}</div>
           </div>
+        </div>
+        <div class="future-metrics future-secondary">
+          <div class="future-metric">
+            <div class="k">Antecedência média</div>
+            <div class="v">${formatarPrazoDias_(r.prazoMedioFuturoDias)}</div>
+            <div class="s">Média entre entrada e evento em ${data.anoFuturo}; migrações excluídas</div>
+          </div>
           <div class="future-metric">
             <div class="k">Entradas nos últimos 60 dias</div>
             <div class="v">${Number(r.eventosUltimos60 || 0)} eventos</div>
             <div class="s">${fmt(r.valorUltimos60)} adicionados à agenda de ${data.anoFuturo}</div>
           </div>
+          <div class="future-metric">
+            <div class="k">Base comparativa</div>
+            <div class="v">${Number(r.eventosHistorico || 0)} eventos</div>
+            <div class="s">${fmt(r.valorHistorico)} já contratado em ${data.anoBase} no corte de ${dataIsoParaPtBr_(data.corteHistorico)}</div>
+          </div>
+          <div class="future-metric">
+            <div class="k">Maior mês de fechamento</div>
+            <div class="v">${escaparHtml(data.rankingCaptacao?.[0]?.label || 'Sem base')}</div>
+            <div class="s">${data.rankingCaptacao?.[0] ? `${fmt(data.rankingCaptacao[0].valor)} · ${Number(data.rankingCaptacao[0].eventos || 0)} eventos` : 'Nenhum cadastro confiável no período'}</div>
+          </div>
         </div>
         <div class="future-reading ${escaparHtml(leitura.tipo)}">
           <i data-lucide="${leitura.tipo === 'atencao' ? 'triangle-alert' : (leitura.tipo === 'positivo' ? 'trending-up' : 'info')}"></i>
-          <div><div class="future-reading-label">Leitura comercial</div><strong>${escaparHtml(leitura.titulo)}</strong><p>${escaparHtml(montarLeituraFormacao_(data))}</p></div>
+          <div><div class="future-reading-label">Leitura comercial</div><strong>${escaparHtml(leitura.titulo)}</strong><p>${escaparHtml(montarLeituraFormacao_(data))} A cobertura acima considera todos os contratos ativos; o ritmo usa apenas registros com data de criação confiável.</p></div>
         </div>
         <div class="future-columns">
           <div class="future-panel">
@@ -2599,34 +2621,12 @@
         </div>
         <details class="future-details">
           <summary>
-            <span class="future-details-copy"><strong>Ver análise detalhada por mês</strong><small>Janelas de fechamento, indicadores de prazo e qualidade da base.</small></span>
+            <span class="future-details-copy"><strong>Ver análise detalhada por mês</strong><small>Janelas de fechamento e qualidade da base temporal.</small></span>
           </summary>
           <div class="future-panel">
             <h3>Janelas comerciais por mês do evento</h3>
             <div class="future-panel-sub">Cada mês compara os contratos atuais de ${data.anoFuturo} com a referência dos eventos de ${data.anoBase}. Uma janela só recebe classificação quando há pelo menos 3 casos confiáveis.</div>
             <div class="future-window-grid">${montarJanelasComerciais_(data.janelasMensais || [])}</div>
-          </div>
-          <div class="future-metrics future-technical">
-            <div class="future-metric">
-              <div class="k">Antecedência média de ${data.anoFuturo}</div>
-              <div class="v">${formatarPrazoDias_(r.prazoMedioFuturoDias)}</div>
-              <div class="s">Média entre entrada e evento; compare com o prazo típico acima</div>
-            </div>
-            <div class="future-metric">
-              <div class="k">Cobertura da amostra com data de criação</div>
-              <div class="v">${fmtPctFormacao_(r.coberturaAmostraTemporal)}</div>
-              <div class="s">${fmt(r.valorFuturoAmostra)} de ${fmt(r.valorBaseAmostra)} entre eventos com data de criação. Não é a cobertura total.</div>
-            </div>
-            <div class="future-metric">
-              <div class="k">Como estava ${data.anoBase} nesta mesma data</div>
-              <div class="v">${Number(r.eventosHistorico || 0)} eventos</div>
-              <div class="s">${fmt(r.valorHistorico)} já registrado em ${dataIsoParaPtBr_(data.corteHistorico)}</div>
-            </div>
-            <div class="future-metric">
-              <div class="k">Mês com maior valor captado</div>
-              <div class="v">${escaparHtml(data.rankingCaptacao?.[0]?.label || 'Sem base')}</div>
-              <div class="s">${data.rankingCaptacao?.[0] ? `${fmt(data.rankingCaptacao[0].valor)} · ${Number(data.rankingCaptacao[0].eventos || 0)} eventos` : 'Nenhum cadastro confiável no período'}</div>
-            </div>
           </div>
           <div class="future-quality">
             <span><strong>Qualidade da análise de prazo:</strong> ${Number(q.eventosFuturosConfiaveis || 0)} de ${Number(q.eventosFuturos || 0)} eventos de ${data.anoFuturo}</span>
