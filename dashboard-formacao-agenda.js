@@ -81,6 +81,7 @@
       const historico = baseConfiavel.filter((evento) => evento.dataEvento.getMonth() === indice);
       const atuaisConfiaveis = futuroConfiavel.filter((evento) => evento.dataEvento.getMonth() === indice);
       const atuais = agendaFutura.filter((evento) => evento.dataEvento.getMonth() === indice);
+      const importados = atuais.filter((evento) => evento.importado);
       const antecedenciaMedianaDias = mediana(historico.map((evento) => evento.antecedenciaDias));
       const antecedenciaAtualMedianaDias = mediana(atuaisConfiaveis.map((evento) => evento.antecedenciaDias));
       let aberturaTipica = null;
@@ -89,7 +90,9 @@
         aberturaTipica = new Date(anoFuturo, indice, 15);
         aberturaTipica.setDate(aberturaTipica.getDate() - Math.round(antecedenciaMedianaDias));
         const diasAteAbertura = Math.round((aberturaTipica.getTime() - hoje.getTime()) / DIA_MS);
-        if (hoje >= aberturaTipica) status = atuais.length ? 'em-curso' : 'atencao';
+        // Contratos migrados permanecem na carteira, mas não comprovam que a
+        // janela comercial atual esteja sendo trabalhada no prazo esperado.
+        if (hoje >= aberturaTipica) status = atuaisConfiaveis.length ? 'em-curso' : 'atencao';
         else if (diasAteAbertura <= 45) status = 'proxima';
         else status = 'planejada';
       }
@@ -98,6 +101,8 @@
         label: `${mes}/${anoFuturo}`,
         eventosAtuais: atuais.length,
         valorAtual: soma(atuais, 'valor'),
+        eventosImportados: importados.length,
+        valorImportados: soma(importados, 'valor'),
         amostraAtualConfiavel: atuaisConfiaveis.length,
         antecedenciaAtualMedianaDias,
         amostraHistorica: historico.length,
@@ -112,8 +117,11 @@
     const ano = Number(anoBase);
     const anoFuturo = ano + 1;
     const hoje = dataValida(agora) || dataValida(new Date());
-    const corteAtual = new Date(ano, hoje.getMonth(), hoje.getDate());
-    const corteHistorico = new Date(ano - 1, hoje.getMonth(), hoje.getDate());
+    // O corte nunca pode avançar além de hoje. Para a agenda do próximo ano,
+    // usa a data atual; para a agenda do ano corrente, continua no mesmo ano.
+    const anoCorteAtual = Math.min(hoje.getFullYear(), anoFuturo);
+    const corteAtual = new Date(anoCorteAtual, hoje.getMonth(), hoje.getDate());
+    const corteHistorico = new Date(anoCorteAtual - 1, hoje.getMonth(), hoje.getDate());
 
     const eventos = (Array.isArray(eventosEntrada) ? eventosEntrada : []).map((evento) => {
       const dataEvento = dataValida(evento.dataEvento);
@@ -152,11 +160,11 @@
     const prazoMedioFuturoDias = media(futuroTemporal.map((evento) => evento.antecedenciaDias));
 
     const porMesCadastro = {};
-    // Captação registra a entrada de todos os contratos na agenda. Importações
-    // continuam identificadas no bucket, mas só ficam fora de métricas de prazo.
-    futuroComDataNoCorte.forEach((evento) => {
+    // A captação por mês só usa datas confiáveis de entrada. Importações são
+    // mostradas separadamente, pois a data de migração não é a data de venda.
+    futuroTemporal.forEach((evento) => {
       const chave = `${evento.dataCadastro.getFullYear()}-${String(evento.dataCadastro.getMonth() + 1).padStart(2, '0')}`;
-      adicionarBucket(porMesCadastro, chave, `${MESES[evento.dataCadastro.getMonth()]}/${evento.dataCadastro.getFullYear()}`, evento.valor, evento.importado);
+      adicionarBucket(porMesCadastro, chave, `${MESES[evento.dataCadastro.getMonth()]}/${evento.dataCadastro.getFullYear()}`, evento.valor, false);
     });
     const captacaoMensal = Object.values(porMesCadastro).sort((a, b) => a.chave.localeCompare(b.chave));
     const rankingCaptacao = [...captacaoMensal].sort((a, b) => b.valor - a.valor || b.eventos - a.eventos).slice(0, 6);
@@ -164,7 +172,8 @@
     const corte60 = new Date(corteAtual);
     corte60.setDate(corte60.getDate() - 60);
     const ultimos60 = futuroTemporal.filter((evento) => evento.dataCadastro >= corte60);
-    const importadosFuturo = agendaFutura.filter((evento) => evento.importado).length;
+    const eventosMigrados = agendaFutura.filter((evento) => evento.importado);
+    const importadosFuturo = eventosMigrados.length;
     const semDataCadastroFuturo = agendaFutura.filter((evento) => !evento.dataCadastro).length;
     const semDataCadastroBase = baseAno.filter((evento) => !evento.dataCadastro).length;
     const datasPrazoInvalidasFuturo = agendaFutura.filter((evento) => evento.dataCadastro && evento.antecedenciaDias === null).length;
@@ -214,7 +223,9 @@
         prazoTipicoBaseDias,
         prazoMedioFuturoDias,
         eventosUltimos60: ultimos60.length,
-        valorUltimos60: soma(ultimos60, 'valor')
+        valorUltimos60: soma(ultimos60, 'valor'),
+        eventosMigrados: eventosMigrados.length,
+        valorMigrados: soma(eventosMigrados, 'valor')
       },
       qualidade: {
         eventosFuturos: agendaFutura.length,

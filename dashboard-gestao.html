@@ -20,7 +20,7 @@
 
   <script src="https://accounts.google.com/gsi/client" async defer></script>
   <script src="auth.js"></script>
-  <script src="dashboard-formacao-agenda.js?v=20260915d" defer></script>
+  <script src="dashboard-formacao-agenda.js?v=20260916a" defer></script>
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js" defer></script>
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
@@ -388,6 +388,10 @@
     .future-agenda-title strong{font-size:14px;color:var(--navy-2)}
     .future-agenda-title span{font-size:12px;color:var(--muted)}
     .future-agenda-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+    .future-focus{display:flex;align-items:center;gap:3px;padding:3px;border:1px solid var(--line);border-radius:8px;background:#f6f8fc}
+    .future-focus-label{font-size:10px;font-weight:800;color:var(--muted);padding:0 5px;white-space:nowrap}
+    .future-focus button{border:0;border-radius:6px;background:transparent;color:var(--muted);font:inherit;font-size:11px;font-weight:800;padding:6px 8px;cursor:pointer;white-space:nowrap}
+    .future-focus button[aria-pressed="true"]{background:#fff;color:var(--navy-2);box-shadow:0 1px 2px rgba(15,26,46,.12)}
     .future-agenda-content{padding:12px;display:grid;gap:12px}
     .future-metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));border:1px solid var(--line);border-radius:8px;overflow:hidden;min-width:0}
     .future-metric{padding:12px;min-width:0;background:#fbfcff;border-right:1px solid var(--line)}
@@ -418,6 +422,10 @@
     .future-reading.positivo{border-color:#10b981;background:#effcf5}.future-reading.positivo i{color:#0d8a5d}
     .future-reading.atencao{border-color:#f59e0b;background:#fff7e8}.future-reading.atencao i{color:#9a6d08}
     .future-reading.estavel{border-color:#3b82f6;background:#eff6ff}.future-reading.estavel i{color:#2563eb}
+    .future-migrated{display:grid;grid-template-columns:minmax(190px,.7fr) 1.3fr;gap:14px;align-items:center;border:1px solid #ead7a8;border-radius:8px;padding:10px 12px;background:#fffaf0}
+    .future-migrated-k{font-size:10px;font-weight:800;text-transform:uppercase;color:#8a5b00;letter-spacing:.35px}
+    .future-migrated-v{font-size:14px;font-weight:850;color:var(--text);margin-top:3px}
+    .future-migrated-copy{font-size:11px;color:#806d4d;line-height:1.4}
     .future-columns{display:grid;grid-template-columns:1fr 1fr;gap:18px;min-width:0;padding-top:2px}
     .future-panel{min-width:0;padding-top:10px;border-top:1px solid var(--line)}
     .future-panel-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:3px}
@@ -446,7 +454,11 @@
     .future-window.em-curso{border-color:#abdcc9;background:#f3fbf7}.future-window.em-curso .future-window-status{color:#08734c;background:#dff6eb}
     .future-window.proxima{border-color:#b8d2fa;background:#f4f8ff}.future-window.proxima .future-window-status{color:#1d5fae;background:#e2edff}
     .future-window-main{font-size:14px;font-weight:800;margin-top:7px;color:var(--text)}
-    .future-window-meta{font-size:10px;color:var(--muted);line-height:1.4;margin-top:3px}
+    .future-window-meta{display:grid;gap:7px;margin-top:8px}
+    .future-window-copy{font-size:10px;color:var(--muted);line-height:1.42}
+    .future-window-copy strong{display:block;font-size:10px;color:#526079;margin-bottom:1px}
+    .future-window-copy.action strong{color:#1e3a5f}
+    .future-window-import{font-size:10px;color:#8a5b00;line-height:1.4;padding-top:6px;border-top:1px solid rgba(138,91,0,.16)}
     .future-quality{display:flex;gap:8px 14px;align-items:center;flex-wrap:wrap;padding-top:9px;border-top:1px dashed var(--line);font-size:10px;color:var(--muted)}
     .future-quality strong{color:var(--text)}
     .future-loading{display:grid;gap:12px;padding:2px}
@@ -511,6 +523,7 @@
       .future-metric:nth-child(2){border-right:0}
       .future-metric:nth-child(-n+2){border-bottom:1px solid var(--line)}
       .future-columns{grid-template-columns:1fr}
+      .future-migrated{grid-template-columns:1fr}
       .future-row{grid-template-columns:72px 1fr 96px}
       .future-window-grid{grid-template-columns:1fr 1fr}
       .future-skeleton-metrics{grid-template-columns:1fr 1fr}
@@ -524,6 +537,7 @@
       .future-metric:last-child{border-bottom:0}
       .future-window-grid{grid-template-columns:1fr}
       .future-row{grid-template-columns:68px 1fr 88px;gap:6px}
+      .future-focus{width:100%;justify-content:space-between}
     }
     @media (min-width:768px){.bottom-nav{display:none}.container{padding-bottom:20px}}
     .hidden{display:none !important}
@@ -783,15 +797,16 @@
 
       <div class="section-label">Planejamento futuro</div>
       <div class="card" id="cardFormacaoAgendaFutura" style="grid-column:1/-1">
-        <h2><i data-lucide="calendar-plus"></i><span class="title-tip">Formação da Agenda Futura <span class="info-dot tiny aud-tip" data-tip="Mostra o quanto do próximo ano já está contratado, compara o ritmo de entrada com o mesmo estágio do ano atual e indica as janelas comerciais por mês.">i</span></span></h2>
-        <div class="sub">Entenda como o próximo ano está sendo contratado e onde concentrar a ação comercial.</div>
+        <h2><i data-lucide="calendar-plus"></i><span class="title-tip">Formação da Agenda <span class="info-dot tiny aud-tip" data-tip="Mostra o quanto da agenda em foco já está contratado, compara o ritmo de entrada com o mesmo estágio do ano anterior e indica as janelas comerciais por mês.">i</span></span></h2>
+        <div class="sub">Acompanhe a contratação da agenda em foco e onde concentrar a ação comercial.</div>
         <div class="future-agenda-shell">
           <div class="future-agenda-head">
             <div class="future-agenda-title">
-              <strong>Visão comercial sob demanda</strong>
-              <span>O total contratado usa o ano inteiro. Data de criação entra somente nas análises de ritmo e prazo.</span>
+              <strong>Visão comercial da agenda</strong>
+              <span>Escolha a agenda atual ou a próxima. O total contratado usa o ano inteiro; a data de criação entra somente nas análises de ritmo e prazo.</span>
             </div>
             <div class="future-agenda-actions">
+              <div id="formacaoFuturaFoco" class="future-focus" aria-label="Foco comercial da análise"></div>
               <button id="btnFormacaoFutura" class="btn primary" onclick="carregarFormacaoAgendaFutura(false)">Carregar análise futura</button>
               <button id="btnRefreshFormacaoFutura" class="btn outline hidden" onclick="carregarFormacaoAgendaFutura(true)">Atualizar análise</button>
             </div>
@@ -885,7 +900,7 @@
     const INSIGHTS_CACHE_TTL_MS = 10 * 60 * 1000;
     const TICKET_CACHE_KEY = 'dashboard:ticketMedio:v2';
     const TICKET_CACHE_TTL_MS = 10 * 60 * 1000;
-    const FORMACAO_FUTURA_CACHE_KEY = 'dashboard:formacaoFutura:v6';
+    const FORMACAO_FUTURA_CACHE_KEY = 'dashboard:formacaoFutura:v7';
     const FORMACAO_FUTURA_CACHE_TTL_MS = 10 * 60 * 1000;
     const ORDENACAO_GRAFICOS_MENSAIS_KEY = 'dashboard:ordenacaoGraficosMensais';
     const auditoriaState = {
@@ -928,6 +943,7 @@
       loaded: false,
       loading: false,
       ano: null,
+      anoAgenda: null,
       syncVersion: '',
       data: null,
       ordenacaoCaptacao: 'CRONO',
@@ -987,6 +1003,10 @@
     }
     function ehProprietario() {
       return perfilNormalizado() === 'proprietario';
+    }
+    function podeVerFormacaoAgendaFutura_() {
+      const perfil = perfilNormalizado();
+      return perfil === 'proprietario' || perfil === 'administrador' || perfil === 'admin';
     }
 
     function fmt(v){return Number(v || 0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});}
@@ -1330,7 +1350,8 @@
         localStorage.removeItem(AUDITORIA_CACHE_KEY);
         localStorage.removeItem(META_CACHE_KEY + ':' + ano);
         localStorage.removeItem(cacheKeyTicket(ano));
-        localStorage.removeItem(FORMACAO_FUTURA_CACHE_KEY + ':' + ano);
+        localStorage.removeItem(cacheKeyFormacaoFutura(ano));
+        localStorage.removeItem(cacheKeyFormacaoFutura(ano + 1));
       } catch (_) {}
       syncState.agendaVersion = '';
       syncState.agendaAt = 0;
@@ -1887,6 +1908,7 @@
       show('cardFunil', !comercial);
       show('cardAuditoriaComercial', comercial);
       show('cardTicketMedio', proprietario);
+      show('cardFormacaoAgendaFutura', podeVerFormacaoAgendaFutura_());
       show('execucaoSectionLabel', proprietario);
       show('kpisExecucaoRow', proprietario);
     }
@@ -2294,6 +2316,46 @@
     function cacheKeyFormacaoFutura(ano) {
       return `${FORMACAO_FUTURA_CACHE_KEY}:${ano}`;
     }
+    function anoAgendaPadraoFormacao_() {
+      const hoje = new Date();
+      const anoAtual = hoje.getFullYear();
+      const chave = `dashboard:formacaoFutura:foco:${anoAtual}`;
+      const salvo = Number(localStorage.getItem(chave));
+      if (salvo === anoAtual || salvo === anoAtual + 1) return salvo;
+      return hoje.getMonth() >= 7 ? anoAtual + 1 : anoAtual;
+    }
+    function getAnoAgendaFormacao_() {
+      const anoAtual = new Date().getFullYear();
+      if (formacaoFuturaState.anoAgenda === anoAtual || formacaoFuturaState.anoAgenda === anoAtual + 1) {
+        return formacaoFuturaState.anoAgenda;
+      }
+      formacaoFuturaState.anoAgenda = anoAgendaPadraoFormacao_();
+      return formacaoFuturaState.anoAgenda;
+    }
+    function renderControleFocoFormacao_() {
+      const box = document.getElementById('formacaoFuturaFoco');
+      if (!box) return;
+      const anoAtual = new Date().getFullYear();
+      const anoAgenda = getAnoAgendaFormacao_();
+      box.innerHTML = `
+        <span class="future-focus-label">Foco comercial</span>
+        <button type="button" aria-pressed="${anoAgenda === anoAtual}" onclick="selecionarAnoAgendaFormacao(${anoAtual})">Agenda ${anoAtual}</button>
+        <button type="button" aria-pressed="${anoAgenda === anoAtual + 1}" onclick="selecionarAnoAgendaFormacao(${anoAtual + 1})">Agenda ${anoAtual + 1}</button>
+      `;
+    }
+    function selecionarAnoAgendaFormacao(anoAgenda) {
+      const anoAtual = new Date().getFullYear();
+      const ano = Number(anoAgenda);
+      if (ano !== anoAtual && ano !== anoAtual + 1) return;
+      if (formacaoFuturaState.anoAgenda === ano) return;
+      formacaoFuturaState.anoAgenda = ano;
+      try { localStorage.setItem(`dashboard:formacaoFutura:foco:${anoAtual}`, String(ano)); } catch (_) {}
+      formacaoFuturaState.loaded = false;
+      formacaoFuturaState.data = null;
+      formacaoFuturaState.syncVersion = '';
+      renderControleFocoFormacao_();
+      carregarFormacaoAgendaFutura(false);
+    }
     function carregarCacheFormacaoFutura(ano, syncVersion) {
       try {
         const raw = localStorage.getItem(cacheKeyFormacaoFutura(ano));
@@ -2462,37 +2524,58 @@
     }
     function montarJanelasComerciais_(janelas) {
       const rotulos = {
-        'sem-base': 'Sem referência',
-        'atencao': 'Atenção',
-        'em-curso': 'Em curso',
-        'proxima': 'Próxima',
-        'planejada': 'Mais adiante'
+        'sem-base': 'Sem histórico suficiente',
+        'atencao': 'Hora de buscar contratos',
+        'em-curso': 'Captação em andamento',
+        'proxima': 'Prepare a campanha',
+        'planejada': 'Ainda é cedo'
+      };
+      const meses = {
+        jan: 'janeiro', fev: 'fevereiro', mar: 'março', abr: 'abril', mai: 'maio', jun: 'junho',
+        jul: 'julho', ago: 'agosto', set: 'setembro', out: 'outubro', nov: 'novembro', dez: 'dezembro'
       };
       return (Array.isArray(janelas) ? janelas : []).map(item => {
         const amostraAtual = Number(item.amostraAtualConfiavel || 0);
         const amostraHistorica = Number(item.amostraHistorica || 0);
+        const eventosAtuais = Number(item.eventosAtuais || 0);
+        const eventosImportados = Number(item.eventosImportados || 0);
+        const mesCurto = String(item.label || '').split('/')[0];
+        const mesNome = meses[mesCurto] || mesCurto;
         const temPrazoAtual = item.antecedenciaAtualMedianaDias !== null && Number.isFinite(Number(item.antecedenciaAtualMedianaDias));
         const temPrazoHistorico = item.antecedenciaMedianaDias !== null && Number.isFinite(Number(item.antecedenciaMedianaDias));
-        const prazoAtual = temPrazoAtual
-          ? `Contratos de ${String(item.label || '').split('/')[1]} já registrados: antecedência mediana ${formatarPrazoDias_(item.antecedenciaAtualMedianaDias)} (${amostraAtual} de ${Number(item.eventosAtuais || 0)} com data confiável)`
-          : `Contratos de ${String(item.label || '').split('/')[1]} já registrados: antecedência indisponível`;
-        let referenciaHistorica = 'Referência histórica: nenhum caso confiável no mesmo mês';
-        if (amostraHistorica >= 3 && temPrazoHistorico) {
-          referenciaHistorica = `Referência histórica: prazo típico ${formatarPrazoDias_(item.antecedenciaMedianaDias)} (${amostraHistorica} casos)`;
-        } else if (amostraHistorica > 0 && temPrazoHistorico) {
-          referenciaHistorica = `Referência preliminar: ${formatarPrazoDias_(item.antecedenciaMedianaDias)} (${amostraHistorica} de 3 casos mínimos)`;
+        let jaVendido = 'Ainda não há contratos com data de fechamento confiável para medir o prazo.';
+        if (temPrazoAtual && amostraAtual === 1) {
+          jaVendido = `Este contrato foi fechado com ${formatarPrazoDias_(item.antecedenciaAtualMedianaDias)} de antecedência.`;
+        } else if (temPrazoAtual) {
+          jaVendido = `${amostraAtual} contratos com data confiável foram fechados, em geral, ${formatarPrazoDias_(item.antecedenciaAtualMedianaDias)} antes do evento.`;
         }
-        const abertura = item.aberturaTipica
-          ? `Janela histórica estimada a partir de ${dataIsoParaPtBr_(item.aberturaTipica)}`
-          : 'Sem janela histórica confiável';
+        let referenciaHistorica = `Ainda não há histórico confiável de ${mesNome} para indicar um padrão de vendas.`;
+        if (amostraHistorica >= 3 && temPrazoHistorico) {
+          referenciaHistorica = `Em ${String(item.label || '').split('/')[1] - 1}, os eventos de ${mesNome} costumavam ser fechados cerca de ${formatarPrazoDias_(item.antecedenciaMedianaDias)} antes da realização, com base em ${amostraHistorica} contratos.`;
+        } else if (amostraHistorica > 0 && temPrazoHistorico) {
+          referenciaHistorica = `Há ${amostraHistorica} contrato${amostraHistorica === 1 ? '' : 's'} histórico${amostraHistorica === 1 ? '' : 's'} com data confiável, quantidade ainda insuficiente para definir um padrão.`;
+        }
+        let acao = 'Acompanhe a evolução deste mês até haver histórico suficiente para orientar a campanha.';
+        if (item.status === 'planejada' && item.aberturaTipica) acao = `Comece a acompanhar novas oportunidades para ${mesNome} a partir de ${dataIsoParaPtBr_(item.aberturaTipica)}.`;
+        if (item.status === 'proxima' && item.aberturaTipica) acao = `A janela comercial se aproxima: prepare a campanha para começar em ${dataIsoParaPtBr_(item.aberturaTipica)}.`;
+        if (item.status === 'em-curso') acao = 'A janela comercial já está aberta. Acompanhe novos contratos para este mês.';
+        if (item.status === 'atencao') acao = 'A janela comercial já deveria estar ativa. Vale reforçar a busca por novos contratos.';
+        const notaImportacao = eventosImportados
+          ? `${eventosImportados} evento${eventosImportados === 1 ? '' : 's'} importado${eventosImportados === 1 ? '' : 's'} entra${eventosImportados === 1 ? '' : 'm'} no total contratado, mas não ${eventosImportados === 1 ? 'é usado' : 'são usados'} para medir o prazo de fechamento.`
+          : '';
         return `
           <div class="future-window ${escaparHtml(item.status || 'sem-base')}">
             <div class="future-window-head">
               <strong>${escaparHtml(item.label)}</strong>
               <span class="future-window-status">${escaparHtml(rotulos[item.status] || 'Sem referência')}</span>
             </div>
-            <div class="future-window-main">${Number(item.eventosAtuais || 0)} eventos · ${fmt(item.valorAtual)}</div>
-            <div class="future-window-meta">${escaparHtml(prazoAtual)}<br>${escaparHtml(referenciaHistorica)}<br>${escaparHtml(abertura)}</div>
+            <div class="future-window-main">${eventosAtuais} evento${eventosAtuais === 1 ? '' : 's'} confirmado${eventosAtuais === 1 ? '' : 's'} · ${fmt(item.valorAtual)}</div>
+            <div class="future-window-meta">
+              <div class="future-window-copy"><strong>Já vendido</strong>${escaparHtml(jaVendido)}</div>
+              <div class="future-window-copy"><strong>Histórico de ${escaparHtml(mesNome)}</strong>${escaparHtml(referenciaHistorica)}</div>
+              <div class="future-window-copy action"><strong>Próxima ação</strong>${escaparHtml(acao)}</div>
+              ${notaImportacao ? `<div class="future-window-import">${escaparHtml(notaImportacao)}</div>` : ''}
+            </div>
           </div>
         `;
       }).join('');
@@ -2505,7 +2588,7 @@
         hour: '2-digit', minute: '2-digit'
       });
     }
-    function renderFormacaoLoading_(box, ano, etapa) {
+    function renderFormacaoLoading_(box, anoAgenda, etapa) {
       if (!box) return;
       box.classList.remove('hidden');
       box.setAttribute('aria-busy', 'true');
@@ -2513,7 +2596,7 @@
         <div class="future-loading" role="status">
           <div class="future-loading-status">
             <span class="spinner" aria-hidden="true"></span>
-            <div><strong>Preparando a análise de ${Number(ano) + 1}</strong><span id="futureLoadingLabel">${escaparHtml(etapa)}</span></div>
+            <div><strong>Preparando a análise de ${Number(anoAgenda)}</strong><span id="futureLoadingLabel">${escaparHtml(etapa)}</span></div>
           </div>
           <div class="future-skeleton-metrics" aria-hidden="true">
             <i></i><i></i><i></i><i></i>
@@ -2543,10 +2626,12 @@
       const saldoCarteira = num(r.valorFuturo) - num(r.valorBaseTotal);
       const diferencaCarteira = Math.abs(saldoCarteira);
       const atualizadoEm = formatarAtualizacaoFormacao_(data.geradoEm);
+      const eventosMigrados = Number(r.eventosMigrados || 0);
       box.classList.remove('hidden');
       box.setAttribute('aria-busy', 'false');
       if (btn) btn.classList.add('hidden');
       if (btnRefresh) btnRefresh.classList.remove('hidden');
+      renderControleFocoFormacao_();
       box.innerHTML = `
         <div class="future-metrics">
           <div class="future-metric">
@@ -2596,17 +2681,22 @@
           <i data-lucide="${leitura.tipo === 'atencao' ? 'triangle-alert' : (leitura.tipo === 'positivo' ? 'trending-up' : 'info')}"></i>
           <div><div class="future-reading-label">Leitura comercial</div><strong>${escaparHtml(leitura.titulo)}</strong><p>${escaparHtml(montarLeituraFormacao_(data))} A cobertura acima considera todos os contratos ativos; o ritmo usa apenas registros com data de criação confiável.</p></div>
         </div>
+        ${eventosMigrados ? `
+          <div class="future-migrated">
+            <div><div class="future-migrated-k">Eventos migrados sem mês de fechamento</div><div class="future-migrated-v">${eventosMigrados} evento${eventosMigrados === 1 ? '' : 's'} · ${fmt(r.valorMigrados)}</div></div>
+            <div class="future-migrated-copy">Estes contratos entram na agenda, no ticket médio e na cobertura. Eles não aparecem na captação por mês porque a data de migração não informa quando a venda foi fechada.</div>
+          </div>` : ''}
         <div class="future-columns">
           <div class="future-panel">
             <div class="future-panel-head">
-              <h3>Captação da agenda ${data.anoFuturo}</h3>
+              <h3>Captação por mês de fechamento</h3>
               <select class="future-panel-select" onchange="alterarOrdemCaptacaoFormacao(this.value)" aria-label="Ordenar captação">
                 <option value="CRONO" ${formacaoFuturaState.ordenacaoCaptacao === 'CRONO' ? 'selected' : ''}>Em ordem cronológica</option>
                 <option value="VALOR" ${formacaoFuturaState.ordenacaoCaptacao === 'VALOR' ? 'selected' : ''}>Por maior valor</option>
                 <option value="EVENTOS" ${formacaoFuturaState.ordenacaoCaptacao === 'EVENTOS' ? 'selected' : ''}>Por mais eventos</option>
               </select>
             </div>
-            <div class="future-panel-sub">Todos os contratos pela data em que entraram no sistema. Importações aparecem identificadas e não entram nas métricas de prazo.</div>
+            <div class="future-panel-sub">Contratos com data de criação confiável. Use a faixa acima para acompanhar os migrados separadamente.</div>
             <div id="futureCaptacaoBars" class="future-list"></div>
           </div>
           <div class="future-panel">
@@ -2623,11 +2713,11 @@
         </div>
         <details class="future-details">
           <summary>
-            <span class="future-details-copy"><strong>Ver análise detalhada por mês</strong><small>Janelas de fechamento e qualidade da base temporal.</small></span>
+            <span class="future-details-copy"><strong>Ver análise detalhada por mês</strong><small>Entenda o que já foi vendido, o histórico e a próxima ação comercial.</small></span>
           </summary>
           <div class="future-panel">
             <h3>Janelas comerciais por mês do evento</h3>
-            <div class="future-panel-sub">Cada mês compara os contratos atuais de ${data.anoFuturo} com a referência dos eventos de ${data.anoBase}. Uma janela só recebe classificação quando há pelo menos 3 casos confiáveis.</div>
+            <div class="future-panel-sub">Cada mês compara a agenda de ${data.anoFuturo} com os contratos de ${data.anoBase}. Uma recomendação de prazo só aparece quando há pelo menos 3 casos confiáveis.</div>
             <div class="future-window-grid">${montarJanelasComerciais_(data.janelasMensais || [])}</div>
           </div>
           <div class="future-quality">
@@ -2645,7 +2735,8 @@
       if (window.lucide) lucide.createIcons();
     }
     async function carregarFormacaoAgendaFutura(force = false) {
-      const ano = getAnoSelecionado();
+      const anoAgenda = getAnoAgendaFormacao_();
+      const anoBase = anoAgenda - 1;
       const box = document.getElementById('formacaoFuturaContent');
       const btn = document.getElementById('btnFormacaoFutura');
       const btnRefresh = document.getElementById('btnRefreshFormacaoFutura');
@@ -2655,35 +2746,35 @@
         formacaoFuturaState.loading = true;
         setButtonLoading(btn, true, 'Carregando...');
         setButtonLoading(btnRefresh, true, 'Atualizando...');
-        renderFormacaoLoading_(box, ano, 'Verificando a atualização da agenda...');
+        renderFormacaoLoading_(box, anoAgenda, 'Verificando a atualização da agenda...');
         try {
           versaoAgenda = await obterAgendaVersion(force);
         } catch (_) {
           versaoAgenda = '';
         }
-        if (!force && versaoAgenda && formacaoFuturaState.loaded && formacaoFuturaState.ano === ano && formacaoFuturaState.syncVersion === versaoAgenda && formacaoFuturaState.data) {
+        if (!force && versaoAgenda && formacaoFuturaState.loaded && formacaoFuturaState.ano === anoAgenda && formacaoFuturaState.syncVersion === versaoAgenda && formacaoFuturaState.data) {
           renderFormacaoAgendaFutura(formacaoFuturaState.data);
           return;
         }
-        const cache = !force && versaoAgenda ? carregarCacheFormacaoFutura(ano, versaoAgenda) : null;
+        const cache = !force && versaoAgenda ? carregarCacheFormacaoFutura(anoAgenda, versaoAgenda) : null;
         if (cache) {
           formacaoFuturaState.loaded = true;
-          formacaoFuturaState.ano = ano;
+          formacaoFuturaState.ano = anoAgenda;
           formacaoFuturaState.syncVersion = versaoAgenda;
           formacaoFuturaState.data = cache;
           renderFormacaoAgendaFutura(cache);
           return;
         }
         atualizarEtapaFormacao_('Buscando os anos completos...');
-        const resp = await Auth.apiCall('obterFormacaoAgendaFutura', { ano });
+        const resp = await Auth.apiCall('obterFormacaoAgendaFutura', { ano: anoBase });
         const eventos = Array.isArray(resp?.eventos) ? resp.eventos : (Array.isArray(resp) ? resp : []);
         atualizarEtapaFormacao_('Comparando anos, valores e prazos...');
-        const data = calcularFormacaoAgendaFutura_(eventos, ano);
+        const data = calcularFormacaoAgendaFutura_(eventos, anoBase);
         formacaoFuturaState.loaded = true;
-        formacaoFuturaState.ano = ano;
+        formacaoFuturaState.ano = anoAgenda;
         formacaoFuturaState.syncVersion = versaoAgenda || '';
         formacaoFuturaState.data = data;
-        salvarCacheFormacaoFutura(ano, data, versaoAgenda);
+        salvarCacheFormacaoFutura(anoAgenda, data, versaoAgenda);
         renderFormacaoAgendaFutura(data);
       } catch (e) {
         console.error('Erro ao carregar formação da agenda futura:', e);
@@ -3580,6 +3671,7 @@
         aplicarLayoutPorPerfil();
         preencherUser();
         montarAnos();
+        renderControleFocoFormacao_();
         setupTicketEvents();
         await carregarDashboard(null, { forceRefresh: true });
         if (window.lucide) lucide.createIcons();
