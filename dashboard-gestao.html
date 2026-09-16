@@ -20,7 +20,7 @@
 
   <script src="https://accounts.google.com/gsi/client" async defer></script>
   <script src="auth.js"></script>
-  <script src="dashboard-formacao-agenda.js?v=20260915b" defer></script>
+  <script src="dashboard-formacao-agenda.js?v=20260915c" defer></script>
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js" defer></script>
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
@@ -410,15 +410,6 @@
     .future-details .future-metrics{margin-bottom:10px}
     .future-metrics.future-technical .future-metric{background:#fff}
     .future-metrics.future-technical .future-metric .v{font-size:15px}
-    .future-comparison{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:14px;align-items:center;padding:12px;border:1px solid var(--line);border-radius:8px;background:#f7f9fd}
-    .future-comparison-copy{display:grid;gap:5px;min-width:0}
-    .future-comparison-copy strong{font-size:13px;color:var(--navy-2)}
-    .future-comparison-copy span{font-size:11px;color:var(--muted);line-height:1.4}
-    .future-progress{height:8px;background:#e8edf5;border-radius:999px;overflow:hidden;margin-top:3px}
-    .future-progress i{display:block;height:100%;background:#1e3a5f;border-radius:999px}
-    .future-comparison-delta{text-align:right;min-width:132px}
-    .future-comparison-delta strong{display:block;font-size:17px}
-    .future-comparison-delta span{font-size:10px;color:var(--muted)}
     .future-reading{display:grid;grid-template-columns:auto 1fr;gap:10px;align-items:start;padding:11px 12px;border-left:4px solid #7c879e;background:#f6f8fc;border-radius:0 8px 8px 0}
     .future-reading i{width:18px;height:18px;color:#526079}
     .future-reading-label{font-size:9px;font-weight:800;text-transform:uppercase;color:var(--muted);margin-bottom:3px}
@@ -429,6 +420,9 @@
     .future-reading.estavel{border-color:#3b82f6;background:#eff6ff}.future-reading.estavel i{color:#2563eb}
     .future-columns{display:grid;grid-template-columns:1fr 1fr;gap:18px;min-width:0;padding-top:2px}
     .future-panel{min-width:0;padding-top:10px;border-top:1px solid var(--line)}
+    .future-panel-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:3px}
+    .future-panel-head h3{margin-bottom:0}
+    .future-panel-select{height:30px;max-width:178px;padding:0 28px 0 9px;border:1px solid var(--line);border-radius:7px;background:#fff;color:var(--text);font:inherit;font-size:11px;font-weight:700}
     .future-panel h3{font-size:12px;color:var(--navy-2);text-transform:uppercase;letter-spacing:.45px;margin-bottom:3px}
     .future-panel-sub{font-size:11px;color:var(--muted);line-height:1.35;margin-bottom:10px}
     .future-list{display:grid;gap:7px}
@@ -519,10 +513,10 @@
       .future-columns{grid-template-columns:1fr}
       .future-row{grid-template-columns:72px 1fr 96px}
       .future-window-grid{grid-template-columns:1fr 1fr}
-      .future-comparison{grid-template-columns:1fr}
-      .future-comparison-delta{text-align:left}
       .future-skeleton-metrics{grid-template-columns:1fr 1fr}
       .future-skeleton-charts{grid-template-columns:1fr}
+      .future-panel-head{align-items:stretch;flex-direction:column}
+      .future-panel-select{max-width:none;width:100%}
     }
     @media (max-width:430px){
       .future-metrics{grid-template-columns:1fr}
@@ -789,13 +783,13 @@
 
       <div class="section-label">Planejamento futuro</div>
       <div class="card" id="cardFormacaoAgendaFutura" style="grid-column:1/-1">
-        <h2><i data-lucide="calendar-plus"></i><span class="title-tip">Previsibilidade da Agenda Futura <span class="info-dot tiny aud-tip" data-tip="Compara a agenda do próximo ano com o vendido no ano atual e, quando há histórico confiável, com o mesmo estágio de formação do ano anterior.">i</span></span></h2>
-        <div class="sub">Acompanhe o ritmo de contratação do próximo ano e as janelas em que a equipe comercial costuma fechar eventos.</div>
+        <h2><i data-lucide="calendar-plus"></i><span class="title-tip">Formação da Agenda Futura <span class="info-dot tiny aud-tip" data-tip="Mostra o quanto do próximo ano já está contratado, compara o ritmo de entrada com o mesmo estágio do ano atual e indica as janelas comerciais por mês.">i</span></span></h2>
+        <div class="sub">Entenda como o próximo ano está sendo contratado e onde concentrar a ação comercial.</div>
         <div class="future-agenda-shell">
           <div class="future-agenda-head">
             <div class="future-agenda-title">
-              <strong>Análise comercial por data de entrada</strong>
-              <span>A data de criação aproxima o momento do fechamento. Registros migrados ficam fora das análises de prazo.</span>
+              <strong>Visão comercial sob demanda</strong>
+              <span>O total contratado usa o ano inteiro. Data de criação entra somente nas análises de ritmo e prazo.</span>
             </div>
             <div class="future-agenda-actions">
               <button id="btnFormacaoFutura" class="btn primary" onclick="carregarFormacaoAgendaFutura(false)">Carregar análise futura</button>
@@ -891,7 +885,7 @@
     const INSIGHTS_CACHE_TTL_MS = 10 * 60 * 1000;
     const TICKET_CACHE_KEY = 'dashboard:ticketMedio:v2';
     const TICKET_CACHE_TTL_MS = 10 * 60 * 1000;
-    const FORMACAO_FUTURA_CACHE_KEY = 'dashboard:formacaoFutura:v4';
+    const FORMACAO_FUTURA_CACHE_KEY = 'dashboard:formacaoFutura:v5';
     const FORMACAO_FUTURA_CACHE_TTL_MS = 10 * 60 * 1000;
     const ORDENACAO_GRAFICOS_MENSAIS_KEY = 'dashboard:ordenacaoGraficosMensais';
     const auditoriaState = {
@@ -935,7 +929,9 @@
       loading: false,
       ano: null,
       syncVersion: '',
-      data: null
+      data: null,
+      ordenacaoCaptacao: 'CRONO',
+      referenciaAntecedencia: 'FUTURO'
     };
     const syncState = {
       agendaVersion: '',
@@ -2405,6 +2401,39 @@
         `;
       }).join('');
     }
+    function ordenarCaptacaoFormacao_(lista, ordem) {
+      const dados = [...(Array.isArray(lista) ? lista : [])];
+      if (ordem === 'VALOR') return dados.sort((a, b) => num(b.valor) - num(a.valor) || num(b.eventos) - num(a.eventos));
+      if (ordem === 'EVENTOS') return dados.sort((a, b) => num(b.eventos) - num(a.eventos) || num(b.valor) - num(a.valor));
+      return dados.sort((a, b) => String(a.chave || '').localeCompare(String(b.chave || '')));
+    }
+    function renderCaptacaoFormacao_() {
+      const box = document.getElementById('futureCaptacaoBars');
+      const data = formacaoFuturaState.data;
+      if (!box || !data) return;
+      box.innerHTML = montarFutureBars_(ordenarCaptacaoFormacao_(data.captacaoMensal || [], formacaoFuturaState.ordenacaoCaptacao));
+    }
+    function alterarOrdemCaptacaoFormacao(ordem) {
+      formacaoFuturaState.ordenacaoCaptacao = ['CRONO', 'VALOR', 'EVENTOS'].includes(ordem) ? ordem : 'CRONO';
+      renderCaptacaoFormacao_();
+    }
+    function renderAntecedenciaFormacao_() {
+      const box = document.getElementById('futureAntecedenciaBars');
+      const subtitulo = document.getElementById('futureAntecedenciaSub');
+      const data = formacaoFuturaState.data;
+      if (!box || !data) return;
+      const futuro = formacaoFuturaState.referenciaAntecedencia !== 'BASE';
+      box.innerHTML = montarFutureBars_(futuro ? (data.faixasFuturo || []) : (data.faixasBase || []));
+      if (subtitulo) {
+        subtitulo.textContent = futuro
+          ? `Quando os contratos de ${data.anoFuturo} entraram no sistema antes da realização.`
+          : `Referência dos contratos de ${data.anoBase}; útil para interpretar o comportamento comercial.`;
+      }
+    }
+    function alterarReferenciaAntecedenciaFormacao(referencia) {
+      formacaoFuturaState.referenciaAntecedencia = referencia === 'BASE' ? 'BASE' : 'FUTURO';
+      renderAntecedenciaFormacao_();
+    }
     function formatarPrazoDias_(dias) {
       if (!Number.isFinite(Number(dias))) return 'Sem base';
       const valor = Math.max(0, Number(dias));
@@ -2511,7 +2540,6 @@
       const ritmoCls = !r.baseComparavelSuficiente ? '' : (num(r.deltaHistoricoPct) < -10 ? 'bad' : (num(r.deltaHistoricoPct) > 10 ? 'good' : 'warn'));
       const saldoCarteira = num(r.valorFuturo) - num(r.valorBaseTotal);
       const diferencaCarteira = Math.abs(saldoCarteira);
-      const larguraCobertura = Math.max(0, Math.min(100, num(r.coberturaCarteira)));
       const atualizadoEm = formatarAtualizacaoFormacao_(data.geradoEm);
       box.classList.remove('hidden');
       box.setAttribute('aria-busy', 'false');
@@ -2520,65 +2548,19 @@
       box.innerHTML = `
         <div class="future-metrics">
           <div class="future-metric">
-            <div class="k">Contratado para ${data.anoFuturo}</div>
+            <div class="k">Agenda ${data.anoFuturo}</div>
             <div class="v">${Number(r.eventosFuturos || 0)} eventos</div>
             <div class="s">${fmt(r.valorFuturo)} em contratos ativos</div>
           </div>
           <div class="future-metric">
-            <div class="k">Cobertura do vendido de ${data.anoBase}</div>
+            <div class="k">Cobertura da agenda futura</div>
             <div class="v">${fmtPctFormacao_(r.coberturaCarteira)}</div>
-            <div class="s">${fmt(r.valorFuturo)} de ${fmt(r.valorBaseTotal)} vendido em ${data.anoBase}</div>
+            <div class="s">${fmt(r.valorFuturo)} de ${fmt(r.valorBaseTotal)} vendido em ${data.anoBase} · ${saldoCarteira < 0 ? `faltam ${fmt(diferencaCarteira)}` : `${fmt(diferencaCarteira)} acima da referência`}</div>
           </div>
           <div class="future-metric ${ritmoCls}">
-            <div class="k">Ritmo de formação da agenda</div>
+            <div class="k">Ritmo no mesmo estágio</div>
             <div class="v">${ritmoTxt}</div>
             <div class="s">${r.baseComparavelSuficiente ? `${fmt(r.valorFuturoComparavel)} no corte vs. ${fmt(r.valorHistorico)} no corte equivalente` : 'Sem histórico confiável para classificar o ritmo'}</div>
-          </div>
-          <div class="future-metric">
-            <div class="k">Valor para alcançar o vendido de ${data.anoBase}</div>
-            <div class="v">${fmt(diferencaCarteira)}</div>
-            <div class="s">${saldoCarteira < 0 ? `ainda para igualar o total de ${data.anoBase}` : `acima do total de ${data.anoBase}`}</div>
-          </div>
-        </div>
-        <div class="future-comparison">
-          <div class="future-comparison-copy">
-            <strong>${data.anoFuturo} já representa ${fmtPctFormacao_(r.coberturaCarteira)} do total vendido em ${data.anoBase}</strong>
-            <div class="future-progress" role="img" aria-label="Cobertura de ${fmtPctFormacao_(r.coberturaCarteira)}"><i style="width:${larguraCobertura}%"></i></div>
-            <span>Esta cobertura usa todos os eventos ativos dos dois anos. Ela não depende da data de criação.</span>
-          </div>
-          <div class="future-comparison-delta"><strong>${fmt(diferencaCarteira)}</strong><span>${saldoCarteira < 0 ? 'para alcançar o vendido atual' : 'acima do vendido atual'}</span></div>
-        </div>
-        <div class="future-reading ${escaparHtml(leitura.tipo)}">
-          <i data-lucide="${leitura.tipo === 'atencao' ? 'triangle-alert' : (leitura.tipo === 'positivo' ? 'trending-up' : 'info')}"></i>
-          <div><div class="future-reading-label">Leitura comercial</div><strong>${escaparHtml(leitura.titulo)}</strong><p>${escaparHtml(montarLeituraFormacao_(data))}</p></div>
-        </div>
-        <div class="future-columns">
-          <div class="future-panel">
-            <h3>Captação mês a mês da agenda ${data.anoFuturo}</h3>
-            <div class="future-panel-sub">Evolução cronológica dos contratos pela data em que entraram no sistema.</div>
-            <div class="future-list">${montarFutureBars_(data.captacaoMensal || [])}</div>
-          </div>
-          <div class="future-panel">
-            <h3>Meses com maior captação da agenda ${data.anoFuturo}</h3>
-            <div class="future-panel-sub">Ranking pela data de entrada no sistema e pelo valor contratado.</div>
-            <div class="future-list">${montarFutureBars_(data.rankingCaptacao || [])}</div>
-          </div>
-        </div>
-        <div class="future-metrics future-secondary">
-          <div class="future-metric">
-            <div class="k">Ticket médio de ${data.anoFuturo}</div>
-            <div class="v">${fmt(r.ticketMedio)}</div>
-            <div class="s">Média dos contratos ativos do próximo ano</div>
-          </div>
-          <div class="future-metric">
-            <div class="k">Prazo típico de ${data.anoFuturo}</div>
-            <div class="v">${formatarPrazoDias_(r.prazoTipicoFuturoDias)}</div>
-            <div class="s">Mediana entre entrada no sistema e evento; migrações excluídas</div>
-          </div>
-          <div class="future-metric">
-            <div class="k">Prazo típico de ${data.anoBase}</div>
-            <div class="v">${formatarPrazoDias_(r.prazoTipicoBaseDias)}</div>
-            <div class="s">Referência da agenda atual com cadastro confiável</div>
           </div>
           <div class="future-metric">
             <div class="k">Entradas nos últimos 60 dias</div>
@@ -2586,10 +2568,44 @@
             <div class="s">${fmt(r.valorUltimos60)} adicionados à agenda de ${data.anoFuturo}</div>
           </div>
         </div>
+        <div class="future-reading ${escaparHtml(leitura.tipo)}">
+          <i data-lucide="${leitura.tipo === 'atencao' ? 'triangle-alert' : (leitura.tipo === 'positivo' ? 'trending-up' : 'info')}"></i>
+          <div><div class="future-reading-label">Leitura comercial</div><strong>${escaparHtml(leitura.titulo)}</strong><p>${escaparHtml(montarLeituraFormacao_(data))}</p></div>
+        </div>
+        <div class="future-columns">
+          <div class="future-panel">
+            <div class="future-panel-head">
+              <h3>Captação da agenda ${data.anoFuturo}</h3>
+              <select class="future-panel-select" onchange="alterarOrdemCaptacaoFormacao(this.value)" aria-label="Ordenar captação">
+                <option value="CRONO" ${formacaoFuturaState.ordenacaoCaptacao === 'CRONO' ? 'selected' : ''}>Em ordem cronológica</option>
+                <option value="VALOR" ${formacaoFuturaState.ordenacaoCaptacao === 'VALOR' ? 'selected' : ''}>Por maior valor</option>
+                <option value="EVENTOS" ${formacaoFuturaState.ordenacaoCaptacao === 'EVENTOS' ? 'selected' : ''}>Por mais eventos</option>
+              </select>
+            </div>
+            <div class="future-panel-sub">Evolução cronológica dos contratos pela data em que entraram no sistema.</div>
+            <div id="futureCaptacaoBars" class="future-list"></div>
+          </div>
+          <div class="future-panel">
+            <div class="future-panel-head">
+              <h3>Antecedência dos contratos</h3>
+              <select class="future-panel-select" onchange="alterarReferenciaAntecedenciaFormacao(this.value)" aria-label="Selecionar agenda para antecedência">
+                <option value="FUTURO" ${formacaoFuturaState.referenciaAntecedencia === 'FUTURO' ? 'selected' : ''}>Agenda ${data.anoFuturo}</option>
+                <option value="BASE" ${formacaoFuturaState.referenciaAntecedencia === 'BASE' ? 'selected' : ''}>Histórico ${data.anoBase}</option>
+              </select>
+            </div>
+            <div id="futureAntecedenciaSub" class="future-panel-sub"></div>
+            <div id="futureAntecedenciaBars" class="future-list"></div>
+          </div>
+        </div>
         <details class="future-details">
           <summary>
-            <span class="future-details-copy"><strong>Detalhes da comparação</strong><small>Média, amostra temporal, corte histórico e mês de maior captação.</small></span>
+            <span class="future-details-copy"><strong>Ver análise detalhada por mês</strong><small>Janelas de fechamento, indicadores de prazo e qualidade da base.</small></span>
           </summary>
+          <div class="future-panel">
+            <h3>Janelas comerciais por mês do evento</h3>
+            <div class="future-panel-sub">Cada mês compara os contratos atuais de ${data.anoFuturo} com a referência dos eventos de ${data.anoBase}. Uma janela só recebe classificação quando há pelo menos 3 casos confiáveis.</div>
+            <div class="future-window-grid">${montarJanelasComerciais_(data.janelasMensais || [])}</div>
+          </div>
           <div class="future-metrics future-technical">
             <div class="future-metric">
               <div class="k">Antecedência média de ${data.anoFuturo}</div>
@@ -2612,33 +2628,18 @@
               <div class="s">${data.rankingCaptacao?.[0] ? `${fmt(data.rankingCaptacao[0].valor)} · ${Number(data.rankingCaptacao[0].eventos || 0)} eventos` : 'Nenhum cadastro confiável no período'}</div>
             </div>
           </div>
+          <div class="future-quality">
+            <span><strong>Qualidade da análise de prazo:</strong> ${Number(q.eventosFuturosConfiaveis || 0)} de ${Number(q.eventosFuturos || 0)} eventos de ${data.anoFuturo}</span>
+            <span>${Number(q.importadosFuturo || 0)} importado(s) excluído(s) dos prazos</span>
+            <span>${Number(q.semDataCadastroFuturo || 0)} sem data de criação</span>
+            <span>${Number(q.datasPrazoInvalidasFuturo || 0)} com prazo inválido</span>
+            <span>Data de criação é uma aproximação do fechamento comercial</span>
+            ${atualizadoEm ? `<span>Atualizado em ${escaparHtml(atualizadoEm)}</span>` : ''}
+          </div>
         </details>
-        <div class="future-columns">
-          <div class="future-panel">
-            <h3>Antecedência dos contratos de ${data.anoFuturo}</h3>
-            <div class="future-panel-sub">Quando os eventos do próximo ano entraram no sistema antes da data de realização.</div>
-            <div class="future-list">${montarFutureBars_(data.faixasFuturo || [])}</div>
-          </div>
-          <div class="future-panel">
-            <h3>Antecedência dos contratos de ${data.anoBase}</h3>
-            <div class="future-panel-sub">Referência da agenda atual para comparar o comportamento de contratação.</div>
-            <div class="future-list">${montarFutureBars_(data.faixasBase || [])}</div>
-          </div>
-        </div>
-        <div class="future-panel">
-          <h3>Janelas comerciais por mês do evento</h3>
-          <div class="future-panel-sub">Cada mês separa os contratos atuais de ${data.anoFuturo}, fechados em ${data.anoBase}, da referência dos eventos de ${data.anoBase}. A janela histórica só é classificada com pelo menos 3 casos confiáveis.</div>
-          <div class="future-window-grid">${montarJanelasComerciais_(data.janelasMensais || [])}</div>
-        </div>
-        <div class="future-quality">
-          <span><strong>Qualidade da análise de prazo:</strong> ${Number(q.eventosFuturosConfiaveis || 0)} de ${Number(q.eventosFuturos || 0)} eventos de ${data.anoFuturo}</span>
-          <span>${Number(q.importadosFuturo || 0)} importado(s) excluído(s) dos prazos</span>
-          <span>${Number(q.semDataCadastroFuturo || 0)} sem data de criação</span>
-          <span>${Number(q.datasPrazoInvalidasFuturo || 0)} com prazo inválido</span>
-          <span>Data de criação é uma aproximação do fechamento comercial</span>
-          ${atualizadoEm ? `<span>Atualizado em ${escaparHtml(atualizadoEm)}</span>` : ''}
-        </div>
       `;
+      renderCaptacaoFormacao_();
+      renderAntecedenciaFormacao_();
       if (window.lucide) lucide.createIcons();
     }
     async function carregarFormacaoAgendaFutura(force = false) {
