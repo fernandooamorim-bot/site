@@ -700,7 +700,7 @@ if (action === 'obterDashboardGestao') {
 }
 
 if (action === 'obterFormacaoAgendaFutura') {
-  exigirPerfilProprietario_();
+  exigirPerfilProprietarioOuAdministrador_();
   return json(obterFormacaoAgendaFutura(params));
 }
 
@@ -1995,6 +1995,15 @@ function exigirPerfilProprietario_() {
   const perfil = normalizarPerfilAcl_(usuario && usuario.PERFIL);
   if (perfil !== 'proprietario') {
     throw new Error('FORBIDDEN_ACTION: owner-only');
+  }
+  return usuario;
+}
+
+function exigirPerfilProprietarioOuAdministrador_() {
+  const usuario = getUsuarioAtual();
+  const perfil = normalizarPerfilAcl_(usuario && usuario.PERFIL);
+  if (perfil !== 'proprietario' && perfil !== 'administrador' && perfil !== 'admin') {
+    throw new Error('FORBIDDEN_ACTION: owner-or-admin-only');
   }
   return usuario;
 }
