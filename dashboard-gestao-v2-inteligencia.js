@@ -200,7 +200,10 @@ function dashboardV2ConstruirInteligencia_(eventos, movimentos, opcoes) {
     linha.folhaAmostra = folhaAmostra;
     linha.folhaOrigem = folhaOrigem;
     linha.comissaoComprometida = Math.max(linha.comissaoSnapshot, linha.comissaoPaga + linha.comissaoPendenteGerada);
-    linha.bvComprometido = Math.max(linha.bvSnapshot, linha.bvPago + linha.bvPendenteGerado);
+    // BV é uma obrigação integral por evento. Durante a reconciliação do
+    // legado, PENDENTE + PROCESSADO do mesmo valor representam o ciclo da
+    // mesma ordem, não duas obrigações econômicas.
+    linha.bvComprometido = Math.max(linha.bvSnapshot, linha.bvPago, linha.bvPendenteGerado);
     linha.nfComprometida = Math.max(linha.nfSnapshot, linha.nfPaga + linha.nfPendenteGerada, nfEstimativa);
     linha.folhaProjetada = linha.folhaPaga + linha.folhaPendente || linha.folhaEstimada;
     linha.custoTotalProjetado = linha.comissaoComprometida + linha.bvComprometido + linha.nfComprometida + linha.folhaProjetada + linha.outrasSaidas;

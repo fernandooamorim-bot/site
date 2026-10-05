@@ -143,7 +143,7 @@ function auditoriaAgendaResumo_(eventoDados, movimentosDados) {
   const comissaoSnapshot = auditoriaAgendaNumero_(auditoriaAgendaValor_(evento, e, 'VALOR_COMISSAO_CALCULADO', 0));
   const bvSnapshot = auditoriaAgendaNumero_(auditoriaAgendaValor_(evento, e, 'VALOR_BV', 0));
   const nfSnapshot = auditoriaAgendaNumero_(auditoriaAgendaValor_(evento, e, 'VALOR_NF', 0));
-  const mov = { recebido: 0, estornado: 0, comissaoGerada: 0, comissaoPaga: 0, bvObservado: 0, bvPago: 0, nfObservada: 0, nfPaga: 0, folhaPaga: 0, folhaPendente: 0, outrosPagos: 0, ultimos: [] };
+  const mov = { recebido: 0, estornado: 0, comissaoGerada: 0, comissaoPaga: 0, bvObservado: 0, bvPago: 0, bvPendente: 0, nfObservada: 0, nfPaga: 0, folhaPaga: 0, folhaPendente: 0, outrosPagos: 0, ultimos: [] };
   movimentosDados.linhas.forEach(function (linha) {
     const status = auditoriaAgendaChave_(auditoriaAgendaValor_(linha, m, 'STATUS', ''));
     if (status === 'CANCELADO') return;
@@ -154,7 +154,7 @@ function auditoriaAgendaResumo_(eventoDados, movimentosDados) {
     if (tipo === 'RECEBIMENTO_CLIENTE' && processado) mov.recebido += valor;
     else if (tipo === 'ESTORNO_RECEBIMENTO' && processado) mov.estornado += valor;
     else if (tipo === 'COMISSAO_GERADA') { mov.comissaoGerada += valor; if (processado) mov.comissaoPaga += valor; }
-    else if (tipo === 'BV_EVENTO') { mov.bvObservado += valor; if (processado) mov.bvPago += valor; }
+    else if (tipo === 'BV_EVENTO') { mov.bvObservado += valor; if (processado) mov.bvPago += valor; else if (status === 'PENDENTE') mov.bvPendente += valor; }
     else if (tipo === 'NF_EVENTO') { mov.nfObservada += valor; if (processado) mov.nfPaga += valor; }
     else if (tipo === 'FOLHA_EVENTO') { if (processado) mov.folhaPaga += valor; else mov.folhaPendente += valor; }
     else if (natureza === 'SAIDA' && processado) mov.outrosPagos += valor;
@@ -163,7 +163,7 @@ function auditoriaAgendaResumo_(eventoDados, movimentosDados) {
   mov.ultimos.sort(function (a, b) { return (b.data || 0) - (a.data || 0); });
   const recebido = mov.recebido - mov.estornado;
   const comissaoComprometida = Math.max(comissaoSnapshot, mov.comissaoGerada);
-  const bvComprometido = Math.max(bvSnapshot, mov.bvObservado);
+  const bvComprometido = Math.max(bvSnapshot, mov.bvPago, mov.bvPendente);
   const nfComprometido = Math.max(nfSnapshot, mov.nfObservada);
   const folhaConhecida = mov.folhaPaga + mov.folhaPendente;
   const custosPagos = mov.comissaoPaga + mov.bvPago + mov.nfPaga + mov.folhaPaga + mov.outrosPagos;

@@ -362,9 +362,16 @@ function recalcularFinanceiroEvento(idEvento) {
         .setValue(financeiro.statusComissao);
     }
 
+    // STATUS_BV é espelho do livro; recálculo estrutural não pode reabrir
+    // uma obrigação já processada.
+    let statusBVDoLivro = financeiro.statusBV;
+    try {
+      const resumoBV = buscarResumoFinanceiroEvento(idEvento);
+      if (resumoBV && resumoBV.statusBV) statusBVDoLivro = resumoBV.statusBV;
+    } catch (_) {}
     if (idx('STATUS_BV') >= 0) {
       sheet.getRange(i + 1, idx('STATUS_BV') + 1)
-        .setValue(financeiro.statusBV);
+        .setValue(statusBVDoLivro);
     }
 
     // Atualiza metadados
@@ -546,46 +553,38 @@ function registrarBVEvento(idEvento, meta) {
     for (let i = 1; i < evt.length; i++) {
       if (evt[i][e('ID_EVENTO')] !== idEvento) continue;
 
-      const resumoMov = resumirSaidasMovEvento_(movData, m, idEvento);
-      if (resumoMov.bv.processado > 0) {
+      const obrigacoes = bvObrigacaoLocalizar_(movData, m, idEvento);
+      if (obrigacoes.processados.length > 0) {
         throw new Error('BV já processado para este evento');
       }
+      if (obrigacoes.pendentes.length !== 1 || obrigacoes.ativos.length !== 1) {
+        throw new Error('ORDEM_BV_INCONSISTENTE: o evento precisa ter exatamente uma ordem de BV pendente para ser baixado.');
+      }
 
-      const valorManual = normalizarValorMonetario_(meta && meta.valor, { allowZero: false });
-      const valorBV = !isNaN(valorManual) && valorManual > 0
-        ? Number(valorManual.toFixed(2))
-        : (Number(evt[i][e('VALOR_BV')]) || 0);
+      const ordem = obrigacoes.pendentes[0];
+      const valorBV = Number(ordem.linha[m('VALOR')]) || 0;
       if (valorBV <= 0) throw new Error('Evento não possui BV válido');
-      const nomeEventoMov = obterNomeEventoExibicao_(evt[i]) || idEvento;
-      const parceiro = resolverParceiroBVEvento_(evt[i], e);
-      const origemProcessamento = detectarOrigemProcessamentoBV_(meta);
-      const obsDestino = montarObsDestinoBVParceiro_(parceiro, origemProcessamento);
-
-      const idMovimentacao = gerarIDMovimentacao();
+      const informouValor = !!(meta && meta.valor !== undefined && meta.valor !== null && String(meta.valor).trim() !== '');
+      const valorManual = informouValor ? normalizarValorMonetario_(meta.valor, { allowZero: true }) : null;
+      if (informouValor && (valorManual === null || isNaN(valorManual) || Math.abs(Number(valorManual) - valorBV) > 0.01)) {
+        throw new Error('VALOR_BV_DIVERGENTE_DA_ORDEM: pagamentos parciais ou valores diferentes não são permitidos.');
+      }
       const dataSaida = (meta && meta.dataSaida) ? normalizarData(meta.dataSaida) : normalizarData(new Date());
-      const linhaMov = [
-        idMovimentacao,
-        'BV_EVENTO',
-        'SAÍDA',
-        idEvento,
-        nomeEventoMov,
-        dataSaida,
-        valorBV,
-        '',
-        String(parceiro.nome || 'BV'),
-        String(parceiro.id || ''),
-        linkComprovante,
-        (observacoesExtra || 'BV registrada automaticamente pelo sistema') + obsDestino,
-        usuario,
-        new Date(),
-        '',
-        'PROCESSADO'
-      ];
-
-      appendRowComVerificacao_(shMov, linhaMov, 'MOVIMENTACOES_FINANCEIRAS/BV_EVENTO');
-      setValueComVerificacao_(shEvt, i + 1, e('VALOR_BV') + 1, valorBV, 'EVENTOS/VALOR_BV');
+      const origemProcessamento = detectarOrigemProcessamentoBV_(meta);
+      const observacoes = bvObrigacaoHistoricoBaixa_(
+        observacoesExtra || ordem.linha[m('OBSERVACOES')], dataSaida, usuario, origemProcessamento
+      );
+      const coluna = function (nome) { return m(nome); };
+      setValueComVerificacao_(shMov, ordem.linhaIndex, coluna('DATA_MOVIMENTACAO') + 1, dataSaida, 'MOVIMENTACOES_FINANCEIRAS/BV_DATA_PAGAMENTO');
+      if (linkComprovante) setValueComVerificacao_(shMov, ordem.linhaIndex, coluna('LINK_COMPROVANTE') + 1, linkComprovante, 'MOVIMENTACOES_FINANCEIRAS/BV_COMPROVANTE');
+      setValueComVerificacao_(shMov, ordem.linhaIndex, coluna('OBSERVACOES') + 1, observacoes, 'MOVIMENTACOES_FINANCEIRAS/BV_AUDITORIA');
+      setValueComVerificacao_(shMov, ordem.linhaIndex, coluna('PROCESSADO_POR') + 1, usuario, 'MOVIMENTACOES_FINANCEIRAS/BV_PROCESSADO_POR');
+      setValueComVerificacao_(shMov, ordem.linhaIndex, coluna('STATUS') + 1, 'PROCESSADO', 'MOVIMENTACOES_FINANCEIRAS/BV_STATUS');
       setValueComVerificacao_(shEvt, i + 1, e('STATUS_BV') + 1, 'PROCESSADO', 'EVENTOS/STATUS_BV');
-      return { sucesso: true, idMovimentacao: idMovimentacao };
+      if (e('BV_DATA_PAGAMENTO') >= 0) setValueComVerificacao_(shEvt, i + 1, e('BV_DATA_PAGAMENTO') + 1, dataSaida, 'EVENTOS/BV_DATA_PAGAMENTO');
+      registrarLog('PROCESSAR_BV', 'MOVIMENTACOES_FINANCEIRAS', String(ordem.linha[coluna('ID_MOVIMENTACAO')] || ''), 'Baixa integral da ordem de BV.');
+      bvObrigacaoInvalidarCachesFinanceiros_();
+      return { sucesso: true, idMovimentacao: String(ordem.linha[coluna('ID_MOVIMENTACAO')] || ''), valorProcessado: Number(valorBV.toFixed(2)) };
     }
 
     throw new Error('Evento não encontrado');
@@ -1345,6 +1344,7 @@ function buscarResumoFinanceiroEvento(idEvento) {
   valorRecebidoAteAgora = Number(valorRecebidoAteAgora.toFixed(2));
 
   const valorTotal = Number(evt[evtIdx][e('VALOR_TOTAL')]) || 0;
+  const excedente = { valorBruto: Number(Math.max(valorRecebidoAteAgora - valorTotal, 0).toFixed(2)) };
   // Pendente não deve ficar negativo; excedente de recebimento é tratado como "a maior".
   const valorPendente = Number(Math.max(valorTotal - valorRecebidoAteAgora, 0).toFixed(2));
   const valorBV = Number(evt[evtIdx][e('VALOR_BV')]) || 0;
@@ -1382,7 +1382,7 @@ function buscarResumoFinanceiroEvento(idEvento) {
   if (qtdBvProcessado > 1) divergencias.push('DUPLICIDADE_BV_PROCESSADO');
   if (qtdNfProcessada > 1) divergencias.push('DUPLICIDADE_NF_PROCESSADO');
   if (qtdFolhaProcessada > 1) divergencias.push('DUPLICIDADE_FOLHA_PROCESSADA');
-  if (valorRecebidoAteAgora > valorTotal + 0.01) {
+  if (excedente.valorBruto > 0.01) {
     alertas.push('INCONSISTENCIA_RECEBIDO_MAIOR_QUE_CONTRATO');
   }
 
@@ -1404,6 +1404,7 @@ function buscarResumoFinanceiroEvento(idEvento) {
     valorTotal,
     valorRecebidoAteAgora,
     valorPendente,
+    excedente,
     statusRecebimento,
     valorBV,
     idBV,
@@ -3329,7 +3330,6 @@ function lerSaudeFinanceiraEvento(idEvento) {
   let status = 'ok';
 
   const errosCriticos = [
-    'INCONSISTENCIA_RECEBIDO_MAIOR_QUE_CONTRATO',
     'EVENTO_CANCELADO_COM_RECEBIMENTO',
     'COMISSAO_INCONSISTENTE'
   ];
@@ -3414,7 +3414,6 @@ function listarEventosFinanceiros() {
   const mapaMovPorEvento = agruparMovimentacoesFinanceirasPorEvento_(movData);
   const mapaEventosPorId = mapearEventosPorId_(eventosData);
   const mapaComissaoPorEvento = agruparComissoesFinanceirasPorEvento_(movData);
-
   const lista = [];
 
   for (let i = 1; i < eventosData.length; i++) {
@@ -3539,6 +3538,7 @@ function obterDashboardGestao(params) {
     : 60;
   const cacheKey = [
     'dashboard:gestao:v2',
+    typeof bvObrigacaoRevisaoFinanceira_ === 'function' ? bvObrigacaoRevisaoFinanceira_() : '0',
     String(ano),
     incluirCancelados ? '1' : '0'
   ].join(':');
@@ -4041,10 +4041,15 @@ function agruparMovimentacoesFinanceirasPorEvento_(movData) {
     const valor = Number(row[6]) || 0;
     const bucket = mapa[idEvento] || {
       recebido: 0,
+      movimentacoesAtivas: 0,
       bv: { processado: 0, pendente: 0, valorProcessado: 0 },
       nf: { processado: 0, pendente: 0, valorProcessado: 0 },
       folha: { processado: 0, valorProcessado: 0 }
     };
+
+    // Uma linha não cancelada vinculada ao evento exige auditoria mesmo que
+    // ainda esteja pendente. Eventos cancelados sem linhas ativas saem do fluxo.
+    bucket.movimentacoesAtivas += 1;
 
     if (tipo === 'RECEBIMENTO_CLIENTE' && status === 'PROCESSADO') {
       bucket.recebido += valor;
@@ -4144,12 +4149,14 @@ function lerSaudeFinanceiraEvento_(idEvento, eventosData, movData, mapaMovPorEve
   const valorNF = Number(evento[COL.VALOR_NF]) || 0;
   const temNF = evento[COL.TEM_NF] === true || String(evento[COL.TEM_NF] || '').toUpperCase() === 'TRUE';
   const statusEvento = evento[COL.STATUS_GERAL] || 'ATIVO';
+  const eventoCancelado = String(statusEvento || '').trim().toUpperCase() === 'CANCELADO';
   const statusBVEspelho = String(evento[idxEvt('STATUS_BV', COL.STATUS_BV)] || 'N/A');
   const statusNFEspelho = String(evento[idxEvt('STATUS_NF', COL.STATUS_NF)] || 'N/A');
   const folhaEspelho = Number(evento[idxEvt('FOLHA_CUSTO_VALOR', COL.FOLHA_CUSTO_VALOR)]) || 0;
 
   const bucket = (mapaMovPorEvento && mapaMovPorEvento[chaveEvento]) || {
     recebido: 0,
+    movimentacoesAtivas: 0,
     bv: { processado: 0, pendente: 0, valorProcessado: 0 },
     nf: { processado: 0, pendente: 0, valorProcessado: 0 },
     folha: { processado: 0, valorProcessado: 0 }
@@ -4160,46 +4167,64 @@ function lerSaudeFinanceiraEvento_(idEvento, eventosData, movData, mapaMovPorEve
   const nfProcessada = (bucket.nf.processado || 0) > 0;
   const folhaExiste = (bucket.folha.processado || 0) > 0;
   const folhaMov = Number((bucket.folha.valorProcessado || 0).toFixed(2));
+  const temMovimentacaoAtiva = Number(bucket.movimentacoesAtivas || 0) > 0;
+  const canceladoSemImpactoFinanceiro = eventoCancelado && !temMovimentacaoAtiva;
 
   const pendente = Math.max(0, valorTotal - totalRecebido);
+  const excedente = { valorBruto: Number(Math.max(totalRecebido - valorTotal, 0).toFixed(2)) };
 
   const alertas = [];
   const divergencias = [];
-  if (eventoJaOcorreu && totalRecebido === 0 && valorTotal > 0) {
-    alertas.push('EVENTO_OCORREU_SEM_RECEBIMENTO');
-  }
-  if (eventoJaOcorreu && totalRecebido > 0 && pendente > 0) {
-    alertas.push('EVENTO_OCORREU_RECEBIMENTO_PARCIAL');
-  }
-  if (totalRecebido > valorTotal + 0.01) {
-    alertas.push('INCONSISTENCIA_RECEBIDO_MAIOR_QUE_CONTRATO');
-  }
-  if (valorBV > 0 && !bvPago) {
-    alertas.push('BV_PENDENTE');
-  }
-  if (statusRecebimentoInterno_(totalRecebido, valorTotal) === 'QUITADO' && valorBV > 0 && !bvPago) {
-    alertas.push('EVENTO_QUITADO_COM_BV_PENDENTE');
-  }
-  if (statusRecebimentoInterno_(totalRecebido, valorTotal) === 'QUITADO' && temNF && !nfProcessada) {
-    alertas.push('EVENTO_QUITADO_COM_NF_PENDENTE');
-  }
-  if (eventoJaOcorreu && !folhaExiste) {
-    alertas.push('FOLHA_NAO_REGISTRADA');
-  }
-  if ((bucket.bv.processado || 0) > 1) alertas.push('DUPLICIDADE_BV_PROCESSADO');
-  if ((bucket.nf.processado || 0) > 1) alertas.push('DUPLICIDADE_NF_PROCESSADO');
-  if ((bucket.folha.processado || 0) > 1) alertas.push('DUPLICIDADE_FOLHA_PROCESSADA');
+  const statusBVCalculado = eventoCancelado && !(bucket.bv.processado || bucket.bv.pendente)
+    ? 'CANCELADO'
+    : (valorBV > 0 ? (bvPago ? 'PROCESSADO' : 'PENDENTE') : 'N/A');
+  const statusNFCalculado = eventoCancelado && !(bucket.nf.processado || bucket.nf.pendente)
+    ? 'CANCELADO'
+    : (temNF ? (nfProcessada ? 'PROCESSADO' : 'PENDENTE') : 'N/A');
 
-  const statusBVCalculado = valorBV > 0 ? (bvPago ? 'PROCESSADO' : 'PENDENTE') : 'N/A';
-  const statusNFCalculado = temNF ? (nfProcessada ? 'PROCESSADO' : 'PENDENTE') : 'N/A';
-  if (statusFinanceiroNormalizado_(statusBVEspelho) !== statusFinanceiroNormalizado_(statusBVCalculado)) {
-    divergencias.push('STATUS_BV_ESPELHO_DIVERGENTE');
-  }
-  if (statusFinanceiroNormalizado_(statusNFEspelho) !== statusFinanceiroNormalizado_(statusNFCalculado)) {
-    divergencias.push('STATUS_NF_ESPELHO_DIVERGENTE');
-  }
-  if (Math.abs(folhaEspelho - folhaMov) > 0.01) {
-    divergencias.push('FOLHA_CUSTO_ESPELHO_DIVERGENTE');
+  if (eventoCancelado) {
+    // O contrato e custos configurados deixam de ser obrigações após o cancelamento.
+    // Só uma linha financeira ainda ativa merece aparecer para tratamento.
+    if (temMovimentacaoAtiva) {
+      alertas.push(totalRecebido > 0
+        ? 'EVENTO_CANCELADO_COM_RECEBIMENTO'
+        : 'EVENTO_CANCELADO_COM_IMPACTO_FINANCEIRO');
+    }
+  } else {
+    if (eventoJaOcorreu && totalRecebido === 0 && valorTotal > 0) {
+      alertas.push('EVENTO_OCORREU_SEM_RECEBIMENTO');
+    }
+    if (eventoJaOcorreu && totalRecebido > 0 && pendente > 0) {
+      alertas.push('EVENTO_OCORREU_RECEBIMENTO_PARCIAL');
+    }
+    if (excedente.valorBruto > 0.01) {
+      alertas.push('INCONSISTENCIA_RECEBIDO_MAIOR_QUE_CONTRATO');
+    }
+    if (valorBV > 0 && !bvPago) {
+      alertas.push('BV_PENDENTE');
+    }
+    if (statusRecebimentoInterno_(totalRecebido, valorTotal) === 'QUITADO' && valorBV > 0 && !bvPago) {
+      alertas.push('EVENTO_QUITADO_COM_BV_PENDENTE');
+    }
+    if (statusRecebimentoInterno_(totalRecebido, valorTotal) === 'QUITADO' && temNF && !nfProcessada) {
+      alertas.push('EVENTO_QUITADO_COM_NF_PENDENTE');
+    }
+    if (eventoJaOcorreu && !folhaExiste) {
+      alertas.push('FOLHA_NAO_REGISTRADA');
+    }
+    if ((bucket.bv.processado || 0) > 1) alertas.push('DUPLICIDADE_BV_PROCESSADO');
+    if ((bucket.nf.processado || 0) > 1) alertas.push('DUPLICIDADE_NF_PROCESSADO');
+    if ((bucket.folha.processado || 0) > 1) alertas.push('DUPLICIDADE_FOLHA_PROCESSADA');
+
+    if (statusFinanceiroNormalizado_(statusBVEspelho) !== statusFinanceiroNormalizado_(statusBVCalculado)) {
+      divergencias.push('STATUS_BV_ESPELHO_DIVERGENTE');
+    }
+    if (statusFinanceiroNormalizado_(statusNFEspelho) !== statusFinanceiroNormalizado_(statusNFCalculado)) {
+      divergencias.push('STATUS_NF_ESPELHO_DIVERGENTE');
+    }
+    if (Math.abs(folhaEspelho - folhaMov) > 0.01) {
+      divergencias.push('FOLHA_CUSTO_ESPELHO_DIVERGENTE');
+    }
   }
 
   let status = 'ok';
@@ -4219,31 +4244,34 @@ function lerSaudeFinanceiraEvento_(idEvento, eventosData, movData, mapaMovPorEve
     resumoFinanceiro: {
       valorContrato: valorTotal,
       totalRecebido,
-      valorPendente: pendente,
-      statusRecebimento: statusRecebimentoInterno_(totalRecebido, valorTotal)
+      valorPendente: eventoCancelado ? 0 : pendente,
+      statusRecebimento: eventoCancelado ? 'CANCELADO' : statusRecebimentoInterno_(totalRecebido, valorTotal),
+      excedente: excedente
     },
     custos: {
-      nf: { existe: temNF, valor: valorNF, status: statusNFCalculado, pendente: temNF && !nfProcessada },
+      nf: { existe: temNF, valor: valorNF, status: statusNFCalculado, pendente: !eventoCancelado && temNF && !nfProcessada },
       bv: {
         existe: valorBV > 0,
         valor: valorBV,
         status: statusBVCalculado,
-        pendente: valorBV > 0 && !bvPago,
+        pendente: !eventoCancelado && valorBV > 0 && !bvPago,
         idParceiro: idBV,
         nomeParceiro: nomeBV
       },
       folha: { existe: folhaExiste, valor: folhaMov }
     },
     acoes: {
-      podeReceber: pendente > 0 && statusEvento === 'ATIVO',
-      podePagarBV: valorBV > 0 && !bvPago,
-      podeRegistrarFolha: eventoJaOcorreu && !folhaExiste
+      podeReceber: !eventoCancelado && pendente > 0 && statusEvento === 'ATIVO',
+      podePagarBV: !eventoCancelado && valorBV > 0 && !bvPago,
+      podeRegistrarFolha: !eventoCancelado && eventoJaOcorreu && !folhaExiste
     },
     metadados: {
       tipoRegistro: String(evento[COL.TIPO_REGISTRO] || ''),
       legado: String(evento[idxEvt('CRIADO_POR', COL.CRIADO_POR)] || '').toLowerCase().indexOf('migracao') !== -1,
       statusBVEspelho: statusBVEspelho,
-      statusNFEspelho: statusNFEspelho
+      statusNFEspelho: statusNFEspelho,
+      canceladoSemImpactoFinanceiro: canceladoSemImpactoFinanceiro,
+      canceladoComImpactoFinanceiro: eventoCancelado && temMovimentacaoAtiva
     }
   };
 }
@@ -4517,6 +4545,7 @@ function diagnosticarIntegridadeFinanceira(params) {
     if (!mapaMov[idEvento]) {
       mapaMov[idEvento] = {
         recebidoLiquido: 0,
+        movimentacoesAtivas: 0,
         comissaoGeradaPorVendedor: {},
         comissaoPagaPorVendedor: {},
         bvProcessado: 0,
@@ -4532,6 +4561,7 @@ function diagnosticarIntegridadeFinanceira(params) {
     const idVendedor = String(row[m('ID_CONTRAPARTE')] || '').trim();
 
     if (status === 'CANCELADO') continue;
+    mapaMov[idEvento].movimentacoesAtivas += 1;
 
     if (tipo === 'RECEBIMENTO_CLIENTE' && status === 'PROCESSADO') {
       mapaMov[idEvento].recebidoLiquido += valor;
@@ -4593,6 +4623,7 @@ function diagnosticarIntegridadeFinanceira(params) {
 
     const mov = mapaMov[idEvento] || {
       recebidoLiquido: 0,
+      movimentacoesAtivas: 0,
       comissaoGeradaPorVendedor: {},
       comissaoPagaPorVendedor: {},
       bvProcessado: 0,
@@ -4600,6 +4631,26 @@ function diagnosticarIntegridadeFinanceira(params) {
       folhaProcessada: 0,
       valorFolhaProcessada: 0
     };
+
+    // Em cancelamentos, os espelhos de contrato e custos configurados não são
+    // comparáveis ao livro. Só movimentos ainda ativos (e duplicidades reais)
+    // permanecem auditáveis.
+    if (statusGeral === 'CANCELADO') {
+      if (!Number(mov.movimentacoesAtivas || 0)) {
+        eventosAnalisados--;
+        continue;
+      }
+      if ((mov.bvProcessado || 0) > 1) {
+        divergencias.push({ idEvento: idEvento, tipo: 'DUPLICIDADE_BV_PROCESSADO', esperado: 1, atual: mov.bvProcessado });
+      }
+      if ((mov.nfProcessado || 0) > 1) {
+        divergencias.push({ idEvento: idEvento, tipo: 'DUPLICIDADE_NF_PROCESSADO', esperado: 1, atual: mov.nfProcessado });
+      }
+      if ((mov.folhaProcessada || 0) > 1) {
+        divergencias.push({ idEvento: idEvento, tipo: 'DUPLICIDADE_FOLHA_PROCESSADA', esperado: 1, atual: mov.folhaProcessada });
+      }
+      continue;
+    }
 
     const recebidoCalculado = Number((mov.recebidoLiquido || 0).toFixed(2));
     const pendenteCalculado = Number(Math.max(valorTotal - recebidoCalculado, 0).toFixed(2));

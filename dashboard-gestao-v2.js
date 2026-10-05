@@ -555,7 +555,8 @@ function obterDashboardGestaoV2(params) {
   const projeto = String((params && params.projeto) || '').trim();
   const forceRefresh = String((params && params.forceRefresh) || '').toUpperCase() === 'TRUE';
   const cache = CacheService.getScriptCache();
-  const cacheKey = ['dashboard:gestao:v2beta:3', ano, incluirCancelados ? '1' : '0', tipoEvento || '-', projeto || '-'].join(':');
+  const revisaoFinanceira = typeof bvObrigacaoRevisaoFinanceira_ === 'function' ? bvObrigacaoRevisaoFinanceira_() : '0';
+  const cacheKey = ['dashboard:gestao:v2beta:3', revisaoFinanceira, ano, incluirCancelados ? '1' : '0', tipoEvento || '-', projeto || '-'].join(':');
   if (!forceRefresh) {
     const armazenado = dashboardV2LerCacheSegmentado_(cache, cacheKey);
     if (armazenado) return armazenado;
