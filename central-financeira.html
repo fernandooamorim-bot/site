@@ -737,6 +737,13 @@
       background: #fff1f1;
       color: #9f1f1f;
     }
+    .rf-excedente {
+      border-color: #cbd8e8;
+      background: #f5f8fc;
+      color: #334155;
+    }
+    .rf-excedente-title { font-size:13px; font-weight:800; }
+    .rf-excedente-copy { margin-top:4px; font-size:12px; line-height:1.45; }
     .rf-title {
       font-size: 12px;
       font-weight: 800;
@@ -1644,7 +1651,8 @@ function montarCarregamentoLocal_(titulo, detalhe) {
 const ALERTAS_LABEL = {
   EVENTO_OCORREU_SEM_RECEBIMENTO: 'Evento já ocorreu e não teve recebimento',
   EVENTO_OCORREU_RECEBIMENTO_PARCIAL: 'Evento ocorreu com recebimento parcial',
-  INCONSISTENCIA_RECEBIDO_MAIOR_QUE_CONTRATO: 'Recebido maior que o valor do contrato',
+  INCONSISTENCIA_RECEBIDO_MAIOR_QUE_CONTRATO: 'Recebimento acima do contrato (informativo)',
+  EVENTO_CANCELADO_COM_IMPACTO_FINANCEIRO: 'Evento cancelado com movimentação financeira ativa',
   BV_PENDENTE: 'BV ainda não foi pago',
   FOLHA_NAO_REGISTRADA: 'Folha de custos não registrada',
   EVENTO_CANCELADO_COM_RECEBIMENTO: 'Evento cancelado com recebimento',
@@ -1706,7 +1714,7 @@ function atualizarBadgeFiscalizacao_(lista) {
   const criticos = eventos.filter(ev => {
     if (eventoCanceladoSemImpactoFinanceiro_(ev)) return false;
     const alertas = obterAlertasFiscalizacao_(ev).filter(a => !alertaEhInformativo_(a));
-    const divergencias = Array.isArray(ev.divergencias) ? ev.divergencias : [];
+    const divergencias = obterDivergenciasFiscalizacao_(ev);
     return divergencias.length > 0 || alertas.length > 0;
   }).length;
 
@@ -1739,6 +1747,7 @@ function normalizarStatusEventoFiscal_(ev) {
 
 function eventoCanceladoSemImpactoFinanceiro_(ev) {
   if (!ev || typeof ev !== 'object') return false;
+  if (ev?.metadados?.canceladoSemImpactoFinanceiro === true) return true;
   const statusNorm = normalizarStatusEventoFiscal_(ev);
   const alertas = Array.isArray(ev.alertas) ? ev.alertas : [];
   const isCancelado = statusNorm.includes('CANCEL') || alertas.includes('EVENTO_CANCELADO_COM_RECEBIMENTO');
@@ -1748,8 +1757,8 @@ function eventoCanceladoSemImpactoFinanceiro_(ev) {
   const comissaoPaga = Number(ev?.comissao?.valores?.pago || 0);
   const bvStatus = String(ev?.bv?.status || ev?.custos?.bv?.status || '').toUpperCase();
   const nfStatus = String(ev?.nf?.status || ev?.custos?.nf?.status || '').toUpperCase();
-  const temDivergencias = Array.isArray(ev.divergencias) && ev.divergencias.length > 0;
-  const temAuditoria = (fiscalDivergenciasAuditoriaMap.get(String(ev.idEvento || '')) || []).length > 0;
+  const temDivergencias = obterDivergenciasFiscalizacao_(ev).length > 0;
+  const temAuditoria = obterDivergenciasAuditoriaFiscalizacao_(ev).length > 0;
   const temMovFinanceiro = recebido > 0 || comissaoPaga > 0 || bvStatus === 'PROCESSADO' || nfStatus === 'PROCESSADO';
   const temAlertaCritico = alertas.some(a => a === 'EVENTO_CANCELADO_COM_RECEBIMENTO' || String(a || '').indexOf('DUPLICIDADE_') === 0);
   return !temMovFinanceiro && !temDivergencias && !temAuditoria && !temAlertaCritico;
@@ -1760,7 +1769,28 @@ function obterAlertasFiscalizacao_(ev) {
   const statusNorm = normalizarStatusEventoFiscal_(ev);
   const isCancelado = statusNorm.includes('CANCEL') || alertas.includes('EVENTO_CANCELADO_COM_RECEBIMENTO');
   if (!isCancelado) return alertas;
-  return alertas.filter(a => !['FOLHA_NAO_REGISTRADA', 'BV_PENDENTE', 'EVENTO_QUITADO_COM_BV_PENDENTE', 'EVENTO_QUITADO_COM_NF_PENDENTE'].includes(String(a || '')));
+  return alertas.filter(a => ![
+    'EVENTO_OCORREU_SEM_RECEBIMENTO',
+    'EVENTO_OCORREU_RECEBIMENTO_PARCIAL',
+    'FOLHA_NAO_REGISTRADA',
+    'BV_PENDENTE',
+    'EVENTO_QUITADO_COM_BV_PENDENTE',
+    'EVENTO_QUITADO_COM_NF_PENDENTE',
+    'COMISSAO_PENDENTE',
+    'COMISSAO_NAO_PAGA_APOS_QUITACAO'
+  ].includes(String(a || '')));
+}
+
+function obterDivergenciasFiscalizacao_(ev) {
+  const divergencias = Array.isArray(ev?.divergencias) ? ev.divergencias : [];
+  const statusNorm = normalizarStatusEventoFiscal_(ev);
+  return statusNorm.includes('CANCEL') ? [] : divergencias;
+}
+
+function obterDivergenciasAuditoriaFiscalizacao_(ev) {
+  const statusNorm = normalizarStatusEventoFiscal_(ev);
+  if (statusNorm.includes('CANCEL')) return [];
+  return fiscalDivergenciasAuditoriaMap.get(String(ev?.idEvento || '')) || [];
 }
 
 function humanizarCodigoTecnico_(codigo) {
@@ -1918,7 +1948,6 @@ function possuiDadosNaoProcessadosNoModoAtual_() {
 
   if (modoAtual === 'obrigacao') {
     return (
-      campoMonetarioMaiorQueZero_('valorSaida') ||
       campoTextoPreenchido_('obsSaida') ||
       campoTextoPreenchido_('comprovanteSaida') ||
       inputTemArquivoSelecionado_('fileComprovanteSaida')
@@ -2753,8 +2782,9 @@ function renderCamposSaida() {
   if (tipo === 'BV_EVENTO') {
     const valorSugerido = Number(ultimoResumoFinanceiro?.valorBV || 0);
     box.innerHTML = `
-      <label>Valor</label>
-      <input type="text" id="valorSaida" inputmode="decimal" autocomplete="off" value="${valorSugerido > 0 ? Number(valorSugerido).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}) : ''}">
+      <label>BV a quitar</label>
+      <div class="muted" style="padding:10px 12px;border:1px solid var(--border,#d1d5db);border-radius:8px;background:var(--card,#fff)"><strong>R$ ${valorSugerido.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}</strong><br><span>Baixa integral da ordem; pagamento parcial não está disponível.</span></div>
+      <input type="hidden" id="valorSaida" value="${valorSugerido > 0 ? valorSugerido.toFixed(2) : ''}">
 
       <label>Data</label>
       <input type="date" id="dataSaida" value="${hojeLocalISO()}" readonly>
@@ -2775,10 +2805,9 @@ function renderCamposSaida() {
       <button class="btn primary" onclick="submitSaidaEvento()">Registrar Saída</button>
 
       <div class="muted" style="margin-top:8px">
-        ℹ️ Valor sugerido pelo cadastro do evento: R$ ${valorSugerido.toFixed(2)} (você pode ajustar se necessário).
+        ℹ️ O valor é definido pela ordem de BV do evento e validado novamente pelo sistema ao processar.
       </div>
     `;
-    aplicarMascaraMonetariaPorIds_(['valorSaida']);
   }
 
   if (tipo === 'FOLHA_EVENTO') {
@@ -3315,8 +3344,8 @@ function aplicarFiltrosFiscalizacao_(resetarPaginacao) {
     lista = lista.filter(ev => {
       const alertas = obterAlertasFiscalizacao_(ev);
       const alertasCriticos = alertas.filter(a => !alertaEhInformativo_(a));
-      const divergencias = Array.isArray(ev.divergencias) ? ev.divergencias : [];
-      const divergenciasAuditoria = fiscalDivergenciasAuditoriaMap.get(String(ev.idEvento || '')) || [];
+      const divergencias = obterDivergenciasFiscalizacao_(ev);
+      const divergenciasAuditoria = obterDivergenciasAuditoriaFiscalizacao_(ev);
       const legado = !!(ev.metadados && ev.metadados.legado);
       if (tipo === 'COM_ALERTA') return alertasCriticos.length > 0;
       if (tipo === 'COM_DIVERGENCIA') return divergencias.length > 0 || divergenciasAuditoria.length > 0;
@@ -3336,8 +3365,8 @@ function aplicarFiltrosFiscalizacao_(resetarPaginacao) {
   const prioridadeFiscal_ = function (ev) {
     const alertas = obterAlertasFiscalizacao_(ev);
     const alertasCriticos = alertas.filter(a => !alertaEhInformativo_(a));
-    const divergencias = Array.isArray(ev?.divergencias) ? ev.divergencias : [];
-    const divergenciasAuditoria = fiscalDivergenciasAuditoriaMap.get(String(ev?.idEvento || '')) || [];
+    const divergencias = obterDivergenciasFiscalizacao_(ev);
+    const divergenciasAuditoria = obterDivergenciasAuditoriaFiscalizacao_(ev);
     if (divergencias.length > 0 || divergenciasAuditoria.length > 0 || alertasCriticos.length > 0) return 0;
     if (alertas.length > 0) return 1;
     return 2;
@@ -3384,8 +3413,8 @@ function renderListaFiscalizacao_(lista) {
   box.innerHTML = visiveis.map(ev => {
     const alertas = obterAlertasFiscalizacao_(ev);
     const alertasCriticos = alertas.filter(a => !alertaEhInformativo_(a));
-    const divergencias = Array.isArray(ev.divergencias) ? ev.divergencias : [];
-    const divergenciasAuditoria = fiscalDivergenciasAuditoriaMap.get(String(ev.idEvento || '')) || [];
+    const divergencias = obterDivergenciasFiscalizacao_(ev);
+    const divergenciasAuditoria = obterDivergenciasAuditoriaFiscalizacao_(ev);
     const cardClasse = (divergencias.length > 0 || divergenciasAuditoria.length > 0) ? 'fiscal-card erro' : (alertasCriticos.length > 0 ? 'fiscal-card alerta' : 'fiscal-card');
     const bvStatus = String(ev?.bv?.status || ev?.custos?.bv?.status || 'N/A');
     const bvValor = Number(ev?.bv?.valor || ev?.custos?.bv?.valor || 0);
@@ -3842,7 +3871,7 @@ async function selectEvento(ev){
   }
 
   const vt = Number(fin.valorTotal) || 0;
-  let vr = Number(fin.valorRecebido);
+  let vr = Number(fin.valorRecebidoAteAgora ?? fin.valorRecebido);
   let vp = Number(fin.valorPendente);
 
   if (isNaN(vr)) {
@@ -3853,6 +3882,8 @@ async function selectEvento(ev){
     vp = vt - (isNaN(vr) ? 0 : vr);
   }
 
+  const excedente = fin && typeof fin.excedente === 'object' && fin.excedente ? fin.excedente : {};
+  const excedenteBruto = Number(excedente.valorBruto ?? Math.max(vr - vt, 0));
   let extraHtml = '';
   let statusFinal = (window.StatusFormatters && typeof window.StatusFormatters.labelStatusRecebimento === 'function')
     ? window.StatusFormatters.labelStatusRecebimento(fin.statusRecebimento, {
@@ -3863,14 +3894,15 @@ async function selectEvento(ev){
       })
     : (fin.statusRecebimento || '—');
 
-  if (vp < 0) {
-    const excedente = Math.abs(vp);
+  if (excedenteBruto > 0.01) {
     extraHtml = `
-      <div style="margin-top:6px;color:#facc15">
-        ⚠️ Valor pago a mais: R$ ${excedente.toFixed(2)}
+      <div class="rf-card rf-excedente">
+        <div class="rf-excedente-title">Recebimento acima do contrato</div>
+        <div class="rf-excedente-copy">Contrato: <strong>R$ ${vt.toFixed(2)}</strong> • Recebido: <strong>R$ ${vr.toFixed(2)}</strong> • Diferença: <strong>R$ ${excedenteBruto.toFixed(2)}</strong>.</div>
+        <div class="rf-excedente-copy">Aviso informativo. O recebimento permanece no caixa; o contrato e a comissão seguem as regras atuais.</div>
       </div>
     `;
-    statusFinal = 'Quitado (com excedente)';
+    statusFinal = 'Quitado (recebido acima do contrato)';
   }
 
   const valorBV = Number(fin.valorBV || 0);
@@ -3951,6 +3983,7 @@ async function selectEvento(ev){
               : 'Digite um valor para simular impacto no saldo.'}
           </div>
         </div>
+        ${extraHtml}
         ${duplicidade ? `
           <div class="rf-card risk" id="resumoRecebimentoRisco">
             ⚠️ Possível duplicidade: já existe recebimento de R$ ${Number(duplicidade.valor || 0).toFixed(2)} em ${escaparHtml_(String(duplicidade.dataFormatada || '—'))}.
@@ -3962,7 +3995,6 @@ async function selectEvento(ev){
           <div class="rf-saida-row"><span>NF: ${fin.temNF ? ('R$ ' + valorNF.toFixed(2)) : 'Não configurado'}</span>${nfBadgeHtml}</div>
           <div class="rf-saida-row"><span>Folha de custo: R$ ${folhaValor.toFixed(2)}</span>${folhaBadgeHtml}</div>
           <div class="rf-saida-row"><span>Comissão: R$ ${valorComissaoPagaTotal.toFixed(2)} paga / R$ ${valorComissaoEsperadaTotal.toFixed(2)} esperada</span>${comissaoBadgeHtml}</div>
-          ${extraHtml}
         </div>
         <div class="rf-card">
           <div class="rf-title">Últimos recebimentos (${resumoRecebimentosRecentes.length})</div>

@@ -335,13 +335,17 @@
     setLoading(true);
     setText('dataStatus', force ? 'Atualizando dados financeiros…' : 'Carregando visão executiva…');
     try {
-      let data = !force ? readCache(year) : null;
-      let source = 'cache local';
-      if (!data) {
+      const cacheLocal = !force ? readCache(year) : null;
+      let data;
+      let source = 'dados atualizados';
+      try {
         data = await Auth.apiCall('obterDashboardGestaoV2', { ano: year, incluirCancelados: false, tipoEvento: $('typeFilter').value, projeto: $('projectFilter').value, forceRefresh: force });
         if (!data?.sucesso) throw new Error(data?.mensagem || 'Resposta inválida do dashboard');
         saveCache(year, data);
-        source = 'dados atualizados';
+      } catch (requestError) {
+        if (!cacheLocal) throw requestError;
+        data = cacheLocal;
+        source = 'cache local (sem conexão)';
       }
       state.data = data;
       yearOptions(data.anosDisponiveis || []);
