@@ -2304,11 +2304,10 @@ function renderRecebimento(){
     <label>Link do Comprovante</label>
     <input id="comprovante">
     <div style="margin-top:8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-      <input type="file" id="fileComprovanteRecebimento" accept="image/png,image/jpeg,application/pdf">
-      <button type="button" class="btn secondary"
-        onclick="uploadComprovanteParaCampo('fileComprovanteRecebimento','comprovante','RECEBIMENTO', eventoSelecionado || '')">
-        📎 Carregar Comprovante
-      </button>
+      <input type="file" id="fileComprovanteRecebimento" accept="image/png,image/jpeg,application/pdf" onchange="atualizarComprovanteSelecionado_('fileComprovanteRecebimento')">
+      <span id="fileComprovanteRecebimentoStatus" class="muted" role="status">O arquivo será enviado ao confirmar.</span>
+      <button type="button" class="btn secondary" onclick="visualizarComprovanteSelecionado_('fileComprovanteRecebimento')">👁 Conferir</button>
+      <button type="button" class="btn secondary" onclick="removerComprovanteSelecionado_('fileComprovanteRecebimento')">✕ Remover arquivo</button>
     </div>
 
     <label>Observações</label>
@@ -2563,11 +2562,10 @@ function renderComissao(){
         <input id="linkPagamento">
       </label>
     <div class="commission-upload">
-      <input type="file" id="fileComprovanteFechamento" accept="image/png,image/jpeg,application/pdf">
-      <button type="button" class="btn secondary"
-        onclick="uploadComprovanteParaCampo('fileComprovanteFechamento','linkPagamento','FECHAMENTO_COMISSAO', vendedorSelecionado?.id || '')">
-        📎 Carregar Comprovante
-      </button>
+      <input type="file" id="fileComprovanteFechamento" accept="image/png,image/jpeg,application/pdf" onchange="atualizarComprovanteSelecionado_('fileComprovanteFechamento')">
+      <span id="fileComprovanteFechamentoStatus" class="muted" role="status">O arquivo será enviado ao confirmar.</span>
+      <button type="button" class="btn secondary" onclick="visualizarComprovanteSelecionado_('fileComprovanteFechamento')">👁 Conferir</button>
+      <button type="button" class="btn secondary" onclick="removerComprovanteSelecionado_('fileComprovanteFechamento')">✕ Remover arquivo</button>
     </div>
     </section>
 
@@ -2792,11 +2790,10 @@ function renderCamposSaida() {
       <label>Link do Comprovante</label>
       <input id="comprovanteSaida">
       <div style="margin-top:8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-        <input type="file" id="fileComprovanteSaida" accept="image/png,image/jpeg,application/pdf">
-        <button type="button" class="btn secondary"
-          onclick="uploadComprovanteParaCampo('fileComprovanteSaida','comprovanteSaida','SAIDA_EVENTO', eventoSelecionado || '')">
-          📎 Carregar Comprovante
-        </button>
+        <input type="file" id="fileComprovanteSaida" accept="image/png,image/jpeg,application/pdf" onchange="atualizarComprovanteSelecionado_('fileComprovanteSaida')">
+      <span id="fileComprovanteSaidaStatus" class="muted" role="status">O arquivo será enviado ao confirmar.</span>
+      <button type="button" class="btn secondary" onclick="visualizarComprovanteSelecionado_('fileComprovanteSaida')">👁 Conferir</button>
+      <button type="button" class="btn secondary" onclick="removerComprovanteSelecionado_('fileComprovanteSaida')">✕ Remover arquivo</button>
       </div>
 
       <label>Observações</label>
@@ -2828,7 +2825,7 @@ function renderCamposSaida() {
   }
 }
 
-function submitSaidaEvento() {
+async function submitSaidaEvento() {
   const btn = event?.target;
   if (lockSubmit) return;
   if (!eventoSelecionado) return alert('Selecione um evento');
@@ -2862,12 +2859,19 @@ function submitSaidaEvento() {
     if (!observacoes) return alert('Descreva os custos da folha');
   }
 
+  if (tipo === 'BV_EVENTO' && !confirmarSemComprovante_('fileComprovanteSaida', 'comprovanteSaida')) return;
   if (!confirm('Confirmar registro desta saída?')) return;
 
   lockSubmit = true;
   bloquearBotao(btn);
   showLoading('Registrando saída...');
 
+  try {
+    if (tipo === 'BV_EVENTO') comprovante = await enviarComprovanteSelecionado_('fileComprovanteSaida', 'comprovanteSaida', 'SAIDA_EVENTO', eventoSelecionado);
+  } catch (err) {
+    hideLoading(); lockSubmit = false; liberarBotao(btn); tratarErroApi(err); return;
+  }
+  showLoading('Registrando saída...');
   const payload = {
     tipoOperacao: 'SAIDA_EVENTO',
     tipoSaida: tipo,
@@ -5031,55 +5035,67 @@ function consumirOperationKey(tipo) {
   operationKeys[String(tipo || '')] = '';
 }
 
-async function uploadComprovanteParaCampo(fileInputId, targetInputId, categoria, referencia) {
-  const input = document.getElementById(fileInputId);
-  const target = document.getElementById(targetInputId);
-  if (!input || !target) return alert('Campo de comprovante não encontrado.');
-
-  const file = input.files && input.files[0];
-  if (!file) return alert('Selecione um arquivo de comprovante.');
-
-  const mimeType = (file.type || inferirMimePorNomeArquivo(file.name) || '').toLowerCase();
-  const tiposPermitidos = ['image/png', 'image/jpeg', 'application/pdf'];
-  if (!tiposPermitidos.includes(mimeType)) {
-    return alert('Formato inválido. Use PNG, JPG ou PDF.');
-  }
-
-  const maxBytes = 2 * 1024 * 1024;
-  if (file.size > maxBytes) {
-    return alert('Arquivo maior que 2MB. Reduza o comprovante e tente novamente.');
-  }
-
-  const btn = event?.target;
-  bloquearBotao(btn);
-  showLoading('Enviando comprovante...');
-
-  try {
-    const dataUrl = await lerArquivoComoDataURL(file);
-    const base64 = (dataUrl.split(',')[1] || '').trim();
-    if (!base64) throw new Error('Falha ao ler arquivo selecionado');
-
-    const resp = await Auth.apiCall('apiUploadComprovante', {
-      arquivoBase64: base64,
-      mimeType: mimeType,
-      nomeArquivo: file.name,
-      categoria: categoria || 'GERAL',
-      referencia: referencia || ''
-    });
-
-    if (!resp || resp.sucesso !== true || !resp.linkArquivo) {
-      throw new Error(resp?.mensagem || 'Falha no upload do comprovante');
-    }
-
-    target.value = resp.linkArquivo;
+function atualizarComprovanteSelecionado_(id) {
+  const input = document.getElementById(id);
+  const status = document.getElementById(id + 'Status');
+  const file = input?.files?.[0];
+  if (!file) { if (status) status.textContent = 'O arquivo será enviado ao confirmar.'; return; }
+  const tipo = (file.type || inferirMimePorNomeArquivo(file.name) || '').toLowerCase();
+  if (!['image/png', 'image/jpeg', 'application/pdf'].includes(tipo) || file.size > 2 * 1024 * 1024 || !file.size) {
     input.value = '';
-    alert('Comprovante carregado com sucesso.');
-  } catch (err) {
-    tratarErroApi(err);
-  } finally {
-    hideLoading();
-    liberarBotao(btn);
+    if (status) status.textContent = 'Arquivo não selecionado.';
+    alert('Use um arquivo PNG, JPG ou PDF de até 2 MB e que não esteja vazio.');
+    return;
   }
+  if (status) status.textContent = 'Selecionado: ' + file.name + ' — será enviado ao confirmar.';
+}
+
+function visualizarComprovanteSelecionado_(id) {
+  const file = document.getElementById(id)?.files?.[0];
+  if (!file) return alert('Selecione um arquivo para conferir.');
+  const url = URL.createObjectURL(file);
+  const janela = window.open(url, '_blank', 'noopener');
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
+}
+
+function removerComprovanteSelecionado_(id) {
+  const input = document.getElementById(id);
+  if (input) input.value = '';
+  atualizarComprovanteSelecionado_(id);
+}
+
+function confirmarSemComprovante_(fileId, targetId) {
+  const arquivo = document.getElementById(fileId)?.files?.[0];
+  const link = String(document.getElementById(targetId)?.value || '').trim();
+  if (arquivo && link) {
+    alert('Use o arquivo selecionado ou o link informado. Remova um deles para continuar.');
+    return false;
+  }
+  return !!(arquivo || link) || confirm('Nenhum comprovante foi anexado. Deseja continuar sem comprovante?');
+}
+
+async function enviarComprovanteSelecionado_(fileId, targetId, categoria, referencia) {
+  const input = document.getElementById(fileId);
+  const target = document.getElementById(targetId);
+  const file = input?.files?.[0];
+  if (!file) return String(target?.value || '').trim();
+  const mimeType = (file.type || inferirMimePorNomeArquivo(file.name) || '').toLowerCase();
+  if (!['image/png', 'image/jpeg', 'application/pdf'].includes(mimeType) || !file.size || file.size > 2 * 1024 * 1024) {
+    throw new Error('Arquivo inválido. Use PNG, JPG ou PDF de até 2 MB.');
+  }
+  showLoading('Enviando comprovante...');
+  const dataUrl = await lerArquivoComoDataURL(file);
+  const resp = await Auth.apiCall('apiUploadComprovante', {
+    arquivoBase64: (dataUrl.split(',')[1] || '').trim(), mimeType,
+    nomeArquivo: file.name, categoria, referencia: referencia || ''
+  });
+  if (!resp || resp.sucesso !== true || !resp.linkArquivo) throw new Error(resp?.mensagem || 'Falha no envio do comprovante');
+  // Retém o link para uma tentativa posterior se o registro financeiro falhar.
+  target.value = resp.linkArquivo;
+  input.value = '';
+  const status = document.getElementById(fileId + 'Status');
+  if (status) status.textContent = 'Arquivo enviado; link disponível acima.';
+  return resp.linkArquivo;
 }
 
 function lerArquivoComoDataURL(file) {
@@ -5324,7 +5340,7 @@ function resetRecebimentoForm() {
   const campoComp = document.getElementById('comprovante');
   if (campoComp) campoComp.value = '';
   const fileComp = document.getElementById('fileComprovanteRecebimento');
-  if (fileComp) fileComp.value = '';
+  if (fileComp) removerComprovanteSelecionado_('fileComprovanteRecebimento');
   const aviso = document.getElementById('avisoValorRecebimento');
   if (aviso) aviso.remove();
   const sug = document.getElementById('evSug');
@@ -5340,7 +5356,7 @@ function limparCamposLancamentoRecebimento_() {
   const campoComp = document.getElementById('comprovante');
   if (campoComp) campoComp.value = '';
   const fileComp = document.getElementById('fileComprovanteRecebimento');
-  if (fileComp) fileComp.value = '';
+  if (fileComp) removerComprovanteSelecionado_('fileComprovanteRecebimento');
   const aviso = document.getElementById('avisoValorRecebimento');
   if (aviso) aviso.remove();
   atualizarPreviewRecebimentoResumo_();
@@ -5407,6 +5423,7 @@ function resetFechamentoForm() {
   document.getElementById('ajCredito').value = '0';
   document.getElementById('ajDebito').value = '0';
   document.getElementById('linkPagamento').value = '';
+  removerComprovanteSelecionado_('fileComprovanteFechamento');
   document.getElementById('confirmarFechamento').checked = false;
   ajustesDetalhadosComissao = [];
   previewComissaoAtual = null;
@@ -5471,6 +5488,7 @@ async function submitRecebimento(){
   const valor = parseValorSeguro(valorRaw);
   if (!valor) return alert('Informe um valor válido maior que zero.');
 
+  if (!confirmarSemComprovante_('fileComprovanteRecebimento', 'comprovante')) return;
   lockSubmit = true;
   bloquearBotao(btn);
   showLoading('Validando recebimento...');
@@ -5479,6 +5497,7 @@ async function submitRecebimento(){
     const vinculacao = await garantirVinculoContratanteFinanceiro_(eventoSelecionado, 'o recebimento');
     if (vinculacao && vinculacao.cancelado) return;
 
+    await enviarComprovanteSelecionado_('fileComprovanteRecebimento', 'comprovante', 'RECEBIMENTO', eventoSelecionado);
     showLoading('Registrando recebimento...');
 
     const payload = {
@@ -5533,7 +5552,7 @@ async function submitRecebimento(){
 
 /* ================= FECHAMENTO V2 ================= */
 
-function executarFechamentoV2(){
+async function executarFechamentoV2(){
   const btn = event?.target;
   if (lockSubmit) return;
   if(!vendedorSelecionado) return alert('Selecione um vendedor');
@@ -5542,6 +5561,7 @@ function executarFechamentoV2(){
     return alert('Você deve confirmar que revisou os valores antes de fechar.');
   }
 
+  if (!confirmarSemComprovante_('fileComprovanteFechamento', 'linkPagamento')) return;
   lockSubmit = true;
   bloquearBotao(btn);
 
@@ -5571,6 +5591,11 @@ function executarFechamentoV2(){
     return;
   }
 
+  try {
+    payload.linkComprovante = await enviarComprovanteSelecionado_('fileComprovanteFechamento', 'linkPagamento', 'FECHAMENTO_COMISSAO', vendedorSelecionado.id);
+  } catch (err) {
+    hideLoading(); lockSubmit = false; liberarBotao(btn); tratarErroApi(err); return;
+  }
   showLoading('Gerando fechamento e PDF...');
 
   Auth.apiCall('fecharComissaoVendedor', {
