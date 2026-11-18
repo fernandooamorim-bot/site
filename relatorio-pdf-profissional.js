@@ -55,6 +55,13 @@ function gerarPdfFechamentoComissao(idFechamento) {
     snapshot = null;
   }
 
+  // A coluna do fechamento é a fonte principal; o snapshot cobre planilhas legadas
+  // sem esse cabeçalho, sem ressuscitar links removidos de uma coluna existente.
+  const indiceLinkPagamento = f('LINK_COMPROVANTE_PAGAMENTO');
+  const linkComprovantePagamento = indiceLinkPagamento >= 0
+    ? fechamento[indiceLinkPagamento]
+    : (snapshot && snapshot.linkComprovante) || '';
+
   const ajustePorEventoSnapshot = {};
   const ajusteObsPorEventoSnapshot = {};
   const ajustesDetalhadosSnapshot = (snapshot && Array.isArray(snapshot.ajustesDetalhados))
@@ -402,7 +409,8 @@ function gerarPdfFechamentoComissao(idFechamento) {
     ajusteCredito,
     ajusteDebito,
     valorFinal,
-    ajustesDetalhadosSnapshot
+    ajustesDetalhadosSnapshot,
+    linkComprovantePagamento
   );
 
   /* ================= PDF / DRIVE ================= */
@@ -448,7 +456,8 @@ function gerarRelatorioComissaoHTML_V2(
   ajusteCredito,
   ajusteDebito,
   valorFinal,
-  ajustesDetalhados
+  ajustesDetalhados,
+  linkComprovantePagamento
 ) {
   const logoUrl = (typeof obterConfig === 'function')
     ? String(obterConfig('LOGO_RELATORIO_PDF_URL') || '').trim()
@@ -459,6 +468,8 @@ function gerarRelatorioComissaoHTML_V2(
     Session.getScriptTimeZone(),
     'dd/MM/yyyy HH:mm'
   );
+
+  const linkPagamentoSeguro = normalizarLinkComprovanteRelatorio_(linkComprovantePagamento);
 
   let blocosEventos = '';
   eventos.forEach(ev => {
@@ -754,6 +765,9 @@ function gerarRelatorioComissaoHTML_V2(
       letter-spacing: .2px;
     }
 
+    .comprovante-pagamento { margin-top: 10px; text-align: center; font-size: 11px; font-weight: 700; }
+    .comprovante-pagamento a { color: #dbeafe; text-decoration: underline; }
+
     .foot {
       margin-top: 10px;
       color: #dbeafe;
@@ -807,6 +821,7 @@ function gerarRelatorioComissaoHTML_V2(
           <tr><td>Ajuste Débito</td><td>${formatarMoedaRelatorio_(ajusteDebito)}</td></tr>
         </table>
         <div class="final">VALOR FINAL: ${formatarMoedaRelatorio_(valorFinal)}</div>
+        ${linkPagamentoSeguro ? `<div class="comprovante-pagamento"><a href="${escaparAtributoRelatorio_(linkPagamentoSeguro)}">&#8599; Abrir comprovante de pagamento</a></div>` : ''}
         <div class="foot">Documento gerado automaticamente pelo sistema | ${dataFmt}</div>
       </div>
     </div>
@@ -817,6 +832,17 @@ function gerarRelatorioComissaoHTML_V2(
 }
 
 /* ================= UTIL ================= */
+
+// URLs fora de HTTP(S) não são incluídas no PDF; o atributo é escapado separadamente.
+function normalizarLinkComprovanteRelatorio_(valor) {
+  const link = String(valor || '').trim();
+  return /^https?:\/\/[^\s<>"'`]+$/i.test(link) ? link : '';
+}
+
+function escaparAtributoRelatorio_(valor) {
+  return String(valor || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;')
+    .replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/'/g, '&#39;');
+}
 
 function getOrCreateFolder_(parent, name) {
   const it = parent.getFoldersByName(name);
