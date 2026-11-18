@@ -1190,10 +1190,19 @@
     .proof-picker .proof-choose { width: auto; display: inline-flex; align-items: center; gap: 7px; cursor: pointer; margin: 0; }
     .proof-picker input[type=file] { position: absolute; width: 1px; height: 1px; padding: 0; opacity: 0; overflow: hidden; }
     .proof-picker input[type=file]:focus-visible + label { outline: 2px solid #2563eb; outline-offset: 3px; }
-    .proof-item { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 9px 12px; border: 1px solid #b9d8c7; border-radius: 8px; background: #f3faf6; }
-    .proof-item[hidden], .proof-choose[hidden] { display: none; }
-    .proof-name { flex: 1; min-width: 120px; overflow-wrap: anywhere; }
-    .proof-action { border: 0; background: transparent; color: #175d48; cursor: pointer; font: inherit; padding: 6px; }
+    .proof-item { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 12px 14px; border: 1px solid #b9d8c7; border-radius: 10px; background: #f3faf6; }
+    .proof-item[data-fase="enviando"] { border-color: #bfd5ef; background: #f2f7fd; color: #244a75; }
+    .proof-item[data-fase="erro"] { border-color: #f1c6b7; background: #fff7f4; color: #8f3928; }
+    .proof-item[hidden], .proof-choose[hidden], .proof-item [hidden] { display: none; }
+    .proof-icon { flex: none; font-size: 17px; line-height: 1; }
+    .proof-spinner { flex: none; width: 19px; height: 19px; border: 2px solid #c5d8ee; border-top-color: #245e9e; border-radius: 50%; animation: proof-spin .8s linear infinite; }
+    @keyframes proof-spin { to { transform: rotate(360deg); } }
+    @media (prefers-reduced-motion: reduce) { .proof-spinner { animation: none; border-color: #c5d8ee; border-top-color: #245e9e; } }
+    .proof-name { flex: 1; min-width: 120px; font-size: 13px; font-weight: 600; overflow-wrap: anywhere; }
+    .proof-action { border: 0; border-radius: 6px; background: transparent; color: #175d48; cursor: pointer; font: inherit; font-size: 13px; font-weight: 600; padding: 6px; }
+    .proof-action:hover { background: rgba(23, 93, 72, .08); }
+    .proof-action:focus-visible { outline: 2px solid #2563eb; outline-offset: 2px; }
+    .proof-action:disabled { opacity: .45; cursor: not-allowed; }
     .proof-picker details { margin-top: 8px; }
     .proof-picker summary { cursor: pointer; font-size: 13px; color: var(--gray-700); }
 
@@ -5071,7 +5080,9 @@ function montarCampoComprovante_(id, target) {
     <input type="file" id="${id}" accept="image/png,image/jpeg,application/pdf" onchange="iniciarUploadComprovante_('${id}', '${target}')">
     <label id="${id}Escolher" for="${id}" class="btn secondary proof-choose">📎 Anexar comprovante</label>
     <div id="${id}Item" class="proof-item" hidden>
-      <span aria-hidden="true">📄</span><span id="${id}Status" class="proof-name" role="status"></span>
+      <span id="${id}Icone" class="proof-icon" aria-hidden="true">📄</span>
+      <span id="${id}Spinner" class="proof-spinner" aria-hidden="true" hidden></span>
+      <span id="${id}Status" class="proof-name" role="status" aria-live="polite"></span>
       <button type="button" id="${id}Visualizar" class="proof-action" onclick="visualizarComprovanteSelecionado_('${id}')" aria-label="Visualizar comprovante">Visualizar</button>
       <button type="button" id="${id}Tentar" class="proof-action" onclick="iniciarUploadComprovante_('${id}', '${target}')" hidden>Tentar novamente</button>
       <button type="button" id="${id}Remover" class="proof-action" onclick="removerComprovanteSelecionado_('${id}')" aria-label="Remover comprovante">✕</button>
@@ -5097,7 +5108,12 @@ function atualizarComprovanteSelecionado_(id) {
   const ver = document.getElementById(id + 'Visualizar');
   const tentar = document.getElementById(id + 'Tentar');
   const remover = document.getElementById(id + 'Remover');
-  if (item) item.hidden = !(estado || file);
+  const spinner = document.getElementById(id + 'Spinner');
+  const icone = document.getElementById(id + 'Icone');
+  const enviando = estado?.fase === 'enviando';
+  if (item) { item.hidden = !(estado || file); item.dataset.fase = estado?.fase || ''; }
+  if (spinner) spinner.hidden = !enviando;
+  if (icone) icone.hidden = enviando;
   if (escolher) escolher.hidden = !!(estado || file);
   if (status) status.textContent = estado?.mensagem || (file ? file.name : '');
   if (ver) ver.hidden = estado?.fase !== 'enviado';
