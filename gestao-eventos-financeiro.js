@@ -1610,6 +1610,9 @@ function visualizarPreviewFechamento(idVendedor) {
       valor: isNaN(valor) ? 0 : valor,
       linkComprovante: m('LINK_COMPROVANTE') >= 0
         ? String(row[m('LINK_COMPROVANTE')] || '').trim()
+        : '',
+      observacoes: m('OBSERVACOES') >= 0
+        ? String(row[m('OBSERVACOES')] || '').trim()
         : ''
     };
   }
@@ -1740,6 +1743,7 @@ function visualizarPreviewFechamento(idVendedor) {
         : null,
       valorRecebido: recebimento ? recebimento.valor : 0,
       linkComprovanteRecebimento: recebimento ? recebimento.linkComprovante : '',
+      observacoesRecebimento: recebimento && !recebimento.linkComprovante ? recebimento.observacoes : '',
       statusOrigem,
       ajusteNecessario,
       valorAjuste,
