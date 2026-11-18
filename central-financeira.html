@@ -5112,11 +5112,6 @@ async function iniciarUploadComprovante_(id, targetId) {
   const file = input?.files?.[0];
   if (!file || !target) return;
   const contexto = contextoComprovante_(id);
-  if (!contexto.referencia) {
-    input.value = '';
-    atualizarComprovanteSelecionado_(id);
-    return alert(contexto.categoria === 'FECHAMENTO_COMISSAO' ? 'Selecione um vendedor antes de anexar.' : 'Selecione um evento antes de anexar.');
-  }
   if (String(target.value || '').trim()) {
     input.value = '';
     atualizarComprovanteSelecionado_(id);
