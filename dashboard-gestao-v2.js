@@ -121,6 +121,7 @@ function dashboardV2MovimentosPorEvento_(movimentos) {
     const valor = dashboardV2Numero_(dashboardV2Valor_(linha, m, 'VALOR', 0));
     const bucket = mapa[idEvento] || {
       recebido: 0,
+      temRecebimentoProcessado: false,
       comissaoGerada: 0,
       comissaoPaga: 0,
       bvPago: 0,
@@ -128,8 +129,8 @@ function dashboardV2MovimentosPorEvento_(movimentos) {
       folhaPaga: 0
     };
 
-    if (tipo === 'RECEBIMENTO_CLIENTE' && status === 'PROCESSADO') bucket.recebido += valor;
-    else if (tipo === 'ESTORNO_RECEBIMENTO' && status === 'PROCESSADO') bucket.recebido -= valor;
+    if (tipo === 'RECEBIMENTO_CLIENTE' && status === 'PROCESSADO') { bucket.recebido += valor; bucket.temRecebimentoProcessado = true; }
+    else if (tipo === 'ESTORNO_RECEBIMENTO' && status === 'PROCESSADO') { bucket.recebido -= valor; bucket.temRecebimentoProcessado = true; }
     else if (tipo === 'COMISSAO_GERADA') {
       bucket.comissaoGerada += valor;
       if (status === 'PROCESSADO') bucket.comissaoPaga += valor;
@@ -189,7 +190,7 @@ function dashboardV2AnaliseAvancada_(eventos, indice, movPorEvento, params) {
     const idEvento = String(dashboardV2Valor_(row, indice, 'ID_EVENTO', '') || '').trim();
     const mov = movPorEvento[idEvento] || { recebido: 0, comissaoGerada: 0, comissaoPaga: 0, bvPago: 0, nfPaga: 0, folhaPaga: 0 };
     const recebidoEspelho = dashboardV2Numero_(dashboardV2Valor_(row, indice, 'VALOR_RECEBIDO', 0));
-    const recebido = Math.abs(mov.recebido) > 0.009 ? mov.recebido : recebidoEspelho;
+    const recebido = mov.temRecebimentoProcessado ? mov.recebido : recebidoEspelho;
     const comissaoEsperada = dashboardV2Numero_(dashboardV2Valor_(row, indice, 'VALOR_COMISSAO_CALCULADO', 0));
     const bvEsperado = dashboardV2Numero_(dashboardV2Valor_(row, indice, 'VALOR_BV', 0));
     const nfEsperada = dashboardV2Numero_(dashboardV2Valor_(row, indice, 'VALOR_NF', 0));
@@ -353,7 +354,7 @@ function construirDashboardGestaoV2_(eventos, movimentos, opcoes) {
 
     const mov = movPorEvento[idEvento] || { recebido: 0, comissaoGerada: 0, comissaoPaga: 0, bvPago: 0, nfPaga: 0, folhaPaga: 0 };
     const recebidoEspelho = dashboardV2Numero_(dashboardV2Valor_(linha, e, 'VALOR_RECEBIDO', 0));
-    const recebeuPorMovimento = Math.abs(mov.recebido) > 0.009;
+    const recebeuPorMovimento = mov.temRecebimentoProcessado === true;
     const recebido = recebeuPorMovimento ? mov.recebido : recebidoEspelho;
     if (!recebeuPorMovimento && recebidoEspelho > 0) qualidade.eventosComFallbackRecebido++;
     const aReceber = Math.max(valorTotal - recebido, 0);

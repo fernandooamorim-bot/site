@@ -2670,14 +2670,23 @@ function atualizarResumoFinanceiroEvento(idEvento) {
   const mov = shMov.getDataRange().getValues();
   const movHead = mov.shift();
   const m = c => movHead.indexOf(c);
+  const obrigatoriasMov = ['ID_EVENTO', 'TIPO_MOVIMENTACAO', 'VALOR', 'STATUS'];
+  const obrigatoriasEvt = ['ID_EVENTO', 'VALOR_TOTAL', 'VALOR_RECEBIDO', 'VALOR_PENDENTE', 'STATUS_RECEBIMENTO'];
+  if (obrigatoriasMov.some(c => m(c) < 0) || obrigatoriasEvt.some(c => e(c) < 0)) {
+    throw new Error('Coluna obrigatória ausente para atualizar resumo financeiro');
+  }
 
-  const receb = mov.filter(r =>
-    String(r[m('ID_EVENTO')] || '').trim() === idEventoNorm &&
-    r[m('NATUREZA')] === 'ENTRADA' &&
-    r[m('STATUS')] !== 'CANCELADO'
-  );
-
-  const totalRecebido = receb.reduce((s, r) => s + (Number(r[m('VALOR')]) || 0), 0);
+  // Mesma regra do livro financeiro das consultas, mas com índices por cabeçalho:
+  // a atualização deve continuar compatível se as colunas forem reordenadas.
+  const totalRecebido = Number(mov.reduce((soma, linha) => {
+    if (String(linha[m('ID_EVENTO')] || '').trim() !== idEventoNorm ||
+        statusFinanceiroNormalizado_(linha[m('STATUS')]) !== 'PROCESSADO') return soma;
+    const tipo = String(linha[m('TIPO_MOVIMENTACAO')] || '').trim();
+    const valor = Number(linha[m('VALOR')]) || 0;
+    if (tipo === 'RECEBIMENTO_CLIENTE') return soma + valor;
+    if (tipo === 'ESTORNO_RECEBIMENTO') return soma - valor;
+    return soma;
+  }, 0).toFixed(2));
   const valorTotal = Number(evt[evtIdx][e('VALOR_TOTAL')]) || 0;
   // Mantém pendência financeira sem negativos (excedente é tratado como recebimento acima do contrato).
   const pendente = Math.max(valorTotal - totalRecebido, 0);
@@ -3750,7 +3759,7 @@ function obterDashboardGestao(params) {
     mensalEvento[dataEvtInfo.mes].contratado += valorTotal;
     mensalEvento[dataEvtInfo.mes].eventos += 1;
     let recebidoHibrido = recebido;
-    if (recebido > 0) {
+    if (bucket.temRecebimentoProcessado) {
       qualidade.eventosComMovRecebimento++;
     } else if (recebidoEspelho > 0) {
       recebidoHibrido = recebidoEspelho;
@@ -4045,6 +4054,7 @@ function agruparMovimentacoesFinanceirasPorEvento_(movData) {
     const valor = Number(row[6]) || 0;
     const bucket = mapa[idEvento] || {
       recebido: 0,
+      temRecebimentoProcessado: false,
       movimentacoesAtivas: 0,
       bv: { processado: 0, pendente: 0, valorProcessado: 0 },
       nf: { processado: 0, pendente: 0, valorProcessado: 0 },
@@ -4057,8 +4067,10 @@ function agruparMovimentacoesFinanceirasPorEvento_(movData) {
 
     if (tipo === 'RECEBIMENTO_CLIENTE' && status === 'PROCESSADO') {
       bucket.recebido += valor;
+      bucket.temRecebimentoProcessado = true;
     } else if (tipo === 'ESTORNO_RECEBIMENTO' && status === 'PROCESSADO') {
       bucket.recebido -= valor;
+      bucket.temRecebimentoProcessado = true;
     } else if (tipo === 'BV_EVENTO') {
       if (status === 'PROCESSADO') {
         bucket.bv.processado += 1;
