@@ -3978,8 +3978,7 @@ async function selectEvento(ev){
   if (String(mode || '') === 'recebimento') {
     const pctRecebido = vt > 0 ? Math.max(0, Math.min(100, (vr / vt) * 100)) : 0;
     const valorDigitado = parseValorSeguro(document.getElementById('valor')?.value || '', { allowZero: true }) || 0;
-    const prevRecebido = Number((vr + valorDigitado).toFixed(2));
-    const prevPendente = Number(Math.max(vt - prevRecebido, 0).toFixed(2));
+    const { recebido: prevRecebido, pendente: prevPendente, excedente: prevExcedente } = calcularPreviasRecebimento_(vt, vr, valorDigitado);
     const dataLancamento = String(document.getElementById('data')?.value || '');
     const duplicidade = valorDigitado > 0
       ? resumoRecebimentosRecentes.find(r => Number(r.valor || 0) === valorDigitado && (!dataLancamento || String(r.ddata || '') === dataLancamento))
@@ -4019,7 +4018,7 @@ async function selectEvento(ev){
             ${valorDigitado > 0
               ? `<div class="rf-preview-line">Entrada informada: <strong>R$ ${valorDigitado.toFixed(2)}</strong></div>
                  <div class="rf-preview-line">Saldo após lançamento: <strong>R$ ${prevRecebido.toFixed(2)}</strong> recebidos</div>
-                 <div class="rf-preview-line">${prevRecebido > vt ? 'Excedente após lançamento' : 'Em aberto após lançamento'}: <strong>R$ ${Math.abs(prevPendente).toFixed(2)}</strong></div>`
+                 <div class="rf-preview-line">${prevRecebido > vt ? 'Excedente após lançamento' : 'Em aberto após lançamento'}: <strong>R$ ${(prevRecebido > vt ? prevExcedente : prevPendente).toFixed(2)}</strong></div>`
               : 'Digite um valor para simular impacto no saldo.'}
           </div>
         </div>
@@ -5458,20 +5457,28 @@ function avaliarValorRecebimento(valorDigitado){
   atualizarPreviewRecebimentoResumo_();
 }
 
+function calcularPreviasRecebimento_(contrato, recebidoAtual, novaEntrada) {
+  const recebido = Number((Number(recebidoAtual || 0) + Number(novaEntrada || 0)).toFixed(2));
+  return {
+    recebido,
+    pendente: Number(Math.max(Number(contrato || 0) - recebido, 0).toFixed(2)),
+    excedente: Number(Math.max(recebido - Number(contrato || 0), 0).toFixed(2))
+  };
+}
+
 function atualizarPreviewRecebimentoResumo_(){
   if (String(mode || '') !== 'recebimento' || !ultimoResumoFinanceiro) return;
   const box = document.getElementById('rfPreviewTexto');
   if (!box) return;
 
   const vt = Number(ultimoResumoFinanceiro.valorTotal || 0);
-  const vr = Number(ultimoResumoFinanceiro.valorRecebidoAteAgora || ultimoResumoFinanceiro.valorRecebido || 0);
+  const vr = Number(ultimoResumoFinanceiro.valorRecebidoAteAgora ?? ultimoResumoFinanceiro.valorRecebido ?? 0);
   const valorDigitado = parseValorSeguro(document.getElementById('valor')?.value || '', { allowZero: true }) || 0;
-  const prevRecebido = Number((vr + valorDigitado).toFixed(2));
-  const prevPendente = Number(Math.max(vt - prevRecebido, 0).toFixed(2));
+  const { recebido: prevRecebido, pendente: prevPendente, excedente: prevExcedente } = calcularPreviasRecebimento_(vt, vr, valorDigitado);
   box.innerHTML = valorDigitado > 0
     ? `<div class="rf-preview-line">Entrada informada: <strong>R$ ${valorDigitado.toFixed(2)}</strong></div>
        <div class="rf-preview-line">Saldo após lançamento: <strong>R$ ${prevRecebido.toFixed(2)}</strong> recebidos</div>
-       <div class="rf-preview-line">${prevRecebido > vt ? 'Excedente após lançamento' : 'Em aberto após lançamento'}: <strong>R$ ${Math.abs(prevPendente).toFixed(2)}</strong></div>`
+       <div class="rf-preview-line">${prevRecebido > vt ? 'Excedente após lançamento' : 'Em aberto após lançamento'}: <strong>R$ ${(prevRecebido > vt ? prevExcedente : prevPendente).toFixed(2)}</strong></div>`
     : 'Digite um valor para simular impacto no saldo.';
 
   const dataLancamento = String(document.getElementById('data')?.value || '');
