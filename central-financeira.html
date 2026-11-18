@@ -841,6 +841,13 @@
       font-weight: 800;
       white-space: nowrap;
     }
+    .receb-obs-btn { display: inline-flex; align-items: center; gap: 4px; border: 1px solid #cbd8ee; border-radius: 7px; padding: 4px 8px; background: #f5f8fe; color: var(--navy-600); cursor: pointer; font: inherit; font-size: 11px; font-weight: 700; white-space: nowrap; }
+    .receb-obs-btn:hover { background: #eaf0fb; }
+    .receb-obs-btn:focus-visible, .receb-obs-fechar:focus-visible { outline: 2px solid #2563eb; outline-offset: 2px; }
+    .receb-obs-pop { position: fixed; z-index: 10000; width: min(320px, calc(100vw - 24px)); max-height: min(320px, calc(100vh - 24px)); display: flex; flex-direction: column; border-radius: 10px; background: #0f1a2e; color: #fff; box-shadow: 0 10px 28px rgba(15, 26, 46, .28); }
+    .receb-obs-topo { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px 6px; font-size: 12px; font-weight: 800; }
+    .receb-obs-fechar { border: 0; background: transparent; color: #fff; cursor: pointer; font-size: 18px; line-height: 1; padding: 3px; }
+    .receb-obs-texto { padding: 4px 12px 12px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 12px; line-height: 1.5; }
     .rf-link {
       font-size: 11px;
       font-weight: 700;
@@ -3980,13 +3987,13 @@ async function selectEvento(ev){
 
     const listaRecebHtml = resumoRecebimentosRecentes.length
       ? resumoRecebimentosRecentes.map(r => {
-          const link = String(r.linkComprovante || '').trim();
+          const link = normalizarLinkHttpSeguro_(r.linkComprovante);
           const ref = String(r.referencia || '').trim();
           return `
             <div class="rf-item">
               <div class="d">${escaparHtml_(String(r.dataFormatada || '—'))}</div>
               <div class="m">${escaparHtml_(String(r.formaPagamento || '—'))}${ref ? ` • ${escaparHtml_(ref)}` : ''}</div>
-              <div class="val">R$ ${Number(r.valor || 0).toFixed(2)}${link ? ` <a class="rf-link" target="_blank" rel="noopener" href="${escaparAttr_(link)}">comprovante</a>` : ''}</div>
+              <div class="val">R$ ${Number(r.valor || 0).toFixed(2)}${link ? ` <a class="rf-link" target="_blank" rel="noopener noreferrer" href="${escaparAttr_(link)}">comprovante</a>` : montarBotaoObservacoesRecebimento_(r.observacoes)}</div>
             </div>
           `;
         }).join('')
@@ -4934,7 +4941,7 @@ function carregarResumoVendedor(){
             <div>• Recebimento registrado em: <strong>${escaparHtml_(String(ev.dataRecebimento || '—'))}</strong></div>
             <div>• Valor recebido: <strong>R$ ${Number(ev.valorRecebido || 0).toFixed(2)}</strong></div>
             <div class="cs-pending">Comissão pendente: R$ ${valorPendente}</div>
-            ${linkComprovanteRecebimento ? `<div><a class="cs-proof" href="${escaparAttr_(linkComprovanteRecebimento)}" target="_blank" rel="noopener noreferrer">🧾 Abrir comprovante do recebimento</a></div>` : `<div class="muted">Comprovante do recebimento não informado</div>`}
+            ${linkComprovanteRecebimento ? `<div><a class="cs-proof" href="${escaparAttr_(linkComprovanteRecebimento)}" target="_blank" rel="noopener noreferrer">🧾 Abrir comprovante do recebimento</a></div>` : (String(ev.observacoesRecebimento || '').trim() ? `<div>${montarBotaoObservacoesRecebimento_(ev.observacoesRecebimento)}</div>` : `<div class="muted">Comprovante do recebimento não informado</div>`)}
           </div>
           ${ajuste !== 0 ? `<div class="cs-alert">⚠️ Ajuste por estorno aplicado nesta comissão (-R$ ${Math.abs(ajuste).toFixed(2)})</div>` : ``}
           <details class="cs-details">
@@ -4977,6 +4984,69 @@ function carregarResumoVendedor(){
 }
 
 let historicoFechamentosVendedorCarregado_ = '';
+
+function montarBotaoObservacoesRecebimento_(observacoes) {
+  const texto = String(observacoes || '').trim();
+  if (!texto) return '';
+  return `<button type="button" class="receb-obs-btn" data-observacao="${escaparHtml_(texto).replace(/\r/g, '&#13;').replace(/\n/g, '&#10;')}" aria-haspopup="dialog" aria-expanded="false" onclick="abrirObservacaoRecebimento_(this)">Observações</button>`;
+}
+
+function fecharObservacaoRecebimento_(devolverFoco) {
+  const painel = document.getElementById('recebObservacaoFlutuante');
+  if (!painel) return;
+  const origem = painel._origem;
+  painel.remove();
+  if (origem) {
+    origem.setAttribute('aria-expanded', 'false');
+    if (devolverFoco && origem.isConnected) origem.focus();
+  }
+}
+
+function abrirObservacaoRecebimento_(origem) {
+  const atual = document.getElementById('recebObservacaoFlutuante');
+  if (atual && atual._origem === origem) { fecharObservacaoRecebimento_(true); return; }
+  fecharObservacaoRecebimento_(false);
+  const texto = String(origem.getAttribute('data-observacao') || '').trim();
+  if (!texto) return;
+  const painel = document.createElement('div');
+  painel.id = 'recebObservacaoFlutuante';
+  painel.className = 'receb-obs-pop';
+  painel.setAttribute('role', 'dialog');
+  painel.setAttribute('aria-label', 'Observações do recebimento');
+  painel._origem = origem;
+  const topo = document.createElement('div');
+  topo.className = 'receb-obs-topo';
+  const titulo = document.createElement('span');
+  titulo.textContent = 'Observações do recebimento';
+  const fechar = document.createElement('button');
+  fechar.type = 'button'; fechar.className = 'receb-obs-fechar';
+  fechar.setAttribute('aria-label', 'Fechar observações'); fechar.textContent = '×';
+  fechar.onclick = () => fecharObservacaoRecebimento_(true);
+  const corpo = document.createElement('div');
+  corpo.className = 'receb-obs-texto'; corpo.tabIndex = 0; corpo.textContent = texto;
+  topo.append(titulo, fechar); painel.append(topo, corpo); document.body.appendChild(painel);
+  origem.setAttribute('aria-expanded', 'true');
+  const rect = origem.getBoundingClientRect();
+  const largura = painel.offsetWidth; const altura = painel.offsetHeight;
+  const esquerda = Math.max(12, Math.min(rect.left + rect.width / 2 - largura / 2, window.innerWidth - largura - 12));
+  let cima = rect.bottom + 8;
+  if (cima + altura > window.innerHeight - 12) cima = Math.max(12, rect.top - altura - 8);
+  painel.style.left = esquerda + 'px'; painel.style.top = cima + 'px';
+  fechar.focus({ preventScroll: true });
+}
+
+document.addEventListener('click', evt => {
+  const painel = document.getElementById('recebObservacaoFlutuante');
+  if (painel && !painel.contains(evt.target) && !evt.target.closest('.receb-obs-btn')) fecharObservacaoRecebimento_(false);
+});
+document.addEventListener('keydown', evt => {
+  if (evt.key === 'Escape') fecharObservacaoRecebimento_(true);
+});
+window.addEventListener('resize', () => fecharObservacaoRecebimento_(false));
+window.addEventListener('scroll', evt => {
+  const painel = document.getElementById('recebObservacaoFlutuante');
+  if (painel && !painel.contains(evt.target)) fecharObservacaoRecebimento_(false);
+}, true);
 
 function normalizarLinkHttpSeguro_(valor) {
   const raw = String(valor || '').trim();
