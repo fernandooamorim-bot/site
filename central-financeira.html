@@ -1186,6 +1186,17 @@
       margin-top: 12px;
     }
     .commission-totals label { margin-top: 0; }
+    .proof-picker { margin-top: 8px; }
+    .proof-picker .proof-choose { width: auto; display: inline-flex; align-items: center; gap: 7px; cursor: pointer; margin: 0; }
+    .proof-picker input[type=file] { position: absolute; width: 1px; height: 1px; padding: 0; opacity: 0; overflow: hidden; }
+    .proof-picker input[type=file]:focus-visible + label { outline: 2px solid #2563eb; outline-offset: 3px; }
+    .proof-item { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 9px 12px; border: 1px solid #b9d8c7; border-radius: 8px; background: #f3faf6; }
+    .proof-item[hidden], .proof-choose[hidden] { display: none; }
+    .proof-name { flex: 1; min-width: 120px; overflow-wrap: anywhere; }
+    .proof-action { border: 0; background: transparent; color: #175d48; cursor: pointer; font: inherit; padding: 6px; }
+    .proof-picker details { margin-top: 8px; }
+    .proof-picker summary { cursor: pointer; font-size: 13px; color: var(--gray-700); }
+
     .commission-upload {
       display: flex;
       gap: 8px;
@@ -1890,6 +1901,7 @@ buttons.forEach(b=>{
       alert('Aguarde o carregamento completo da Central Financeira.');
       return;
     }
+    if (lockSubmit) return;
     if (mode && mode !== b.dataset.mode && possuiDadosNaoProcessadosNoModoAtual_()) {
       if (!confirm('Há dados preenchidos que ainda não foram processados. Trocar de operação agora?')) return;
     }
@@ -1965,9 +1977,7 @@ function possuiDadosNaoProcessadosNoModoAtual_() {
   }
 
   if (modoAtual === 'comissao') {
-    // Comissão possui campos dinâmicos/autoajustáveis; para evitar falso-positivo
-    // que bloqueie a navegação, não exige confirmação ao trocar de módulo.
-    return false;
+    return campoTextoPreenchido_('linkPagamento') || inputTemArquivoSelecionado_('fileComprovanteFechamento') || (ajustesDetalhadosComissao || []).length > 0 || checkboxMarcado_('confirmarFechamento');
   }
 
   return false;
@@ -2301,14 +2311,7 @@ function renderRecebimento(){
       <option>Dinheiro</option>
     </select>
 
-    <label>Link do Comprovante</label>
-    <input id="comprovante">
-    <div style="margin-top:8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-      <input type="file" id="fileComprovanteRecebimento" accept="image/png,image/jpeg,application/pdf" onchange="atualizarComprovanteSelecionado_('fileComprovanteRecebimento')">
-      <span id="fileComprovanteRecebimentoStatus" class="muted" role="status">O arquivo será enviado ao confirmar.</span>
-      <button type="button" class="btn secondary" onclick="visualizarComprovanteSelecionado_('fileComprovanteRecebimento')">👁 Conferir</button>
-      <button type="button" class="btn secondary" onclick="removerComprovanteSelecionado_('fileComprovanteRecebimento')">✕ Remover arquivo</button>
-    </div>
+    ${montarCampoComprovante_('fileComprovanteRecebimento', 'comprovante')}
 
     <label>Observações</label>
     <textarea id="obs"></textarea>
@@ -2557,16 +2560,7 @@ function renderComissao(){
 
     <section class="commission-section">
       <div class="commission-section-head"><h4>Comprovante de pagamento</h4></div>
-      <p class="commission-section-copy">Informe um link ou carregue o arquivo do pagamento.</p>
-      <label>Link do comprovante
-        <input id="linkPagamento">
-      </label>
-    <div class="commission-upload">
-      <input type="file" id="fileComprovanteFechamento" accept="image/png,image/jpeg,application/pdf" onchange="atualizarComprovanteSelecionado_('fileComprovanteFechamento')">
-      <span id="fileComprovanteFechamentoStatus" class="muted" role="status">O arquivo será enviado ao confirmar.</span>
-      <button type="button" class="btn secondary" onclick="visualizarComprovanteSelecionado_('fileComprovanteFechamento')">👁 Conferir</button>
-      <button type="button" class="btn secondary" onclick="removerComprovanteSelecionado_('fileComprovanteFechamento')">✕ Remover arquivo</button>
-    </div>
+      ${montarCampoComprovante_('fileComprovanteFechamento', 'linkPagamento')}
     </section>
 
     <label class="closure-confirm">
@@ -2603,7 +2597,9 @@ function renderComissao(){
       sel.appendChild(o);
     });
     sel.onchange = ()=>{
-      vendedorSelecionado = vendedoresCache.find(v=>v.id==sel.value);
+      const novo = vendedoresCache.find(v=>v.id==sel.value);
+      if (!prepararTrocaVendedor_(novo)) { sel.value = vendedorSelecionado?.id || ''; return; }
+      vendedorSelecionado = novo;
       historicoFechamentosVendedorCarregado_ = '';
       if (vendedorSelecionado) {
         carregarResumoVendedor();
@@ -2787,14 +2783,7 @@ function renderCamposSaida() {
       <label>Data</label>
       <input type="date" id="dataSaida" value="${hojeLocalISO()}" readonly>
 
-      <label>Link do Comprovante</label>
-      <input id="comprovanteSaida">
-      <div style="margin-top:8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-        <input type="file" id="fileComprovanteSaida" accept="image/png,image/jpeg,application/pdf" onchange="atualizarComprovanteSelecionado_('fileComprovanteSaida')">
-      <span id="fileComprovanteSaidaStatus" class="muted" role="status">O arquivo será enviado ao confirmar.</span>
-      <button type="button" class="btn secondary" onclick="visualizarComprovanteSelecionado_('fileComprovanteSaida')">👁 Conferir</button>
-      <button type="button" class="btn secondary" onclick="removerComprovanteSelecionado_('fileComprovanteSaida')">✕ Remover arquivo</button>
-      </div>
+      ${montarCampoComprovante_('fileComprovanteSaida', 'comprovanteSaida')}
 
       <label>Observações</label>
       <textarea id="obsSaida"></textarea>
@@ -3798,6 +3787,26 @@ function aplicarProtecaoEventoCancelado_() {
 }
 
 async function selectEvento(ev){
+  if (lockSubmit && ev._refreshAposRecebimento !== true) return;
+  const novoId = String(ev.id || ev.ID_EVENTO || '').trim();
+  const anterior = String(eventoSelecionado || '').trim();
+  if (anterior && novoId !== anterior) {
+    if (lockSubmit) return;
+    if (possuiDadosNaoProcessadosNoModoAtual_() && !confirm('Há dados não processados neste evento. Deseja descartá-los e trocar de evento?')) {
+      const inp = document.getElementById('inputEvento');
+      if (inp) inp.value = anterior + ' — ' + (eventoSelecionadoMeta?.nomeEvento || eventoSelecionadoMeta?.contratante || '');
+      return;
+    }
+    if (mode === 'recebimento') limparCamposLancamentoRecebimento_();
+    if (mode === 'obrigacao') {
+      const tipo = document.getElementById('tipoSaida');
+      if (tipo) tipo.value = '';
+      const campos = document.getElementById('camposSaida');
+      if (campos) campos.innerHTML = '';
+      consumirOperationKey('saida');
+    }
+    if (mode === 'recebimento') consumirOperationKey('recebimento');
+  }
   const t0 = performance.now();
   const resumoSeqAtual = ++resumoEventoSeq;
   if (buscaEventoTimer) clearTimeout(buscaEventoTimer);
@@ -4602,12 +4611,22 @@ function buscarVendedor(q){
       const d = document.createElement('div');
       d.textContent = v.id + ' — ' + v.nome;
       d.onclick = ()=>{
+        if (!prepararTrocaVendedor_(v)) return;
         vendedorSelecionado = v;
         box.innerHTML = '';
         carregarResumoVendedor();
       };
       box.appendChild(d);
     });
+}
+
+function prepararTrocaVendedor_(novo) {
+  const anterior = String(vendedorSelecionado?.id || '');
+  if (!anterior || anterior === String(novo?.id || '')) return true;
+  if (lockSubmit) return false;
+  if (possuiDadosNaoProcessadosNoModoAtual_() && !confirm('Há dados não processados deste vendedor. Deseja descartá-los e trocar de vendedor?')) return false;
+  resetFechamentoForm();
+  return true;
 }
 
 function carregarResumoVendedor(){
@@ -5035,26 +5054,46 @@ function consumirOperationKey(tipo) {
   operationKeys[String(tipo || '')] = '';
 }
 
+function montarCampoComprovante_(id, target) {
+  return `<div class="proof-picker">
+    <input type="file" id="${id}" accept="image/png,image/jpeg,application/pdf" onchange="atualizarComprovanteSelecionado_('${id}')">
+    <label id="${id}Escolher" for="${id}" class="btn secondary proof-choose">📎 Anexar comprovante</label>
+    <div id="${id}Item" class="proof-item" hidden>
+      <span aria-hidden="true">📄</span><span id="${id}Status" class="proof-name" role="status"></span>
+      <button type="button" class="proof-action" onclick="visualizarComprovanteSelecionado_('${id}')" aria-label="Visualizar comprovante">Visualizar</button>
+      <button type="button" class="proof-action" onclick="removerComprovanteSelecionado_('${id}')" aria-label="Remover comprovante">✕</button>
+    </div>
+    <details><summary>Informar link do comprovante</summary><label for="${target}">Link do comprovante</label><input id="${target}" type="url" placeholder="https://"></details>
+    <small class="muted">PNG, JPG ou PDF · até 2 MB</small>
+  </div>`;
+}
+
 function atualizarComprovanteSelecionado_(id) {
   const input = document.getElementById(id);
   const status = document.getElementById(id + 'Status');
   const file = input?.files?.[0];
-  if (!file) { if (status) status.textContent = 'O arquivo será enviado ao confirmar.'; return; }
+  const item = document.getElementById(id + 'Item');
+  const escolher = document.getElementById(id + 'Escolher');
+  if (item) item.hidden = !file;
+  if (escolher) escolher.hidden = !!file;
+  if (!file) { if (status) status.textContent = ''; return; }
   const tipo = (file.type || inferirMimePorNomeArquivo(file.name) || '').toLowerCase();
   if (!['image/png', 'image/jpeg', 'application/pdf'].includes(tipo) || file.size > 2 * 1024 * 1024 || !file.size) {
     input.value = '';
-    if (status) status.textContent = 'Arquivo não selecionado.';
+    if (item) item.hidden = true;
+    if (escolher) escolher.hidden = false;
+    if (status) status.textContent = '';
     alert('Use um arquivo PNG, JPG ou PDF de até 2 MB e que não esteja vazio.');
     return;
   }
-  if (status) status.textContent = 'Selecionado: ' + file.name + ' — será enviado ao confirmar.';
+  if (status) status.textContent = file.name;
 }
 
 function visualizarComprovanteSelecionado_(id) {
   const file = document.getElementById(id)?.files?.[0];
   if (!file) return alert('Selecione um arquivo para conferir.');
   const url = URL.createObjectURL(file);
-  const janela = window.open(url, '_blank', 'noopener');
+  window.open(url, '_blank', 'noopener');
   setTimeout(() => URL.revokeObjectURL(url), 60000);
 }
 
@@ -5095,6 +5134,12 @@ async function enviarComprovanteSelecionado_(fileId, targetId, categoria, refere
   input.value = '';
   const status = document.getElementById(fileId + 'Status');
   if (status) status.textContent = 'Arquivo enviado; link disponível acima.';
+  const item = document.getElementById(fileId + 'Item');
+  const escolher = document.getElementById(fileId + 'Escolher');
+  if (item) item.hidden = true;
+  if (escolher) escolher.hidden = false;
+  const detalhes = target.closest?.('details');
+  if (detalhes) detalhes.open = true;
   return resp.linkArquivo;
 }
 
@@ -5533,6 +5578,7 @@ async function submitRecebimento(){
     if (eventoAtual) {
       await selectEvento({
         id: String(metaAtual?.idEvento || eventoAtual),
+        _refreshAposRecebimento: true,
         contratante: String(metaAtual?.contratante || ''),
         tipoEvento: String(metaAtual?.tipoEvento || 'Evento')
       });
